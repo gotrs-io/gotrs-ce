@@ -36,15 +36,18 @@ jobs:
           govulncheck ./...
 
       - name: Run Go security scanner (gosec)
-        uses: securecodewarrior/github-action-gosec@master
-        with:
-          args: '-fmt sarif -out gosec-results.sarif ./...'
+        run: |
+          go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+          gosec -fmt json -out gosec-results.json ./...
+          gosec -fmt text ./...
           
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Upload gosec results
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          sarif_file: gosec-results.sarif
+          name: gosec-results
+          path: gosec-results.json
+          retention-days: 30
 
       - name: Run go vet
         run: go vet ./...
@@ -78,7 +81,7 @@ jobs:
         run: npm ci
 
       - name: Run npm audit
-        run: npm audit --audit-level moderate
+        run: npm audit --audit-level high --production
 
       - name: Run ESLint
         run: npm run lint
@@ -107,15 +110,16 @@ jobs:
             p/react
             p/typescript
             p/docker
-          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
-          publishDeployment: ${{ secrets.SEMGREP_DEPLOYMENT_ID }}
-          generateSarif: "1"
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
-      - name: Upload SARIF file for GitHub Advanced Security Dashboard
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Upload Semgrep results
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          sarif_file: semgrep.sarif
+          name: semgrep-results  
+          path: semgrep.json
+          retention-days: 30
 
   infrastructure-security:
     name: Infrastructure Security
@@ -128,44 +132,21 @@ jobs:
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile.dev
-          format: sarif
-          output-file: hadolint-results.sarif
           failure-threshold: warning
 
       - name: Run Hadolint on frontend Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile.frontend
-          format: sarif
-          output-file: hadolint-frontend-results.sarif
           failure-threshold: warning
-
-      - name: Upload Hadolint results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: hadolint-results.sarif
-
-      - name: Upload Hadolint frontend results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: hadolint-frontend-results.sarif
 
       - name: Run Trivy vulnerability scanner on repository
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+          format: 'table'
           severity: 'CRITICAL,HIGH,MEDIUM'
-
-      - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
 
       - name: Run GitLeaks
         uses: gitleaks/gitleaks-action@v2

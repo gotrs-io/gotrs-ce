@@ -171,19 +171,15 @@ jobs:
           format: 'sarif'
           output: 'trivy-frontend-results.sarif'
 
-      - name: Upload Trivy scan results (Backend)
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Upload Trivy scan results
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          sarif_file: 'trivy-backend-results.sarif'
-          category: 'backend-image'
-
-      - name: Upload Trivy scan results (Frontend)
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-frontend-results.sarif'
-          category: 'frontend-image'
+          name: trivy-scan-results
+          path: |
+            trivy-backend-results.sarif
+            trivy-frontend-results.sarif
+          retention-days: 30
 
   create-release:
     name: Create GitHub Release

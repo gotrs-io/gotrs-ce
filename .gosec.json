@@ -1,0 +1,14 @@
+{
+  "description": "GOSEC configuration for GOTRS",
+  "severity": "medium",
+  "confidence": "medium",
+  "excludes": [
+    "G304"
+  ],
+  "exclude-generated": true,
+  "include": [],
+  "exclude-dirs": [
+    "vendor",
+    "node_modules"
+  ]
+}

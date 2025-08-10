@@ -1,8 +1,14 @@
 # Development Dockerfile for React frontend with hot reload
 FROM node:18-alpine
 
-# Install dependencies for better compatibility
-RUN apk add --no-cache python3 make g++
+# Set shell options for better error handling
+SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
+
+# Install dependencies with pinned versions for better compatibility
+RUN apk add --no-cache \
+    python3=3.12.11-r0 \
+    make=4.4.1-r2 \
+    g++=14.2.0-r4
 
 # Use existing node user (already exists with uid 1000)
 RUN mkdir -p /home/node/.cache && chown -R node:node /home/node

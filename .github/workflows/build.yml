@@ -249,15 +249,30 @@ jobs:
     if: always()
     steps:
       - name: Build Summary
+        env:
+          BACKEND_RESULT: ${{ needs.build-backend.result }}
+          FRONTEND_RESULT: ${{ needs.build-frontend.result }}
+          BACKEND_IMAGE: ${{ needs.build-backend.outputs.image }}
+          FRONTEND_IMAGE: ${{ needs.build-frontend.outputs.image }}
+          PUSH_TO_REGISTRY: ${{ github.event.inputs.push_to_registry }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Status | Image |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend | ${{ needs.build-backend.result == 'success' && '✅ Success' || '❌ Failed' }} | \`${{ needs.build-backend.outputs.image }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend | ${{ needs.build-frontend.result == 'success' && '✅ Success' || '❌ Failed' }} | \`${{ needs.build-frontend.outputs.image }}\` |" >> $GITHUB_STEP_SUMMARY
+          if [[ "$BACKEND_RESULT" == "success" ]]; then
+            echo "| Backend | ✅ Success | \`$BACKEND_IMAGE\` |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Backend | ❌ Failed | \`$BACKEND_IMAGE\` |" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [[ "$FRONTEND_RESULT" == "success" ]]; then
+            echo "| Frontend | ✅ Success | \`$FRONTEND_IMAGE\` |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Frontend | ❌ Failed | \`$FRONTEND_IMAGE\` |" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ github.event.inputs.push_to_registry }}" == "true" || "${{ github.event_name }}" == "push" ]]; then
+          if [[ "$PUSH_TO_REGISTRY" == "true" || "$EVENT_NAME" == "push" ]]; then
             echo "- Images have been pushed to the registry" >> $GITHUB_STEP_SUMMARY
             echo "- Security scans completed" >> $GITHUB_STEP_SUMMARY
             echo "- SLSA attestations generated" >> $GITHUB_STEP_SUMMARY

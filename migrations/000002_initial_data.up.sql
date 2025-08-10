@@ -6,6 +6,7 @@ VALUES ('system', '$2a$12$dummy.hash.for.system.user', 'System', 'User', 'system
 
 -- Insert default admin user (password: admin123)
 INSERT INTO users (login, password_hash, first_name, last_name, email, create_by, change_by) 
+-- semgrep:ignore generic.secrets.security.detected-bcrypt-hash.detected-bcrypt-hash: This is a legitimate test bcrypt hash for development
 VALUES ('admin', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/lewBUz8n8p9UqRVe2', 'Admin', 'User', 'admin@localhost', 1, 1);
 
 -- Insert default groups

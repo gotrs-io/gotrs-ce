@@ -85,19 +85,56 @@ Comprehensive guide for developers working with and extending GOTRS.
 
 ### Setup Development Environment
 
+#### Container-Based Development (Recommended)
+
 ```bash
 # Clone repository
-git clone https://github.com/gotrs/gotrs.git
-cd gotrs
+git clone https://github.com/gotrs-io/gotrs-ce.git
+cd gotrs-ce
+
+# Copy environment configuration
+cp .env.example .env
+
+# Start all services with hot reload
+make up
+
+# View logs
+make logs
+
+# Access services:
+# - Frontend: http://localhost:3000
+# - Backend API: http://localhost:8080
+# - Mailhog: http://localhost:8025
+```
+
+#### Local Development (Without Containers)
+
+```bash
+# Prerequisites: Go 1.21+, Node.js 18+, PostgreSQL 15+, Redis 7+
 
 # Backend setup
 go mod download
 go run cmd/server/main.go
 
-# Frontend setup
+# Frontend setup (in separate terminal)
 cd web
 npm install
 npm run dev
+```
+
+#### Development Commands
+
+```bash
+# Container management
+make up           # Start all services
+make down         # Stop all services  
+make logs         # View logs
+make clean        # Reset everything
+make db-shell     # PostgreSQL shell
+
+# Development tools
+make lint         # Run linters (when available)
+make test         # Run tests (when available)
 ```
 
 ### Project Structure
@@ -115,10 +152,61 @@ gotrs/
 
 ### Key Technologies
 
-- **Backend**: Go, Gin, GORM, PostgreSQL
-- **Frontend**: React, TypeScript, Material-UI
+- **Backend**: Go, Gin, PostgreSQL, Redis
+- **Frontend**: React, TypeScript, Vite, Material-UI
+- **Containers**: Docker/Podman (rootless support)
 - **Testing**: Go testing, Jest, Playwright
 - **DevOps**: Docker, Kubernetes, GitHub Actions
+
+## Development Troubleshooting
+
+### Common Issues
+
+#### Frontend Permission Errors
+
+```bash
+# Error: EACCES: permission denied, open '/app/vite.config.ts.timestamp-*'
+# Solution: Fix file ownership (usually not needed)
+sudo chown -R $USER:$USER ./web/
+make down && make up
+```
+
+#### Container Build Issues
+
+```bash
+# Clean rebuild
+make clean
+podman system prune -f  # or docker system prune -f
+make up
+```
+
+#### Hot Reload Not Working
+
+```bash
+# Ensure volume mounts are correct
+make down
+make up
+
+# Check container logs
+podman logs gotrs-frontend
+podman logs gotrs-backend
+```
+
+#### Port Conflicts
+
+```bash
+# Change ports in .env file:
+FRONTEND_PORT=3001
+BACKEND_PORT=8081
+```
+
+### Development Tips
+
+- Use `make logs` to monitor all services
+- Frontend changes auto-reload via Vite
+- Backend changes auto-reload via Air
+- Database persists between container restarts
+- Use Mailhog to test email functionality
 
 ## API Reference
 

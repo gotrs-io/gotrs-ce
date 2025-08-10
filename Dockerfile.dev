@@ -4,14 +4,15 @@ FROM golang:1.21-alpine
 # Install dependencies
 RUN apk add --no-cache git make gcc musl-dev
 
-# Create non-root user
-RUN addgroup -g 1000 -S appgroup && \
-    adduser -u 1000 -S appuser -G appgroup
+# Create non-root user (check if group exists first)
+RUN getent group 1000 || addgroup -g 1000 -S appgroup && \
+    adduser -u 1000 -S appuser -G appgroup 2>/dev/null || \
+    adduser -u 1000 -S appuser -G $(getent group 1000 | cut -d: -f1)
 
-# Install air for hot reload (as root, then switch)
-RUN go install github.com/cosmtrek/air@latest && \
-    go install github.com/swaggo/swag/cmd/swag@latest && \
-    go install github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+# Install air for hot reload (as root, then switch) - using versions compatible with Go 1.21
+RUN go install github.com/cosmtrek/air@v1.49.0 && \
+    go install github.com/swaggo/swag/cmd/swag@v1.16.3 && \
+    go install github.com/golang-migrate/migrate/v4/cmd/migrate@v4.17.1
 
 # Create app directory with correct permissions
 RUN mkdir -p /app /home/appuser/.cache && \

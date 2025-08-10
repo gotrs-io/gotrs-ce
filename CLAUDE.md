@@ -62,8 +62,34 @@ make clean                 # Reset everything
 2. Add UI: component � action � reducer � API call
 3. Add migration: Create numbered SQL file in /migrations
 
+## Current Status (Aug 10, 2025)
+✅ Project structure created
+✅ Docker/Podman containers working
+✅ Frontend (React + Vite) running with hot reload
+✅ Backend (Go + Air) basic structure
+✅ PostgreSQL database running
+✅ Development environment functional
+
 ## Current Focus
 Building MVP with core ticketing functionality. See ROADMAP.md for timeline.
+
+## Troubleshooting
+
+### Permission Issues (Rare)
+If you see `EACCES: permission denied` errors:
+```bash
+sudo chown -R $USER:$USER ./web/
+make down && make up
+```
+Note: Usually not needed as files are created with correct ownership.
+
+### Docker Hub Auth Issues
+If pulls fail with `unauthorized`:
+```bash
+podman pull docker.io/library/postgres:15-alpine
+podman pull docker.io/library/redis:7-alpine
+make up
+```
 
 ## Important Files
 - `.env.example` - Environment configuration template

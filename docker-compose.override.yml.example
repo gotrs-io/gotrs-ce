@@ -1,0 +1,40 @@
+# docker-compose.override.yml.example
+# Copy to docker-compose.override.yml for local customization
+# This file is gitignored and won't be committed
+
+version: '3.8'
+
+services:
+  # Override ports if needed
+  postgres:
+    ports:
+      - "15432:5432"  # Use different port if 5432 is taken
+
+  backend:
+    environment:
+      # Add local environment overrides
+      LOG_LEVEL: debug
+      DEV_SQL_DEBUG: true
+    # Mount additional volumes
+    # volumes:
+    #   - ./local-config:/app/config
+
+  frontend:
+    environment:
+      # Override API URL if needed
+      VITE_API_URL: http://localhost:8080/api
+    # ports:
+    #   - "3001:3000"  # Use different port if 3000 is taken
+
+  # Enable optional services by removing profiles
+  adminer:
+    profiles: []  # Remove profile to always start adminer
+
+  # Add additional development services
+  # swagger-ui:
+  #   image: swaggerapi/swagger-ui
+  #   ports:
+  #     - "8081:8080"
+  #   environment:
+  #     SWAGGER_JSON: /api/swagger.json
+  #     BASE_URL: /swagger

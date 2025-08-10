@@ -1,0 +1,40 @@
+{
+  "project": "GOTRS",
+  "type": "web-application",
+  "stack": {
+    "backend": ["go", "gin", "postgresql", "redis"],
+    "frontend": ["react", "typescript", "material-ui"],
+    "tools": ["docker", "kubernetes"]
+  },
+  "response_style": {
+    "conciseness": "maximum",
+    "explanations": "minimal",
+    "code_comments": "sparse",
+    "confirmations": "skip"
+  },
+  "code_generation": {
+    "style": "efficient",
+    "imports": "assume_standard",
+    "error_handling": "simple",
+    "testing": "minimal"
+  },
+  "context_files": [
+    "CLAUDE.md",
+    ".env.example",
+    "docs/development/MVP.md",
+    "docs/development/DATABASE.md"
+  ],
+  "ignore_patterns": [
+    "node_modules",
+    "vendor",
+    "dist",
+    "build",
+    "*.log"
+  ],
+  "preferences": {
+    "batch_operations": true,
+    "multi_file_edits": true,
+    "avoid_duplication": true,
+    "reuse_patterns": true
+  }
+}

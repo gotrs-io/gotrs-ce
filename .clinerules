@@ -1,0 +1,29 @@
+# CLI Rules for GOTRS Project
+
+# Response Style
+concise: true
+skip_explanations: true
+no_preambles: true
+minimal_comments: true
+
+# Code Generation
+assume_imports: true
+skip_boilerplate: true
+use_existing_patterns: true
+
+# File Operations  
+batch_operations: true
+skip_confirmations: true
+
+# Development
+assume_common_libraries: true
+minimal_error_handling: true
+focus_on_core_logic: true
+
+# Documentation
+minimal_inline_comments: true
+skip_obvious_documentation: true
+
+# Testing
+minimal_test_coverage: true
+critical_paths_only: true

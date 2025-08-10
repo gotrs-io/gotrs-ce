@@ -1,0 +1,30 @@
+# Authors
+
+This file lists the authors and contributors to GOTRS. It is maintained
+in chronological order of first contribution.
+
+The format is: Name <email> (github_username) [Role/Company]
+
+For the full list of contributors, see the revision history in source control.
+
+## Core Maintainers
+
+* Gibbsoft Ltd <dev@gibbsoft.com> (gibbsoft) [Project Owner]
+
+## Contributors
+
+Contributors are added to this file when they submit their first merged pull request.
+Please add yourself in the format above when contributing.
+
+* Your Name <your.email@example.com> (github_username) [Optional: Company/Role]
+
+## Special Thanks
+
+* The OTRS community for pioneering open source ticketing systems
+* All users who provide feedback and bug reports
+* Open source projects that GOTRS builds upon (see NOTICE file)
+
+---
+
+To be included in this file, contributors must sign the Contributor License
+Agreement (CLA) available at https://gotrs.io/cla

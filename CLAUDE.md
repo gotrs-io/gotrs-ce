@@ -1,0 +1,107 @@
+# CLAUDE.md - AI Assistant Project Context
+
+## Project Overview
+GOTRS is a modern ticketing system replacing OTRS, built with Go (backend) and React (frontend). Security-first design with rootless containers.
+
+## Tech Stack
+- Backend: Go 1.21+, Gin, PostgreSQL, Redis
+- Frontend: React 18, TypeScript, Material-UI, Redux Toolkit
+- Containers: Docker/Podman (first-class support for both)
+- Deploy: Kubernetes, OpenShift-ready
+- Current Phase: MVP Development (Started Aug 10, 2025)
+
+## Key Principles
+- **Docker/Podman from Day 1**: All development in containers
+- **Security First**: Non-root containers (UID 1000), Alpine base
+- **Podman Priority**: Full rootless and SELinux support
+- **OpenShift Ready**: SCC-compatible containers
+
+## Project Structure
+```
+/cmd/server/main.go         - Entry point
+/internal/                  - Core business logic
+  /api/                    - HTTP handlers
+  /core/                   - Domain logic
+  /data/                   - Database layer
+/web/                      - React frontend
+/migrations/               - SQL migrations
+/docker/                    - Container configs
+/scripts/                   - Init scripts
+```
+
+## Key Commands
+```bash
+make up                     # Start all services (auto-detects docker/podman)
+make down                   # Stop services
+make logs                   # View logs
+make db-shell              # PostgreSQL shell
+make clean                 # Reset everything
+```
+
+## Container Services
+- **postgres**: PostgreSQL 15 Alpine
+- **redis**: Redis 7 Alpine  
+- **backend**: Go with Air hot reload (non-root)
+- **frontend**: React with Vite HMR (non-root)
+- **nginx**: Reverse proxy
+- **mailhog**: Email testing
+
+## Database
+- PostgreSQL with OTRS-compatible schema
+- Main tables: users, tickets, ticket_messages, attachments
+- Use migrations for schema changes
+
+## API Patterns
+- REST endpoints: /api/v1/*
+- Auth: JWT in Authorization header
+- Response: JSON with {success, data, error}
+- Status codes: 200 OK, 201 Created, 400 Bad Request, 401 Unauthorized, 500 Error
+
+## Common Tasks
+1. Add endpoint: handler � route � service � repository
+2. Add UI: component � action � reducer � API call
+3. Add migration: Create numbered SQL file in /migrations
+
+## Current Focus
+Building MVP with core ticketing functionality. See ROADMAP.md for timeline.
+
+## Important Files
+- `.env.example` - Environment configuration template
+- `docker-compose.yml` - Container orchestration (Podman compatible)
+- `Makefile` - Development commands (auto-detects docker/podman)
+- `ROADMAP.md` - Development phases and timeline
+- `docs/PODMAN.md` - Podman/rootless documentation
+- `docs/development/MVP.md` - MVP implementation details
+- `docs/development/DATABASE.md` - Schema documentation
+
+## Coding Standards
+- Go: Standard formatting (gofmt)
+- React: Functional components with TypeScript
+- SQL: Lowercase with underscores
+- Git: Conventional commits (feat:, fix:, docs:)
+
+## Development Environment
+- **Primary Platform**: Fedora Kinoite with Podman
+- **Also Supports**: Any OS with Docker/Podman
+- **No Local Dependencies**: Everything runs in containers
+- **Hot Reload**: Both backend (Air) and frontend (Vite)
+- **Email Testing**: Mailhog catches all emails locally
+
+## Security Requirements
+- All containers run as non-root (UID 1000)
+- Alpine Linux base images only
+- SELinux labels on volume mounts (:Z)
+- Rootless container support
+- OpenShift SCC compatible
+
+## Testing Requirements
+- Unit tests for critical business logic
+- API endpoint tests
+- Run tests in containers: `make test`
+- Skipping UI tests in MVP phase
+
+## Performance Targets
+- API response < 200ms (p95)
+- Page load < 2 seconds
+- Support 100 concurrent users (MVP)
+- Container images < 100MB each

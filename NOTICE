@@ -1,0 +1,86 @@
+GOTRS - Go Open Ticket Request System
+Copyright 2025 Gibbsoft Ltd and Contributors
+
+This product includes software developed by Gibbsoft Ltd
+(https://www.gibbsoft.com) and the GOTRS community (https://gotrs.io).
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+=========================================================================
+Third Party Software Notices
+=========================================================================
+
+This software leverages the following open source projects:
+
+Go Programming Language
+-----------------------
+Copyright (c) 2009 The Go Authors. All rights reserved.
+BSD 3-Clause License
+https://golang.org/LICENSE
+
+React
+-----
+Copyright (c) Facebook, Inc. and its affiliates.
+MIT License
+https://github.com/facebook/react/blob/main/LICENSE
+
+PostgreSQL JDBC Driver
+----------------------
+Copyright (c) 1997, PostgreSQL Global Development Group
+BSD 2-Clause License
+https://jdbc.postgresql.org/about/license.html
+
+Redis
+-----
+Copyright (c) 2006-2020, Salvatore Sanfilippo
+BSD 3-Clause License
+https://redis.io/topics/license
+
+Alpine Linux
+------------
+Various licenses (mostly MIT/BSD)
+https://www.alpinelinux.org/
+
+Docker/Podman
+-------------
+Apache License 2.0
+https://www.docker.com/legal/docker-software-end-user-license-agreement
+https://github.com/containers/podman/blob/main/LICENSE
+
+=========================================================================
+Attribution Notices
+=========================================================================
+
+GOTRS was created and is maintained by Gibbsoft Ltd with contributions
+from the open source community. Special thanks to all contributors who
+help make GOTRS better.
+
+The GOTRS name and logo are trademarks of Gibbsoft Ltd.
+
+For a complete list of contributors, see the AUTHORS file.
+
+=========================================================================
+Contact Information
+=========================================================================
+
+Gibbsoft Ltd
+United Kingdom
+Company Registration: [To be provided]
+
+Project Website: https://gotrs.io
+GitHub: https://github.com/gotrs/gotrs
+Email: info@gotrs.io
+
+For licensing inquiries: licensing@gotrs.io
+For security issues: security@gotrs.io
+For general support: support@gotrs.io

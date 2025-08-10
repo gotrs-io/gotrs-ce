@@ -4,23 +4,25 @@ FROM node:18-alpine
 # Install dependencies for better compatibility
 RUN apk add --no-cache python3 make g++
 
-# Create non-root user
-RUN addgroup -g 1000 -S appgroup && \
-    adduser -u 1000 -S appuser -G appgroup
+# Use existing node user (already exists with uid 1000)
+RUN mkdir -p /home/node/.cache && chown -R node:node /home/node
 
 # Create app directory with correct permissions
 RUN mkdir -p /app && \
-    chown -R appuser:appgroup /app
+    chown -R node:node /app
 
 # Switch to non-root user
-USER appuser
+USER node
 WORKDIR /app
 
 # Copy package files (as non-root)
-COPY --chown=appuser:appgroup package*.json ./
+COPY --chown=node:node package*.json ./
 
 # Install dependencies (cached layer)
 RUN npm ci 2>/dev/null || npm install
+
+# Copy source files
+COPY --chown=node:node . ./
 
 # Expose Vite dev server port (as non-root)
 EXPOSE 3000

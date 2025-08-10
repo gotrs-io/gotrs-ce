@@ -24,42 +24,137 @@ This guide will help you get GOTRS up and running quickly for evaluation and dev
 
 ## Quick Preview
 
-### 1. Start with Docker Compose
+### 1. Start with Docker/Podman Compose
 
 ```bash
 # Clone repository
-git clone https://github.com/gotrs/gotrs.git
-cd gotrs
+git clone https://github.com/gotrs-io/gotrs-ce.git
+cd gotrs-ce
 
 # Copy environment template
 cp .env.example .env
 
-# Start services
-docker-compose up -d
+# Start services (auto-detects docker/podman)
+make up
+
+# Or manually:
+# docker-compose up -d
+# podman-compose up -d
 
 # Check status
-docker-compose ps
+make logs
 ```
 
 ### 2. Access GOTRS
 
-- **Web Interface**: http://localhost:8080
-- **API Documentation**: http://localhost:8080/api/docs
-- **Default Admin**: admin@localhost / admin123
+- **Frontend (React)**: http://localhost:3000
+- **Backend API**: http://localhost:8080/api/v1/status
+- **API Documentation**: http://localhost:8080/api/docs (coming soon)
+- **Mailhog (Email Testing)**: http://localhost:8025
+- **Database Admin**: http://localhost:8090 (Adminer, optional)
 
-### 3. Initial Setup
+### 3. Development Environment
 
-1. Log in as admin
-2. Configure email settings
-3. Create your first queue
-4. Add agents
-5. Create a test ticket
+Once services are running:
+
+```bash
+# View logs
+make logs
+
+# Stop services
+make down
+
+# Restart services
+make up
+
+# Clean restart (removes volumes)
+make clean && make up
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### Permission Denied Errors (Frontend)
+
+If you see errors like `EACCES: permission denied, open '/app/vite.config.ts.timestamp-*'`:
+
+```bash
+# Fix file ownership (rarely needed)
+sudo chown -R $USER:$USER ./web/
+
+# Or for containers specifically:
+sudo chown -R 1000:1000 ./web/
+
+# Then restart containers
+make down && make up
+```
+
+**Note**: This is typically only needed if files were created by root or copied from another system.
+
+#### Docker Hub Authentication Issues
+
+If you see `unauthorized: incorrect username or password`:
+
+```bash
+# Pull images manually first
+podman pull docker.io/library/postgres:15-alpine
+podman pull docker.io/library/redis:7-alpine
+podman pull docker.io/library/nginx:alpine
+
+# Then start services
+make up
+```
+
+#### Container Build Failures
+
+```bash
+# Clean rebuild all containers
+make clean
+podman system prune -f
+make up
+```
+
+#### Port Already in Use
+
+```bash
+# Check what's using the port
+sudo netstat -tulpn | grep :3000
+
+# Stop conflicting services or change ports in .env
+```
+
+#### Frontend Not Loading
+
+```bash
+# Check frontend container status
+podman logs gotrs-frontend
+
+# Ensure npm dependencies are installed
+cd web && npm install && cd ..
+make down && make up
+```
+
+### Development Setup Verification
+
+Check if everything is working:
+
+```bash
+# Health checks
+curl http://localhost:8080/health          # Backend health
+curl http://localhost:3000                # Frontend app
+curl http://localhost:8025                # Mailhog UI
+
+# Database connection
+make db-shell  # Should connect to PostgreSQL
+```
 
 ## Available Guides
 
 - [Docker Deployment](../deployment/docker.md)
 - [Administrator Guide](../admin-guide/README.md)
 - [Agent Manual](../agent-manual/README.md)
+- [Podman Setup](../PODMAN.md)
 
 ## Demo Instance
 

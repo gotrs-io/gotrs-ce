@@ -1,5 +1,5 @@
 # Development Dockerfile for Go backend with hot reload
-FROM golang:1.21-alpine
+FROM golang:1.22-alpine
 
 # Set shell options for better error handling
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]

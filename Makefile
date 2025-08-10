@@ -24,6 +24,13 @@ help:
 	@echo "  make frontend-logs - View frontend logs"
 	@echo "  make db-shell      - PostgreSQL shell"
 	@echo "  make redis-cli     - Redis CLI"
+	@echo ""
+	@echo "Database migration commands:"
+	@echo "  make db-migrate    - Run all pending migrations"
+	@echo "  make db-rollback   - Rollback last migration"
+	@echo "  make db-reset      - Reset database (down all, up all)"
+	@echo "  make db-status     - Show current migration version"
+	@echo "  make db-force      - Force database to specific version"
 
 # Initial setup
 setup:
@@ -34,11 +41,11 @@ setup:
 
 # Start all services
 up:
-	$(COMPOSE_CMD) up
+	$(COMPOSE_CMD) up --build
 
 # Start in background
 up-d:
-	$(COMPOSE_CMD) up -d
+	$(COMPOSE_CMD) up -d --build
 
 # Stop all services
 down:
@@ -74,18 +81,37 @@ reset-db:
 	@echo "Database reset. Waiting for initialization..."
 	@sleep 5
 
+# Load environment variables from .env file
+include .env
+export
+
 # Database operations
 db-shell:
-	$(COMPOSE_CMD) exec postgres psql -U gotrs -d gotrs
+	$(COMPOSE_CMD) exec postgres psql -U $(DB_USER) -d $(DB_NAME)
 
 db-migrate:
-	$(COMPOSE_CMD) exec backend go run cmd/migrate/main.go up
+	@echo "Running database migrations..."
+	$(COMPOSE_CMD) exec -e PGPASSWORD=$(DB_PASSWORD) backend psql -h postgres -U $(DB_USER) -d $(DB_NAME) -f /app/migrations/000001_initial_schema.up.sql
+	$(COMPOSE_CMD) exec -e PGPASSWORD=$(DB_PASSWORD) backend psql -h postgres -U $(DB_USER) -d $(DB_NAME) -f /app/migrations/000002_initial_data.up.sql
+	@echo "Migrations completed successfully!"
+
+db-migrate-schema-only:
+	@echo "Running schema migration only..."
+	$(COMPOSE_CMD) exec -e PGPASSWORD=$(DB_PASSWORD) backend psql -h postgres -U $(DB_USER) -d $(DB_NAME) -f /app/migrations/000001_initial_schema.up.sql
 
 db-rollback:
-	$(COMPOSE_CMD) exec backend go run cmd/migrate/main.go down
+	$(COMPOSE_CMD) exec backend migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" down 1
 
-db-seed:
-	$(COMPOSE_CMD) exec backend go run cmd/seed/main.go
+db-reset:
+	$(COMPOSE_CMD) exec backend migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" down -all
+	$(COMPOSE_CMD) exec backend migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up
+
+db-status:
+	$(COMPOSE_CMD) exec backend migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" version
+
+db-force:
+	@read -p "Force migration to version: " version; \
+	$(COMPOSE_CMD) exec backend migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" force $$version
 
 # Redis CLI
 redis-cli:
@@ -148,8 +174,16 @@ podman-systemd:
 	podman generate systemd --new --files --name gotrs-frontend
 	@echo "Systemd unit files generated. Move to ~/.config/systemd/user/"
 
-# Generate migration file
+# Generate migration file pair
 gen-migration:
 	@read -p "Migration name: " name; \
-	touch migrations/$$(date +%Y%m%d%H%M%S)_$$name.sql
-	@echo "Created migration file"
+	timestamp=$$(date +%Y%m%d%H%M%S); \
+	touch migrations/$$timestamp\_$$name.up.sql; \
+	touch migrations/$$timestamp\_$$name.down.sql; \
+	echo "-- Migration: $$name" > migrations/$$timestamp\_$$name.up.sql; \
+	echo "" >> migrations/$$timestamp\_$$name.up.sql; \
+	echo "-- Rollback: $$name" > migrations/$$timestamp\_$$name.down.sql; \
+	echo "" >> migrations/$$timestamp\_$$name.down.sql; \
+	echo "Created migration files:"; \
+	echo "  migrations/$$timestamp\_$$name.up.sql"; \
+	echo "  migrations/$$timestamp\_$$name.down.sql"

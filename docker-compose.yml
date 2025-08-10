@@ -14,7 +14,6 @@ services:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-gotrs}"]
       interval: 10s
@@ -59,7 +58,6 @@ services:
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:
-      - ./:/app:Z  # :Z for SELinux (Fedora/RHEL)
       - go_modules:/go/pkg/mod:Z
     depends_on:
       postgres:
@@ -82,11 +80,7 @@ services:
       VITE_WS_URL: ws://localhost:8080/ws
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
-    volumes:
-      - ./web/src:/app/src:Z  # :Z for SELinux (Fedora/RHEL)
-      - ./web/public:/app/public:Z
-      - ./web/vite.config.ts:/app/vite.config.ts:Z
-      - ./web/index.html:/app/index.html:Z
+    # No volumes needed - source code is copied into image
     networks:
       - gotrs-network
     command: npm run dev -- --host 0.0.0.0 --port 3000

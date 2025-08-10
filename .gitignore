@@ -331,3 +331,9 @@ kubeconfig
 # Development databases
 dev.db
 development.sqlite3
+
+# Claude Code local settings
+.claude/settings.local.json
+.claude/*.local.json
+CLAUDE.local.md
+*.local.md

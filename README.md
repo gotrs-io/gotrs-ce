@@ -1,0 +1,249 @@
+# GOTRS - Modern Open Source Ticketing System
+
+GOTRS (Go Open Ticket Request System) is a modern, secure, cloud-native ticketing and service management platform built as a next-generation replacement for OTRS. Written in Go with a microservices architecture, GOTRS provides enterprise-grade support ticketing, ITSM capabilities, and extensive customization options.
+
+## Key Features
+
+- 🔒 **Security-First Design** - Built with zero-trust principles, comprehensive audit logging, and enterprise security standards
+- 🚀 **High Performance** - Go-based backend with optimized database queries and caching
+- 🌐 **Cloud Native** - Containerized microservices supporting Docker, Podman, and Kubernetes
+- 📱 **Responsive UI** - Modern React-based interface with mobile support
+- 🔄 **OTRS Compatible** - Database schema superset enables seamless migration
+- 🌍 **Multi-Language** - Comprehensive internationalization support
+- 🎨 **Themeable** - Customizable UI with dark/light modes and branding options
+- 🔌 **Extensible** - Plugin framework for custom modules and integrations
+
+## Quick Start
+
+### Prerequisites
+- Docker & Docker Compose OR Podman & podman-compose
+- Git
+- 4GB RAM minimum
+
+**Note**: Full Podman support including rootless containers. SELinux labels configured for Fedora/RHEL systems.
+
+### Using Containers (Docker or Podman)
+
+```bash
+# Clone the repository
+git clone https://github.com/gotrs-io/gotrs-ce.git
+cd gotrs
+
+# Copy environment configuration
+cp .env.example .env
+
+# Start all services (PostgreSQL, Redis, Backend, Frontend, Mailhog)
+make up
+# OR directly with:
+# docker-compose up
+# podman-compose up
+
+# Services will be available at:
+# - Frontend: http://localhost
+# - Backend API: http://localhost/api
+# - Mailhog (email testing): http://localhost:8025
+# - Adminer (database UI): http://localhost:8090 (optional)
+
+# Default credentials:
+# admin@gotrs.local / admin123
+```
+
+### Development Workflow
+
+```bash
+# Start services in background
+make up-d
+
+# View logs
+make backend-logs
+
+# Run database migrations
+make db-migrate
+
+# Stop services
+make down
+
+# Reset everything (including database)
+make clean
+```
+
+### Podman on Fedora Kinoite/Silverblue
+
+```bash
+# Install podman-compose if needed
+sudo rpm-ostree install podman-compose
+
+# The Makefile auto-detects podman
+make up
+
+# Generate systemd units (Podman only)
+make podman-systemd
+```
+
+### Demo Instance
+
+Try GOTRS without installation at [https://try.gotrs.io](https://try.gotrs.io)
+
+Demo credentials:
+- Admin: `admin@gotrs.demo` / `DemoAdmin123!`
+- Agent: `agent@gotrs.demo` / `DemoAgent123!`
+- Customer: `customer@gotrs.demo` / `DemoUser123!`
+
+*Note: Demo data resets daily at 2 AM UTC*
+
+## Architecture
+
+GOTRS uses a modular architecture that scales from single-server deployments to large enterprise clusters:
+
+- **Core Services**: Authentication, Tickets, Users, Notifications, Workflow Engine
+- **Data Layer**: PostgreSQL (primary), Redis (cache), S3-compatible storage (attachments)
+- **API Gateway**: REST and GraphQL APIs with rate limiting
+- **Frontend**: React-based SPA with Material-UI components
+- **Message Queue**: Event-driven architecture for async processing
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical documentation.
+
+## Installation
+
+### System Requirements
+
+**Minimum (Development/Small Business)**
+- 2 CPU cores
+- 4 GB RAM
+- 20 GB storage
+- PostgreSQL 14+
+- Docker 20+ or Podman 3+
+
+**Recommended (Enterprise)**
+- 8+ CPU cores
+- 16+ GB RAM
+- 100+ GB SSD storage
+- PostgreSQL 14+ cluster
+- Kubernetes 1.24+
+
+### Production Deployment
+
+For production deployments, see our comprehensive guides:
+- [Docker Deployment](docs/deployment/docker.md)
+- [Kubernetes Deployment](docs/deployment/kubernetes.md)
+- [Bare Metal Installation](docs/deployment/bare-metal.md)
+
+## Documentation
+
+- [Getting Started Guide](docs/getting-started/quickstart.md)
+- [Administrator Manual](docs/admin-guide/README.md)
+- [Agent Manual](docs/agent-manual/README.md)
+- [Developer Guide](docs/developer-guide/README.md)
+- [API Reference](docs/api/README.md)
+
+## Migration from OTRS
+
+GOTRS provides comprehensive migration tools for OTRS users:
+
+```bash
+# Run the migration tool in a container
+docker-compose exec backend /app/tools/otrs-migration/migrate \
+  --source-db "postgres://otrs_user:pass@old-server/otrs" \
+  --target-db "postgres://postgres:5432/gotrs" \
+  --validate
+
+# Or using a dedicated migration container
+docker run --rm \
+  --network gotrs-network \
+  -v ./data:/data:Z \
+  gotrs/migration-tool:latest \
+  --source-db "postgres://otrs_user:pass@old-server/otrs" \
+  --target-db "postgres://postgres:5432/gotrs" \
+  --validate
+```
+
+See [Migration Guide](docs/MIGRATION.md) for detailed instructions.
+
+## Features Comparison
+
+| Feature | GOTRS | OTRS | Zendesk | ServiceNow |
+|---------|-------|------|---------|------------|
+| Open Source | ✅ (Apache 2.0) | ✅ (GPL) | ❌ | ❌ |
+| Self-Hosted | ✅ | ✅ | ❌ | ✅ |
+| Cloud Native | ✅ | ❌ | ✅ | ✅ |
+| Modern UI | ✅ | ❌ | ✅ | ✅ |
+| REST API | ✅ | ✅ | ✅ | ✅ |
+| GraphQL API | ✅ | ❌ | ❌ | ✅ |
+| Microservices | ✅ | ❌ | ✅ | ✅ |
+| Plugin System | ✅ | ✅ | ✅ | ✅ |
+| ITSM Modules | ✅ | ✅ | ❌ | ✅ |
+| Multi-Language | ✅ | ✅ | ✅ | ✅ |
+
+## Roadmap
+
+### Current Phase: MVP Development (Starting August 2025)
+- 🚧 Core ticketing functionality
+- 🚧 User authentication and authorization
+- 🚧 Email integration
+- 📋 Basic reporting
+- 📋 Docker deployment
+
+### Upcoming Phases
+- **Q4 2025**: Essential features, Production-ready deployment
+- **Q1 2026**: Advanced workflows, API v1, Plugin framework
+- **Q2 2026**: ITSM modules, Advanced reporting, Mobile apps
+- **Q3 2026**: AI/ML features, Enterprise features
+- **Q4 2026**: Platform maturity, Cloud SaaS launch
+
+See [ROADMAP.md](ROADMAP.md) for detailed development timeline.
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on:
+- Code of Conduct
+- Development setup
+- Coding standards
+- Pull request process
+- Issue reporting
+
+## Community
+
+- 💬 [Discord Community](https://discord.gg/gotrs)
+- 📧 [Mailing List](https://groups.google.com/g/gotrs-users)
+- 🐛 [Issue Tracker](https://github.com/gotrs-io/gotrs-ce/issues)
+- 📖 [Wiki](https://github.com/gotrs-io/gotrs-ce/wiki)
+
+## License
+
+GOTRS is dual-licensed:
+
+- **Community Edition**: [Apache License 2.0](LICENSE)
+- **Enterprise Edition**: [Commercial License](LICENSE-ENTERPRISE)
+
+See [LICENSING.md](docs/LICENSING.md) for details on our dual licensing model.
+
+## Support
+
+### Community Support
+- GitHub Issues
+- Discord Community
+- Community Forums
+
+### Commercial Support
+- Professional support contracts
+- Implementation services
+- Custom development
+- Training and certification
+
+Contact: support@gotrs.io
+
+## Security
+
+Security is our top priority. Please report security vulnerabilities to security@gotrs.io.
+
+See [SECURITY.md](docs/SECURITY.md) for our security policies and practices.
+
+## Acknowledgments
+
+GOTRS builds upon decades of open source ticketing system innovation. We acknowledge the contributions of the OTRS community and other open source projects that have paved the way.
+
+---
+
+**GOTRS** - Enterprise Ticketing, Community Driven
+
+Copyright © 2025 Gibbsoft Ltd and Contributors

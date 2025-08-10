@@ -1,0 +1,29 @@
+# Development Dockerfile for React frontend with hot reload
+FROM node:18-alpine
+
+# Install dependencies for better compatibility
+RUN apk add --no-cache python3 make g++
+
+# Create non-root user
+RUN addgroup -g 1000 -S appgroup && \
+    adduser -u 1000 -S appuser -G appgroup
+
+# Create app directory with correct permissions
+RUN mkdir -p /app && \
+    chown -R appuser:appgroup /app
+
+# Switch to non-root user
+USER appuser
+WORKDIR /app
+
+# Copy package files (as non-root)
+COPY --chown=appuser:appgroup package*.json ./
+
+# Install dependencies (cached layer)
+RUN npm ci 2>/dev/null || npm install
+
+# Expose Vite dev server port (as non-root)
+EXPOSE 3000
+
+# Default command
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]

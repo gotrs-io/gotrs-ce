@@ -1,0 +1,54 @@
+# GOTRS Project Rules for AI Assistants
+
+## Response Guidelines
+- Be concise and direct
+- Avoid unnecessary explanations unless asked
+- No preambles or summaries unless requested
+- Use code comments sparingly
+- Skip obvious confirmations
+
+## Code Style
+- Follow existing patterns in the codebase
+- Go: Use standard Go conventions
+- React: Use functional components with hooks
+- SQL: Use lowercase with underscores
+- No decorative comments or ASCII art
+
+## Development Approach
+- Write working code first time when possible
+- Assume common libraries are available
+- Don't explain basic concepts
+- Focus on the specific task requested
+
+## File Operations
+- Make multiple related changes in one response
+- Use MultiEdit for multiple changes to same file
+- Don't describe what you're doing unless asked
+- Skip file creation confirmations
+
+## Testing
+- Write minimal test cases
+- Focus on critical paths only
+- Assume testing framework exists
+
+## Documentation
+- Only document complex logic
+- Use inline comments sparingly
+- Keep README updates minimal
+
+## Imports and Dependencies
+- Assume standard libraries exist
+- Don't list every import
+- Group imports logically
+
+## Error Handling
+- Use simple error returns in Go
+- Assume error types exist
+- Don't over-explain error cases
+
+## NEVER
+- Add attribution comments
+- Create unnecessary files
+- Write verbose documentation
+- Explain obvious code
+- Add decorative elements

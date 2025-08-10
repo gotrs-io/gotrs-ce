@@ -1,0 +1,331 @@
+# GOTRS .gitignore
+
+# ============================================
+# Go / Backend
+# ============================================
+
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.txt
+coverage.html
+
+# Go workspace file
+go.work
+
+# Dependency directories
+vendor/
+
+# Build directories
+dist/
+build/
+bin/
+gotrs
+
+# Go build cache
+.cache/
+
+# ============================================
+# Node.js / Frontend
+# ============================================
+
+# Dependencies
+node_modules/
+web/node_modules/
+frontend/node_modules/
+
+# Production builds
+web/dist/
+web/build/
+frontend/dist/
+frontend/build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Cache directories
+.npm
+.eslintcache
+.stylelintcache
+.yarn/cache
+.yarn/unplugged
+.yarn/install-state.gz
+.pnp.*
+
+# Testing
+web/coverage/
+frontend/coverage/
+
+# ============================================
+# Environment & Configuration
+# ============================================
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# Configuration files with secrets
+config/local.yaml
+config/local.yml
+config/secret.yaml
+config/secret.yml
+configs/local.yaml
+configs/production.yaml
+*.secret
+
+# ============================================
+# Database
+# ============================================
+
+# PostgreSQL
+*.sql.gz
+*.dump
+postgres-data/
+pgdata/
+
+# Database backups
+backups/
+*.backup
+*.bak
+
+# Migration lock files
+migrations/*.lock
+
+# ============================================
+# Docker
+# ============================================
+
+# Docker volumes
+docker/volumes/
+.docker/
+
+# Docker compose override
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# ============================================
+# IDE & Editors
+# ============================================
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# GoLand
+.goland/
+
+# Vim
+*.swp
+*.swo
+*~
+.vim/
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+.directory
+.Trash-*
+.nfs*
+
+# ============================================
+# Application Specific
+# ============================================
+
+# Uploaded files
+uploads/
+attachments/
+files/
+storage/
+
+# Generated files
+generated/
+tmp/
+temp/
+cache/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Sessions
+sessions/
+
+# SSL certificates (keep examples)
+*.pem
+*.key
+*.crt
+*.cer
+!*.example.pem
+!*.example.key
+!*.example.crt
+
+# Demo data (except examples)
+demo-data/
+!demo-data/example.json
+
+# Documentation build
+docs/_build/
+docs/.docusaurus/
+site/
+
+# ============================================
+# Testing & Quality
+# ============================================
+
+# Test databases
+test.db
+test.sqlite
+test.sqlite3
+
+# E2E test screenshots
+e2e/screenshots/
+cypress/screenshots/
+cypress/videos/
+playwright-report/
+test-results/
+
+# Benchmarks
+benchmarks/*.txt
+benchmarks/*.json
+
+# Profiling
+*.prof
+*.pprof
+
+# ============================================
+# Security
+# ============================================
+
+# Private keys
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+id_dsa
+id_dsa.pub
+id_ecdsa
+id_ecdsa.pub
+id_ed25519
+id_ed25519.pub
+
+# Secrets
+secrets/
+.secrets/
+*.secret
+*.private
+
+# API keys
+api_keys.txt
+.api_keys
+
+# ============================================
+# Miscellaneous
+# ============================================
+
+# Archives
+*.tar
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# Patch files
+*.patch
+*.diff
+
+# Lock files (keep for reproducible builds)
+# Uncomment if you want to ignore lock files
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+# go.sum
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Ansible
+*.retry
+ansible/inventory/local
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# Development databases
+dev.db
+development.sqlite3

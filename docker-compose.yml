@@ -1,0 +1,138 @@
+# Podman-compatible compose file (also works with Docker)
+# No version specified for better Podman compatibility
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: gotrs-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-gotrs}
+      POSTGRES_USER: ${DB_USER:-gotrs}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-gotrs_password}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-gotrs}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gotrs-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: gotrs-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gotrs-network
+
+  # Go Backend with Hot Reload
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: gotrs-backend
+    user: "1000:1000"  # Run as non-root
+    environment:
+      APP_ENV: development
+      APP_PORT: 8080
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-gotrs}
+      DB_USER: ${DB_USER:-gotrs}
+      DB_PASSWORD: ${DB_PASSWORD:-gotrs_password}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-development-secret-change-in-production}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - ./:/app:Z  # :Z for SELinux (Fedora/RHEL)
+      - go_modules:/go/pkg/mod:Z
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - gotrs-network
+    command: air
+
+  # React Frontend with Hot Reload
+  frontend:
+    build:
+      context: ./web
+      dockerfile: ../Dockerfile.frontend
+    container_name: gotrs-frontend
+    user: "1000:1000"  # Run as non-root
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: http://localhost:8080/api
+      VITE_WS_URL: ws://localhost:8080/ws
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      - ./web:/app:Z  # :Z for SELinux (Fedora/RHEL)
+      - /app/node_modules
+    networks:
+      - gotrs-network
+    command: npm run dev -- --host 0.0.0.0 --port 3000
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: gotrs-nginx
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro,Z
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - gotrs-network
+
+  # Mailhog for Email Testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: gotrs-mailhog
+    ports:
+      - "${MAILHOG_SMTP_PORT:-1025}:1025"  # SMTP
+      - "${MAILHOG_UI_PORT:-8025}:8025"    # Web UI
+    networks:
+      - gotrs-network
+
+  # Adminer for Database Management (Optional)
+  adminer:
+    image: adminer:latest
+    container_name: gotrs-adminer
+    ports:
+      - "${ADMINER_PORT:-8090}:8080"
+    depends_on:
+      - postgres
+    networks:
+      - gotrs-network
+    profiles:
+      - tools
+
+networks:
+  gotrs-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  go_modules:

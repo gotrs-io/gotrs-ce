@@ -50,7 +50,9 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: go mod download
+        run: |
+          go mod tidy
+          go mod download
 
       - name: Set up test database
         env:
@@ -194,7 +196,9 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install Go dependencies
-        run: go mod download
+        run: |
+          go mod tidy
+          go mod download
 
       - name: Install frontend dependencies
         run: |

@@ -2,7 +2,7 @@
   "project": "GOTRS",
   "type": "web-application",
   "stack": {
-    "backend": ["go", "gin", "postgresql", "redis"],
+    "backend": ["go", "gin", "postgresql", "valkey"],
     "frontend": ["react", "typescript", "material-ui"],
     "tools": ["docker", "kubernetes"]
   },

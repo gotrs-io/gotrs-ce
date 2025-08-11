@@ -47,8 +47,8 @@ database:
     auto_migrate: true
     path: /app/migrations
 
-redis:
-  host: redis
+valkey:
+  host: valkey
   port: 6379
   password: ""
   db: 0

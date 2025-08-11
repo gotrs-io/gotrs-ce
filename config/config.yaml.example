@@ -13,7 +13,7 @@ database:
   host: localhost
   password: my_secure_password
 
-redis:
+valkey:
   host: localhost
 
 auth:

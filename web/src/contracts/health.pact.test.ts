@@ -3,7 +3,7 @@
  * This defines what the frontend expects from the backend health endpoint
  */
 
-import { Pact, Interaction } from '@pact-foundation/pact';
+import { Pact } from '@pact-foundation/pact';
 import { resolve } from 'path';
 
 // Mock API client for testing

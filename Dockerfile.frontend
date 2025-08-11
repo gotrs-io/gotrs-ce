@@ -4,7 +4,7 @@ FROM node:18-alpine
 # Set shell options for better error handling
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
-# Install dependencies with pinned versions for better compatibility
+# Install dependencies with pinned versions  
 RUN apk add --no-cache \
     python3=3.12.11-r0 \
     make=4.4.1-r2 \

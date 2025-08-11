@@ -6,11 +6,11 @@ SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
 # Install dependencies with pinned versions
 RUN apk add --no-cache \
-    git=2.42.1-r0 \
-    make=4.4.1-r1 \
-    gcc=13.2.1_git20231014-r0 \
-    musl-dev=1.2.4_git20230717-r4 \
-    postgresql-client=16.1-r0
+    git=2.47.3-r0 \
+    make=4.4.1-r2 \
+    gcc=14.2.0-r4 \
+    musl-dev=1.2.5-r9 \
+    postgresql15-client=15.13-r0
 
 # Create non-root user (check if group exists first)
 RUN getent group 1000 || addgroup -g 1000 -S appgroup && \

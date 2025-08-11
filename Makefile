@@ -23,7 +23,7 @@ help:
 	@echo "  make backend-logs  - View backend logs"
 	@echo "  make frontend-logs - View frontend logs"
 	@echo "  make db-shell      - PostgreSQL shell"
-	@echo "  make redis-cli     - Redis CLI"
+	@echo "  make valkey-cli    - Valkey CLI"
 	@echo ""
 	@echo "Database migration commands:"
 	@echo "  make db-migrate    - Run all pending migrations"
@@ -113,9 +113,9 @@ db-force:
 	@read -p "Force migration to version: " version; \
 	$(COMPOSE_CMD) exec backend migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" force $$version
 
-# Redis CLI
-redis-cli:
-	$(COMPOSE_CMD) exec redis redis-cli
+# Valkey CLI
+valkey-cli:
+	$(COMPOSE_CMD) exec valkey valkey-cli
 
 # Run tests
 test:
@@ -169,7 +169,7 @@ exec-frontend:
 podman-systemd:
 	@echo "Generating systemd units for podman..."
 	podman generate systemd --new --files --name gotrs-postgres
-	podman generate systemd --new --files --name gotrs-redis
+	podman generate systemd --new --files --name gotrs-valkey
 	podman generate systemd --new --files --name gotrs-backend
 	podman generate systemd --new --files --name gotrs-frontend
 	@echo "Systemd unit files generated. Move to ~/.config/systemd/user/"

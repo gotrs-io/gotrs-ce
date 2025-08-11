@@ -175,7 +175,7 @@ type EncryptionConfig struct {
 #### Encryption in Transit
 - All API calls over HTTPS
 - Database connections use SSL
-- Redis connections use TLS
+- Valkey connections use TLS
 - File transfers use SFTP/SCP
 
 #### Data Classification

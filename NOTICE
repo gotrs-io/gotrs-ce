@@ -40,11 +40,11 @@ Copyright (c) 1997, PostgreSQL Global Development Group
 BSD 2-Clause License
 https://jdbc.postgresql.org/about/license.html
 
-Redis
------
-Copyright (c) 2006-2020, Salvatore Sanfilippo
+Valkey
+------
+Copyright (c) 2024, Linux Foundation
 BSD 3-Clause License
-https://redis.io/topics/license
+https://valkey.io/topics/license
 
 Alpine Linux
 ------------

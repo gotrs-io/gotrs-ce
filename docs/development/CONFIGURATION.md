@@ -89,7 +89,7 @@ isDebug := cfg.App.Debug
 - Connection pool configuration
 - Migration settings
 
-### Redis Configuration
+### Valkey Configuration
 - Connection settings
 - Session storage configuration
 - Cache settings
@@ -225,7 +225,7 @@ database:
   host: localhost
   password: localpassword
 
-redis:
+valkey:
   host: localhost
 
 email:
@@ -250,8 +250,8 @@ export GOTRS_APP_ENV=production
 export GOTRS_APP_DEBUG=false
 export GOTRS_DATABASE_HOST=postgres.internal
 export GOTRS_DATABASE_PASSWORD="${DB_PASSWORD}"
-export GOTRS_REDIS_HOST=redis.internal
-export GOTRS_REDIS_PASSWORD="${REDIS_PASSWORD}"
+export GOTRS_VALKEY_HOST=valkey.internal
+export GOTRS_VALKEY_PASSWORD="${VALKEY_PASSWORD}"
 export GOTRS_AUTH_JWT_SECRET="${JWT_SECRET}"
 export GOTRS_AUTH_SESSION_SECURE=true
 export GOTRS_EMAIL_SMTP_HOST=smtp.sendgrid.net

@@ -4,7 +4,7 @@
 GOTRS is a modern ticketing system replacing OTRS, built with Go (backend) and React (frontend). Security-first design with rootless containers.
 
 ## Tech Stack
-- Backend: Go 1.21+, Gin, PostgreSQL, Redis
+- Backend: Go 1.21+, Gin, PostgreSQL, Valkey
 - Frontend: React 18, TypeScript, Material-UI, Redux Toolkit
 - Containers: Docker/Podman (first-class support for both)
 - Deploy: Kubernetes, OpenShift-ready
@@ -40,7 +40,7 @@ make clean                 # Reset everything
 
 ## Container Services
 - **postgres**: PostgreSQL 15 Alpine
-- **redis**: Redis 7 Alpine  
+- **valkey**: Valkey 7 Alpine  
 - **backend**: Go with Air hot reload (non-root)
 - **frontend**: React with Vite HMR (non-root)
 - **nginx**: Reverse proxy
@@ -92,7 +92,7 @@ Note: Usually not needed as files are created with correct ownership.
 If pulls fail with `unauthorized`:
 ```bash
 podman pull docker.io/library/postgres:15-alpine
-podman pull docker.io/library/redis:7-alpine
+podman pull docker.io/library/valkey:7-alpine
 make up
 ```
 

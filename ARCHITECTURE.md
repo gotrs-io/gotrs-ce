@@ -29,7 +29,7 @@ GOTRS employs a modular, microservices-based architecture designed for scalabili
 └─────────────────────────────────────────────┘
            │              │
     ┌──────▼──────┐ ┌─────▼─────┐
-    │ PostgreSQL  │ │   Redis    │
+    │ PostgreSQL  │ │   Valkey   │
     └─────────────┘ └───────────┘
 ```
 
@@ -130,7 +130,7 @@ CREATE INDEX idx_tickets_customer ON tickets(customer_id);
 CREATE INDEX idx_tickets_created ON tickets(created_at DESC);
 ```
 
-#### Cache Layer (Redis)
+#### Cache Layer (Valkey)
 ```
 Key Patterns:
 - session:{session_id} - User sessions
@@ -199,8 +199,8 @@ services:
     environment:
       - POSTGRES_DB=gotrs
       
-  redis:
-    image: redis:7-alpine
+  valkey:
+    image: valkey:7-alpine
 ```
 
 ### Production Kubernetes
@@ -245,7 +245,7 @@ namespaces/
 
 ### Caching Strategy
 1. **Application Cache**: In-memory caching
-2. **Redis Cache**: Shared cache across instances
+2. **Valkey Cache**: Shared cache across instances
 3. **CDN**: Static assets and attachments
 4. **Database Query Cache**: PostgreSQL query optimization
 

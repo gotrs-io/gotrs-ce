@@ -40,7 +40,7 @@ cd gotrs
 # Copy environment configuration
 cp .env.example .env
 
-# Start all services (PostgreSQL, Redis, Backend, Frontend, Mailhog)
+# Start all services (PostgreSQL, Valkey, Backend, Frontend, Mailhog)
 make up
 # OR directly with:
 # docker-compose up
@@ -104,7 +104,7 @@ Demo credentials:
 GOTRS uses a modular architecture that scales from single-server deployments to large enterprise clusters:
 
 - **Core Services**: Authentication, Tickets, Users, Notifications, Workflow Engine
-- **Data Layer**: PostgreSQL (primary), Redis (cache), S3-compatible storage (attachments)
+- **Data Layer**: PostgreSQL (primary), Valkey (cache), S3-compatible storage (attachments)
 - **API Gateway**: REST and GraphQL APIs with rate limiting
 - **Frontend**: React-based SPA with Material-UI components
 - **Message Queue**: Event-driven architecture for async processing

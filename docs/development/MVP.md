@@ -31,7 +31,7 @@ This document outlines the Minimum Viable Product (MVP) implementation for GOTRS
 language: Go 1.21
 framework: Gin (HTTP router)
 database: PostgreSQL 14
-cache: Redis 7 (sessions only)
+cache: Valkey 7 (sessions only)
 email: SMTP/IMAP
 auth: JWT with refresh tokens
 ```
@@ -71,7 +71,7 @@ gotrs/
 │   │   └── auth/            # Authentication logic
 │   ├── data/
 │   │   ├── postgres/        # Database implementation
-│   │   └── redis/           # Cache implementation
+│   │   └── valkey/          # Cache implementation
 │   └── services/
 │       ├── email/           # Email service
 │       └── notification/    # Notification service
@@ -307,7 +307,7 @@ services:
       - "8080:8080"
     environment:
       DATABASE_URL: postgres://gotrs:password@db:5432/gotrs
-      REDIS_URL: redis://cache:6379
+      VALKEY_URL: valkey://cache:6379
       JWT_SECRET: ${JWT_SECRET}
     depends_on:
       - db
@@ -323,7 +323,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       
   cache:
-    image: redis:7-alpine
+    image: valkey:7-alpine
     
   nginx:
     image: nginx:alpine
@@ -350,7 +350,7 @@ npm create vite@latest web -- --template react-ts
 go get github.com/gin-gonic/gin
 go get github.com/golang-jwt/jwt/v5
 go get github.com/lib/pq
-go get github.com/go-redis/redis/v9
+go get github.com/valkey-io/valkey-go
 
 # Frontend dependencies
 cd web && npm install @mui/material @reduxjs/toolkit react-redux axios

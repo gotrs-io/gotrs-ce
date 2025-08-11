@@ -102,7 +102,7 @@ podman run -d --pod gotrs --name gotrs-backend gotrs-backend
 ```bash
 # Create named volumes
 podman volume create gotrs-postgres
-podman volume create gotrs-redis
+podman volume create gotrs-valkey
 
 # List volumes
 podman volume ls

@@ -11,7 +11,7 @@ This guide will provide comprehensive instructions for installing GOTRS directly
 - Prerequisites installation
   - Go runtime
   - PostgreSQL database
-  - Redis cache
+  - Valkey cache
   - Nginx reverse proxy
 - Building from source
 - Binary installation
@@ -34,7 +34,7 @@ This guide will provide comprehensive instructions for installing GOTRS directly
 ```bash
 # Install prerequisites
 sudo apt-get update
-sudo apt-get install postgresql redis nginx
+sudo apt-get install postgresql valkey nginx
 
 # Download and install GOTRS
 wget https://github.com/gotrs/gotrs/releases/latest/gotrs-linux-amd64.tar.gz
@@ -56,7 +56,7 @@ sudo systemctl enable gotrs
 - **CPU**: 2+ cores
 - **Disk**: 20GB+ available space
 - **Database**: PostgreSQL 14+
-- **Cache**: Redis 6+
+- **Cache**: Valkey 6+
 
 ## See Also
 

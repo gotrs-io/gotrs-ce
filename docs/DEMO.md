@@ -214,7 +214,7 @@ Demo Environment:
     Replicas: 1 read replica
     
   Cache:
-    Type: Redis 7
+    Type: Valkey 7
     Memory: 4GB
     
   Storage:
@@ -357,7 +357,7 @@ psql gotrs_demo < /data/demo-baseline.sql
   --randomize
 
 # 5. Clear caches
-redis-cli FLUSHALL
+valkey-cli FLUSHALL
 
 # 6. Restart services
 systemctl restart gotrs-demo

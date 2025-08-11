@@ -99,7 +99,7 @@ If you see `unauthorized: incorrect username or password`:
 ```bash
 # Pull images manually first
 podman pull docker.io/library/postgres:15-alpine
-podman pull docker.io/library/redis:7-alpine
+podman pull docker.io/valkey/valkey:7-alpine
 podman pull docker.io/library/nginx:alpine
 
 # Then start services

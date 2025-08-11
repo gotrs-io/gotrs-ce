@@ -353,7 +353,7 @@
 ### Optimization
 - ⚡ Query optimization
 - ⚡ Database indexing
-- ⚡ Caching (Redis)
+- ⚡ Caching (Valkey)
 - ⚡ CDN support
 - ⚡ Lazy loading
 - ⚡ Image optimization

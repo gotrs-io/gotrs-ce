@@ -110,7 +110,7 @@ make logs
 #### Local Development (Without Containers)
 
 ```bash
-# Prerequisites: Go 1.21+, Node.js 18+, PostgreSQL 15+, Redis 7+
+# Prerequisites: Go 1.21+, Node.js 18+, PostgreSQL 15+, Valkey 7+
 
 # Backend setup
 go mod download
@@ -152,7 +152,7 @@ gotrs/
 
 ### Key Technologies
 
-- **Backend**: Go, Gin, PostgreSQL, Redis
+- **Backend**: Go, Gin, PostgreSQL, Valkey
 - **Frontend**: React, TypeScript, Vite, Material-UI
 - **Containers**: Docker/Podman (rootless support)
 - **Testing**: Go testing, Jest, Playwright

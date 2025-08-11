@@ -21,7 +21,7 @@ type Config struct {
 	App          AppConfig          `mapstructure:"app"`
 	Server       ServerConfig       `mapstructure:"server"`
 	Database     DatabaseConfig     `mapstructure:"database"`
-	Redis        RedisConfig        `mapstructure:"redis"`
+	Valkey       ValkeyConfig       `mapstructure:"valkey"`
 	Auth         AuthConfig         `mapstructure:"auth"`
 	Email        EmailConfig        `mapstructure:"email"`
 	Storage      StorageConfig      `mapstructure:"storage"`
@@ -75,7 +75,7 @@ type DatabaseConfig struct {
 	} `mapstructure:"migrations"`
 }
 
-type RedisConfig struct {
+type ValkeyConfig struct {
 	Host         string `mapstructure:"host"`
 	Port         int    `mapstructure:"port"`
 	Password     string `mapstructure:"password"`
@@ -331,8 +331,8 @@ func (c *DatabaseConfig) GetDSN() string {
 	)
 }
 
-// GetRedisAddr returns the Redis server address
-func (c *RedisConfig) GetRedisAddr() string {
+// GetValkeyAddr returns the Valkey server address
+func (c *ValkeyConfig) GetValkeyAddr() string {
 	return fmt.Sprintf("%s:%d", c.Host, c.Port)
 }
 

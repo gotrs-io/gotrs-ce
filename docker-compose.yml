@@ -73,26 +73,7 @@ services:
       - gotrs-network
     command: air
 
-  # React Frontend with Hot Reload
-  frontend:
-    build:
-      context: ./web
-      dockerfile: ../Dockerfile.frontend
-    container_name: gotrs-frontend
-    environment:
-      NODE_ENV: development
-      VITE_API_URL: http://localhost:8080/api
-      VITE_WS_URL: ws://localhost:8080/ws
-    ports:
-      - "${FRONTEND_PORT:-3000}:3000"
-    volumes:
-      - ./web:/app:Z
-      - /app/node_modules
-    networks:
-      - gotrs-network
-    command: npm run dev -- --host 0.0.0.0 --port 3000
-
-  # Nginx Reverse Proxy
+  # Nginx Reverse Proxy (serves static assets and proxies to backend)
   nginx:
     image: nginx:alpine
     container_name: gotrs-nginx
@@ -100,9 +81,9 @@ services:
       - "${NGINX_PORT:-80}:80"
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro,Z
+      - ./static:/var/www/static:ro,Z
     depends_on:
       - backend
-      - frontend
     networks:
       - gotrs-network
 
@@ -152,7 +133,7 @@ services:
 
   # Zinc Search Engine (Elasticsearch compatible)
   zinc:
-    image: public.ecr.aws/zinclabs/zinc:0.4.9
+    image: public.ecr.aws/zinclabs/zincsearch:latest
     container_name: gotrs-zinc
     environment:
       - ZINC_FIRST_ADMIN_USER=${ZINC_USER:-admin}

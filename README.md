@@ -19,7 +19,7 @@ GOTRS-CE is an **independent, original implementation** of a ticket management s
 - 🔒 **Security-First Design** - Built with zero-trust principles, comprehensive audit logging, and enterprise security standards
 - 🚀 **High Performance** - Go-based backend with optimized database queries and caching
 - 🌐 **Cloud Native** - Containerized microservices supporting Docker, Podman, and Kubernetes
-- 📱 **Responsive UI** - Modern React-based interface with mobile support
+- 📱 **Responsive UI** - Modern HTMX-powered interface with progressive enhancement
 - 🔄 **OTRS Compatible** - Database schema superset enables seamless migration
 - 🌍 **Multi-Language** - Comprehensive internationalization support
 - 🎨 **Themeable** - Customizable UI with dark/light modes and branding options
@@ -31,6 +31,7 @@ GOTRS-CE is an **independent, original implementation** of a ticket management s
 - Docker with Compose plugin OR Docker Compose standalone OR Podman with Compose
 - Git
 - 4GB RAM minimum
+- Modern web browser with JavaScript enabled
 
 **Container Runtime Support:**
 - ✅ Docker with `docker compose` plugin (v2) - Recommended
@@ -118,13 +119,15 @@ Demo credentials:
 
 ## Architecture
 
-GOTRS uses a modular architecture that scales from single-server deployments to large enterprise clusters:
+GOTRS uses a modern, hypermedia-driven architecture that scales from single-server deployments to large enterprise clusters:
 
 - **Core Services**: Authentication, Tickets, Users, Notifications, Workflow Engine
-- **Data Layer**: PostgreSQL (primary), Valkey (cache), S3-compatible storage (attachments)
-- **API Gateway**: REST and GraphQL APIs with rate limiting
-- **Frontend**: React-based SPA with Material-UI components
-- **Message Queue**: Event-driven architecture for async processing
+- **Data Layer**: PostgreSQL (primary), Valkey (cache), Zinc (search), S3-compatible storage (attachments)
+- **API**: RESTful JSON APIs with HTMX hypermedia endpoints
+- **Frontend**: HTMX + Alpine.js for progressive enhancement with Tailwind CSS
+- **Workflow Engine**: Temporal for complex business processes and automation
+- **Real-time**: Server-Sent Events (SSE) for live updates
+- **Search**: Zinc with Elasticsearch compatibility for full-text search
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical documentation.
 

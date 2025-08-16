@@ -1,11 +1,12 @@
 # CLAUDE.md - AI Assistant Project Context
 
 ## Project Overview
-GOTRS is a modern ticketing system replacing OTRS, built with Go (backend) and React (frontend). Security-first design with rootless containers.
+GOTRS is a modern ticketing system replacing OTRS, built with Go backend and HTMX frontend. Hypermedia-driven architecture with server-side rendering for simplicity and performance. Security-first design with rootless containers.
 
 ## Tech Stack
-- Backend: Go 1.21+, Gin, PostgreSQL, Valkey
-- Frontend: React 18, TypeScript, Material-UI, Redux Toolkit
+- Backend: Go 1.21+, Gin, PostgreSQL, Valkey, Temporal, Zinc
+- Frontend: HTMX, Alpine.js, Tailwind CSS (server-rendered)
+- Real-time: Server-Sent Events (SSE)
 - Containers: Docker/Podman (first-class support for both)
 - Deploy: Kubernetes, OpenShift-ready
 - Current Phase: MVP Development (Started Aug 10, 2025)
@@ -42,9 +43,10 @@ make clean                 # Reset everything
 - **postgres**: PostgreSQL 15 Alpine
 - **valkey**: Valkey 7 Alpine  
 - **backend**: Go with Air hot reload (non-root)
-- **frontend**: React with Vite HMR (non-root)
-- **nginx**: Reverse proxy
+- **nginx**: Reverse proxy with static assets
 - **mailhog**: Email testing
+- **temporal**: Workflow orchestration engine
+- **zinc**: Elasticsearch-compatible search engine
 
 ## Database
 - PostgreSQL with OTRS-compatible schema
@@ -58,15 +60,16 @@ make clean                 # Reset everything
 - Status codes: 200 OK, 201 Created, 400 Bad Request, 401 Unauthorized, 500 Error
 
 ## Common Tasks
-1. Add endpoint: handler � route � service � repository
-2. Add UI: component � action � reducer � API call
+1. Add endpoint: handler → route → service → repository
+2. Add UI: template → HTMX endpoint → Alpine.js for interactivity
 3. Add migration: Create numbered SQL file in /migrations
+4. Add workflow: Define Temporal workflow → activities → worker
 
 ## Current Status (Aug 10, 2025)
 ✅ **Phase 0 Complete**: Foundation established
-✅ Project structure created with Go backend and React frontend
+✅ Project structure created with Go backend and HTMX frontend
 ✅ Docker/Podman containers working with rootless support
-✅ Frontend (React + Vite + TypeScript) with hot reload
+✅ Frontend (HTMX + Alpine.js + Tailwind) with server-side rendering
 ✅ Backend (Go + Gin + Air) with hot reload
 ✅ PostgreSQL database with OTRS-compatible schema (14 tables)
 ✅ Database migration system with make commands
@@ -107,7 +110,9 @@ make up
 
 ## Coding Standards
 - Go: Standard formatting (gofmt)
-- React: Functional components with TypeScript
+- Templates: Go HTML templates with layouts
+- JavaScript: Minimal Alpine.js for interactivity
+- CSS: Tailwind utility classes
 - SQL: Lowercase with underscores
 - Git: Conventional commits (feat:, fix:, docs:)
 

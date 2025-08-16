@@ -3593,3 +3593,409 @@ func handleQuickActions(c *gin.Context) {
 		</div>
 	`)
 }
+
+// Customer Portal Handlers
+
+// handleCustomerPortal renders the customer portal homepage
+func handleCustomerPortal(c *gin.Context) {
+	// Get customer metrics (mock)
+	metrics := gin.H{
+		"open_tickets": 3,
+		"resolved_tickets": 12,
+		"total_tickets": 15,
+		"avg_resolution": "24 hours",
+	}
+	
+	c.String(http.StatusOK, `
+		<div class="customer-portal">
+			<h1 class="text-2xl font-bold mb-6">Customer Portal</h1>
+			
+			<!-- Quick Actions -->
+			<div class="quick-actions mb-6">
+				<button class="btn">Submit Ticket</button>
+				<button class="btn">View All Tickets</button>
+				<button class="btn">Search Knowledge Base</button>
+				<button class="btn">Contact Support</button>
+			</div>
+			
+			<!-- Metrics -->
+			<div class="metrics-grid grid grid-cols-4 gap-4 mb-6">
+				<div class="metric-card" data-metric="open-tickets">
+					<h3>Open Tickets</h3>
+					<div class="value">%d</div>
+				</div>
+				<div class="metric-card" data-metric="resolved-tickets">
+					<h3>Resolved Tickets</h3>
+					<div class="value">%d</div>
+				</div>
+				<div class="metric-card" data-metric="total-tickets">
+					<h3>Total Tickets</h3>
+					<div class="value">%d</div>
+				</div>
+				<div class="metric-card" data-metric="avg-resolution-time">
+					<h3>Avg Resolution</h3>
+					<div class="value">%s</div>
+				</div>
+			</div>
+			
+			<!-- Navigation -->
+			<div class="portal-nav mb-6">
+				<a href="/portal/tickets">My Tickets</a>
+				<a href="/portal/submit-ticket">Submit New Ticket</a>
+				<a href="/portal/kb">Knowledge Base</a>
+				<a href="/portal/profile">My Profile</a>
+			</div>
+		</div>
+	`,
+		metrics["open_tickets"],
+		metrics["resolved_tickets"], 
+		metrics["total_tickets"],
+		metrics["avg_resolution"],
+	)
+}
+
+// handleCustomerTickets lists customer's tickets
+func handleCustomerTickets(c *gin.Context) {
+	status := c.Query("status")
+	sort := c.Query("sort")
+	page := c.DefaultQuery("page", "1")
+	
+	// Generate response based on filters
+	html := `<div class="customer-tickets"><h2>My Tickets</h2>`
+	
+	// Add tickets based on status filter
+	if status != "closed" {
+		html += `
+			<div class="ticket-item">
+				<span class="ticket-id">TICK-2024-001</span>
+				<span class="status-open">Status: Open</span>
+				<span>Created: 2 days ago</span>
+				<span>Last Updated: 1 hour ago</span>
+			</div>
+		`
+	}
+	
+	if status != "open" {
+		html += `
+			<div class="ticket-item">
+				<span class="ticket-id">TICK-2024-002</span>
+				<span class="status-closed">Status: Closed</span>
+				<span>Created: 5 days ago</span>
+				<span>Last Updated: 3 days ago</span>
+			</div>
+		`
+	}
+	
+	// Add sorting indicator
+	if sort == "created" {
+		html += `<div>sort=created</div>`
+	}
+	
+	// Add pagination
+	if page == "2" {
+		html += `<div class="pagination"><a href="?page=1">Previous</a> Page 2 <a href="?page=3">Next</a></div>`
+	}
+	
+	html += `</div>`
+	c.String(http.StatusOK, html)
+}
+
+// handleCustomerSubmitTicketForm shows the ticket submission form
+func handleCustomerSubmitTicketForm(c *gin.Context) {
+	c.String(http.StatusOK, `
+		<div class="submit-ticket-form">
+			<h2>Submit New Ticket</h2>
+			<form hx-post="/portal/submit-ticket">
+				<div class="form-group">
+					<label for="subject">Subject</label>
+					<input type="text" name="subject" required>
+				</div>
+				<div class="form-group">
+					<label for="priority">Priority</label>
+					<select name="priority">
+						<option value="low">Low</option>
+						<option value="normal" selected>Normal</option>
+						<option value="high">High</option>
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="category">Category</label>
+					<select name="category" hx-trigger="change" hx-get="/portal/ticket-fields">
+						<option value="general">General</option>
+						<option value="technical">Technical</option>
+						<option value="billing">Billing</option>
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="description">Description</label>
+					<textarea name="description" required></textarea>
+				</div>
+				<div class="form-group">
+					<label for="attachment">Attachment</label>
+					<input type="file" name="attachment">
+				</div>
+				<button type="submit">Submit Ticket</button>
+			</form>
+		</div>
+	`)
+}
+
+// handleCustomerSubmitTicket processes ticket submission
+func handleCustomerSubmitTicket(c *gin.Context) {
+	subject := c.PostForm("subject")
+	description := c.PostForm("description")
+	// priority := c.PostForm("priority")
+	// category := c.PostForm("category")
+	
+	// Validate required fields
+	if subject == "" || description == "" {
+		errors := ""
+		if subject == "" {
+			errors += "Subject is required. "
+		}
+		if description == "" {
+			errors += "Description is required."
+		}
+		c.String(http.StatusBadRequest, errors)
+		return
+	}
+	
+	// Generate ticket ID (mock)
+	ticketID := fmt.Sprintf("TICK-%d", rand.Intn(9999))
+	
+	c.String(http.StatusOK, `
+		<div class="ticket-submitted">
+			<h3>Ticket submitted successfully</h3>
+			<p>Your ticket number is: %s</p>
+			<a href="/portal/tickets/%s">View Ticket</a>
+		</div>
+	`, ticketID, ticketID)
+}
+
+// handleCustomerTicketView shows individual ticket details
+func handleCustomerTicketView(c *gin.Context) {
+	ticketID := c.Param("id")
+	
+	// Check access (mock)
+	if ticketID == "TICK-2024-999" {
+		c.String(http.StatusForbidden, "Access denied")
+		return
+	}
+	
+	c.String(http.StatusOK, `
+		<div class="ticket-view">
+			<h2>%s</h2>
+			<div class="ticket-details">
+				<div>Subject: Cannot access email</div>
+				<div>Status: Open</div>
+				<div>Priority: High</div>
+				<div>Created: 2 days ago</div>
+			</div>
+			
+			<div class="ticket-description">
+				<h3>Description</h3>
+				<p>I cannot access my email account...</p>
+			</div>
+			
+			<div class="conversation">
+				<h3>Conversation</h3>
+				<div class="message-customer">Customer: Initial message</div>
+				<div class="message-agent">Agent response: We're looking into this</div>
+				<div class="message-customer">Customer reply: Thank you</div>
+			</div>
+			
+			<div class="attachments">
+				<h3>Attachments</h3>
+				<a href="#">Download screenshot.png</a>
+			</div>
+			
+			<div class="reply-form">
+				<h3>Add Reply</h3>
+				<form hx-post="/portal/tickets/%s/reply">
+					<textarea name="message" required></textarea>
+					<button type="submit">Send Reply</button>
+				</form>
+			</div>
+		</div>
+	`, ticketID, ticketID)
+}
+
+// handleCustomerTicketReply processes customer reply to ticket
+func handleCustomerTicketReply(c *gin.Context) {
+	ticketID := c.Param("id")
+	message := c.PostForm("message")
+	
+	// Validate message
+	if message == "" {
+		c.String(http.StatusBadRequest, "Message cannot be empty")
+		return
+	}
+	
+	// Check if ticket was closed and needs reopening
+	response := fmt.Sprintf(`
+		<div class="reply-success">
+			<p>Reply added successfully</p>
+			<div class="new-message">%s</div>
+	`, message)
+	
+	if ticketID == "TICK-2024-002" {
+		response += `
+			<div class="status-update">
+				<p>Ticket reopened</p>
+				<span class="status-open">Status: Open</span>
+			</div>
+		`
+	}
+	
+	response += `</div>`
+	c.String(http.StatusOK, response)
+}
+
+// handleCustomerProfile shows customer profile
+func handleCustomerProfile(c *gin.Context) {
+	c.String(http.StatusOK, `
+		<div class="customer-profile">
+			<h2>My Profile</h2>
+			<form hx-post="/portal/profile">
+				<div class="profile-info">
+					<div>Email: customer@example.com</div>
+					<div>
+						<label>Name:</label>
+						<input type="text" name="name" value="John Doe">
+					</div>
+					<div>
+						<label>Phone:</label>
+						<input type="text" name="phone" value="555-1234">
+					</div>
+					<div>
+						<label>Company:</label>
+						<input type="text" name="company" value="Acme Corp">
+					</div>
+				</div>
+				
+				<div class="notification-preferences">
+					<h3>Notification Preferences</h3>
+					<label>
+						<input type="checkbox" name="email_notifications" checked>
+						Email notifications
+					</label>
+					<label>
+						<input type="checkbox" name="sms_notifications">
+						SMS notifications
+					</label>
+				</div>
+				
+				<button type="submit">Update Profile</button>
+			</form>
+		</div>
+	`)
+}
+
+// handleCustomerUpdateProfile updates customer profile
+func handleCustomerUpdateProfile(c *gin.Context) {
+	// Check what type of update
+	if c.PostForm("email_notifications") != "" || c.PostForm("sms_notifications") != "" {
+		c.String(http.StatusOK, "Preferences updated")
+	} else {
+		c.String(http.StatusOK, "Profile updated successfully")
+	}
+}
+
+// handleCustomerKnowledgeBase shows knowledge base
+func handleCustomerKnowledgeBase(c *gin.Context) {
+	search := c.Query("search")
+	category := c.Query("category")
+	
+	html := `
+		<div class="knowledge-base">
+			<h2>Knowledge Base</h2>
+			<div class="kb-search">
+				<input type="text" placeholder="Search articles..." hx-get="/portal/kb" hx-trigger="keyup changed delay:500ms">
+			</div>
+	`
+	
+	if search == "password" {
+		html += `
+			<div class="search-results">
+				<h3>Search Results</h3>
+				<div class="article">
+					<a href="#">How to reset your password</a>
+				</div>
+			</div>
+		`
+	} else if category == "technical" {
+		html += `
+			<div class="category-articles">
+				<h3>Technical</h3>
+				<div class="article-category-technical">
+					Technical support articles...
+				</div>
+			</div>
+		`
+	} else {
+		html += `
+			<div class="kb-home">
+				<div class="popular-articles">
+					<h3>Popular Articles</h3>
+					<ul>
+						<li>How to reset your password</li>
+						<li>Getting started guide</li>
+					</ul>
+				</div>
+				<div class="categories">
+					<h3>Categories</h3>
+					<ul>
+						<li>General</li>
+						<li>Technical</li>
+						<li>Billing</li>
+					</ul>
+				</div>
+			</div>
+		`
+	}
+	
+	html += `
+		<div class="article-feedback">
+			<p>Was this helpful?</p>
+			<button hx-post="/portal/kb/vote" hx-vals='{"helpful": "yes"}'>Yes</button>
+			<button hx-post="/portal/kb/vote" hx-vals='{"helpful": "no"}'>No</button>
+		</div>
+	</div>`
+	
+	c.String(http.StatusOK, html)
+}
+
+// handleCustomerSatisfactionForm shows satisfaction survey
+func handleCustomerSatisfactionForm(c *gin.Context) {
+	ticketID := c.Param("id")
+	
+	c.String(http.StatusOK, `
+		<div class="satisfaction-survey">
+			<h2>Rate Your Experience</h2>
+			<p>How satisfied are you with the resolution of ticket %s?</p>
+			<form hx-post="/portal/tickets/%s/satisfaction">
+				<div class="rating">
+					<label>Rating (1-5 stars):</label>
+					<input type="radio" name="rating" value="1"> 1
+					<input type="radio" name="rating" value="2"> 2
+					<input type="radio" name="rating" value="3"> 3
+					<input type="radio" name="rating" value="4"> 4
+					<input type="radio" name="rating" value="5"> 5
+				</div>
+				<div class="feedback">
+					<label>Additional feedback:</label>
+					<textarea name="feedback"></textarea>
+				</div>
+				<button type="submit">Submit Rating</button>
+			</form>
+		</div>
+	`, ticketID, ticketID)
+}
+
+// handleCustomerSatisfactionSubmit processes satisfaction rating
+func handleCustomerSatisfactionSubmit(c *gin.Context) {
+	// rating := c.PostForm("rating")
+	// feedback := c.PostForm("feedback")
+	
+	c.String(http.StatusOK, "Thank you for your feedback")
+}

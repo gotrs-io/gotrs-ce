@@ -140,17 +140,37 @@ Key Patterns:
 - pubsub:{channel} - Real-time events
 ```
 
+#### Search Layer (Zinc)
+```
+Elasticsearch-compatible API:
+- Full-text search across tickets
+- Faceted search and filtering
+- Auto-complete suggestions
+- Index: gotrs_tickets
+- Compatible with ES clients
+```
+
+#### Workflow Engine (Temporal)
+```
+Workflow Patterns:
+- Ticket lifecycle management
+- SLA enforcement
+- Escalation rules
+- Automated notifications
+- Approval chains
+```
+
 ### 4. Communication Patterns
 
 #### Synchronous Communication
-- REST API for client-server communication
+- REST API for JSON data exchange
+- HTMX endpoints returning HTML fragments
 - gRPC for internal service-to-service calls
-- GraphQL for complex queries (optional)
 
 #### Asynchronous Communication
-- Message queue (NATS/RabbitMQ) for events
-- WebSockets for real-time updates
-- Background job processing
+- Temporal for workflow orchestration
+- Server-Sent Events (SSE) for real-time updates
+- Background job processing via Temporal activities
 
 ### 5. Security Architecture
 
@@ -185,7 +205,7 @@ Security Layers:
 # docker-compose.yml
 version: '3.8'
 services:
-  app:
+  backend:
     build: .
     ports:
       - "8080:8080"
@@ -195,12 +215,30 @@ services:
       - ./:/app
       
   postgres:
-    image: postgres:14
+    image: postgres:15-alpine
     environment:
       - POSTGRES_DB=gotrs
       
   valkey:
-    image: valkey:7-alpine
+    image: valkey/valkey:7-alpine
+    
+  temporal:
+    image: temporalio/auto-setup:1.22.4
+    ports:
+      - "7233:7233"
+      
+  zinc:
+    image: public.ecr.aws/zinclabs/zinc:0.4.9
+    ports:
+      - "4080:4080"
+    environment:
+      - ZINC_FIRST_ADMIN_USER=admin
+      - ZINC_FIRST_ADMIN_PASSWORD=admin
+      
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "8025:8025"
 ```
 
 ### Production Kubernetes
@@ -290,11 +328,13 @@ var (
 - **Validation**: go-playground/validator
 
 ### Frontend
-- **Framework**: React 18+ with TypeScript
-- **State Management**: Redux Toolkit
-- **UI Library**: Material-UI or Ant Design
-- **Build Tool**: Vite
-- **Testing**: Jest + React Testing Library
+- **Framework**: HTMX for hypermedia-driven architecture
+- **JavaScript**: Alpine.js for lightweight interactivity
+- **CSS**: Tailwind CSS with standalone CLI
+- **Templates**: Go HTML templates with layouts
+- **Real-time**: Server-Sent Events (SSE)
+- **Build Tool**: Tailwind CLI (no JavaScript bundler needed)
+- **Testing**: Go template tests + E2E tests
 
 ### Infrastructure
 - **Container**: Docker

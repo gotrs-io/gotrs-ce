@@ -14,7 +14,7 @@ This roadmap outlines the development phases for GOTRS from MVP to enterprise-re
 - [x] Docker Compose development environment
 - [x] Repository setup with proper .gitignore
 - [x] Basic Go project structure (cmd/server/main.go, go.mod)
-- [x] React project initialization (web/ with Vite + TypeScript)
+- [x] Frontend architecture chosen (HTMX + Alpine.js + Tailwind)
 - [x] Database migrations setup (PostgreSQL with OTRS-compatible schema)
 - [x] CI/CD pipeline with GitHub Actions
 
@@ -25,7 +25,7 @@ This roadmap outlines the development phases for GOTRS from MVP to enterprise-re
 - ✅ One-command startup (`make up` with auto-build)
 - ✅ OTRS-compatible database schema (14 tables, indexes, triggers)
 - ✅ Database migration system with make commands
-- ✅ Development environment with hot reload (Go + React)
+- ✅ Development environment with hot reload (Go + Air)
 
 ### Phase 1: MVP Core (Weeks 3-6, Aug-Sep 2025) 🚧 Current Phase
 
@@ -41,12 +41,16 @@ This roadmap outlines the development phases for GOTRS from MVP to enterprise-re
 - [x] Core ticket CRUD operations - Complete with full service layer
 - [x] Email integration with Mailhog for testing - Email service implemented
 
-#### Week 5-6: Frontend & Integration
-- [ ] React frontend scaffolding
-- [ ] Login/authentication UI
-- [ ] Ticket creation and listing
+#### Week 5-6: Frontend & Integration 🚧 In Progress
+- [x] HTMX + Alpine.js frontend architecture
+- [x] Tailwind CSS setup without build process
+- [x] Login/authentication UI with HTMX
+- [x] Template system with layouts
+- [x] Temporal workflow engine integration
+- [x] Zinc search engine integration
+- [ ] Ticket creation and listing with HTMX
 - [ ] Basic ticket workflow (new → open → resolved → closed)
-- [ ] Agent dashboard
+- [ ] Agent dashboard with SSE updates
 - [ ] Customer portal basics
 
 **Deliverables**:

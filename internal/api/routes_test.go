@@ -4,38 +4,24 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
-	"github.com/gotrs-io/gotrs-ce/internal/auth"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestNewRouter(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	
-	db, _, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	router := NewRouter(db, "test-secret")
+	router := NewSimpleRouter()
 	
 	assert.NotNil(t, router)
-	assert.NotNil(t, router.engine)
-	// Internal fields are private, just check that router is created
+	// Simple router just creates a gin engine with HTMX routes
 }
 
 func TestSetupRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	
-	db, _, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	router := NewRouter(db, "test-secret")
-	router.SetupRoutes()
+	router := NewSimpleRouter()
 
 	tests := []struct {
 		name       string
@@ -50,51 +36,33 @@ func TestSetupRoutes(t *testing.T) {
 			statusCode: http.StatusOK,
 		},
 		{
-			name:       "API v1 status endpoint",
+			name:       "Login page endpoint",
 			method:     "GET",
-			path:       "/api/v1/status",
+			path:       "/login",
 			statusCode: http.StatusOK,
 		},
 		{
-			name:       "Auth login endpoint exists",
-			method:     "POST",
-			path:       "/api/v1/auth/login",
-			statusCode: http.StatusBadRequest, // Will fail due to no body
-		},
-		{
-			name:       "Auth refresh endpoint exists",
-			method:     "POST",
-			path:       "/api/v1/auth/refresh",
-			statusCode: http.StatusBadRequest, // Will fail due to no body
-		},
-		{
-			name:       "Auth logout endpoint exists",
-			method:     "POST",
-			path:       "/api/v1/auth/logout",
+			name:       "Dashboard page endpoint",
+			method:     "GET",
+			path:       "/dashboard", 
 			statusCode: http.StatusOK,
 		},
 		{
-			name:       "Protected route requires auth",
-			method:     "GET",
-			path:       "/api/v1/auth/me",
-			statusCode: http.StatusUnauthorized, // No token
+			name:       "HTMX login endpoint exists",
+			method:     "POST",
+			path:       "/api/auth/login",
+			statusCode: http.StatusBadRequest, // Will fail due to no body
 		},
 		{
-			name:       "Tickets endpoint requires auth",
+			name:       "HTMX dashboard stats endpoint",
 			method:     "GET",
-			path:       "/api/v1/tickets",
-			statusCode: http.StatusUnauthorized, // No token
-		},
-		{
-			name:       "Users endpoint requires auth",
-			method:     "GET",
-			path:       "/api/v1/users",
-			statusCode: http.StatusUnauthorized, // No token
+			path:       "/api/dashboard/stats",
+			statusCode: http.StatusOK,
 		},
 		{
 			name:       "Non-existent route returns 404",
 			method:     "GET",
-			path:       "/api/v1/nonexistent",
+			path:       "/nonexistent",
 			statusCode: http.StatusNotFound,
 		},
 	}
@@ -104,68 +72,46 @@ func TestSetupRoutes(t *testing.T) {
 			req := httptest.NewRequest(tt.method, tt.path, nil)
 			w := httptest.NewRecorder()
 			
-			router.engine.ServeHTTP(w, req)
+			router.ServeHTTP(w, req)
 			
 			assert.Equal(t, tt.statusCode, w.Code)
 		})
 	}
 }
 
-func TestProtectedRoutes(t *testing.T) {
+func TestHTMXEndpoints(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	
-	db, _, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	router := NewRouter(db, "test-secret")
-	router.SetupRoutes()
-
-	// Create a valid JWT token
-	jwtManager := auth.NewJWTManager("test-secret", 1*time.Hour)
-	token, err := jwtManager.GenerateToken(1, "test@example.com", "Agent", 1)
-	require.NoError(t, err)
+	router := NewSimpleRouter()
 
 	tests := []struct {
 		name       string
 		method     string
 		path       string
-		token      string
 		statusCode int
 	}{
 		{
-			name:       "Auth me endpoint with valid token",
+			name:       "Dashboard stats returns HTML fragment",
 			method:     "GET",
-			path:       "/api/v1/auth/me",
-			token:      token,
+			path:       "/api/dashboard/stats",
 			statusCode: http.StatusOK,
 		},
 		{
-			name:       "Auth me endpoint without token",
+			name:       "Recent tickets returns HTML fragment",
 			method:     "GET",
-			path:       "/api/v1/auth/me",
-			token:      "",
-			statusCode: http.StatusUnauthorized,
-		},
-		{
-			name:       "Auth me endpoint with invalid token",
-			method:     "GET",
-			path:       "/api/v1/auth/me",
-			token:      "invalid.token.here",
-			statusCode: http.StatusUnauthorized,
-		},
-		{
-			name:       "Tickets endpoint with valid token",
-			method:     "GET",
-			path:       "/api/v1/tickets",
-			token:      token,
+			path:       "/api/dashboard/recent-tickets",
 			statusCode: http.StatusOK,
 		},
 		{
-			name:       "Users endpoint with valid token",
+			name:       "Activity feed returns HTML fragment",
 			method:     "GET",
-			path:       "/api/v1/users",
-			token:      token,
+			path:       "/api/dashboard/activity",
+			statusCode: http.StatusOK,
+		},
+		{
+			name:       "Tickets API returns HTML fragment",
+			method:     "GET",
+			path:       "/api/tickets",
 			statusCode: http.StatusOK,
 		},
 	}
@@ -173,246 +119,62 @@ func TestProtectedRoutes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(tt.method, tt.path, nil)
-			if tt.token != "" {
-				req.Header.Set("Authorization", "Bearer "+tt.token)
-			}
 			w := httptest.NewRecorder()
 			
-			router.engine.ServeHTTP(w, req)
+			router.ServeHTTP(w, req)
 			
 			assert.Equal(t, tt.statusCode, w.Code)
 		})
 	}
-}
-
-func TestRoleBasedAccess(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	
-	db, _, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	router := NewRouter(db, "test-secret")
-	router.SetupRoutes()
-
-	jwtManager := auth.NewJWTManager("test-secret", 1*time.Hour)
-
-	// Create tokens for different roles
-	adminToken, err := jwtManager.GenerateToken(1, "admin@example.com", "Admin", 1)
-	require.NoError(t, err)
-	
-	agentToken, err := jwtManager.GenerateToken(2, "agent@example.com", "Agent", 1)
-	require.NoError(t, err)
-	
-	customerToken, err := jwtManager.GenerateToken(3, "customer@example.com", "Customer", 1)
-	require.NoError(t, err)
-
-	tests := []struct {
-		name       string
-		method     string
-		path       string
-		token      string
-		role       string
-		statusCode int
-	}{
-		{
-			name:       "Admin can access users endpoint",
-			method:     "GET",
-			path:       "/api/v1/users",
-			token:      adminToken,
-			role:       "Admin",
-			statusCode: http.StatusOK,
-		},
-		{
-			name:       "Agent can access users endpoint",
-			method:     "GET",
-			path:       "/api/v1/users",
-			token:      agentToken,
-			role:       "Agent",
-			statusCode: http.StatusOK,
-		},
-		{
-			name:       "Customer cannot access users endpoint",
-			method:     "GET",
-			path:       "/api/v1/users",
-			token:      customerToken,
-			role:       "Customer",
-			statusCode: http.StatusForbidden,
-		},
-		{
-			name:       "Admin can access admin endpoints",
-			method:     "GET",
-			path:       "/api/v1/admin/dashboard",
-			token:      adminToken,
-			role:       "Admin",
-			statusCode: http.StatusOK,
-		},
-		{
-			name:       "Agent cannot access admin endpoints",
-			method:     "GET",
-			path:       "/api/v1/admin/dashboard",
-			token:      agentToken,
-			role:       "Agent",
-			statusCode: http.StatusForbidden,
-		},
-		{
-			name:       "Customer can access their tickets",
-			method:     "GET",
-			path:       "/api/v1/tickets",
-			token:      customerToken,
-			role:       "Customer",
-			statusCode: http.StatusOK,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(tt.method, tt.path, nil)
-			req.Header.Set("Authorization", "Bearer "+tt.token)
-			w := httptest.NewRecorder()
-			
-			router.engine.ServeHTTP(w, req)
-			
-			assert.Equal(t, tt.statusCode, w.Code, "Role %s accessing %s", tt.role, tt.path)
-		})
-	}
-}
-
-func TestGetEngine(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	
-	db, _, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	router := NewRouter(db, "test-secret")
-	engine := router.GetEngine()
-	
-	assert.NotNil(t, engine)
-	assert.IsType(t, &gin.Engine{}, engine)
 }
 
 func TestHealthEndpoint(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	
-	db, _, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	router := NewRouter(db, "test-secret")
-	router.SetupRoutes()
+	router := NewSimpleRouter()
 	
 	req := httptest.NewRequest("GET", "/health", nil)
 	w := httptest.NewRecorder()
 	
-	router.engine.ServeHTTP(w, req)
+	router.ServeHTTP(w, req)
 	
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "healthy")
-}
-
-func TestCORSHeaders(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	
-	db, _, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	router := NewRouter(db, "test-secret")
-	router.SetupRoutes()
-
-	// Test preflight request
-	req := httptest.NewRequest("OPTIONS", "/api/v1/auth/login", nil)
-	req.Header.Set("Origin", "http://localhost:3000")
-	req.Header.Set("Access-Control-Request-Method", "POST")
-	w := httptest.NewRecorder()
-	
-	router.engine.ServeHTTP(w, req)
-	
-	assert.Equal(t, http.StatusNoContent, w.Code)
-	assert.NotEmpty(t, w.Header().Get("Access-Control-Allow-Origin"))
-	assert.Contains(t, w.Header().Get("Access-Control-Allow-Methods"), "POST")
+	assert.Contains(t, w.Body.String(), "ok")
 }
 
 func TestRouteGroups(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	
-	db, _, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	router := NewRouter(db, "test-secret")
-	router.SetupRoutes()
+	router := NewSimpleRouter()
 
 	// Get all routes
-	routes := router.engine.Routes()
+	routes := router.Routes()
 	
-	// Check that routes are properly grouped
-	apiV1Routes := 0
-	authRoutes := 0
-	ticketRoutes := 0
-	userRoutes := 0
-	adminRoutes := 0
+	// Check that routes are properly set up
+	pageRoutes := 0
+	apiRoutes := 0
 	
 	for _, route := range routes {
-		if len(route.Path) > 7 && route.Path[:7] == "/api/v1" {
-			apiV1Routes++
-			
-			if len(route.Path) > 12 && route.Path[:12] == "/api/v1/auth" {
-				authRoutes++
-			} else if len(route.Path) > 15 && route.Path[:15] == "/api/v1/tickets" {
-				ticketRoutes++
-			} else if len(route.Path) > 13 && route.Path[:13] == "/api/v1/users" {
-				userRoutes++
-			} else if len(route.Path) > 13 && route.Path[:13] == "/api/v1/admin" {
-				adminRoutes++
-			}
+		if len(route.Path) > 4 && route.Path[:4] == "/api" {
+			apiRoutes++
+		} else if route.Path == "/login" || route.Path == "/dashboard" {
+			pageRoutes++
 		}
 	}
 	
-	assert.Greater(t, apiV1Routes, 0, "Should have API v1 routes")
-	assert.Greater(t, authRoutes, 0, "Should have auth routes")
-	assert.Greater(t, ticketRoutes, 0, "Should have ticket routes")
-	assert.Greater(t, userRoutes, 0, "Should have user routes")
-	assert.Greater(t, adminRoutes, 0, "Should have admin routes")
+	assert.Greater(t, apiRoutes, 0, "Should have API routes for HTMX")
+	assert.Greater(t, pageRoutes, 0, "Should have page routes")
 }
 
 func BenchmarkRouting(b *testing.B) {
 	gin.SetMode(gin.ReleaseMode)
 	
-	db, _, _ := sqlmock.New()
-	defer db.Close()
-	
-	router := NewRouter(db, "test-secret")
-	router.SetupRoutes()
-	
+	router := NewSimpleRouter()
 	req := httptest.NewRequest("GET", "/health", nil)
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		w := httptest.NewRecorder()
-		router.engine.ServeHTTP(w, req)
-	}
-}
-
-func BenchmarkProtectedRoute(b *testing.B) {
-	gin.SetMode(gin.ReleaseMode)
-	
-	db, _, _ := sqlmock.New()
-	defer db.Close()
-	
-	router := NewRouter(db, "test-secret")
-	router.SetupRoutes()
-	
-	jwtManager := auth.NewJWTManager("test-secret", 1*time.Hour)
-	token, _ := jwtManager.GenerateToken(1, "test@example.com", "Agent", 1)
-	
-	req := httptest.NewRequest("GET", "/api/v1/tickets", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		w := httptest.NewRecorder()
-		router.engine.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 	}
 }

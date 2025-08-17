@@ -1,0 +1,586 @@
+{{define "ticket-create"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Ticket - GOTRS</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/alpinejs@3.13.5/dist/cdn.min.js" defer></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <h1 class="text-xl font-semibold text-gray-900">Create New Ticket</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button onclick="window.history.back()" 
+                                class="text-gray-600 hover:text-gray-900">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <form id="ticket-create-form" 
+                  hx-post="/api/tickets"
+                  hx-target="#form-messages"
+                  class="space-y-6">
+                
+                <!-- Template Selection -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Quick Start</h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Use Template (Optional)
+                            </label>
+                            <div class="flex space-x-3">
+                                <select id="template-selector"
+                                        onchange="loadTicketTemplate(this.value)"
+                                        class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                    <option value="">-- Select a template --</option>
+                                    <optgroup label="Incident">
+                                        <option value="password-reset">Password Reset Request</option>
+                                        <option value="system-outage">System Outage Report</option>
+                                        <option value="access-issue">Access Issue</option>
+                                    </optgroup>
+                                    <optgroup label="Service Request">
+                                        <option value="new-account">New Account Request</option>
+                                        <option value="software-install">Software Installation</option>
+                                        <option value="hardware-request">Hardware Request</option>
+                                    </optgroup>
+                                    <optgroup label="Problem">
+                                        <option value="recurring-issue">Recurring Issue Investigation</option>
+                                        <option value="performance-problem">Performance Problem</option>
+                                    </optgroup>
+                                </select>
+                                <button type="button"
+                                        hx-get="/api/templates/list"
+                                        hx-target="#template-selector"
+                                        hx-swap="innerHTML"
+                                        class="px-4 py-2 text-sm text-indigo-600 hover:text-indigo-700">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <p class="mt-1 text-xs text-gray-500">
+                                Select a template to quickly populate the form with predefined values
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Customer Information -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Customer Information</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Customer Name *</label>
+                            <input type="text" 
+                                   name="customer_name" 
+                                   required
+                                   class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Customer Email *</label>
+                            <input type="email" 
+                                   name="customer_email" 
+                                   required
+                                   class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Phone</label>
+                            <input type="tel" 
+                                   name="customer_phone"
+                                   class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Company</label>
+                            <input type="text" 
+                                   name="customer_company"
+                                   class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ticket Details -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Ticket Details</h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Subject *</label>
+                            <input type="text" 
+                                   name="title" 
+                                   id="ticket-title"
+                                   required
+                                   placeholder="Brief description of the issue"
+                                   class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Type *</label>
+                                <select name="ticket_type" 
+                                        id="ticket-type"
+                                        required
+                                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                    <option value="">Select type</option>
+                                    <option value="incident">Incident</option>
+                                    <option value="request">Service Request</option>
+                                    <option value="problem">Problem</option>
+                                    <option value="change">Change</option>
+                                    <option value="task">Task</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Priority *</label>
+                                <select name="priority" 
+                                        id="ticket-priority"
+                                        required
+                                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                    <option value="low">Low</option>
+                                    <option value="normal" selected>Normal</option>
+                                    <option value="high">High</option>
+                                    <option value="urgent">Urgent</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Queue *</label>
+                                <select name="queue_id" 
+                                        id="ticket-queue"
+                                        required
+                                        hx-get="/api/queues/sla"
+                                        hx-trigger="change"
+                                        hx-target="#sla-info"
+                                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                    <option value="">Select queue</option>
+                                    <option value="1">General Support</option>
+                                    <option value="2">Technical Support</option>
+                                    <option value="3">Billing</option>
+                                    <option value="4">Sales</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Description *</label>
+                            <textarea name="content" 
+                                      id="ticket-content"
+                                      rows="8" 
+                                      required
+                                      placeholder="Detailed description of the issue or request"
+                                      class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"></textarea>
+                            <div class="mt-1 flex items-center justify-between text-xs text-gray-500">
+                                <span>Provide as much detail as possible</span>
+                                <span id="content-char-count">0 characters</span>
+                            </div>
+                        </div>
+                        
+                        <!-- SLA Information -->
+                        <div id="sla-info" class="hidden mt-4 p-3 bg-blue-50 rounded-md">
+                            <p class="text-sm text-blue-800">
+                                <strong>SLA:</strong> <span id="sla-name">-</span><br>
+                                <strong>Response Time:</strong> <span id="sla-response">-</span><br>
+                                <strong>Resolution Time:</strong> <span id="sla-resolution">-</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Custom Fields (Template-specific) -->
+                <div id="custom-fields-section" class="hidden bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Additional Information</h2>
+                    <div id="custom-fields-container" class="space-y-4">
+                        <!-- Custom fields will be inserted here by templates -->
+                    </div>
+                </div>
+
+                <!-- Attachments -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Attachments</h2>
+                    
+                    <div class="space-y-4">
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                            <input type="file" 
+                                   name="attachments" 
+                                   id="file-upload"
+                                   multiple
+                                   class="hidden"
+                                   accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.gif">
+                            <label for="file-upload" class="cursor-pointer">
+                                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                </svg>
+                                <p class="mt-2 text-sm text-gray-600">
+                                    <span class="font-medium text-indigo-600 hover:text-indigo-500">Upload files</span> or drag and drop
+                                </p>
+                                <p class="text-xs text-gray-500">PDF, DOC, TXT, Images up to 10MB each</p>
+                            </label>
+                        </div>
+                        
+                        <div id="file-list" class="hidden space-y-2">
+                            <!-- File list will be shown here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Options -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Additional Options</h2>
+                    
+                    <div class="space-y-3">
+                        <label class="flex items-center">
+                            <input type="checkbox" 
+                                   name="send_notification" 
+                                   value="true" 
+                                   checked
+                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <span class="ml-2 text-sm text-gray-700">Send confirmation email to customer</span>
+                        </label>
+                        
+                        <label class="flex items-center">
+                            <input type="checkbox" 
+                                   name="auto_assign" 
+                                   value="true"
+                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <span class="ml-2 text-sm text-gray-700">Auto-assign to available agent</span>
+                        </label>
+                        
+                        <label class="flex items-center">
+                            <input type="checkbox" 
+                                   name="is_internal" 
+                                   value="true"
+                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <span class="ml-2 text-sm text-gray-700">Internal ticket (not visible to customer)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Form Messages -->
+                <div id="form-messages"></div>
+
+                <!-- Form Actions -->
+                <div class="flex justify-between items-center">
+                    <button type="button"
+                            onclick="saveDraft()"
+                            class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                        Save as Draft
+                    </button>
+                    
+                    <div class="flex space-x-3">
+                        <button type="button"
+                                onclick="window.history.back()"
+                                class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button type="button"
+                                onclick="previewTicket()"
+                                class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                            Preview
+                        </button>
+                        <button type="submit"
+                                class="px-6 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
+                            Create Ticket
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="preview-modal" class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Ticket Preview</h3>
+                </div>
+                <div id="preview-content" class="p-6 overflow-y-auto max-h-[70vh]">
+                    <!-- Preview content will be inserted here -->
+                </div>
+                <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
+                    <button onclick="closePreviewModal()"
+                            class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Template loading
+    function loadTicketTemplate(templateId) {
+        if (!templateId) {
+            clearForm();
+            return;
+        }
+        
+        fetch(`/api/templates/${templateId}`)
+            .then(response => response.json())
+            .then(template => {
+                // Populate basic fields
+                document.getElementById('ticket-title').value = template.subject || '';
+                document.getElementById('ticket-content').value = template.content || '';
+                document.getElementById('ticket-type').value = template.category || '';
+                document.getElementById('ticket-priority').value = template.priority || 'normal';
+                
+                // Load custom fields if present
+                if (template.custom_fields && template.custom_fields.length > 0) {
+                    loadCustomFields(template.custom_fields);
+                } else {
+                    hideCustomFields();
+                }
+                
+                // Update character count
+                updateContentCharCount();
+                
+                // Show template applied message
+                showMessage('Template applied successfully', 'success');
+            })
+            .catch(error => {
+                showMessage('Failed to load template', 'error');
+            });
+    }
+    
+    function loadCustomFields(fields) {
+        const section = document.getElementById('custom-fields-section');
+        const container = document.getElementById('custom-fields-container');
+        
+        container.innerHTML = '';
+        
+        fields.forEach(field => {
+            const fieldHtml = createCustomFieldHtml(field);
+            container.insertAdjacentHTML('beforeend', fieldHtml);
+        });
+        
+        section.classList.remove('hidden');
+    }
+    
+    function createCustomFieldHtml(field) {
+        let inputHtml = '';
+        
+        switch(field.type) {
+            case 'text':
+                inputHtml = `
+                    <input type="text" 
+                           name="custom_${field.name}" 
+                           value="${field.default_value || ''}"
+                           class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                `;
+                break;
+            case 'number':
+                inputHtml = `
+                    <input type="number" 
+                           name="custom_${field.name}" 
+                           value="${field.default_value || ''}"
+                           class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                `;
+                break;
+            case 'date':
+                inputHtml = `
+                    <input type="date" 
+                           name="custom_${field.name}" 
+                           value="${field.default_value || ''}"
+                           class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                `;
+                break;
+            case 'select':
+                const options = field.options ? field.options.split(',').map(opt => 
+                    `<option value="${opt.trim()}">${opt.trim()}</option>`
+                ).join('') : '';
+                inputHtml = `
+                    <select name="custom_${field.name}" 
+                            class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        <option value="">Select...</option>
+                        ${options}
+                    </select>
+                `;
+                break;
+        }
+        
+        return `
+            <div>
+                <label class="block text-sm font-medium text-gray-700">${field.label || field.name}</label>
+                ${inputHtml}
+            </div>
+        `;
+    }
+    
+    function hideCustomFields() {
+        document.getElementById('custom-fields-section').classList.add('hidden');
+    }
+    
+    function clearForm() {
+        document.getElementById('ticket-create-form').reset();
+        hideCustomFields();
+        updateContentCharCount();
+    }
+    
+    // Character counter
+    document.getElementById('ticket-content').addEventListener('input', updateContentCharCount);
+    
+    function updateContentCharCount() {
+        const content = document.getElementById('ticket-content').value;
+        document.getElementById('content-char-count').textContent = `${content.length} characters`;
+    }
+    
+    // File upload handling
+    document.getElementById('file-upload').addEventListener('change', function(e) {
+        const files = e.target.files;
+        if (files.length > 0) {
+            const fileList = document.getElementById('file-list');
+            fileList.innerHTML = '';
+            fileList.classList.remove('hidden');
+            
+            Array.from(files).forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'flex items-center justify-between p-2 bg-gray-50 rounded';
+                fileItem.innerHTML = `
+                    <span class="text-sm text-gray-700">${file.name} (${formatFileSize(file.size)})</span>
+                    <button type="button" onclick="removeFile(this)" class="text-red-600 hover:text-red-800">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        }
+    });
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+    
+    function removeFile(button) {
+        button.parentElement.remove();
+        const fileList = document.getElementById('file-list');
+        if (fileList.children.length === 0) {
+            fileList.classList.add('hidden');
+        }
+    }
+    
+    // Preview functionality
+    function previewTicket() {
+        const form = document.getElementById('ticket-create-form');
+        const formData = new FormData(form);
+        
+        const previewHtml = `
+            <div class="space-y-4">
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-900">Customer</h4>
+                    <p class="mt-1 text-sm text-gray-700">${formData.get('customer_name')} (${formData.get('customer_email')})</p>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-900">Subject</h4>
+                    <p class="mt-1 text-sm text-gray-700">${formData.get('title')}</p>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-900">Details</h4>
+                    <p class="mt-1 text-sm text-gray-700">
+                        Type: ${formData.get('ticket_type')}<br>
+                        Priority: ${formData.get('priority')}<br>
+                        Queue: ${document.querySelector('#ticket-queue option:checked').textContent}
+                    </p>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-900">Description</h4>
+                    <div class="mt-1 text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-3 rounded">${formData.get('content')}</div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('preview-content').innerHTML = previewHtml;
+        document.getElementById('preview-modal').classList.remove('hidden');
+    }
+    
+    function closePreviewModal() {
+        document.getElementById('preview-modal').classList.add('hidden');
+    }
+    
+    // Save draft
+    function saveDraft() {
+        const form = document.getElementById('ticket-create-form');
+        const formData = new FormData(form);
+        formData.append('is_draft', 'true');
+        
+        fetch('/api/tickets/draft', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            showMessage('Draft saved successfully', 'success');
+        })
+        .catch(error => {
+            showMessage('Failed to save draft', 'error');
+        });
+    }
+    
+    // Message display
+    function showMessage(message, type) {
+        const messageDiv = document.getElementById('form-messages');
+        const bgColor = type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800';
+        
+        messageDiv.innerHTML = `
+            <div class="p-4 rounded-md border ${bgColor}">
+                <p class="text-sm">${message}</p>
+            </div>
+        `;
+        
+        setTimeout(() => {
+            messageDiv.innerHTML = '';
+        }, 5000);
+    }
+    
+    // Drag and drop support
+    const dropZone = document.querySelector('.border-dashed');
+    
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-indigo-500', 'bg-indigo-50');
+    });
+    
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+    });
+    
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+        
+        const files = e.dataTransfer.files;
+        document.getElementById('file-upload').files = files;
+        
+        // Trigger change event
+        const event = new Event('change', { bubbles: true });
+        document.getElementById('file-upload').dispatchEvent(event);
+    });
+    </script>
+</body>
+</html>
+{{end}}

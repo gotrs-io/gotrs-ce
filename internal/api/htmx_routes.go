@@ -199,11 +199,12 @@ func SetupHTMXRoutes(r *gin.Engine) {
 		api.DELETE("/queues/bulk", handleBulkQueueDelete)
 		
 		// Ticket operations
+		// Note: Specific routes must be registered before parameterized routes
 		api.GET("/tickets", handleTicketsAPI)
 		api.GET("/tickets/search", handleTicketSearch)
+		api.PUT("/tickets/bulk", handleBulkUpdateTickets)
 		api.POST("/tickets", handleCreateTicket)
 		api.PUT("/tickets/:id", handleUpdateTicketEnhanced)
-		api.PUT("/tickets/bulk", handleBulkUpdateTickets)
 		api.POST("/tickets/:id/status", handleUpdateTicketStatus)
 		api.POST("/tickets/:id/assign", handleAssignTicket)
 		api.POST("/tickets/:id/reply", handleTicketReply)
@@ -227,8 +228,8 @@ func SetupHTMXRoutes(r *gin.Engine) {
 		api.GET("/tickets/:id/attachments/:attachment_id", handleDownloadAttachment)
 		api.DELETE("/tickets/:id/attachments/:attachment_id", handleDeleteAttachment)
 		
-		// Advanced Search
-		api.GET("/tickets/search", handleAdvancedTicketSearch)
+		// Advanced Search (using different endpoints to avoid conflicts)
+		api.GET("/tickets/advanced-search", handleAdvancedTicketSearch)
 		api.GET("/tickets/search/suggestions", handleSearchSuggestions)
 		api.GET("/tickets/search/export", handleExportSearchResults)
 		

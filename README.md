@@ -110,10 +110,7 @@ make podman-systemd
 
 Try GOTRS without installation at [https://try.gotrs.io](https://try.gotrs.io)
 
-Demo credentials:
-- Admin: `admin@gotrs.demo` / `DemoAdmin123!`
-- Agent: `agent@gotrs.demo` / `DemoAgent123!`
-- Customer: `customer@gotrs.demo` / `DemoUser123!`
+Demo credentials are shown on the demo instance login page.
 
 *Note: Demo data resets daily at 2 AM UTC*
 

@@ -21,14 +21,19 @@ The GOTRS demo instance provides a fully functional environment for evaluation, 
 
 ### Quick Access Credentials
 
-| Role | Username | Password | Description |
-|------|----------|----------|-------------|
-| **Admin** | admin@gotrs.demo | DemoAdmin123! | Full system administration |
-| **Senior Agent** | sarah.chen@gotrs.demo | DemoAgent123! | Experienced support agent |
-| **Junior Agent** | alex.rivera@gotrs.demo | DemoAgent123! | New support agent |
-| **Team Lead** | mike.johnson@gotrs.demo | DemoLead123! | Team management access |
-| **Customer** | jennifer.walsh@gotrs.demo | DemoUser123! | VIP customer account |
-| **Basic User** | david.kim@gotrs.demo | DemoUser123! | Standard customer |
+Demo credentials are configured via environment variables when DEMO_MODE=true.
+See `.env.example` for configuration details.
+
+| Role | Description |
+|------|-------------|
+| **Admin** | Full system administration |
+| **Senior Agent** | Experienced support agent |
+| **Junior Agent** | New support agent |
+| **Team Lead** | Team management access |
+| **Customer** | VIP customer account |
+| **Basic User** | Standard customer |
+
+Note: Actual demo usernames and passwords are provided on the demo instance login page when demo mode is enabled.
 
 ### Test Credit Cards
 For testing payment/billing features:

@@ -98,7 +98,7 @@ timeline
 **Date**: August 17, 2025  
 **Version**: 0.1.0-alpha  
 **Active Phase**: Enhanced Ticketing & User Experience
-**Progress**: 70% of Phase 2 backend complete
+**Progress**: 80% of Phase 2 backend complete
 
 ### Recent Achievements (Aug 17, 2025)
 - ✅ Implemented canned responses with 14+ API endpoints
@@ -106,6 +106,7 @@ timeline
 - ✅ Created ticket templates with variable substitution
 - ✅ Integrated Zinc search engine with comprehensive search service
 - ✅ Implemented search with saved searches, history, and analytics
+- ✅ Built ticket merging and splitting functionality with relations
 - ✅ All features built using TDD with comprehensive test coverage
 - ✅ Repository pattern with in-memory implementations
 - ✅ Service layer with business logic separation
@@ -226,7 +227,7 @@ timeline
 - [x] Ticket templates for common issues (backend + API complete with TDD)
 - [x] Canned responses for agents (backend + API complete with TDD)
 - [x] Internal notes and comments (backend + API complete with TDD)
-- [ ] Ticket merging and splitting
+- [x] Ticket merging and splitting (backend + service complete with TDD)
 - [ ] SLA management basics
 - [ ] UI components for templates, canned responses, notes, and search
 

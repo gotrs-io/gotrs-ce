@@ -321,15 +321,30 @@ func SetupHTMXRoutes(r *gin.Engine) {
 		api.GET("/templates/:id/load", handleLoadTemplateIntoForm)
 		api.GET("/templates/modal", handleTemplateSelectionModal)
 		
-		// Internal Notes
-		api.POST("/tickets/:id/internal-notes", handleCreateInternalNote)
-		api.GET("/tickets/:id/internal-notes", handleGetInternalNotes)
-		api.PUT("/tickets/:id/internal-notes/:note_id", handleUpdateInternalNote)
-		api.DELETE("/tickets/:id/internal-notes/:note_id", handleDeleteInternalNote)
-		api.GET("/tickets/:id/internal-notes/:note_id/history", handleGetInternalNoteHistory)
-		api.GET("/tickets/:id/internal-notes/stats", handleGetInternalNoteStats)
-		api.GET("/tickets/:id/internal-notes/export", handleExportInternalNotes)
-		api.POST("/tickets/:id/internal-notes/from-template", handleCreateNoteFromTemplate)
+		// Internal Notes - Using comprehensive handlers
+		noteHandlers := NewInternalNoteHandlers()
+		api.POST("/tickets/:id/internal-notes", noteHandlers.CreateNote)
+		api.GET("/tickets/:id/internal-notes", noteHandlers.GetNotes)
+		api.GET("/tickets/:id/internal-notes/pinned", noteHandlers.GetPinnedNotes)
+		api.GET("/tickets/:id/internal-notes/important", noteHandlers.GetImportantNotes)
+		api.GET("/tickets/:id/internal-notes/search", noteHandlers.SearchNotes)
+		api.GET("/tickets/:id/internal-notes/stats", noteHandlers.GetNoteStatistics)
+		api.GET("/tickets/:id/internal-notes/activity", noteHandlers.GetRecentActivity)
+		api.GET("/tickets/:id/internal-notes/export", noteHandlers.ExportNotes)
+		api.POST("/tickets/:id/internal-notes/from-template", noteHandlers.CreateNoteFromTemplate)
+		api.GET("/tickets/:id/internal-notes/:note_id", noteHandlers.GetNoteByID)
+		api.PUT("/tickets/:id/internal-notes/:note_id", noteHandlers.UpdateNote)
+		api.DELETE("/tickets/:id/internal-notes/:note_id", noteHandlers.DeleteNote)
+		api.POST("/tickets/:id/internal-notes/:note_id/pin", noteHandlers.PinNote)
+		api.POST("/tickets/:id/internal-notes/:note_id/important", noteHandlers.MarkImportant)
+		api.GET("/tickets/:id/internal-notes/:note_id/history", noteHandlers.GetEditHistory)
+		
+		// Note Templates
+		api.GET("/internal-notes/templates", noteHandlers.GetTemplates)
+		api.POST("/internal-notes/templates", noteHandlers.CreateTemplate)
+		api.PUT("/internal-notes/templates/:template_id", noteHandlers.UpdateTemplate)
+		api.DELETE("/internal-notes/templates/:template_id", noteHandlers.DeleteTemplate)
+		api.GET("/internal-notes/categories", noteHandlers.GetCategories)
 		
 		// Real-time updates
 		api.GET("/tickets/stream", handleTicketStream)

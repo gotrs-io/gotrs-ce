@@ -110,6 +110,9 @@ timeline
 - ✅ Activity feed and notifications
 - ✅ Quick actions with shortcuts
 - ✅ File attachments with local storage
+- ✅ Canned responses with variable substitution (backend)
+- ✅ Internal notes and comments system (backend)
+- ✅ Ticket templates with categories (backend)
 
 #### For Customers  
 - ✅ Self-service portal
@@ -205,9 +208,9 @@ timeline
 #### Week 7-8: Enhanced Ticketing (Aug 17-30, 2025)
 - [ ] Advanced ticket search and filtering with Zinc
 - [x] File attachments (local filesystem storage)
-- [ ] Ticket templates for common issues
-- [ ] Canned responses for agents
-- [ ] Internal notes and comments
+- [x] Ticket templates for common issues (backend complete with TDD)
+- [x] Canned responses for agents (backend complete with TDD)
+- [x] Internal notes and comments (backend complete with TDD)
 - [ ] Ticket merging and splitting
 - [ ] SLA management basics
 

@@ -48,8 +48,10 @@ GOTRS-CE is an **independent, original implementation** of a ticket management s
 git clone https://github.com/gotrs-io/gotrs-ce.git
 cd gotrs-ce
 
-# Copy environment configuration
-cp .env.example .env
+# Set up environment variables (REQUIRED - containers won't start without this!)
+cp .env.development .env    # For local development (includes safe demo credentials)
+# OR for production:
+cp .env.example .env        # Then edit ALL values before use
 
 # Start all services (auto-detects docker/podman compose command)
 make up
@@ -70,8 +72,6 @@ make debug-env
 # - Mailhog (email testing): http://localhost:8025
 # - Adminer (database UI): http://localhost:8090 (optional)
 
-# Default credentials:
-# admin@gotrs.local / admin123
 ```
 
 ### Development Workflow

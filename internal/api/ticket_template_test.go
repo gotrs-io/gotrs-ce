@@ -28,7 +28,7 @@ func TestCreateTicketTemplate(t *testing.T) {
 		{
 			name: "Create basic template successfully",
 			formData: url.Values{
-				"name":        {"Password Reset"},
+				"name":        {"Test Password Reset"},
 				"description": {"Template for password reset requests"},
 				"subject":     {"Password Reset Request"},
 				"body":        {"Please reset my password for account: [ACCOUNT_EMAIL]"},
@@ -41,7 +41,7 @@ func TestCreateTicketTemplate(t *testing.T) {
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				assert.Equal(t, "Template created successfully", resp["message"])
 				assert.Contains(t, resp, "template_id")
-				assert.Equal(t, "Password Reset", resp["name"])
+				assert.Equal(t, "Test Password Reset", resp["name"])
 			},
 		},
 		{
@@ -81,7 +81,7 @@ func TestCreateTicketTemplate(t *testing.T) {
 		{
 			name: "Duplicate template name",
 			formData: url.Values{
-				"name":        {"Password Reset"}, // Already exists from first test
+				"name":        {"Test Password Reset"}, // Already exists from first test
 				"description": {"Duplicate template"},
 				"subject":     {"Test"},
 				"body":        {"Test"},
@@ -96,6 +96,12 @@ func TestCreateTicketTemplate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
+			// Add middleware to set user role as admin
+			router.Use(func(c *gin.Context) {
+				c.Set("user_role", "admin")
+				c.Set("user_id", 1)
+				c.Next()
+			})
 			router.POST("/api/ticket-templates", handleCreateTicketTemplate)
 
 			w := httptest.NewRecorder()
@@ -292,6 +298,12 @@ func TestUpdateTicketTemplate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
+			// Add middleware to set user role as admin
+			router.Use(func(c *gin.Context) {
+				c.Set("user_role", "admin")
+				c.Set("user_id", 1)
+				c.Next()
+			})
 			router.PUT("/api/ticket-templates/:id", handleUpdateTicketTemplate)
 
 			w := httptest.NewRecorder()
@@ -350,6 +362,12 @@ func TestDeleteTicketTemplate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
+			// Add middleware to set user role as admin
+			router.Use(func(c *gin.Context) {
+				c.Set("user_role", "admin")
+				c.Set("user_id", 1)
+				c.Next()
+			})
 			router.DELETE("/api/ticket-templates/:id", handleDeleteTicketTemplate)
 
 			w := httptest.NewRecorder()

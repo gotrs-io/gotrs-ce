@@ -7,9 +7,9 @@ services:
     image: postgres:15-alpine
     container_name: gotrs-postgres
     environment:
-      POSTGRES_DB: ${DB_NAME:-gotrs}
-      POSTGRES_USER: ${DB_USER:-gotrs}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-gotrs_password}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       # Pass APP_ENV to prevent test database creation in production
       APP_ENV: ${APP_ENV:-development}
     ports:
@@ -19,7 +19,7 @@ services:
       # Init script handles any username and creates test database safely
       - ./docker/postgres/01-init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro,Z
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-gotrs}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,14 +53,15 @@ services:
       APP_PORT: 8080
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-gotrs}
-      DB_USER: ${DB_USER:-gotrs}
-      DB_PASSWORD: ${DB_PASSWORD:-gotrs_password}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
       VALKEY_HOST: valkey
       VALKEY_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:-development-secret-change-in-production}
-      DEMO_ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL:-admin@gotrs.local}
-      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-admin123}
+      JWT_SECRET: ${JWT_SECRET}
+      DEMO_MODE: ${DEMO_MODE}
+      DEMO_ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:
@@ -108,8 +109,8 @@ services:
     environment:
       - DB=postgresql
       - DB_PORT=5432
-      - POSTGRES_USER=${DB_USER:-gotrs}
-      - POSTGRES_PWD=${DB_PASSWORD:-gotrs_password}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PWD=${DB_PASSWORD}
       - POSTGRES_SEEDS=postgres
       - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig.yaml
     ports:
@@ -138,8 +139,8 @@ services:
     image: public.ecr.aws/zinclabs/zincsearch:latest
     container_name: gotrs-zinc
     environment:
-      - ZINC_FIRST_ADMIN_USER=${ZINC_USER:-admin}
-      - ZINC_FIRST_ADMIN_PASSWORD=${ZINC_PASSWORD:-admin123}
+      - ZINC_FIRST_ADMIN_USER=${ZINC_USER}
+      - ZINC_FIRST_ADMIN_PASSWORD=${ZINC_PASSWORD}
       - ZINC_DATA_PATH=/data
     ports:
       - "${ZINC_PORT:-4080}:4080"

@@ -48,6 +48,13 @@ help:
 	@echo "  make test-check        - Quick sanity check"
 	@echo "  make test-coverage-html - Coverage report and open in browser"
 	@echo "  make test-frontend     - Run React frontend tests"
+	@echo ""
+	@echo "Security commands:"
+	@echo "  make scan-secrets      - Scan current code for secrets"
+	@echo "  make scan-secrets-history - Scan git history for secrets"
+	@echo "  make scan-secrets-precommit - Install pre-commit hooks"
+	@echo "  make scan-vulnerabilities - Scan for vulnerabilities"
+	@echo "  make security-scan     - Run all security scans"
 	@echo "  make test-contracts    - Run Pact contract tests"
 	@echo "  make test-all          - Run all tests (backend, frontend, contracts)"
 	@echo ""
@@ -226,6 +233,45 @@ test-contracts:
 
 test-all: test test-frontend test-contracts
 	@echo "All tests completed!"
+
+# Security scanning commands
+.PHONY: scan-secrets scan-secrets-history scan-secrets-precommit scan-vulnerabilities security-scan
+
+# Scan for secrets in current code
+scan-secrets:
+	@echo "Scanning for secrets and credentials..."
+	@$(CONTAINER_CMD) run --rm \
+		-v "$$(pwd):/workspace" \
+		-w /workspace \
+		zricethezav/gitleaks:latest \
+		detect --source . --verbose
+
+# Scan entire git history for secrets
+scan-secrets-history:
+	@echo "Scanning git history for secrets..."
+	@$(CONTAINER_CMD) run --rm \
+		-v "$$(pwd):/workspace" \
+		-w /workspace \
+		zricethezav/gitleaks:latest \
+		detect --source . --log-opts="--all" --verbose
+
+# Install pre-commit hooks for secret scanning (using bash script)
+scan-secrets-precommit:
+	@bash scripts/install-git-hooks.sh
+
+# Scan for vulnerabilities with Trivy
+scan-vulnerabilities:
+	@echo "Scanning for vulnerabilities..."
+	@$(CONTAINER_CMD) run --rm \
+		-v "$$(pwd):/workspace" \
+		-w /workspace \
+		aquasec/trivy:latest \
+		fs --scanners vuln,secret,misconfig . \
+		--severity HIGH,CRITICAL
+
+# Run all security scans
+security-scan: scan-secrets scan-vulnerabilities
+	@echo "Security scanning completed!"
 
 # Build for production
 build:

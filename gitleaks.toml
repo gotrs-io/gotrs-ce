@@ -1,0 +1,120 @@
+# Gitleaks Configuration for GOTRS
+# https://github.com/gitleaks/gitleaks
+
+title = "GOTRS Gitleaks Configuration"
+
+# Extend the base configuration
+[extend]
+useDefault = true
+
+# Allow certain files and paths
+[allowlist]
+description = "Allowlisted files and paths"
+paths = [
+    # Test files can have test credentials
+    '''.*_test\.go$''',
+    '''test/.*''',
+    '''tests/.*''',
+    
+    # Migration files with bcrypt hashes are acceptable
+    '''migrations/.*\.sql$''',
+    '''scripts/init-db\.sql$''',
+    
+    # Documentation may reference credential patterns
+    '''docs/.*\.md$''',
+    '''README\.md$''',
+    
+    # Environment example files
+    '''\.env\.example$''',
+    '''\.env\.development$''',
+    
+    # CI/CD configurations
+    '''\.github/workflows/.*\.yml$''',
+    '''\.gitlab-ci\.yml$''',
+    
+    # Package lock files
+    '''package-lock\.json$''',
+    '''go\.sum$''',
+    '''yarn\.lock$''',
+    
+    # Test contracts and pacts
+    '''.*\.pact\.test\.(ts|js)$''',
+    '''pacts/.*\.json$''',
+    
+    # Frontend test files
+    '''web/src/.*\.test\.(ts|js|tsx|jsx)$''',
+    '''web/src/contracts/.*''',
+]
+
+# Ignore certain regex patterns globally
+regexes = [
+    # Ignore UUID patterns
+    '''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}''',
+    
+    # Ignore base64 encoded test data
+    '''data:image/[^;]+;base64,[A-Za-z0-9+/]+=*''',
+    
+    # Ignore test credit card numbers
+    '''4242[\s\-]?4242[\s\-]?4242[\s\-]?4242''',
+    '''5555[\s\-]?5555[\s\-]?5555[\s\-]?4444''',
+    
+    # Ignore SHA hashes
+    '''[a-f0-9]{40,64}''',
+]
+
+# Additional patterns to ignore in specific files
+
+# Allow the well-known "John Doe" test JWT token
+[[rules]]
+id = "john-doe-test-jwt"
+description = "Allow the famous John Doe test JWT token used in examples"
+regex = '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ\.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'''
+[rules.allowlist]
+paths = [
+    '''.*\.test\.(ts|js|tsx|jsx)$''',
+    '''.*\.pact\.(ts|js)$''',
+    '''pacts/.*\.json$''',
+    '''test/.*''',
+]
+
+[[rules]]
+id = "bcrypt-hash-allowed"
+description = "Allow bcrypt hashes in migrations and test files"
+regex = '''\$2[ayb]\$[0-9]{2}\$[A-Za-z0-9\./]{53}'''
+[rules.allowlist]
+paths = [
+    '''migrations/.*\.sql$''',
+    '''scripts/.*\.sql$''',
+    '''.*_test\.go$''',
+]
+
+[[rules]]
+id = "demo-credentials-allowed"
+description = "Allow demo/example credentials in documentation"
+regex = '''(demo|example|test|sample|dummy|placeholder)[\w\-]*@[\w\-\.]+\.(demo|example|test|local)'''
+[rules.allowlist]
+paths = [
+    '''\.env\.example$''',
+    '''\.env\.development$''',
+    '''docs/.*''',
+    '''README\.md$''',
+]
+
+# Custom rules for GOTRS-specific patterns
+[[rules]]
+id = "gotrs-jwt-secret"
+description = "GOTRS JWT Secret"
+regex = '''JWT_SECRET\s*=\s*["']?[A-Za-z0-9+/=]{32,}["']?'''
+tags = ["jwt", "secret", "gotrs"]
+
+[[rules]]
+id = "gotrs-db-password"
+description = "GOTRS Database Password"
+regex = '''DB_PASSWORD\s*=\s*["']?[^"'\s]{8,}["']?'''
+tags = ["database", "password", "gotrs"]
+
+[[rules]]
+id = "gotrs-api-key"
+description = "GOTRS API Key"
+regex = '''GOTRS_API_KEY\s*=\s*["']?[A-Za-z0-9]{32,}["']?'''
+tags = ["api", "key", "gotrs"]

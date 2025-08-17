@@ -99,6 +99,7 @@ type Article struct {
 	Subject               string    `json:"subject" db:"subject"`
 	Body                  string    `json:"body" db:"body"`
 	BodyType              string    `json:"body_type" db:"body_type"` // text/plain, text/html
+	TemplateID            *uint     `json:"template_id,omitempty" db:"template_id"` // Track which template was used
 	Charset               string    `json:"charset" db:"charset"`
 	MimeType              string    `json:"mime_type" db:"mime_type"`
 	ContentPath           *string   `json:"content_path,omitempty" db:"content_path"`

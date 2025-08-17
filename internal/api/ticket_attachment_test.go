@@ -302,11 +302,34 @@ func TestDownloadAttachment(t *testing.T) {
 func TestDeleteAttachment(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	// Store original attachments to restore between tests
+	originalAttachments := make(map[int]*Attachment)
+	for k, v := range attachments {
+		originalAttachments[k] = v
+	}
+	originalAttachmentsByTicket := make(map[int][]int)
+	for k, v := range attachmentsByTicket {
+		originalAttachmentsByTicket[k] = append([]int(nil), v...)
+	}
+
+	// Helper to restore attachments
+	restoreAttachments := func() {
+		attachments = make(map[int]*Attachment)
+		for k, v := range originalAttachments {
+			attachments[k] = v
+		}
+		attachmentsByTicket = make(map[int][]int)
+		for k, v := range originalAttachmentsByTicket {
+			attachmentsByTicket[k] = append([]int(nil), v...)
+		}
+	}
+
 	tests := []struct {
 		name         string
 		ticketID     string
 		attachmentID string
 		userRole     string
+		userID        int
 		wantStatus   int
 		checkResp    func(t *testing.T, resp map[string]interface{})
 	}{
@@ -315,6 +338,7 @@ func TestDeleteAttachment(t *testing.T) {
 			ticketID:     "123",
 			attachmentID: "1",
 			userRole:     "admin",
+			userID:        1,
 			wantStatus:   http.StatusOK,
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				assert.Equal(t, "Attachment deleted successfully", resp["message"])
@@ -325,6 +349,7 @@ func TestDeleteAttachment(t *testing.T) {
 			ticketID:     "123",
 			attachmentID: "3",
 			userRole:     "customer",
+			userID:        1,
 			wantStatus:   http.StatusOK,
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				assert.Equal(t, "Attachment deleted successfully", resp["message"])
@@ -335,6 +360,7 @@ func TestDeleteAttachment(t *testing.T) {
 			ticketID:     "123",
 			attachmentID: "1",
 			userRole:     "customer",
+			userID:        2, // Different user ID
 			wantStatus:   http.StatusForbidden,
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				assert.Contains(t, resp["error"], "not authorized to delete this attachment")
@@ -345,6 +371,7 @@ func TestDeleteAttachment(t *testing.T) {
 			ticketID:     "123",
 			attachmentID: "99999",
 			userRole:     "admin",
+			userID:        1,
 			wantStatus:   http.StatusNotFound,
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				assert.Contains(t, resp["error"], "Attachment not found")
@@ -354,12 +381,15 @@ func TestDeleteAttachment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Restore attachments before each test
+			restoreAttachments()
+			
 			router := gin.New()
 			
 			// Add middleware to set user role
 			router.Use(func(c *gin.Context) {
 				c.Set("user_role", tt.userRole)
-				c.Set("user_id", 1)
+				c.Set("user_id", tt.userID)
 				c.Next()
 			})
 			
@@ -586,14 +616,34 @@ func TestAttachmentQuota(t *testing.T) {
 		router := gin.New()
 		router.POST("/api/tickets/:id/attachments", handleUploadAttachment)
 
-		// Upload large file that exceeds total quota
+		// First, upload several files that together approach the limit
+		// Total limit is 50MB, so let's upload 5 files of 9MB each (45MB total)
+		for i := 0; i < 5; i++ {
+			body := &bytes.Buffer{}
+			writer := multipart.NewWriter(body)
+			
+			part, _ := writer.CreateFormFile("file", fmt.Sprintf("file%d.bin", i))
+			// Write 9MB (under the 10MB per-file limit)
+			content := make([]byte, 9*1024*1024)
+			part.Write(content)
+			writer.Close()
+
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest("POST", "/api/tickets/126/attachments", body)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusCreated, w.Code, "File %d should upload successfully", i)
+		}
+
+		// Now try to upload another 9MB file, which should exceed the 50MB total limit
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
 		
-		part, _ := writer.CreateFormFile("file", "large.bin")
-		// Write 50MB (assuming limit is 50MB total per ticket)
-		largeContent := make([]byte, 51*1024*1024)
-		part.Write(largeContent)
+		part, _ := writer.CreateFormFile("file", "exceeds_total.bin")
+		// Write 9MB
+		content := make([]byte, 9*1024*1024)
+		part.Write(content)
 		writer.Close()
 
 		w := httptest.NewRecorder()

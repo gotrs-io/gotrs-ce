@@ -46,10 +46,42 @@ var templates = map[int]*TicketTemplate{
 		CreatedAt:   time.Now().Add(-30 * 24 * time.Hour),
 		UpdatedAt:   time.Now().Add(-30 * 24 * time.Hour),
 	},
+	2: {
+		ID:          2,
+		Name:        "Hardware Request",
+		Description: "Template for hardware requests",
+		Subject:     "Hardware Request",
+		Body:        "Request for hardware",
+		Priority:    "3 normal",
+		QueueID:     1,
+		TypeID:      1,
+		Tags:        []string{"hardware"},
+		IsSystem:    false,
+		CreatedAt:   time.Now().Add(-20 * 24 * time.Hour),
+		UpdatedAt:   time.Now().Add(-20 * 24 * time.Hour),
+	},
+	3: {
+		ID:          3,
+		Name:        "Software Installation",
+		Description: "Template for software installation requests",
+		Subject:     "Software Installation Request",
+		Body:        "Please install software",
+		Priority:    "3 normal",
+		QueueID:     1,
+		TypeID:      1,
+		Tags:        []string{"software"},
+		IsSystem:    false,
+		CreatedAt:   time.Now().Add(-10 * 24 * time.Hour),
+		UpdatedAt:   time.Now().Add(-10 * 24 * time.Hour),
+	},
 }
 
-var nextTemplateID = 2
-var templatesByName = map[string]int{"Password Reset": 1}
+var nextTemplateID = 4
+var templatesByName = map[string]int{
+	"Password Reset": 1,
+	"Hardware Request": 2,
+	"Software Installation": 3,
+}
 
 // handleCreateTicketTemplate creates a new ticket template
 func handleCreateTicketTemplate(c *gin.Context) {

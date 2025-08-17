@@ -177,10 +177,17 @@ func handleUploadAttachment(c *gin.Context) {
 	}
 
 	// Read file content for scanning (in production, stream to disk/S3)
-	_, err = io.ReadAll(file)
+	fileContent, err := io.ReadAll(file)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
 		return
+	}
+
+	// Detect content type
+	contentType := header.Header.Get("Content-Type")
+	if contentType == "" || contentType == "application/octet-stream" {
+		// Try to detect from file content
+		contentType = detectContentType(header.Filename, fileContent)
 	}
 
 	// Create attachment record
@@ -188,7 +195,7 @@ func handleUploadAttachment(c *gin.Context) {
 		ID:          nextAttachmentID,
 		TicketID:    ticketID,
 		Filename:    header.Filename,
-		ContentType: header.Header.Get("Content-Type"),
+		ContentType: contentType,
 		Size:        header.Size,
 		StoragePath: fmt.Sprintf("/tmp/attachments/%d/%s", ticketID, header.Filename),
 		Description: c.PostForm("description"),
@@ -250,7 +257,7 @@ func handleGetAttachments(c *gin.Context) {
 		return
 	}
 
-	var result []interface{}
+	result := []interface{}{}
 	for _, attID := range attachmentIDs {
 		if att, exists := attachments[attID]; exists {
 			// Convert to public format
@@ -392,6 +399,81 @@ func handleDeleteAttachment(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Attachment deleted successfully",
 	})
+}
+
+// detectContentType attempts to detect the content type from filename and content
+func detectContentType(filename string, content []byte) string {
+	// First try by file extension
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".pdf":
+		return "application/pdf"
+	case ".txt":
+		return "text/plain"
+	case ".html", ".htm":
+		return "text/html"
+	case ".csv":
+		return "text/csv"
+	case ".json":
+		return "application/json"
+	case ".xml":
+		return "application/xml"
+	case ".zip":
+		return "application/zip"
+	case ".doc":
+		return "application/msword"
+	case ".docx":
+		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	case ".xls":
+		return "application/vnd.ms-excel"
+	case ".xlsx":
+		return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".gif":
+		return "image/gif"
+	case ".svg":
+		return "image/svg+xml"
+	case ".webp":
+		return "image/webp"
+	case ".mp4":
+		return "video/mp4"
+	case ".webm":
+		return "video/webm"
+	case ".mp3":
+		return "audio/mpeg"
+	case ".wav":
+		return "audio/wav"
+	}
+
+	// Try to detect from content magic bytes
+	if len(content) > 4 {
+		// PDF
+		if string(content[:4]) == "%PDF" {
+			return "application/pdf"
+		}
+		// PNG
+		if content[0] == 0x89 && content[1] == 0x50 && content[2] == 0x4E && content[3] == 0x47 {
+			return "image/png"
+		}
+		// JPEG
+		if content[0] == 0xFF && content[1] == 0xD8 && content[2] == 0xFF {
+			return "image/jpeg"
+		}
+		// GIF
+		if string(content[:3]) == "GIF" {
+			return "image/gif"
+		}
+		// ZIP
+		if content[0] == 0x50 && content[1] == 0x4B {
+			return "application/zip"
+		}
+	}
+
+	// Default fallback
+	return "application/octet-stream"
 }
 
 // validateFile validates uploaded file

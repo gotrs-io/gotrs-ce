@@ -227,6 +227,46 @@ func SetupHTMXRoutes(r *gin.Engine) {
 		api.GET("/tickets/:id/attachments/:attachment_id", handleDownloadAttachment)
 		api.DELETE("/tickets/:id/attachments/:attachment_id", handleDeleteAttachment)
 		
+		// Advanced Search
+		api.GET("/tickets/search", handleAdvancedTicketSearch)
+		api.GET("/tickets/search/suggestions", handleSearchSuggestions)
+		api.GET("/tickets/search/export", handleExportSearchResults)
+		
+		// Search History
+		api.POST("/tickets/search/history", handleSaveSearchHistory)
+		api.GET("/tickets/search/history", handleGetSearchHistory)
+		api.DELETE("/tickets/search/history/:id", handleDeleteSearchHistory)
+		
+		// Saved Searches
+		api.POST("/tickets/search/saved", handleCreateSavedSearch)
+		api.GET("/tickets/search/saved", handleGetSavedSearches)
+		api.GET("/tickets/search/saved/:id/execute", handleExecuteSavedSearch)
+		api.PUT("/tickets/search/saved/:id", handleUpdateSavedSearch)
+		api.DELETE("/tickets/search/saved/:id", handleDeleteSavedSearch)
+		
+		// Canned Responses
+		api.POST("/canned-responses", handleCreateCannedResponse)
+		api.GET("/canned-responses", handleGetCannedResponses)
+		api.PUT("/canned-responses/:id", handleUpdateCannedResponse)
+		api.DELETE("/canned-responses/:id", handleDeleteCannedResponse)
+		api.POST("/canned-responses/:id/use", handleUseCannedResponse)
+		api.GET("/canned-responses/categories", handleGetCannedResponseCategories)
+		api.GET("/canned-responses/statistics", handleGetCannedResponseStatistics)
+		api.POST("/canned-responses/:id/share", handleShareCannedResponse)
+		api.POST("/canned-responses/:id/copy", handleCopyCannedResponse)
+		api.GET("/canned-responses/export", handleExportCannedResponses)
+		api.POST("/canned-responses/import", handleImportCannedResponses)
+		
+		// Internal Notes
+		api.POST("/tickets/:id/internal-notes", handleCreateInternalNote)
+		api.GET("/tickets/:id/internal-notes", handleGetInternalNotes)
+		api.PUT("/tickets/:id/internal-notes/:note_id", handleUpdateInternalNote)
+		api.DELETE("/tickets/:id/internal-notes/:note_id", handleDeleteInternalNote)
+		api.GET("/tickets/:id/internal-notes/:note_id/history", handleGetInternalNoteHistory)
+		api.GET("/tickets/:id/internal-notes/stats", handleGetInternalNoteStats)
+		api.GET("/tickets/:id/internal-notes/export", handleExportInternalNotes)
+		api.POST("/tickets/:id/internal-notes/from-template", handleCreateNoteFromTemplate)
+		
 		// Real-time updates
 		api.GET("/tickets/stream", handleTicketStream)
 		api.GET("/dashboard/activity-stream", handleActivityStream)

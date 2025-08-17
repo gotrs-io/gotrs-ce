@@ -15,6 +15,8 @@ import (
 	"time"
 	
 	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/models"
+	"github.com/gotrs-io/gotrs-ce/internal/service"
 )
 
 // filterEmptyStrings removes empty strings from a slice
@@ -26,6 +28,20 @@ func filterEmptyStrings(slice []string) []string {
 		}
 	}
 	return result
+}
+
+// getPriorityID converts priority string to ORTS priority ID
+func getPriorityID(priority string) int {
+	priorityMap := map[string]int{
+		"low":    1,
+		"normal": 2,
+		"high":   3,
+		"urgent": 4,
+	}
+	if id, ok := priorityMap[priority]; ok {
+		return id
+	}
+	return 2 // Default to normal
 }
 
 // getProjectRoot finds the project root directory by looking for go.mod
@@ -529,13 +545,13 @@ func handleTicketNew(c *gin.Context) {
 	}
 }
 
-// Handle ticket creation
+// Handle ticket creation from UI form
 func handleTicketCreate(c *gin.Context) {
 	// Get form data
 	title := strings.TrimSpace(c.PostForm("title"))
-	queueID := c.PostForm("queue_id")
+	queueIDStr := c.PostForm("queue_id")
 	priority := c.PostForm("priority")
-	// description := c.PostForm("description") // Will be used when creating actual ticket
+	description := c.PostForm("description")
 	customerEmail := strings.TrimSpace(c.PostForm("customer_email"))
 	autoAssign := c.PostForm("auto_assign") == "true"
 	
@@ -548,7 +564,7 @@ func handleTicketCreate(c *gin.Context) {
 		errors = append(errors, "Title must be less than 200 characters")
 	}
 	
-	if queueID == "" {
+	if queueIDStr == "" {
 		errors = append(errors, "Queue selection is required")
 	}
 	
@@ -579,17 +595,70 @@ func handleTicketCreate(c *gin.Context) {
 		return
 	}
 	
-	// Create ticket (mock implementation)
-	ticketNumber := fmt.Sprintf("TICK-2024-%03d", rand.Intn(999)+1)
-	
-	// Build success message
-	successMsg := fmt.Sprintf("Ticket created successfully: Ticket #%s", ticketNumber)
-	if autoAssign {
-		successMsg = fmt.Sprintf("Ticket created and assigned to you: Ticket #%s", ticketNumber)
+	// Convert queue ID
+	queueID := uint(1)
+	if queueIDStr != "" {
+		if id, err := strconv.Atoi(queueIDStr); err == nil {
+			queueID = uint(id)
+		}
 	}
 	
-	// Return success response with HX-Trigger
+	// Create the ticket with ORTS-compatible fields
+	var customerID *string
+	if customerEmail != "" {
+		customerID = &customerEmail
+	}
+	
+	ticket := &models.Ticket{
+		Title:            title,
+		QueueID:          int(queueID),
+		TypeID:           1, // Default to Incident
+		TicketPriorityID: getPriorityID(priority),
+		TicketStateID:    1, // New
+		TicketLockID:     1, // Unlocked
+		CustomerUserID:   customerID,
+		CreateBy:         1, // Default user
+		ChangeBy:         1,
+	}
+	
+	if autoAssign {
+		userID := 1
+		ticket.UserID = &userID // Assign to current user (mock)
+		ticket.TicketStateID = 2 // Open
+	}
+	
+	// Save the ticket
+	ticketService := GetTicketService()
+	if err := ticketService.CreateTicket(ticket); err != nil {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusInternalServerError, `
+			<div class="text-red-600">
+				<p>Failed to create ticket: %s</p>
+			</div>
+		`, err.Error())
+		return
+	}
+	
+	// Add initial message if description provided
+	if description != "" {
+		message := &service.SimpleTicketMessage{
+			TicketID:  uint(ticket.ID),
+			Body:      description,
+			CreatedBy: 1,
+			IsPublic:  true,
+		}
+		ticketService.AddMessage(uint(ticket.ID), message)
+	}
+	
+	// Build success message
+	successMsg := fmt.Sprintf("Ticket created successfully: #%s", ticket.TicketNumber)
+	if autoAssign {
+		successMsg = fmt.Sprintf("Ticket created and assigned to you: #%s", ticket.TicketNumber)
+	}
+	
+	// Return success response with HX-Trigger and redirect
 	c.Header("HX-Trigger", "ticket-created")
+	c.Header("HX-Redirect", fmt.Sprintf("/tickets/%d", ticket.ID))
 	c.Header("Content-Type", "text/html; charset=utf-8")
 	c.String(http.StatusOK, `
 		<div class="rounded-md bg-green-50 p-4">
@@ -1140,38 +1209,72 @@ func handleCreateTicket(c *gin.Context) {
 	}
 
 	// Convert string values to integers with defaults
-	queueID := 1 // Default to General Support
+	queueID := uint(1) // Default to General Support
 	if req.QueueID != "" {
 		if id, err := strconv.Atoi(req.QueueID); err == nil {
-			queueID = id
+			queueID = uint(id)
 		}
 	}
 
-	typeID := 1 // Default to Incident
+	typeID := uint(1) // Default to Incident
 	if req.TypeID != "" {
 		if id, err := strconv.Atoi(req.TypeID); err == nil {
-			typeID = id
+			typeID = uint(id)
 		}
+	}
+
+	// Set default priority if not provided
+	if req.Priority == "" {
+		req.Priority = "normal"
 	}
 
 	// For demo purposes, use a fixed user ID (admin)
 	// In a real system, we'd get this from the authenticated user context
-	_ = 1 // createBy placeholder
+	createdBy := uint(1)
 
-	// TODO: Initialize ticket service with database connection
-	// For now, return a success response with mock data
-	ticketNumber := fmt.Sprintf("TICKET-%06d", time.Now().Unix()%1000000)
-	ticketID := 123 // Mock ID for now
+	// Create the ticket model with ORTS-compatible fields
+	customerEmail := req.CustomerEmail
+	ticket := &models.Ticket{
+		Title:            req.Subject,
+		QueueID:          int(queueID),
+		TypeID:           int(typeID),
+		TicketPriorityID: getPriorityID(req.Priority),
+		TicketStateID:    1, // New
+		TicketLockID:     1, // Unlocked
+		CustomerUserID:   &customerEmail,
+		CreateBy:         int(createdBy),
+		ChangeBy:         int(createdBy),
+	}
+
+	// Get the ticket service and create the ticket
+	ticketService := GetTicketService()
+	if err := ticketService.CreateTicket(ticket); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create ticket: " + err.Error()})
+		return
+	}
+
+	// Create the first message (ticket body)
+	message := &service.SimpleTicketMessage{
+		TicketID:  uint(ticket.ID),
+		Body:      req.Body,
+		CreatedBy: createdBy,
+		IsPublic:  true,
+	}
+	
+	if err := ticketService.AddMessage(uint(ticket.ID), message); err != nil {
+		// Log error but don't fail the ticket creation
+		fmt.Printf("Warning: Failed to add initial message: %v\n", err)
+	}
 	
 	// For HTMX, set the redirect header to the ticket detail page
-	c.Header("HX-Redirect", fmt.Sprintf("/tickets/%d", ticketID))
+	c.Header("HX-Redirect", fmt.Sprintf("/tickets/%d", ticket.ID))
 	c.JSON(http.StatusCreated, gin.H{
-		"id":            ticketID,
-		"ticket_number": ticketNumber,
+		"id":            ticket.ID,
+		"ticket_number": ticket.TicketNumber,
 		"message":       "Ticket created successfully",
-		"queue_id":      queueID,
-		"type_id":       typeID,
-		"priority":      req.Priority,
+		"queue_id":      ticket.QueueID,
+		"type_id":       ticket.TypeID,
+		"priority":      ticket.Priority,
 	})
 }
 

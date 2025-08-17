@@ -110,7 +110,6 @@ timeline
 - ✅ Activity feed and notifications
 - ✅ Quick actions with shortcuts
 - ✅ File attachments with local storage
-- 🚧 Cloud storage backends (S3, Azure, GCS) - In Progress
 
 #### For Customers  
 - ✅ Self-service portal

@@ -187,6 +187,7 @@ func SetupHTMXRoutes(r *gin.Engine) {
 		dashboard.GET("/queues/:id/delete", handleDeleteQueueConfirmation)
 		dashboard.GET("/queues/clear-search", handleClearQueueSearch)
 		dashboard.GET("/queues/bulk-toolbar", handleBulkActionsToolbar)
+		dashboard.GET("/templates", handleTemplatesPage)
 		dashboard.GET("/admin", handleAdminDashboard)
 		dashboard.GET("/admin/lookups", handleAdminLookups)
 	}
@@ -296,6 +297,19 @@ func SetupHTMXRoutes(r *gin.Engine) {
 		api.GET("/lookups/audit", handleGetAuditLogs)
 		api.GET("/lookups/export", handleExportConfiguration)
 		api.POST("/lookups/import", handleImportConfiguration)
+		
+		// Ticket Templates
+		api.GET("/templates", handleGetTemplates)
+		api.GET("/templates/:id", handleGetTemplate)
+		api.POST("/templates", handleCreateTemplate)
+		api.PUT("/templates/:id", handleUpdateTemplate)
+		api.DELETE("/templates/:id", handleDeleteTemplate)
+		api.GET("/templates/search", handleSearchTemplates)
+		api.GET("/templates/categories", handleGetTemplateCategories)
+		api.GET("/templates/popular", handleGetPopularTemplates)
+		api.POST("/templates/apply", handleApplyTemplate)
+		api.GET("/templates/:id/load", handleLoadTemplateIntoForm)
+		api.GET("/templates/modal", handleTemplateSelectionModal)
 		api.GET("/canned-responses/categories", handleGetCannedResponseCategories)
 		api.GET("/canned-responses/statistics", handleGetCannedResponseStatistics)
 		api.POST("/canned-responses/:id/share", handleShareCannedResponse)

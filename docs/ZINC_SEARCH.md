@@ -45,8 +45,8 @@ zinc:
   ports:
     - "4080:4080"
   environment:
-    ZINC_FIRST_ADMIN_USER: admin
-    ZINC_FIRST_ADMIN_PASSWORD: ${ZINC_PASSWORD:-admin123}
+    ZINC_FIRST_ADMIN_USER: ${ZINC_USER}
+    ZINC_FIRST_ADMIN_PASSWORD: ${ZINC_PASSWORD}
     ZINC_DATA_PATH: /data
   volumes:
     - zinc-data:/data
@@ -60,8 +60,8 @@ zinc:
 ```bash
 # .env
 ZINC_URL=http://zinc:4080
-ZINC_USER=admin
-ZINC_PASSWORD=admin123
+ZINC_USER=your_zinc_admin_user
+ZINC_PASSWORD=your_secure_zinc_password
 ZINC_INDEX_PREFIX=gotrs_
 ```
 
@@ -636,9 +636,9 @@ Zinc provides Elasticsearch-compatible APIs, allowing use of existing Elasticsea
 import "github.com/elastic/go-elasticsearch/v8"
 
 cfg := elasticsearch.Config{
-    Addresses: []string{"http://zinc:4080"},
-    Username:  "admin",
-    Password:  "admin123",
+    Addresses: []string{os.Getenv("ZINC_URL")},
+    Username:  os.Getenv("ZINC_USER"),
+    Password:  os.Getenv("ZINC_PASSWORD"),
 }
 
 es, err := elasticsearch.NewClient(cfg)

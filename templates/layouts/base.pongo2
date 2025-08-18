@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="{{ getLang() }}" dir="{{ getDirection() }}" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ t("app.title") }}{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    
+    <!-- Dark mode detection script (must be inline to avoid flash) -->
+    <script>
+        // Set dark mode class before Tailwind loads to prevent flash
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+    </script>
+    
+    <!-- Tailwind CSS with dark mode -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gotrs: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                            950: '#172554'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Alpine.js for interactivity -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- HTMX for dynamic updates -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    
+    <!-- HTMX extensions -->
+    <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
+    
+    <!-- Custom styles -->
+    <style>
+        /* Smooth transitions for dark mode */
+        * {
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+    
+    {% block head %}{% endblock %}
+</head>
+<body class="h-full bg-gray-50 dark:bg-gray-900">
+    <div class="min-h-full">
+        <!-- Navigation -->
+        <nav class="bg-white dark:bg-gray-800 shadow-sm">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex h-16 justify-between">
+                    <div class="flex">
+                        <div class="flex flex-shrink-0 items-center">
+                            <span class="text-2xl font-bold text-gotrs-600 dark:text-gotrs-400">GOTRS</span>
+                        </div>
+                        <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                            <a href="/dashboard" class="{% if ActivePage == 'dashboard' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                                {{ t("navigation.dashboard") }}
+                            </a>
+                            <a href="/tickets" class="{% if ActivePage == 'tickets' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                                {{ t("navigation.tickets") }}
+                            </a>
+                            <a href="/queues" class="{% if ActivePage == 'queues' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                                Queues
+                            </a>
+                        </div>
+                    </div>
+                    <div class="hidden sm:ml-6 sm:flex sm:items-center">
+                        <!-- Dark mode toggle -->
+                        <button type="button" onclick="toggleDarkMode()" class="rounded-md p-1 text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-gray-200">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                            </svg>
+                        </button>
+                        
+                        <!-- User menu -->
+                        <div class="relative ml-3" x-data="{ open: false }">
+                            <button @click="open = !open" type="button" class="flex rounded-full bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-gotrs-500 focus:ring-offset-2">
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-500">
+                                    <span class="text-sm font-medium leading-none text-white">
+                                        {% if User %}{{ User.FirstName|slice:"0:1"|upper }}{{ User.LastName|slice:"0:1"|upper }}{% else %}DU{% endif %}
+                                    </span>
+                                </span>
+                            </button>
+                            <div x-show="open" @click.away="open = false" x-transition class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white dark:bg-gray-800 py-1 shadow-lg ring-1 ring-black ring-opacity-5">
+                                <a href="/profile" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">{{ t("navigation.profile") }}</a>
+                                <a href="/settings" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">{{ t("navigation.settings") }}</a>
+                                <hr class="my-1 border-gray-200 dark:border-gray-700">
+                                <a href="/logout" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">{{ t("auth.logout") }}</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main content -->
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Dark mode toggle script -->
+    <script>
+        function toggleDarkMode() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+        }
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

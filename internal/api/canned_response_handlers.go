@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -87,9 +88,9 @@ func initializeDefaultResponses(srv *service.CannedResponseService) {
 		},
 	}
 	
-	ctx := gin.Context{}
+	ctx := context.Background()
 	for _, resp := range defaults {
-		srv.CreateResponse(ctx.Request.Context(), &resp)
+		srv.CreateResponse(ctx, &resp)
 	}
 }
 

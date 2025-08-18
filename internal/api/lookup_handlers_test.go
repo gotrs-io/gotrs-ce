@@ -116,8 +116,8 @@ func TestHandleGetTypes(t *testing.T) {
 	assert.Equal(t, 5, len(data)) // incident, service_request, change_request, problem, question
 	
 	// Check structure
-	for _, t := range data {
-		typ := t.(map[string]interface{})
+	for _, item := range data {
+		typ := item.(map[string]interface{})
 		assert.NotNil(t, typ["ID"])
 		assert.NotEmpty(t, typ["Value"])
 		assert.NotEmpty(t, typ["Label"])

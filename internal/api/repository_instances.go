@@ -24,7 +24,7 @@ func InitializeServices() {
 		// Initialize services
 		simpleTicketService = service.NewSimpleTicketService(ticketRepo)
 		
-		// Initialize lookup service
+		// Initialize lookup service (this will connect to database if available)
 		lookupService = service.NewLookupService()
 		
 		// Initialize storage service

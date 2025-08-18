@@ -22,7 +22,7 @@ func (r *QueueRepository) GetByID(id uint) (*models.Queue, error) {
 	query := `
 		SELECT id, name, system_address_id, calendar_id, default_sign_key,
 		       salutation_id, signature_id, follow_up_id, follow_up_lock,
-		       unlock_timeout, group_id, email, realname, comments,
+		       unlock_timeout, group_id, email, realname, comment,
 		       valid_id, create_time, create_by, change_time, change_by
 		FROM queues
 		WHERE id = $1`
@@ -42,7 +42,7 @@ func (r *QueueRepository) GetByID(id uint) (*models.Queue, error) {
 		&queue.GroupID,
 		&queue.Email,
 		&queue.RealName,
-		&queue.Comments,
+		&queue.Comment,
 		&queue.ValidID,
 		&queue.CreateTime,
 		&queue.CreateBy,
@@ -62,7 +62,7 @@ func (r *QueueRepository) GetByName(name string) (*models.Queue, error) {
 	query := `
 		SELECT id, name, system_address_id, calendar_id, default_sign_key,
 		       salutation_id, signature_id, follow_up_id, follow_up_lock,
-		       unlock_timeout, group_id, email, realname, comments,
+		       unlock_timeout, group_id, email, realname, comment,
 		       valid_id, create_time, create_by, change_time, change_by
 		FROM queues
 		WHERE name = $1 AND valid_id = 1`
@@ -82,7 +82,7 @@ func (r *QueueRepository) GetByName(name string) (*models.Queue, error) {
 		&queue.GroupID,
 		&queue.Email,
 		&queue.RealName,
-		&queue.Comments,
+		&queue.Comment,
 		&queue.ValidID,
 		&queue.CreateTime,
 		&queue.CreateBy,
@@ -102,7 +102,7 @@ func (r *QueueRepository) List() ([]*models.Queue, error) {
 	query := `
 		SELECT id, name, system_address_id, calendar_id, default_sign_key,
 		       salutation_id, signature_id, follow_up_id, follow_up_lock,
-		       unlock_timeout, group_id, email, realname, comments,
+		       unlock_timeout, group_id, email, realname, comment,
 		       valid_id, create_time, create_by, change_time, change_by
 		FROM queues
 		WHERE valid_id = 1
@@ -131,7 +131,7 @@ func (r *QueueRepository) List() ([]*models.Queue, error) {
 			&queue.GroupID,
 			&queue.Email,
 			&queue.RealName,
-			&queue.Comments,
+			&queue.Comment,
 			&queue.ValidID,
 			&queue.CreateTime,
 			&queue.CreateBy,
@@ -153,7 +153,7 @@ func (r *QueueRepository) Create(queue *models.Queue) error {
 		INSERT INTO queues (
 			name, system_address_id, calendar_id, default_sign_key,
 			salutation_id, signature_id, follow_up_id, follow_up_lock,
-			unlock_timeout, group_id, email, realname, comments,
+			unlock_timeout, group_id, email, realname, comment,
 			valid_id, create_time, create_by, change_time, change_by
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
@@ -173,7 +173,7 @@ func (r *QueueRepository) Create(queue *models.Queue) error {
 		queue.GroupID,
 		queue.Email,
 		queue.RealName,
-		queue.Comments,
+		queue.Comment,
 		queue.ValidID,
 		queue.CreateTime,
 		queue.CreateBy,
@@ -200,7 +200,7 @@ func (r *QueueRepository) Update(queue *models.Queue) error {
 			group_id = $11,
 			email = $12,
 			realname = $13,
-			comments = $14,
+			comment = $14,
 			valid_id = $15,
 			change_time = $16,
 			change_by = $17
@@ -221,7 +221,7 @@ func (r *QueueRepository) Update(queue *models.Queue) error {
 		queue.GroupID,
 		queue.Email,
 		queue.RealName,
-		queue.Comments,
+		queue.Comment,
 		queue.ValidID,
 		queue.ChangeTime,
 		queue.ChangeBy,

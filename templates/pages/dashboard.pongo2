@@ -1,0 +1,138 @@
+{% extends "../layouts/base.pongo2" %}
+
+{% block title %}{{ t("navigation.dashboard") }} - {{ t("app.name") }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Page header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="min-w-0 flex-1">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:truncate sm:text-3xl sm:tracking-tight">
+                {{ t("navigation.dashboard") }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ t("dashboard.welcome_back") }}, {{ User.FirstName }}!
+            </p>
+        </div>
+        <div class="mt-4 flex md:ml-4 md:mt-0">
+            <a href="/tickets/new" 
+               class="ml-3 inline-flex items-center rounded-md bg-gotrs-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gotrs-500">
+                <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                </svg>
+                {{ t("tickets.new_ticket") }}
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats grid -->
+    <div class="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <!-- Open Tickets -->
+        <div class="overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 py-5 shadow sm:p-6">
+            <dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">{{ t("status.open") }} {{ t("tickets.title") }}</dt>
+            <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">24</dd>
+        </div>
+
+        <!-- New Today -->
+        <div class="overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 py-5 shadow sm:p-6">
+            <dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">{{ t("status.new") }} {{ t("time.today") }}</dt>
+            <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">8</dd>
+        </div>
+
+        <!-- Pending -->
+        <div class="overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 py-5 shadow sm:p-6">
+            <dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">{{ t("status.pending") }}</dt>
+            <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">12</dd>
+        </div>
+
+        <!-- Overdue -->
+        <div class="overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 py-5 shadow sm:p-6">
+            <dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">{{ t("tickets.overdue") }}</dt>
+            <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">3</dd>
+        </div>
+    </div>
+
+    <!-- Recent activity and queue status -->
+    <div class="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <!-- Recent tickets -->
+        <div class="overflow-hidden rounded-lg bg-white dark:bg-gray-800 shadow">
+            <div class="p-6">
+                <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">{{ t("dashboard.recent_tickets") }}</h3>
+                <div class="mt-6 flow-root">
+                    <ul role="list" class="-my-5 divide-y divide-gray-200 dark:divide-gray-700">
+                        <li class="py-4">
+                            <div class="flex items-center space-x-4">
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-medium text-gray-900 dark:text-white">TICKET-001</p>
+                                    <p class="truncate text-sm text-gray-500 dark:text-gray-400">Login issues reported by user</p>
+                                </div>
+                                <div>
+                                    <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                                        {{ t("priority.high") }}
+                                    </span>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="py-4">
+                            <div class="flex items-center space-x-4">
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-medium text-gray-900 dark:text-white">TICKET-002</p>
+                                    <p class="truncate text-sm text-gray-500 dark:text-gray-400">Feature request for dark mode</p>
+                                </div>
+                                <div>
+                                    <span class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
+                                        {{ t("priority.medium") }}
+                                    </span>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="py-4">
+                            <div class="flex items-center space-x-4">
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-medium text-gray-900 dark:text-white">TICKET-003</p>
+                                    <p class="truncate text-sm text-gray-500 dark:text-gray-400">Database connection timeout</p>
+                                </div>
+                                <div>
+                                    <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                                        {{ t("priority.low") }}
+                                    </span>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="mt-6">
+                    <a href="/tickets" class="flex w-full items-center justify-center rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
+                        {{ t("common.view_all") }}
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Queue status -->
+        <div class="overflow-hidden rounded-lg bg-white dark:bg-gray-800 shadow">
+            <div class="p-6">
+                <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">{{ t("queues.queue_status") }}</h3>
+                <dl class="mt-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Support</dt>
+                        <dd class="text-sm text-gray-900 dark:text-white">8 {{ t("status.open")|lower }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Sales</dt>
+                        <dd class="text-sm text-gray-900 dark:text-white">3 {{ t("status.open")|lower }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Technical</dt>
+                        <dd class="text-sm text-gray-900 dark:text-white">12 {{ t("status.open")|lower }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Billing</dt>
+                        <dd class="text-sm text-gray-900 dark:text-white">1 {{ t("status.open")|lower }}</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

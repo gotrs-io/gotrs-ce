@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"time"
+	
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/api/v1/handlers"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
@@ -9,16 +11,17 @@ import (
 
 // APIRouter handles all v1 API routes
 type APIRouter struct {
-	router          *gin.Engine
-	authHandler     *handlers.AuthHandler
-	userHandler     *handlers.UserHandler
-	ticketHandler   *handlers.TicketHandler
-	queueHandler    *handlers.QueueHandler
-	workflowHandler *handlers.WorkflowHandler
-	webhookHandler  *handlers.WebhookHandler
-	searchHandler   *handlers.SearchHandler
-	reportHandler   *handlers.ReportHandler
-	authMiddleware  *middleware.AuthMiddleware
+	router           *gin.Engine
+	authHandler      *handlers.AuthHandler
+	userHandler      *handlers.UserHandler
+	ticketHandler    *handlers.TicketHandler
+	queueHandler     *handlers.QueueHandler
+	workflowHandler  *handlers.WorkflowHandler
+	webhookHandler   *handlers.WebhookHandler
+	searchHandler    *handlers.SearchHandler
+	reportHandler    *handlers.ReportHandler
+	incidentHandlers *IncidentHandlers
+	authMiddleware   *middleware.AuthMiddleware
 }
 
 // NewAPIRouter creates a new API router
@@ -32,10 +35,11 @@ func NewAPIRouter(
 	webhookService *service.WebhookService,
 	searchService *service.SearchService,
 	reportService *service.ReportService,
+	incidentService service.IIncidentService, // Optional ITSM service
 ) *APIRouter {
 	authMiddleware := middleware.NewAuthMiddleware(authService)
 
-	return &APIRouter{
+	apiRouter := &APIRouter{
 		router:          router,
 		authHandler:     handlers.NewAuthHandler(authService),
 		userHandler:     handlers.NewUserHandler(userService),
@@ -47,6 +51,13 @@ func NewAPIRouter(
 		reportHandler:   handlers.NewReportHandler(reportService),
 		authMiddleware:  authMiddleware,
 	}
+	
+	// Initialize ITSM handlers if service is provided
+	if incidentService != nil {
+		apiRouter.incidentHandlers = NewIncidentHandlers(incidentService)
+	}
+	
+	return apiRouter
 }
 
 // SetupRoutes configures all API v1 routes
@@ -198,6 +209,11 @@ func (r *APIRouter) SetupRoutes() {
 		protected.DELETE("/sla/:id", r.authMiddleware.RequirePermission("sla.delete"), r.ticketHandler.DeleteSLAPolicy)
 		protected.GET("/sla/:id/metrics", r.ticketHandler.GetSLAMetrics)
 		
+		// Incident Management (ITSM)
+		if r.incidentHandlers != nil {
+			r.incidentHandlers.RegisterRoutes(protected)
+		}
+		
 		// Workflows
 		protected.GET("/workflows", r.workflowHandler.ListWorkflows)
 		protected.POST("/workflows", r.authMiddleware.RequirePermission("workflows.create"), r.workflowHandler.CreateWorkflow)
@@ -321,20 +337,27 @@ func (r *APIRouter) healthCheck(c *gin.Context) {
 
 // versionInfo returns API version information
 func (r *APIRouter) versionInfo(c *gin.Context) {
+	features := []string{
+		"tickets",
+		"workflows",
+		"webhooks",
+		"search",
+		"reports",
+		"integrations",
+		"oauth2",
+		"websocket",
+	}
+	
+	// Add ITSM features if enabled
+	if r.incidentHandlers != nil {
+		features = append(features, "incidents", "itsm", "major-incidents", "sla-management")
+	}
+	
 	c.JSON(200, gin.H{
 		"version": "1.0.0",
 		"api_version": "v1",
 		"build": "2025.08.17",
-		"features": []string{
-			"tickets",
-			"workflows",
-			"webhooks",
-			"search",
-			"reports",
-			"integrations",
-			"oauth2",
-			"websocket",
-		},
+		"features": features,
 	})
 }
 

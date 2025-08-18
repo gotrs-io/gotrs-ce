@@ -48,6 +48,13 @@ help:
 	@echo "  make test-check        - Quick sanity check"
 	@echo "  make test-coverage-html - Coverage report and open in browser"
 	@echo "  make test-frontend     - Run React frontend tests"
+	@echo ""
+	@echo "i18n (Babel fish) commands:"
+	@echo "  make babelfish         - Build gotrs-babelfish binary"
+	@echo "  make babelfish-coverage - Show translation coverage"
+	@echo "  make babelfish-validate LANG=de - Validate a language"
+	@echo "  make babelfish-missing LANG=es - Show missing translations"
+	@echo "  make babelfish-run ARGS='-help' - Run with custom args"
 	@echo "  make test-ldap         - Run LDAP integration tests"
 	@echo "  make test-ldap-perf    - Run LDAP performance benchmarks"
 	@echo ""
@@ -180,6 +187,25 @@ db-force:
 # Valkey CLI
 valkey-cli:
 	$(COMPOSE_CMD) exec valkey valkey-cli
+
+# i18n Tools
+babelfish:
+	@echo "Building gotrs-babelfish..."
+	$(COMPOSE_CMD) exec backend go build -o /tmp/gotrs-babelfish cmd/gotrs-babelfish/main.go
+	@echo "✨ gotrs-babelfish built successfully!"
+	@echo "Run it with: docker exec gotrs-backend /tmp/gotrs-babelfish"
+
+babelfish-run:
+	@$(COMPOSE_CMD) exec backend go run cmd/gotrs-babelfish/main.go $(ARGS)
+
+babelfish-coverage:
+	@$(COMPOSE_CMD) exec backend go run cmd/gotrs-babelfish/main.go -action=coverage
+
+babelfish-validate:
+	@$(COMPOSE_CMD) exec backend go run cmd/gotrs-babelfish/main.go -action=validate -lang=$(LANG)
+
+babelfish-missing:
+	@$(COMPOSE_CMD) exec backend go run cmd/gotrs-babelfish/main.go -action=missing -lang=$(LANG)
 
 # Run tests (with safety checks)
 test:

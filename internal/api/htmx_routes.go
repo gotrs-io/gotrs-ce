@@ -14,10 +14,160 @@ import (
 	"strings"
 	"time"
 	
+	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/service"
+	tmpl "github.com/gotrs-io/gotrs-ce/internal/template"
 )
+
+// Global Pongo2 renderer
+var pongo2Renderer *tmpl.Pongo2Renderer
+
+// Initialize Pongo2 renderer
+func init() {
+	// Get project root for templates
+	projectRoot := getProjectRoot()
+	templateDir := filepath.Join(projectRoot, "templates")
+	
+	// Create renderer (debug mode for development)
+	pongo2Renderer = tmpl.NewPongo2Renderer(templateDir, true)
+}
+
+// DummyTemplate is a wrapper for html/template
+type DummyTemplate struct {
+	tmpl *template.Template
+}
+
+func (t *DummyTemplate) ExecuteTemplate(w io.Writer, name string, data interface{}) error {
+	if t.tmpl == nil {
+		_, err := w.Write([]byte("Template not loaded"))
+		return err
+	}
+	return t.tmpl.ExecuteTemplate(w, name, data)
+}
+
+// loadTemplateForRequest loads HTML templates
+func loadTemplateForRequest(c *gin.Context, templatePaths ...string) (*DummyTemplate, error) {
+	projectRoot := getProjectRoot()
+	
+	// Define template functions
+	funcMap := template.FuncMap{
+		"firstLetter": func(s string) string {
+			if len(s) > 0 {
+				return string(s[0])
+			}
+			return ""
+		},
+		"toUpper": strings.ToUpper,
+		"contains": strings.Contains,
+		"hasPrefix": strings.HasPrefix,
+		"add": func(a, b int) int { return a + b },
+		"sub": func(a, b int) int { return a - b },
+		"mul": func(a, b int) int { return a * b },
+		"seq": func(start, end int) []int {
+			var result []int
+			for i := start; i <= end; i++ {
+				result = append(result, i)
+			}
+			return result
+		},
+		"dict": func(values ...interface{}) map[string]interface{} {
+			dict := make(map[string]interface{})
+			for i := 0; i < len(values); i += 2 {
+				if i+1 < len(values) {
+					if key, ok := values[i].(string); ok {
+						dict[key] = values[i+1]
+					}
+				}
+			}
+			return dict
+		},
+		"list": func(values ...interface{}) []interface{} {
+			return values
+		},
+	}
+	
+	// Create template with functions
+	tmpl := template.New(filepath.Base(templatePaths[0])).Funcs(funcMap)
+	
+	// Parse all template files
+	for _, path := range templatePaths {
+		fullPath := filepath.Join(projectRoot, path)
+		content, err := os.ReadFile(fullPath)
+		if err != nil {
+			return nil, err
+		}
+		_, err = tmpl.Parse(string(content))
+		if err != nil {
+			return nil, err
+		}
+	}
+	
+	return &DummyTemplate{tmpl: tmpl}, nil
+}
+
+// loadTemplate is another compatibility shim
+// TODO: Remove this once all handlers are converted to use Pongo2 directly
+func loadTemplate(templatePaths ...string) (*DummyTemplate, error) {
+	projectRoot := getProjectRoot()
+	
+	// Define template functions
+	funcMap := template.FuncMap{
+		"firstLetter": func(s string) string {
+			if len(s) > 0 {
+				return string(s[0])
+			}
+			return ""
+		},
+		"toUpper": strings.ToUpper,
+		"contains": strings.Contains,
+		"hasPrefix": strings.HasPrefix,
+		"add": func(a, b int) int { return a + b },
+		"sub": func(a, b int) int { return a - b },
+		"mul": func(a, b int) int { return a * b },
+		"seq": func(start, end int) []int {
+			var result []int
+			for i := start; i <= end; i++ {
+				result = append(result, i)
+			}
+			return result
+		},
+		"dict": func(values ...interface{}) map[string]interface{} {
+			dict := make(map[string]interface{})
+			for i := 0; i < len(values); i += 2 {
+				if i+1 < len(values) {
+					if key, ok := values[i].(string); ok {
+						dict[key] = values[i+1]
+					}
+				}
+			}
+			return dict
+		},
+		"list": func(values ...interface{}) []interface{} {
+			return values
+		},
+	}
+	
+	// Create template with functions
+	tmpl := template.New(filepath.Base(templatePaths[0])).Funcs(funcMap)
+	
+	// Parse all template files
+	for _, path := range templatePaths {
+		fullPath := filepath.Join(projectRoot, path)
+		content, err := os.ReadFile(fullPath)
+		if err != nil {
+			return nil, err
+		}
+		_, err = tmpl.Parse(string(content))
+		if err != nil {
+			return nil, err
+		}
+	}
+	
+	return &DummyTemplate{tmpl: tmpl}, nil
+}
 
 // filterEmptyStrings removes empty strings from a slice
 func filterEmptyStrings(slice []string) []string {
@@ -71,93 +221,18 @@ func getProjectRoot() string {
 	return "."
 }
 
-// loadTemplate safely loads templates for a specific route
-func loadTemplate(files ...string) (*template.Template, error) {
-	// Get the project root directory
-	projectRoot := getProjectRoot()
-	
-	funcMap := template.FuncMap{
-		"firstLetter": func(s string) string {
-			if len(s) > 0 {
-				return strings.ToUpper(string(s[0]))
-			}
-			return ""
-		},
-		"slice": func(start, end int, s string) string {
-			if len(s) == 0 {
-				return ""
-			}
-			if start >= len(s) {
-				return ""
-			}
-			if end > len(s) {
-				end = len(s)
-			}
-			if end <= start {
-				return ""
-			}
-			return s[start:end]
-		},
-		"upper": func(s string) string {
-			return strings.ToUpper(s)
-		},
-		"replace": func(old, new, s string) string {
-			return strings.Replace(s, old, new, -1)
-		},
-		"seq": func(args ...int) []int {
-			var start, end int
-			switch len(args) {
-			case 1:
-				start, end = 0, args[0]
-			case 2:
-				start, end = args[0], args[1]
-			default:
-				return nil
-			}
-			if start >= end {
-				return nil
-			}
-			result := make([]int, end-start)
-			for i := range result {
-				result[i] = start + i
-			}
-			return result
-		},
-		"add": func(a, b int) int {
-			return a + b
-		},
-		"len": func(v interface{}) int {
-			switch val := v.(type) {
-			case []gin.H:
-				return len(val)
-			case []interface{}:
-				return len(val)
-			default:
-				return 0
-			}
-		},
-	}
-	
-	// Parse templates with the function map
-	tmpl := template.New("").Funcs(funcMap)
-	for _, file := range files {
-		// Convert relative paths to absolute paths from project root
-		fullPath := file
-		if !strings.HasPrefix(file, "/") {
-			fullPath = projectRoot + "/" + file
-		}
-		_, err := tmpl.ParseFiles(fullPath)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return tmpl, nil
-}
 
 // SetupHTMXRoutes configures routes for HTMX-based UI
 func SetupHTMXRoutes(r *gin.Engine) {
 	// Serve static files
 	r.Static("/static", "./static")
+	
+	// Test i18n endpoint
+	r.GET("/test-i18n", func(c *gin.Context) {
+		pongo2Renderer.HTML(c, http.StatusOK, "test-i18n.pongo2", pongo2.Context{
+			"TestMessage": "Direct test",
+		})
+	})
 	
 	// Root redirect
 	r.GET("/", func(c *gin.Context) {
@@ -370,61 +445,26 @@ func SetupHTMXRoutes(r *gin.Engine) {
 
 // Login page
 func handleLoginPage(c *gin.Context) {
-	tmpl, err := loadTemplate(
-		"templates/layouts/auth.html",
-		"templates/pages/login.html",
-	)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Template error: %v", err)
-		return
-	}
-	
-	c.Header("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(c.Writer, "auth.html", gin.H{
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/login.pongo2", pongo2.Context{
 		"Title": "GOTRS - Sign In",
-	}); err != nil {
-		c.String(http.StatusInternalServerError, "Render error: %v", err)
-	}
+	})
 }
 
 // Register page
 func handleRegisterPage(c *gin.Context) {
-	tmpl, err := loadTemplate(
-		"templates/layouts/auth.html",
-		"templates/pages/register.html",
-	)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Template error: %v", err)
-		return
-	}
-	
-	c.Header("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(c.Writer, "auth.html", gin.H{
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/register.pongo2", pongo2.Context{
 		"Title": "GOTRS - Register",
-	}); err != nil {
-		c.String(http.StatusInternalServerError, "Render error: %v", err)
-	}
+	})
 }
 
 // Dashboard
 func handleDashboard(c *gin.Context) {
-	tmpl, err := loadTemplate(
-		"templates/layouts/base.html",
-		"templates/pages/dashboard.html",
-	)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Template error: %v", err)
-		return
-	}
-	
-	c.Header("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(c.Writer, "dashboard.html", gin.H{
-		"Title": "Dashboard - GOTRS",
-		"User":  gin.H{"FirstName": "Demo", "LastName": "User", "Email": "demo@gotrs.local", "Role": "Admin"},
+	// Use Pongo2 renderer with i18n support
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/dashboard.pongo2", pongo2.Context{
+		"Title":      "Dashboard - GOTRS",
+		"User":       gin.H{"FirstName": "Demo", "LastName": "User", "Email": "demo@gotrs.local", "Role": "Admin"},
 		"ActivePage": "dashboard",
-	}); err != nil {
-		c.String(http.StatusInternalServerError, "Render error: %v", err)
-	}
+	})
 }
 
 // Tickets list page
@@ -527,14 +567,15 @@ func handleTicketsList(c *gin.Context) {
 		"NextPage": page + 1,
 	}
 	
-	// Get dynamic form data from lookup service
+	// Get dynamic form data from lookup service with language support
 	lookupService := GetLookupService()
-	formData := lookupService.GetTicketFormData()
+	lang := middleware.GetLanguage(c)
+	formData := lookupService.GetTicketFormDataWithLang(lang)
 	
 	// Check if this is an HTMX request
 	if c.GetHeader("HX-Request") != "" {
 		// Return just the ticket list fragment
-		tmpl, err := loadTemplate("templates/components/ticket_list.html")
+		tmpl, err := loadTemplateForRequest(c, "templates/components/ticket_list.html")
 		if err != nil {
 			c.String(http.StatusInternalServerError, "Template error: %v", err)
 			return
@@ -556,19 +597,8 @@ func handleTicketsList(c *gin.Context) {
 		return
 	}
 	
-	// Full page load
-	tmpl, err := loadTemplate(
-		"templates/layouts/base.html",
-		"templates/pages/tickets/list.html",
-		"templates/components/ticket_list.html",
-	)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Template error: %v", err)
-		return
-	}
-	
-	c.Header("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(c.Writer, "list.html", gin.H{
+	// Full page load - use Pongo2
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets/list.pongo2", pongo2.Context{
 		"Title":          "Tickets - GOTRS",
 		"Tickets":        paginatedTickets,
 		"Queues":         formData.Queues,
@@ -583,18 +613,17 @@ func handleTicketsList(c *gin.Context) {
 		"SortBy":         sort,
 		"User":           gin.H{"FirstName": "Demo", "LastName": "User", "Email": "demo@gotrs.local", "Role": "Admin"},
 		"ActivePage":     "tickets",
-	}); err != nil {
-		c.String(http.StatusInternalServerError, "Render error: %v", err)
-	}
+	})
 }
 
 // New ticket page
 func handleTicketNew(c *gin.Context) {
-	// Get dynamic form data from lookup service
+	// Get dynamic form data from lookup service with language support
 	lookupService := GetLookupService()
-	formData := lookupService.GetTicketFormData()
+	lang := middleware.GetLanguage(c)
+	formData := lookupService.GetTicketFormDataWithLang(lang)
 	
-	tmpl, err := loadTemplate(
+	tmpl, err := loadTemplateForRequest(c, 
 		"templates/layouts/base.html",
 		"templates/pages/tickets/new.html",
 	)
@@ -923,18 +952,50 @@ func handleTicketDetail(c *gin.Context) {
 		}
 	}
 	
-	// Articles/Messages
-	articles := []gin.H{
-		{
-			"ID":           1,
-			"AuthorName":   "John Doe",
-			"AuthorInitials": "JD",
-			"AuthorType":   "Customer",
-			"TimeAgo":      "2 hours ago",
-			"Subject":      "System login issues preventing access",
-			"Body":         "I'm unable to log into the system. I've tried resetting my password multiple times but keep getting an error message saying \"Invalid credentials\". This is preventing me from accessing important documents.\n\nMy username is: john.doe@example.com\n\nPlease help resolve this as soon as possible.",
-			"IsInternal":   false,
-		},
+	// Articles/Messages - Get real messages for this ticket
+	var articles []gin.H
+	messages, err := ticketService.GetMessages(uint(id))
+	if err != nil {
+		// Log error and show empty messages
+		fmt.Printf("Warning: Failed to get messages for ticket %d: %v\n", id, err)
+		articles = []gin.H{}
+	} else {
+		// Convert messages to display format
+		articles = make([]gin.H, len(messages))
+		for i, msg := range messages {
+			// Calculate time ago
+			timeAgo := formatTimeAgo(msg.CreatedAt)
+			
+			// Generate initials from author name
+			initials := generateInitials(msg.AuthorName)
+			
+			// Convert attachments if present
+			var attachments []gin.H
+			if msg.Attachments != nil && len(msg.Attachments) > 0 {
+				attachments = make([]gin.H, len(msg.Attachments))
+				for j, att := range msg.Attachments {
+					attachments[j] = gin.H{
+						"ID":          att.ID,
+						"Filename":    att.Filename,
+						"ContentType": att.ContentType,
+						"Size":        formatFileSize(att.Size),
+						"URL":         att.URL,
+					}
+				}
+			}
+			
+			articles[i] = gin.H{
+				"ID":             msg.ID,
+				"AuthorName":     msg.AuthorName,
+				"AuthorInitials": initials,
+				"AuthorType":     msg.AuthorType,
+				"TimeAgo":        timeAgo,
+				"Subject":        msg.Subject,
+				"Body":           msg.Body,
+				"IsInternal":     msg.IsInternal,
+				"Attachments":    attachments,
+			}
+		}
 	}
 	
 	// Activity log
@@ -948,17 +1009,8 @@ func handleTicketDetail(c *gin.Context) {
 		},
 	}
 	
-	tmpl, err := loadTemplate(
-		"templates/layouts/base.html",
-		"templates/pages/tickets/detail.html",
-	)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Template error: %v", err)
-		return
-	}
-	
-	c.Header("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(c.Writer, "detail.html", gin.H{
+	// Use Pongo2 renderer with i18n support
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets/detail.pongo2", pongo2.Context{
 		"Title":      "Ticket #" + ticketID + " - GOTRS",
 		"TicketID":   ticketID,
 		"Ticket":     ticket,
@@ -966,9 +1018,8 @@ func handleTicketDetail(c *gin.Context) {
 		"Activities": activities,
 		"User":       gin.H{"FirstName": "Demo", "LastName": "User", "Email": "demo@gotrs.local", "Role": "Admin"},
 		"ActivePage": "tickets",
-	}); err != nil {
-		c.String(http.StatusInternalServerError, "Render error: %v", err)
-	}
+		"Messages":   articles, // Use articles as messages for now
+	})
 }
 
 // HTMX Login handler
@@ -1033,7 +1084,7 @@ func handleDashboardStats(c *gin.Context) {
 		{"title": "Overdue", "value": "3", "icon": "exclamation", "color": "red"},
 	}
 	
-	tmpl, err := loadTemplate("templates/components/dashboard_stats.html")
+	tmpl, err := loadTemplateForRequest(c, "templates/components/dashboard_stats.html")
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Template error: %v", err)
 		return
@@ -1055,7 +1106,7 @@ func handleRecentTickets(c *gin.Context) {
 		{"id": 3, "number": "TICKET-003", "title": "Bug report", "status": "pending", "priority": "low", "created": "1 day ago"},
 	}
 	
-	tmpl, err := loadTemplate("templates/components/recent_tickets.html")
+	tmpl, err := loadTemplateForRequest(c, "templates/components/recent_tickets.html")
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Template error: %v", err)
 		return
@@ -1077,7 +1128,7 @@ func handleActivityFeed(c *gin.Context) {
 		{"user": "Bob Wilson", "action": "closed", "target": "TICKET-003", "time": "1 hour ago"},
 	}
 	
-	tmpl, err := loadTemplate("templates/components/activity_feed.html")
+	tmpl, err := loadTemplateForRequest(c, "templates/components/activity_feed.html")
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Template error: %v", err)
 		return
@@ -1244,7 +1295,7 @@ func handleTicketsAPI(c *gin.Context) {
 		responseData["NoTicketsMessage"] = "No tickets found"
 	}
 
-	tmpl, err := loadTemplate("templates/components/ticket_list.html")
+	tmpl, err := loadTemplateForRequest(c, "templates/components/ticket_list.html")
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Template error: %v", err)
 		return
@@ -1300,7 +1351,7 @@ func handleTicketSearch(c *gin.Context) {
 		responseData["NoTicketsMessage"] = "No tickets found"
 	}
 	
-	tmpl, err := loadTemplate("templates/components/ticket_list.html")
+	tmpl, err := loadTemplateForRequest(c, "templates/components/ticket_list.html")
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Template error: %v", err)
 		return
@@ -1377,10 +1428,15 @@ func handleCreateTicket(c *gin.Context) {
 
 	// Create the first message (ticket body)
 	message := &service.SimpleTicketMessage{
-		TicketID:  uint(ticket.ID),
-		Body:      req.Body,
-		CreatedBy: createdBy,
-		IsPublic:  true,
+		TicketID:    uint(ticket.ID),
+		Body:        req.Body,
+		Subject:     req.Subject,
+		CreatedBy:   createdBy,
+		AuthorName:  req.CustomerName,
+		AuthorEmail: req.CustomerEmail,
+		AuthorType:  "Customer",
+		IsPublic:    true,
+		IsInternal:  false,
 	}
 	
 	if err := ticketService.AddMessage(uint(ticket.ID), message); err != nil {
@@ -1473,7 +1529,7 @@ func handleTicketReply(c *gin.Context) {
 	}
 	
 	// Return HTML fragment for HTMX to append
-	tmpl, err := loadTemplate("templates/components/ticket_message.html")
+	tmpl, err := loadTemplateForRequest(c, "templates/components/ticket_message.html")
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Template error: %v", err)
 		return
@@ -1867,7 +1923,7 @@ func renderQueueList(c *gin.Context, queues []gin.H) {
 	
 	if isHTMXRequest(c) {
 		// Return HTML fragment for HTMX
-		tmpl, err := loadTemplate("templates/components/queue_list.html")
+		tmpl, err := loadTemplateForRequest(c, "templates/components/queue_list.html")
 		if err != nil {
 			c.String(http.StatusInternalServerError, "Template error: %v", err)
 			return
@@ -1879,7 +1935,7 @@ func renderQueueList(c *gin.Context, queues []gin.H) {
 		}
 	} else {
 		// Return full page
-		tmpl, err := loadTemplate(
+		tmpl, err := loadTemplateForRequest(c, 
 			"templates/layouts/base.html",
 			"templates/pages/queues/list.html",
 			"templates/components/queue_list.html",
@@ -1905,7 +1961,7 @@ func renderQueueList(c *gin.Context, queues []gin.H) {
 func renderQueueDetail(c *gin.Context, queue gin.H) {
 	if isHTMXRequest(c) {
 		// Return HTML fragment for HTMX
-		tmpl, err := loadTemplate("templates/components/queue_detail.html")
+		tmpl, err := loadTemplateForRequest(c, "templates/components/queue_detail.html")
 		if err != nil {
 			c.String(http.StatusInternalServerError, "Template error: %v", err)
 			return
@@ -1919,7 +1975,7 @@ func renderQueueDetail(c *gin.Context, queue gin.H) {
 		}
 	} else {
 		// Return full page
-		tmpl, err := loadTemplate(
+		tmpl, err := loadTemplateForRequest(c, 
 			"templates/layouts/base.html",
 			"templates/pages/queues/detail.html",
 			"templates/components/queue_detail.html",
@@ -2002,7 +2058,7 @@ func handleQueueTickets(c *gin.Context) {
 		})
 	} else {
 		// Return HTML fragment
-		tmpl, err := loadTemplate("templates/components/ticket_list.html")
+		tmpl, err := loadTemplateForRequest(c, "templates/components/ticket_list.html")
 		if err != nil {
 			c.String(http.StatusInternalServerError, "Template error: %v", err)
 			return
@@ -2164,7 +2220,7 @@ func handleQueueDetailPage(c *gin.Context) {
 		return
 	}
 	
-	tmpl, err := loadTemplate(
+	tmpl, err := loadTemplateForRequest(c, 
 		"templates/layouts/base.html",
 		"templates/pages/queues/detail.html",
 		"templates/components/queue_detail.html",
@@ -2265,7 +2321,7 @@ func handleQueuesList(c *gin.Context) {
 	// Check if this is an HTMX request for filtering/search
 	if c.GetHeader("HX-Request") != "" {
 		// Return just the queue list fragment for HTMX requests
-		tmpl, err := loadTemplate("templates/components/queue_list.html")
+		tmpl, err := loadTemplateForRequest(c, "templates/components/queue_list.html")
 		if err != nil {
 			c.String(http.StatusInternalServerError, "Template error: %v", err)
 			return
@@ -2285,29 +2341,8 @@ func handleQueuesList(c *gin.Context) {
 		return
 	}
 	
-	// Full page load - load complete template
-	tmpl, err := loadTemplate(
-		"templates/layouts/base.html",
-		"templates/pages/queues/list.html",
-		"templates/components/queue_list.html",
-	)
-	if err != nil {
-		// If template doesn't exist yet, show simple message
-		c.String(http.StatusOK, `
-			<html>
-			<head><title>Queues - GOTRS</title></head>
-			<body style="font-family: system-ui; padding: 2rem;">
-				<h1>Queue Management</h1>
-				<p>Queue management interface coming soon...</p>
-				<a href="/dashboard" style="color: blue;">← Back to Dashboard</a>
-			</body>
-			</html>
-		`)
-		return
-	}
-	
-	c.Header("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(c.Writer, "list.html", gin.H{
+	// Full page load - use Pongo2 renderer
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/queues/list.pongo2", pongo2.Context{
 		"Title":        "Queues - GOTRS",
 		"User":         gin.H{"FirstName": "Demo", "LastName": "User", "Email": "demo@gotrs.local", "Role": "Admin"},
 		"ActivePage":   "queues",
@@ -2317,46 +2352,20 @@ func handleQueuesList(c *gin.Context) {
 		"SortBy":       sortBy,
 		"PerPage":      perPage,
 		"Pagination":   pagination,
-	}); err != nil {
-		c.String(http.StatusInternalServerError, "Render error: %v", err)
-	}
+	})
 }
 
 // Admin dashboard page  
 func handleAdminDashboard(c *gin.Context) {
-	tmpl, err := loadTemplate(
-		"templates/layouts/base.html",
-		"templates/pages/admin/dashboard.html",
-	)
-	if err != nil {
-		// If template doesn't exist yet, show simple message
-		c.String(http.StatusOK, `
-			<html>
-			<head><title>Admin - GOTRS</title></head>
-			<body style="font-family: system-ui; padding: 2rem;">
-				<h1>Admin Dashboard</h1>
-				<p>Admin interface coming soon...</p>
-				<ul>
-					<li>User Management</li>
-					<li>System Configuration</li>
-					<li>Reports & Analytics</li>
-					<li>Audit Logs</li>
-				</ul>
-				<a href="/dashboard" style="color: blue;">← Back to Dashboard</a>
-			</body>
-			</html>
-		`)
-		return
-	}
-	
-	c.Header("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(c.Writer, "dashboard.html", gin.H{
-		"Title":      "Admin - GOTRS",
-		"User":       gin.H{"FirstName": "Demo", "LastName": "User", "Email": "demo@gotrs.local", "Role": "Admin"},
-		"ActivePage": "admin",
-	}); err != nil {
-		c.String(http.StatusInternalServerError, "Render error: %v", err)
-	}
+	// Use Pongo2 renderer with i18n support
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/dashboard.pongo2", pongo2.Context{
+		"Title":         "Admin - GOTRS",
+		"User":          gin.H{"FirstName": "Demo", "LastName": "User", "Email": "demo@gotrs.local", "Role": "Admin"},
+		"ActivePage":    "admin",
+		"UserCount":     42,
+		"ActiveTickets": 24,
+		"QueueCount":    6,
+	})
 }
 
 // Queue Management API Handlers
@@ -2640,7 +2649,7 @@ func handleEditQueueForm(c *gin.Context) {
 	}
 	
 	// Load and render the edit form template
-	tmpl, err := loadTemplate("templates/components/queue_edit_form.html")
+	tmpl, err := loadTemplateForRequest(c, "templates/components/queue_edit_form.html")
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Template error: %v", err)
 		return
@@ -2657,7 +2666,7 @@ func handleEditQueueForm(c *gin.Context) {
 // Handle new queue form display
 func handleNewQueueForm(c *gin.Context) {
 	// Load and render the create form template
-	tmpl, err := loadTemplate("templates/components/queue_create_form.html")
+	tmpl, err := loadTemplateForRequest(c, "templates/components/queue_create_form.html")
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Template error: %v", err)
 		return
@@ -2906,7 +2915,7 @@ func handleQueueTicketsWithHTMX(c *gin.Context) {
 	}
 	
 	// Load and render the ticket list template
-	tmpl, err := loadTemplate("templates/components/ticket_list.html")
+	tmpl, err := loadTemplateForRequest(c, "templates/components/ticket_list.html")
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Template error: %v", err)
 		return
@@ -2949,7 +2958,7 @@ func handleClearQueueSearch(c *gin.Context) {
 	}
 	
 	// Always return HTML fragment for HTMX clear requests
-	tmpl, err := loadTemplate("templates/components/queue_list.html")
+	tmpl, err := loadTemplateForRequest(c, "templates/components/queue_list.html")
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Template error: %v", err)
 		return
@@ -4267,4 +4276,77 @@ func handleCustomerSatisfactionSubmit(c *gin.Context) {
 	// feedback := c.PostForm("feedback")
 	
 	c.String(http.StatusOK, "Thank you for your feedback")
+}
+
+// Helper function to format time ago (e.g., "2 hours ago", "3 minutes ago")
+func formatTimeAgo(t time.Time) string {
+	now := time.Now()
+	duration := now.Sub(t)
+	
+	if duration < time.Minute {
+		return "just now"
+	} else if duration < time.Hour {
+		minutes := int(duration.Minutes())
+		if minutes == 1 {
+			return "1 minute ago"
+		}
+		return fmt.Sprintf("%d minutes ago", minutes)
+	} else if duration < 24*time.Hour {
+		hours := int(duration.Hours())
+		if hours == 1 {
+			return "1 hour ago"
+		}
+		return fmt.Sprintf("%d hours ago", hours)
+	} else if duration < 7*24*time.Hour {
+		days := int(duration.Hours() / 24)
+		if days == 1 {
+			return "1 day ago"
+		}
+		return fmt.Sprintf("%d days ago", days)
+	} else {
+		// For older messages, show the actual date
+		return t.Format("Jan 2, 2006")
+	}
+}
+
+// Helper function to generate initials from a name (e.g., "John Doe" -> "JD")
+func generateInitials(name string) string {
+	if name == "" {
+		return "?"
+	}
+	
+	words := strings.Fields(strings.TrimSpace(name))
+	if len(words) == 0 {
+		return "?"
+	}
+	
+	if len(words) == 1 {
+		// Single word, take first character
+		return strings.ToUpper(string(words[0][0]))
+	}
+	
+	// Multiple words, take first character of first and last word
+	first := strings.ToUpper(string(words[0][0]))
+	last := strings.ToUpper(string(words[len(words)-1][0]))
+	return first + last
+}
+
+// Helper function to format file size (e.g., 1024 bytes -> "1 KB")
+func formatFileSize(size int64) string {
+	const (
+		KB = 1024
+		MB = KB * 1024
+		GB = MB * 1024
+	)
+	
+	switch {
+	case size >= GB:
+		return fmt.Sprintf("%.2f GB", float64(size)/float64(GB))
+	case size >= MB:
+		return fmt.Sprintf("%.2f MB", float64(size)/float64(MB))
+	case size >= KB:
+		return fmt.Sprintf("%.1f KB", float64(size)/float64(KB))
+	default:
+		return fmt.Sprintf("%d bytes", size)
+	}
 }

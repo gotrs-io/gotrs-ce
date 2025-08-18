@@ -41,7 +41,7 @@ type Queue struct {
 	GroupID         uint      `json:"group_id" db:"group_id"`
 	Email           *string   `json:"email,omitempty" db:"email"`
 	RealName        *string   `json:"realname,omitempty" db:"realname"`
-	Comments        *string   `json:"comments,omitempty" db:"comments"`
+	Comment         *string   `json:"comment,omitempty" db:"comment"`
 	UnlockTimeout   int       `json:"unlock_timeout" db:"unlock_timeout"`
 	FollowUpID      int       `json:"follow_up_id" db:"follow_up_id"`
 	FollowUpLock    int       `json:"follow_up_lock" db:"follow_up_lock"`

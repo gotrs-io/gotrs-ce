@@ -21,7 +21,7 @@ GOTRS-CE is an **independent, original implementation** of a ticket management s
 - 🌐 **Cloud Native** - Containerized microservices supporting Docker, Podman, and Kubernetes
 - 📱 **Responsive UI** - Modern HTMX-powered interface with progressive enhancement
 - 🔄 **OTRS Compatible** - Database schema superset enables seamless migration
-- 🌍 **Multi-Language** - Comprehensive internationalization support
+- 🌍 **Multi-Language** - Full i18n with German 100% complete, even supports Klingon! 🖖
 - 🎨 **Themeable** - Customizable UI with dark/light modes and branding options
 - 🔌 **Extensible** - Plugin framework for custom modules and integrations
 
@@ -189,6 +189,7 @@ For production deployments, see our comprehensive guides:
 - [Agent Manual](docs/agent-manual/README.md)
 - [Developer Guide](docs/developer-guide/README.md)
 - [API Reference](docs/api/README.md)
+- [i18n Contributing Guide](docs/i18n/CONTRIBUTING.md)
 
 ## Migration from OTRS
 
@@ -213,6 +214,54 @@ docker run --rm \
 
 See [Migration Guide](docs/MIGRATION.md) for detailed instructions.
 
+## Internationalization (i18n)
+
+GOTRS provides comprehensive multi-language support with developer-friendly tools:
+
+### Language Support
+- **English** (en) - 100% complete (base language)
+- **German** (de) - 100% complete
+- **Klingon** (tlh) - 39% complete (Yes, really! 🖖)
+- **Spanish** (es) - 47% complete
+- **French** (fr) - In progress
+- **Portuguese** (pt) - In progress
+- **Japanese** (ja) - In progress
+- **Chinese** (zh) - In progress
+- More languages coming soon!
+
+### i18n Features
+- **API-driven translation management** - RESTful endpoints for coverage, validation, import/export
+- **CLI tools** - Command-line utilities for translation workflows
+- **Live language switching** - Change language without page reload using `?lang=xx`
+- **Translation validation** - Automatic completeness checking and key validation
+- **CSV/JSON export** - Easy integration with translation services
+- **TDD approach** - All i18n features developed with test-driven development
+
+### For Contributors - Using gotrs-babelfish 🐠
+```bash
+# Check translation coverage (with Hitchhiker's Guide style!)
+make babelfish-coverage
+
+# Find missing translations (even for Klingon!)
+make babelfish-missing LANG=tlh
+
+# Validate translations
+make babelfish-validate LANG=de
+
+# Run with custom options (Don't Panic!)
+docker exec gotrs-backend go run cmd/gotrs-babelfish/main.go -help
+
+# Use API for coverage stats
+curl http://localhost:8080/api/v1/i18n/coverage
+
+# Test the UI in Klingon (Qapla'!)
+# http://localhost:8080/dashboard?lang=tlh
+```
+
+> **gotrs-babelfish**: Named after the Babel fish from The Hitchhiker's Guide to the Galaxy - stick it in your ear and instantly understand any language!
+
+See [i18n Contributing Guide](docs/i18n/CONTRIBUTING.md) for detailed instructions on adding new languages.
+
 ## Features Comparison
 
 | Feature | GOTRS | OTRS | Zendesk | ServiceNow |
@@ -226,7 +275,7 @@ See [Migration Guide](docs/MIGRATION.md) for detailed instructions.
 | Microservices | ✅ | ❌ | ✅ | ✅ |
 | Plugin System | ✅ | ✅ | ✅ | ✅ |
 | ITSM Modules | ✅ | ✅ | ❌ | ✅ |
-| Multi-Language | ✅ | ✅ | ✅ | ✅ |
+| Multi-Language | ✅ (100% DE) | ✅ | ✅ | ✅ |
 
 ## Roadmap
 

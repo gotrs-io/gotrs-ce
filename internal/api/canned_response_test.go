@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -437,6 +438,27 @@ func TestDeleteCannedResponse(t *testing.T) {
 
 func TestUseCannedResponse(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+
+	// Ensure test data exists
+	cannedResponses[1] = &CannedResponse{
+		ID:         1,
+		Name:       "Thank You",
+		Category:   "General",
+		Content:    "Thank you for contacting support. We'll review your request and respond shortly.",
+		ContentType: "text",
+		Scope:      "personal",
+		OwnerID:    1,
+	}
+	cannedResponses[2] = &CannedResponse{
+		ID:           2,
+		Name:         "Ticket Update",
+		Category:     "General",
+		Content:      "Dear {{customer_name}}, your ticket {{ticket_id}} has been updated.",
+		ContentType:  "text",
+		Scope:        "personal",
+		OwnerID:      1,
+		Placeholders: []string{"customer_name", "ticket_id"},
+	}
 
 	tests := []struct {
 		name       string

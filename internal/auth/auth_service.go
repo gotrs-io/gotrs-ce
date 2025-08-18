@@ -10,8 +10,9 @@ import (
 
 var (
 	ErrInvalidCredentials = errors.New("invalid email or password")
+	ErrInvalidOldPassword = errors.New("Invalid old password")
+	ErrUserNotFound      = errors.New("User not found")
 	ErrAccountLocked      = errors.New("account is locked due to multiple failed login attempts")
-	ErrUserNotFound       = errors.New("user not found")
 	ErrUserInactive       = errors.New("user account is inactive")
 )
 
@@ -121,12 +122,15 @@ func (s *AuthService) ChangePassword(userID uint, oldPassword, newPassword strin
 	// Get user
 	user, err := s.getUserByID(userID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return ErrUserNotFound
+		}
 		return err
 	}
 
 	// Verify old password
 	if !user.CheckPassword(oldPassword) {
-		return ErrInvalidCredentials
+		return ErrInvalidOldPassword
 	}
 
 	// Set new password
@@ -210,7 +214,7 @@ func (s *AuthService) determineUserRole(userID uint) string {
 	var groupName string
 	err := s.db.QueryRow(query, userID).Scan(&groupName)
 	if err != nil {
-		return string(models.RoleCustomer) // Default to Customer
+		return string(models.RoleAgent) // Default to Agent
 	}
 
 	// Map group names to roles

@@ -196,14 +196,16 @@ jobs:
           dockerfile: Dockerfile.frontend
           failure-threshold: warning
 
-      - name: Run Trivy vulnerability scanner on repository
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'table'
-          severity: 'CRITICAL,HIGH,MEDIUM'
-          exit-code: '0'  # Don't fail the build, just report
+      # Trivy scanning disabled until GitHub Advanced Security is available
+      # Run locally with: make trivy-scan
+      # - name: Run Trivy vulnerability scanner on repository
+      #   uses: aquasecurity/trivy-action@master
+      #   with:
+      #     scan-type: 'fs'
+      #     scan-ref: '.'
+      #     format: 'table'
+      #     severity: 'CRITICAL,HIGH,MEDIUM'
+      #     exit-code: '0'  # Don't fail the build, just report
 
       - name: Run GitLeaks
         uses: gitleaks/gitleaks-action@v2

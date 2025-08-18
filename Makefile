@@ -246,6 +246,28 @@ toolbox-security:
 		gotrs-toolbox:latest \
 		gosec ./...
 
+# Run Trivy vulnerability scan locally
+trivy-scan:
+	@echo "🔍 Running Trivy vulnerability scan..."
+	@$(CONTAINER_CMD) run --rm \
+		-v "$$(pwd):/workspace" \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		aquasec/trivy:latest \
+		fs --severity CRITICAL,HIGH,MEDIUM /workspace
+
+# Run Trivy on built images
+trivy-images:
+	@echo "🔍 Scanning backend image..."
+	@$(CONTAINER_CMD) run --rm \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		aquasec/trivy:latest \
+		image gotrs-backend:latest
+	@echo "🔍 Scanning frontend image..."
+	@$(CONTAINER_CMD) run --rm \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		aquasec/trivy:latest \
+		image gotrs-frontend:latest
+
 # Start all services
 up:
 	$(COMPOSE_CMD) up --build

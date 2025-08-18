@@ -29,8 +29,8 @@ type SLARepository interface {
 	CreateBusinessCalendar(ctx context.Context, calendar *models.BusinessCalendar) error
 	GetBusinessCalendar(ctx context.Context, id uint) (*models.BusinessCalendar, error)
 	UpdateBusinessCalendar(ctx context.Context, calendar *models.BusinessCalendar) error
-	AddHoliday(ctx context.Context, holiday *models.Holiday) error
-	GetHolidays(ctx context.Context, calendarID uint) ([]models.Holiday, error)
+	AddHoliday(ctx context.Context, holiday *models.SLAHoliday) error
+	GetHolidays(ctx context.Context, calendarID uint) ([]models.SLAHoliday, error)
 	
 	// Escalation tracking
 	RecordEscalation(ctx context.Context, escalation *models.SLAEscalationHistory) error
@@ -49,7 +49,7 @@ type MemorySLARepository struct {
 	slas           map[uint]*models.SLA
 	ticketSLAs     map[uint]*models.TicketSLA // key is ticketID
 	calendars      map[uint]*models.BusinessCalendar
-	holidays       map[uint]*models.Holiday
+	holidays       map[uint]*models.SLAHoliday
 	escalations    []models.SLAEscalationHistory
 	pauseReasons   []models.SLAPauseReason
 	mu             sync.RWMutex
@@ -67,7 +67,7 @@ func NewMemorySLARepository() *MemorySLARepository {
 		slas:           make(map[uint]*models.SLA),
 		ticketSLAs:     make(map[uint]*models.TicketSLA),
 		calendars:      make(map[uint]*models.BusinessCalendar),
-		holidays:       make(map[uint]*models.Holiday),
+		holidays:       make(map[uint]*models.SLAHoliday),
 		escalations:    []models.SLAEscalationHistory{},
 		pauseReasons:   []models.SLAPauseReason{},
 		nextSLAID:      1,
@@ -401,7 +401,7 @@ func (r *MemorySLARepository) UpdateBusinessCalendar(ctx context.Context, calend
 }
 
 // AddHoliday adds a holiday to a calendar
-func (r *MemorySLARepository) AddHoliday(ctx context.Context, holiday *models.Holiday) error {
+func (r *MemorySLARepository) AddHoliday(ctx context.Context, holiday *models.SLAHoliday) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	
@@ -416,11 +416,11 @@ func (r *MemorySLARepository) AddHoliday(ctx context.Context, holiday *models.Ho
 }
 
 // GetHolidays gets holidays for a calendar
-func (r *MemorySLARepository) GetHolidays(ctx context.Context, calendarID uint) ([]models.Holiday, error) {
+func (r *MemorySLARepository) GetHolidays(ctx context.Context, calendarID uint) ([]models.SLAHoliday, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	
-	var holidays []models.Holiday
+	var holidays []models.SLAHoliday
 	for _, holiday := range r.holidays {
 		if holiday.CalendarID == calendarID {
 			holidays = append(holidays, *holiday)

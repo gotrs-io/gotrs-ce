@@ -2,8 +2,8 @@ package models
 
 import "time"
 
-// WorkflowTemplate represents a pre-built workflow template
-type WorkflowTemplate struct {
+// PrebuiltWorkflowTemplate represents a pre-built workflow template
+type PrebuiltWorkflowTemplate struct {
 	ID          string                 `json:"id"`
 	Name        string                 `json:"name"`
 	Description string                 `json:"description"`
@@ -14,7 +14,7 @@ type WorkflowTemplate struct {
 	UseCases    []string               `json:"use_cases"`
 	Benefits    []string               `json:"benefits"`
 	Definition  WorkflowDefinition     `json:"definition"`
-	Variables   []TemplateVariable     `json:"variables"`
+	Variables   []WorkflowTemplateVariable     `json:"variables"`
 	IsPublic    bool                   `json:"is_public"`
 	Author      string                 `json:"author"`
 	Version     string                 `json:"version"`
@@ -32,8 +32,8 @@ type WorkflowDefinition struct {
 	Settings   map[string]interface{} `json:"settings"`
 }
 
-// TemplateVariable represents a configurable variable in the template
-type TemplateVariable struct {
+// WorkflowTemplateVariable represents a configurable variable in the template
+type WorkflowTemplateVariable struct {
 	Name         string      `json:"name"`
 	Label        string      `json:"label"`
 	Description  string      `json:"description"`
@@ -51,8 +51,8 @@ type SelectOption struct {
 }
 
 // GetWorkflowTemplates returns all available workflow templates
-func GetWorkflowTemplates() []WorkflowTemplate {
-	return []WorkflowTemplate{
+func GetWorkflowTemplates() []PrebuiltWorkflowTemplate {
+	return []PrebuiltWorkflowTemplate{
 		// Customer Service Templates
 		{
 			ID:          "auto-acknowledge",
@@ -92,14 +92,14 @@ func GetWorkflowTemplates() []WorkflowTemplate {
 					},
 				},
 			},
-			Variables: []TemplateVariable{
+			Variables: []WorkflowTemplateVariable{
 				{
 					Name:         "response_time",
 					Label:        "Expected Response Time",
 					Description:  "How long before first response (in hours)",
 					Type:         "number",
 					Required:     true,
-					DefaultValue: 24,
+					DefaultValue: "24",
 				},
 			},
 			IsPublic:  true,

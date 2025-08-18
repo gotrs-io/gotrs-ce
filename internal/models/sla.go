@@ -24,7 +24,7 @@ type SLA struct {
 	Conditions          SLAConditions `json:"conditions"`
 	
 	// Escalation rules
-	EscalationRules     []EscalationRule `json:"escalation_rules,omitempty"`
+	EscalationRules     []SLAEscalationRule `json:"escalation_rules,omitempty"`
 }
 
 // SLAConditions defines when an SLA applies
@@ -37,8 +37,8 @@ type SLAConditions struct {
 	Tags            []string `json:"tags,omitempty"`
 }
 
-// EscalationRule defines escalation actions when SLA is breached
-type EscalationRule struct {
+// SLAEscalationRule defines escalation actions when SLA is breached
+type SLAEscalationRule struct {
 	ID              uint      `json:"id"`
 	SLAID           uint      `json:"sla_id"`
 	Name            string    `json:"name"`
@@ -52,17 +52,17 @@ type EscalationRule struct {
 	IsActive        bool      `json:"is_active"`
 }
 
-// BusinessCalendar defines working hours and holidays
+// BusinessCalendar defines working hours and holidays (SLA data model)
 type BusinessCalendar struct {
-	ID              uint      `json:"id"`
-	Name            string    `json:"name" binding:"required"`
-	Description     string    `json:"description"`
-	TimeZone        string    `json:"time_zone" binding:"required"`
-	WorkingHours    []WorkingHours `json:"working_hours"`
-	Holidays        []Holiday      `json:"holidays,omitempty"`
-	IsDefault       bool      `json:"is_default"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID              uint                 `json:"id"`
+	Name            string               `json:"name" binding:"required"`
+	Description     string               `json:"description"`
+	TimeZone        string               `json:"time_zone" binding:"required"`
+	WorkingHours    []WorkingHours       `json:"working_hours"`
+	Holidays        []SLAHoliday         `json:"holidays,omitempty"`
+	IsDefault       bool                 `json:"is_default"`
+	CreatedAt       time.Time            `json:"created_at"`
+	UpdatedAt       time.Time            `json:"updated_at"`
 }
 
 // WorkingHours defines working hours for each day
@@ -73,8 +73,8 @@ type WorkingHours struct {
 	IsWorkingDay bool   `json:"is_working_day"`
 }
 
-// Holiday represents a non-working day
-type Holiday struct {
+// SLAHoliday represents a non-working day
+type SLAHoliday struct {
 	ID          uint      `json:"id"`
 	CalendarID  uint      `json:"calendar_id"`
 	Name        string    `json:"name"`

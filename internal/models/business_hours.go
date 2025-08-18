@@ -70,22 +70,22 @@ type BusinessException struct {
 	Reason      string    `json:"reason"`
 }
 
-// BusinessCalendar provides business hours calculations
-type BusinessCalendar struct {
+// BusinessHoursCalculator provides business hours calculations
+type BusinessHoursCalculator struct {
 	Config          *BusinessHoursConfig
 	locationCache   *time.Location
 	holidayCache    map[string]bool
 	workingDayCache map[DayOfWeek]*WorkingDay
 }
 
-// NewBusinessCalendar creates a new business calendar
-func NewBusinessCalendar(config *BusinessHoursConfig) (*BusinessCalendar, error) {
+// NewBusinessHoursCalculator creates a new business hours calculator
+func NewBusinessHoursCalculator(config *BusinessHoursConfig) (*BusinessHoursCalculator, error) {
 	loc, err := time.LoadLocation(config.Timezone)
 	if err != nil {
 		return nil, err
 	}
 
-	bc := &BusinessCalendar{
+	bc := &BusinessHoursCalculator{
 		Config:          config,
 		locationCache:   loc,
 		holidayCache:    make(map[string]bool),
@@ -108,7 +108,7 @@ func NewBusinessCalendar(config *BusinessHoursConfig) (*BusinessCalendar, error)
 }
 
 // IsBusinessDay checks if a given date is a business day
-func (bc *BusinessCalendar) IsBusinessDay(date time.Time) bool {
+func (bc *BusinessHoursCalculator) IsBusinessDay(date time.Time) bool {
 	// Convert to calendar timezone
 	localDate := date.In(bc.locationCache)
 	
@@ -135,7 +135,7 @@ func (bc *BusinessCalendar) IsBusinessDay(date time.Time) bool {
 }
 
 // IsWithinBusinessHours checks if a given time is within business hours
-func (bc *BusinessCalendar) IsWithinBusinessHours(t time.Time) bool {
+func (bc *BusinessHoursCalculator) IsWithinBusinessHours(t time.Time) bool {
 	if !bc.IsBusinessDay(t) {
 		return false
 	}
@@ -166,7 +166,7 @@ func (bc *BusinessCalendar) IsWithinBusinessHours(t time.Time) bool {
 }
 
 // GetNextBusinessDay returns the next business day from the given date
-func (bc *BusinessCalendar) GetNextBusinessDay(from time.Time) time.Time {
+func (bc *BusinessHoursCalculator) GetNextBusinessDay(from time.Time) time.Time {
 	next := from.In(bc.locationCache).AddDate(0, 0, 1)
 	next = time.Date(next.Year(), next.Month(), next.Day(), 0, 0, 0, 0, bc.locationCache)
 	
@@ -178,7 +178,7 @@ func (bc *BusinessCalendar) GetNextBusinessDay(from time.Time) time.Time {
 }
 
 // GetNextBusinessHour returns the next business hour from the given time
-func (bc *BusinessCalendar) GetNextBusinessHour(from time.Time) time.Time {
+func (bc *BusinessHoursCalculator) GetNextBusinessHour(from time.Time) time.Time {
 	localTime := from.In(bc.locationCache)
 	
 	// If already in business hours, return the same time
@@ -208,7 +208,7 @@ func (bc *BusinessCalendar) GetNextBusinessHour(from time.Time) time.Time {
 }
 
 // AddBusinessHours adds business hours to a given time
-func (bc *BusinessCalendar) AddBusinessHours(from time.Time, hours float64) time.Time {
+func (bc *BusinessHoursCalculator) AddBusinessHours(from time.Time, hours float64) time.Time {
 	if hours == 0 {
 		return from
 	}
@@ -238,7 +238,7 @@ func (bc *BusinessCalendar) AddBusinessHours(from time.Time, hours float64) time
 }
 
 // GetBusinessHoursBetween calculates business hours between two times
-func (bc *BusinessCalendar) GetBusinessHoursBetween(start, end time.Time) float64 {
+func (bc *BusinessHoursCalculator) GetBusinessHoursBetween(start, end time.Time) float64 {
 	if end.Before(start) {
 		return 0
 	}
@@ -273,7 +273,7 @@ func (bc *BusinessCalendar) GetBusinessHoursBetween(start, end time.Time) float6
 // Helper methods
 
 // isTimeInRange checks if a time falls within a time range
-func (bc *BusinessCalendar) isTimeInRange(t time.Time, startStr, endStr string) bool {
+func (bc *BusinessHoursCalculator) isTimeInRange(t time.Time, startStr, endStr string) bool {
 	start := bc.parseTimeOnDate(t, startStr)
 	end := bc.parseTimeOnDate(t, endStr)
 	
@@ -286,7 +286,7 @@ func (bc *BusinessCalendar) isTimeInRange(t time.Time, startStr, endStr string) 
 }
 
 // isTimeInShift checks if a time falls within a shift
-func (bc *BusinessCalendar) isTimeInShift(t time.Time, shift TimeShift) bool {
+func (bc *BusinessHoursCalculator) isTimeInShift(t time.Time, shift TimeShift) bool {
 	inWorkTime := bc.isTimeInRange(t, shift.StartTime, shift.EndTime)
 	if !inWorkTime {
 		return false
@@ -302,7 +302,7 @@ func (bc *BusinessCalendar) isTimeInShift(t time.Time, shift TimeShift) bool {
 }
 
 // parseTimeOnDate parses a time string on a specific date
-func (bc *BusinessCalendar) parseTimeOnDate(date time.Time, timeStr string) time.Time {
+func (bc *BusinessHoursCalculator) parseTimeOnDate(date time.Time, timeStr string) time.Time {
 	t, err := time.Parse("15:04", timeStr)
 	if err != nil {
 		return date
@@ -316,7 +316,7 @@ func (bc *BusinessCalendar) parseTimeOnDate(date time.Time, timeStr string) time
 }
 
 // getEndOfBusinessPeriod gets the end of the current business period
-func (bc *BusinessCalendar) getEndOfBusinessPeriod(t time.Time) time.Time {
+func (bc *BusinessHoursCalculator) getEndOfBusinessPeriod(t time.Time) time.Time {
 	localTime := t.In(bc.locationCache)
 	dow := DayOfWeek(localTime.Weekday())
 	

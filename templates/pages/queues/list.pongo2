@@ -1,0 +1,169 @@
+{% extends "../../layouts/base.pongo2" %}
+
+{% block title %}{{ t("navigation.queues") }} - {{ t("app.name") }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Page header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="min-w-0 flex-1">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:truncate sm:text-3xl sm:tracking-tight">
+                {{ t("navigation.queues") }}
+            </h2>
+        </div>
+        <div class="mt-4 flex md:ml-4 md:mt-0">
+            <a href="/queues/new" 
+               class="ml-3 inline-flex items-center rounded-md bg-gotrs-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gotrs-500">
+                <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                </svg>
+                {{ t("queues.new_queue") }}
+            </a>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="mt-8 bg-white dark:bg-gray-800 shadow rounded-lg p-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div class="sm:col-span-2">
+                <label for="search" class="sr-only">{{ t("common.search") }}</label>
+                <div class="relative">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <input type="text" 
+                           name="search" 
+                           id="search" 
+                           value="{{ SearchTerm }}"
+                           class="block w-full rounded-md border-gray-300 pl-10 focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm"
+                           placeholder="{{ t('queues.search_placeholder') }}"
+                           hx-get="/queues"
+                           hx-trigger="keyup changed delay:500ms"
+                           hx-target="#queue-list"
+                           hx-swap="innerHTML">
+                </div>
+            </div>
+            <div>
+                <label for="status" class="sr-only">{{ t("common.status") }}</label>
+                <select id="status" 
+                        name="status" 
+                        class="block w-full rounded-md border-gray-300 focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm"
+                        hx-get="/queues"
+                        hx-trigger="change"
+                        hx-target="#queue-list"
+                        hx-swap="innerHTML">
+                    <option value="">{{ t("common.all_statuses") }}</option>
+                    <option value="active" {% if StatusFilter == "active" %}selected{% endif %}>{{ t("status.active") }}</option>
+                    <option value="inactive" {% if StatusFilter == "inactive" %}selected{% endif %}>{{ t("status.inactive") }}</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Queues List -->
+    <div class="mt-8 bg-white dark:bg-gray-800 shadow rounded-lg" id="queue-list">
+        <div class="px-4 py-5 sm:p-6">
+            <div class="flow-root">
+                <ul role="list" class="-my-5 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for queue in Queues %}
+                    <li class="py-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center min-w-0">
+                                <div class="flex-shrink-0">
+                                    <div class="h-10 w-10 rounded-full bg-gotrs-100 dark:bg-gotrs-900 flex items-center justify-center">
+                                        <svg class="h-6 w-6 text-gotrs-600 dark:text-gotrs-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="ml-4 truncate">
+                                    <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
+                                        <a href="/queues/{{ queue.id }}" class="hover:text-gotrs-600">
+                                            {{ queue.name }}
+                                        </a>
+                                    </p>
+                                    <p class="truncate text-sm text-gray-500 dark:text-gray-400">
+                                        {{ queue.ticket_count }} {{ t("tickets.tickets") }}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="ml-5 flex-shrink-0 flex items-center space-x-2">
+                                {% if queue.active %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    {{ t("status.active") }}
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    {{ t("status.inactive") }}
+                                </span>
+                                {% endif %}
+                                <a href="/queues/{{ queue.id }}/edit" 
+                                   class="text-gray-400 hover:text-gray-500">
+                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+            {% if not Queues %}
+            <div class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">{{ t("queues.no_queues") }}</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("queues.no_queues_description") }}</p>
+                <div class="mt-6">
+                    <a href="/queues/new" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gotrs-600 hover:bg-gotrs-700">
+                        <svg class="-ml-1 mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                        {{ t("queues.create_first_queue") }}
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if Pagination and Pagination.TotalPages > 1 %}
+        <div class="bg-white dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
+            <div class="flex items-center justify-between">
+                <div class="flex-1 flex justify-between sm:hidden">
+                    {% if Pagination.HasPrev %}
+                    <a href="/queues?page={{ Pagination.PrevPage }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        {{ t("common.previous") }}
+                    </a>
+                    {% endif %}
+                    {% if Pagination.HasNext %}
+                    <a href="/queues?page={{ Pagination.NextPage }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        {{ t("common.next") }}
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-gray-700 dark:text-gray-300">
+                            {{ t("common.showing") }} <span class="font-medium">{{ Pagination.StartItem }}</span> {{ t("common.to") }}
+                            <span class="font-medium">{{ Pagination.EndItem }}</span> {{ t("common.of") }}
+                            <span class="font-medium">{{ Pagination.TotalItems }}</span> {{ t("common.results") }}
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                            <!-- Pagination buttons here -->
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -38,6 +38,14 @@ func main() {
 	fmt.Println("  GET  /dashboard -> Dashboard (demo)")
 	fmt.Println("  GET  /tickets   -> Tickets list (demo)")
 	fmt.Println("  POST /api/auth/login -> HTMX login")
+	fmt.Println("")
+	fmt.Println("LDAP API routes:")
+	fmt.Println("  POST /api/v1/ldap/configure -> Configure LDAP")
+	fmt.Println("  POST /api/v1/ldap/test -> Test LDAP connection")
+	fmt.Println("  POST /api/v1/ldap/authenticate -> Authenticate user")
+	fmt.Println("  GET  /api/v1/ldap/users/:username -> Get user info")
+	fmt.Println("  POST /api/v1/ldap/sync/users -> Sync users")
+	fmt.Println("  GET  /api/v1/ldap/config -> Get LDAP config")
 	
 	log.Fatal(r.Run(":" + port))
 }

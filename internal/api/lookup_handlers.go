@@ -4,6 +4,7 @@ import (
 	"net/http"
 	
 	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 )
 
 // handleAdminLookups shows the admin page for managing lookup values
@@ -41,51 +42,56 @@ func handleAdminLookups(c *gin.Context) {
 // handleGetQueues returns list of queues as JSON
 func handleGetQueues(c *gin.Context) {
 	lookupService := GetLookupService()
-	queues := lookupService.GetQueues()
+	lang := middleware.GetLanguage(c)
+	formData := lookupService.GetTicketFormDataWithLang(lang)
 	
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    queues,
+		"data":    formData.Queues,
 	})
 }
 
 // handleGetPriorities returns list of priorities as JSON
 func handleGetPriorities(c *gin.Context) {
 	lookupService := GetLookupService()
-	priorities := lookupService.GetPriorities()
+	lang := middleware.GetLanguage(c)
+	formData := lookupService.GetTicketFormDataWithLang(lang)
 	
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    priorities,
+		"data":    formData.Priorities,
 	})
 }
 
 // handleGetTypes returns list of ticket types as JSON
 func handleGetTypes(c *gin.Context) {
 	lookupService := GetLookupService()
-	types := lookupService.GetTypes()
+	lang := middleware.GetLanguage(c)
+	formData := lookupService.GetTicketFormDataWithLang(lang)
 	
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    types,
+		"data":    formData.Types,
 	})
 }
 
 // handleGetStatuses returns list of ticket statuses as JSON
 func handleGetStatuses(c *gin.Context) {
 	lookupService := GetLookupService()
-	statuses := lookupService.GetStatuses()
+	lang := middleware.GetLanguage(c)
+	formData := lookupService.GetTicketFormDataWithLang(lang)
 	
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    statuses,
+		"data":    formData.Statuses,
 	})
 }
 
 // handleGetFormData returns all form data (queues, priorities, types, statuses) as JSON
 func handleGetFormData(c *gin.Context) {
 	lookupService := GetLookupService()
-	formData := lookupService.GetTicketFormData()
+	lang := middleware.GetLanguage(c)
+	formData := lookupService.GetTicketFormDataWithLang(lang)
 	
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

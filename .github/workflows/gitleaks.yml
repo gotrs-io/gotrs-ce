@@ -19,12 +19,12 @@ jobs:
   gitleaks:
     name: Detect Secrets
     runs-on: ubuntu-latest
+    environment: Development
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch all history for scanning
-
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
@@ -55,6 +55,7 @@ jobs:
   trivy-secrets:
     name: Trivy Secret Scanning
     runs-on: ubuntu-latest
+    environment: Development
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -89,6 +90,7 @@ jobs:
     needs: [gitleaks, trivy-secrets]
     if: failure()
     runs-on: ubuntu-latest
+    environment: Development
     steps:
       - name: Create Issue on Secret Detection
         uses: actions/github-script@v7

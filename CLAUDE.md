@@ -4,7 +4,7 @@
 GOTRS is a modern ticketing system replacing OTRS, built with Go backend and HTMX frontend. Hypermedia-driven architecture with server-side rendering for simplicity and performance. Security-first design with rootless containers.
 
 ## Tech Stack
-- Backend: Go 1.21+, Gin, PostgreSQL, Valkey, Temporal, Zinc
+- Backend: Go 1.22+, Gin, PostgreSQL, Valkey, Temporal, Zinc
 - Frontend: HTMX, Alpine.js, Tailwind CSS (server-rendered)
 - Real-time: Server-Sent Events (SSE)
 - Containers: Docker/Podman (first-class support for both)
@@ -141,3 +141,26 @@ make up
 - Page load < 2 seconds
 - Support 100 concurrent users (MVP)
 - Container images < 100MB each
+
+## Lessons Learned
+
+### Testing Before Declaring Ready (Aug 18, 2025)
+- **ALWAYS test commands/features before claiming they work**
+- Don't ask users to be QA - test it yourself first
+- When creating containerized commands, verify:
+  - Correct tool versions (e.g., Go 1.22 not 1.21)
+  - Proper cache/permission handling (GOCACHE, GOMODCACHE)
+  - All dependencies are available
+- Better to say "Let me test this" than "It's ready!" without verification
+
+### Containers First Philosophy
+- Every tool command should run in containers
+- Use environment variables for cache directories to avoid permission issues
+- Always provide containerized alternatives for host commands
+- Test with `make test-containerized` to verify compliance
+
+### Secret Management
+- All secrets exclusively in environment variables
+- Use `make synthesize` to generate secure .env files
+- Never hardcode even test secrets - use obvious prefixes (test-, mock-, dummy-)
+- Pre-commit hooks essential for preventing accidental secret commits

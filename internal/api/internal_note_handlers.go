@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -30,7 +31,7 @@ func NewInternalNoteHandlers() *InternalNoteHandlers {
 
 // initializeDefaultNoteData creates default categories and templates
 func initializeDefaultNoteData(srv *service.InternalNoteService) {
-	ctx := gin.Context{}
+	ctx := context.Background()
 	
 	// Default templates
 	templates := []models.NoteTemplate{
@@ -72,7 +73,7 @@ func initializeDefaultNoteData(srv *service.InternalNoteService) {
 	}
 	
 	for _, tmpl := range templates {
-		srv.CreateTemplate(ctx.Request.Context(), &tmpl)
+		srv.CreateTemplate(ctx, &tmpl)
 	}
 }
 

@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -445,9 +446,6 @@ func contains(s, substr string) bool {
 		len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
 		strings.Contains(strings.ToLower(s), strings.ToLower(substr))))
 }
-
-// Import strings package for contains function
-import "strings"
 
 // TestLDAPIntegrationSuite runs the integration test suite
 func TestLDAPIntegrationSuite(t *testing.T) {

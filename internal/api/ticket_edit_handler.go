@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 )
 
 // Ticket edit form handler
@@ -41,9 +42,10 @@ func handleTicketEditForm(c *gin.Context) {
 		"AssignedTo":   nil,
 	}
 	
-	// Get dynamic form data from lookup service
+	// Get dynamic form data from lookup service with language support
 	lookupService := GetLookupService()
-	formData := lookupService.GetTicketFormData()
+	lang := middleware.GetLanguage(c)
+	formData := lookupService.GetTicketFormDataWithLang(lang)
 	
 	// Load edit form template
 	tmpl, err := loadTemplate(

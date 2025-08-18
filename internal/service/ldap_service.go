@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"log"
@@ -10,20 +11,31 @@ import (
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
-	"github.com/gotrs-io/gotrs-ce/internal/repository"
+	"github.com/gotrs-io/gotrs-ce/internal/repository/memory"
 )
 
 // LDAPService handles LDAP/Active Directory integration
 type LDAPService struct {
-	userRepo     repository.UserRepository
-	roleRepo     repository.RoleRepository
-	groupRepo    repository.GroupRepository
+	userRepo     *memory.UserRepository
+	roleRepo     *memory.RoleRepository
+	groupRepo    *memory.GroupRepository
 	mu           sync.RWMutex
 	connections  map[string]*ldap.Conn
 	config       *LDAPConfig
 	syncInterval time.Duration
 	lastSync     time.Time
 	stopChan     chan bool
+	authLogs     []AuthLog
+}
+
+// AuthLog represents an authentication attempt log entry
+type AuthLog struct {
+	Username  string    `json:"username"`
+	Success   bool      `json:"success"`
+	Error     string    `json:"error,omitempty"`
+	IPAddress string    `json:"ip_address,omitempty"`
+	UserAgent string    `json:"user_agent,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 // LDAPConfig represents LDAP configuration
@@ -99,21 +111,22 @@ type LDAPGroup struct {
 
 // LDAPSyncResult represents the result of an LDAP sync operation
 type LDAPSyncResult struct {
-	UsersFound    int       `json:"users_found"`
-	UsersCreated  int       `json:"users_created"`
-	UsersUpdated  int       `json:"users_updated"`
-	UsersDisabled int       `json:"users_disabled"`
-	GroupsFound   int       `json:"groups_found"`
-	GroupsCreated int       `json:"groups_created"`
-	GroupsUpdated int       `json:"groups_updated"`
-	Errors        []string  `json:"errors"`
-	StartTime     time.Time `json:"start_time"`
-	EndTime       time.Time `json:"end_time"`
+	UsersFound    int           `json:"users_found"`
+	UsersCreated  int           `json:"users_created"`
+	UsersUpdated  int           `json:"users_updated"`
+	UsersDisabled int           `json:"users_disabled"`
+	GroupsFound   int           `json:"groups_found"`
+	GroupsCreated int           `json:"groups_created"`
+	GroupsUpdated int           `json:"groups_updated"`
+	Errors        []string      `json:"errors"`
+	StartTime     time.Time     `json:"start_time"`
+	EndTime       time.Time     `json:"end_time"`
 	Duration      time.Duration `json:"duration"`
+	DryRun        bool          `json:"dry_run"`
 }
 
 // NewLDAPService creates a new LDAP service
-func NewLDAPService(userRepo repository.UserRepository, roleRepo repository.RoleRepository, groupRepo repository.GroupRepository) *LDAPService {
+func NewLDAPService(userRepo *memory.UserRepository, roleRepo *memory.RoleRepository, groupRepo *memory.GroupRepository) *LDAPService {
 	return &LDAPService{
 		userRepo:     userRepo,
 		roleRepo:     roleRepo,
@@ -121,6 +134,7 @@ func NewLDAPService(userRepo repository.UserRepository, roleRepo repository.Role
 		connections:  make(map[string]*ldap.Conn),
 		syncInterval: 1 * time.Hour, // Default sync interval
 		stopChan:     make(chan bool),
+		authLogs:     make([]AuthLog, 0, 1000), // Keep last 1000 auth logs
 	}
 }
 
@@ -635,11 +649,12 @@ func (s *LDAPService) createOrUpdateUser(ldapUser *LDAPUser) error {
 	}
 
 	user := &models.User{
-		Email:    ldapUser.Email,
-		Name:     ldapUser.DisplayName,
-		IsActive: ldapUser.IsActive,
-		Locale:   "en",
-		Timezone: "UTC",
+		Email:     ldapUser.Email,
+		FirstName: ldapUser.FirstName,
+		LastName:  ldapUser.LastName,
+		Title:     ldapUser.Title,
+		Login:     ldapUser.Username,
+		IsActive:  ldapUser.IsActive,
 	}
 
 	if existingUser == nil {
@@ -650,16 +665,18 @@ func (s *LDAPService) createOrUpdateUser(ldapUser *LDAPUser) error {
 
 		// Set default role
 		if s.config.DefaultRole != "" {
-			role, err := s.roleRepo.GetByName(s.config.DefaultRole)
+			role, err := s.roleRepo.GetByName(context.Background(), s.config.DefaultRole)
 			if err == nil {
-				user.RoleID = role.ID
+				user.Role = role.Name
 			}
 		}
 
 		return s.userRepo.Create(user)
 	} else {
 		// Update existing user
-		existingUser.Name = user.Name
+		existingUser.FirstName = user.FirstName
+		existingUser.LastName = user.LastName
+		existingUser.Title = user.Title
 		existingUser.IsActive = user.IsActive
 		existingUser.ChangeTime = time.Now()
 
@@ -680,8 +697,8 @@ func (s *LDAPService) updateUserRole(user *models.User, ldapUser *LDAPUser) {
 	for _, adminGroup := range s.config.AdminGroups {
 		for _, userGroup := range ldapUser.Groups {
 			if strings.Contains(strings.ToLower(userGroup), strings.ToLower(adminGroup)) {
-				if role, err := s.roleRepo.GetByName("admin"); err == nil {
-					user.RoleID = role.ID
+				if role, err := s.roleRepo.GetByName(context.Background(), "admin"); err == nil {
+					user.Role = role.Name
 					return
 				}
 			}
@@ -692,8 +709,8 @@ func (s *LDAPService) updateUserRole(user *models.User, ldapUser *LDAPUser) {
 	for _, userGroup := range s.config.UserGroups {
 		for _, ldapGroup := range ldapUser.Groups {
 			if strings.Contains(strings.ToLower(ldapGroup), strings.ToLower(userGroup)) {
-				if role, err := s.roleRepo.GetByName("user"); err == nil {
-					user.RoleID = role.ID
+				if role, err := s.roleRepo.GetByName(context.Background(), "user"); err == nil {
+					user.Role = role.Name
 					return
 				}
 			}
@@ -717,7 +734,7 @@ func (s *LDAPService) syncGroups(conn *ldap.Conn, config *LDAPConfig) (*LDAPSync
 
 	for _, ldapGroup := range groups {
 		// Check if group exists
-		existingGroup, err := s.groupRepo.GetByName(ldapGroup.Name)
+		existingGroup, err := s.groupRepo.GetByName(context.Background(), ldapGroup.Name)
 		if err != nil && err.Error() != "group not found" {
 			result.Errors = append(result.Errors, fmt.Sprintf("Group %s: %v", ldapGroup.Name, err))
 			continue
@@ -726,27 +743,26 @@ func (s *LDAPService) syncGroups(conn *ldap.Conn, config *LDAPConfig) (*LDAPSync
 		if existingGroup == nil {
 			// Create new group
 			group := &models.Group{
-				Name:       ldapGroup.Name,
-				Comment:    ldapGroup.Description,
-				ValidID:    1,
-				CreateTime: time.Now(),
-				ChangeTime: time.Now(),
-				CreatedBy:  1, // System user
-				ChangedBy:  1, // System user
+				Name:        ldapGroup.Name,
+				Description: ldapGroup.Description,
+				Type:        models.GroupTypeLDAP,
+				DN:          ldapGroup.DN,
+				IsActive:    true,
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
 			}
 
-			if err := s.groupRepo.Create(group); err != nil {
+			if err := s.groupRepo.CreateGroup(context.Background(), group); err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("Group %s: %v", ldapGroup.Name, err))
 			} else {
 				result.GroupsCreated++
 			}
 		} else {
 			// Update existing group
-			existingGroup.Comment = ldapGroup.Description
-			existingGroup.ChangeTime = time.Now()
-			existingGroup.ChangedBy = 1 // System user
+			existingGroup.Description = ldapGroup.Description
+			existingGroup.UpdatedAt = time.Now()
 
-			if err := s.groupRepo.Update(existingGroup); err != nil {
+			if err := s.groupRepo.UpdateGroup(context.Background(), existingGroup); err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("Group %s: %v", ldapGroup.Name, err))
 			} else {
 				result.GroupsUpdated++
@@ -838,4 +854,60 @@ func (s *LDAPService) startSyncScheduler() {
 			return
 		}
 	}
+}
+
+// ImportUsers imports specific users from LDAP
+func (s *LDAPService) ImportUsers(usernames []string, dryRun bool) (*LDAPSyncResult, error) {
+	if s.config == nil {
+		return nil, fmt.Errorf("LDAP not configured")
+	}
+
+	result := &LDAPSyncResult{
+		StartTime: time.Now(),
+		DryRun:    dryRun,
+	}
+
+	for _, username := range usernames {
+		ldapUser, err := s.GetUser(username)
+		if err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("User %s: %v", username, err))
+			continue
+		}
+
+		if !dryRun {
+			if err := s.createOrUpdateUser(ldapUser); err != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("User %s: %v", username, err))
+			} else {
+				result.UsersCreated++
+			}
+		} else {
+			result.UsersFound++
+		}
+	}
+
+	result.EndTime = time.Now()
+	result.Duration = result.EndTime.Sub(result.StartTime)
+	return result, nil
+}
+
+// GetConfig returns the current LDAP configuration (without sensitive data)
+func (s *LDAPService) GetConfig() *LDAPConfig {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.config
+}
+
+// GetAuthLogs returns authentication logs
+func (s *LDAPService) GetAuthLogs(limit int) []AuthLog {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if limit <= 0 || limit > len(s.authLogs) {
+		limit = len(s.authLogs)
+	}
+
+	logs := make([]AuthLog, limit)
+	startIdx := len(s.authLogs) - limit
+	copy(logs, s.authLogs[startIdx:])
+	return logs
 }

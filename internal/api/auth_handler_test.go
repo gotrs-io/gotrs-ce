@@ -413,9 +413,11 @@ func TestAuthHandler(t *testing.T) {
 
 		c, _ := gin.CreateTestContext(w)
 		c.Request = req
-		c.Set("user_id", uint(1))
-		c.Set("user_email", "test@example.com")
-		c.Set("user_role", "Agent")
+		c.Set("user", map[string]interface{}{
+			"id":    float64(1),
+			"email": "test@example.com",
+			"role":  "Agent",
+		})
 
 		handler.GetCurrentUser(c)
 
@@ -425,9 +427,11 @@ func TestAuthHandler(t *testing.T) {
 		err = json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
 
-		assert.Equal(t, float64(1), response["id"])
-		assert.Equal(t, "test@example.com", response["email"])
-		assert.Equal(t, "Agent", response["role"])
+		assert.True(t, response["success"].(bool))
+		userData := response["data"].(map[string]interface{})
+		assert.Equal(t, float64(1), userData["id"])
+		assert.Equal(t, "test@example.com", userData["email"])
+		assert.Equal(t, "Agent", userData["role"])
 	})
 
 	t.Run("GetCurrentUser without authentication", func(t *testing.T) {

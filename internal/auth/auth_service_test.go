@@ -137,8 +137,8 @@ func TestAuthServiceRefreshToken(t *testing.T) {
 			1, time.Now(), 1, time.Now(), 1,
 		)
 
-		mock.ExpectQuery("SELECT (.+) FROM users WHERE id = (.+)").
-			WithArgs(uint(1)).
+		mock.ExpectQuery("SELECT (.+) FROM users WHERE email = \\$1 AND valid_id = 1").
+			WithArgs("test@example.com").
 			WillReturnRows(rows)
 
 		// Mock role determination

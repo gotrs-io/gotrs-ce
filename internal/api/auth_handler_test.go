@@ -79,13 +79,17 @@ func TestAuthHandler(t *testing.T) {
 		// Assert response
 		assert.Equal(t, http.StatusOK, w.Code)
 
-		var response models.LoginResponse
-		err = json.Unmarshal(w.Body.Bytes(), &response)
+		var responseWrapper struct {
+			Success bool                 `json:"success"`
+			Data    models.LoginResponse `json:"data"`
+		}
+		err = json.Unmarshal(w.Body.Bytes(), &responseWrapper)
 		require.NoError(t, err)
 
-		assert.NotEmpty(t, response.Token)
-		assert.NotEmpty(t, response.RefreshToken)
-		assert.Equal(t, loginReq.Email, response.User.Email)
+		assert.True(t, responseWrapper.Success)
+		assert.NotEmpty(t, responseWrapper.Data.Token)
+		assert.NotEmpty(t, responseWrapper.Data.RefreshToken)
+		assert.Equal(t, loginReq.Email, responseWrapper.Data.User.Email)
 	})
 
 	t.Run("Login with invalid request body", func(t *testing.T) {
@@ -135,7 +139,7 @@ func TestAuthHandler(t *testing.T) {
 		handler.Login(c)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
-		assert.Contains(t, w.Body.String(), "Email and password are required")
+		assert.Contains(t, w.Body.String(), "Invalid request format")
 	})
 
 	t.Run("Login with wrong password", func(t *testing.T) {
@@ -219,8 +223,8 @@ func TestAuthHandler(t *testing.T) {
 			1, time.Now(), 1, time.Now(), 1,
 		)
 
-		mock.ExpectQuery("SELECT (.+) FROM users WHERE id = \\$1").
-			WithArgs(uint(1)).
+		mock.ExpectQuery("SELECT (.+) FROM users WHERE email = \\$1 AND valid_id = 1").
+			WithArgs("test@example.com").
 			WillReturnRows(rows)
 
 		// Mock role determination
@@ -238,14 +242,23 @@ func TestAuthHandler(t *testing.T) {
 
 		handler.RefreshToken(c)
 
+		// Debug: print response body if not OK
+		if w.Code != http.StatusOK {
+			t.Logf("Response body: %s", w.Body.String())
+		}
+
 		assert.Equal(t, http.StatusOK, w.Code)
 
-		var response models.LoginResponse
-		err = json.Unmarshal(w.Body.Bytes(), &response)
+		var responseWrapper struct {
+			Success bool                 `json:"success"`
+			Data    models.LoginResponse `json:"data"`
+		}
+		err = json.Unmarshal(w.Body.Bytes(), &responseWrapper)
 		require.NoError(t, err)
 
-		assert.NotEmpty(t, response.Token)
-		assert.NotEmpty(t, response.RefreshToken)
+		assert.True(t, responseWrapper.Success)
+		assert.NotEmpty(t, responseWrapper.Data.Token)
+		assert.NotEmpty(t, responseWrapper.Data.RefreshToken)
 	})
 
 	t.Run("RefreshToken with invalid token", func(t *testing.T) {

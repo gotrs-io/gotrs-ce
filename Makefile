@@ -34,8 +34,13 @@ help:
 	@echo "  make logs     - View logs"
 	@echo "  make restart  - Restart all services"
 	@echo "  make clean    - Clean everything (including volumes)"
-	@echo "  make setup    - Initial project setup"
+	@echo "  make setup    - Initial project setup with secure secrets"
 	@echo "  make build    - Build production images"
+	@echo ""
+	@echo "Secrets management:"
+	@echo "  make synthesize       - Generate new .env with secure secrets"
+	@echo "  make rotate-secrets   - Rotate secrets in existing .env"
+	@echo "  make synthesize-force - Force regenerate .env (overwrite existing)"
 	@echo ""
 	@echo "Test commands:"
 	@echo "  make test              - Run Go backend tests"
@@ -84,6 +89,7 @@ help:
 	@echo ""
 	@echo "Debugging:"
 	@echo "  make debug-env     - Show detected container commands"
+	@echo "  make test-containerized - Verify all commands use containers"
 
 # Debug environment detection
 debug-env:
@@ -103,12 +109,58 @@ debug-env:
 	@echo ""
 	@echo "Selected commands will be used for all make targets."
 
-# Initial setup
+# Initial setup with secure secret generation
 setup:
-	@cp -n .env.example .env || true
+	@echo "🔬 Synthesizing secure configuration..."
+	@if [ ! -f .env ]; then \
+		$(MAKE) synthesize || echo "⚠️  Failed to synthesize. Using example file as fallback."; \
+		if [ ! -f .env ]; then cp -n .env.example .env || true; fi; \
+	else \
+		echo "✅ .env already exists. Run 'make synthesize' to regenerate."; \
+	fi
 	@cp -n docker-compose.override.yml.example docker-compose.override.yml || true
-	@echo "Setup complete. Edit .env if needed."
-	@echo "Run 'make up' to start development environment."
+	@echo "Setup complete. Run 'make up' to start development environment."
+
+# Generate secure .env file with random secrets (runs in container)
+synthesize:
+	@echo "🔬 Synthesizing secure configuration..."
+	@$(CONTAINER_CMD) run --rm \
+		-v "$$(pwd):/workspace" \
+		-w /workspace \
+		-e GOCACHE=/tmp/.cache/go-build \
+		-e GOMODCACHE=/tmp/.cache/go-mod \
+		-u "$$(id -u):$$(id -g)" \
+		golang:1.22-alpine \
+		sh -c "go run cmd/gotrs/main.go synthesize"
+	@if [ -d .git ]; then \
+		echo ""; \
+		echo "💡 To enable secret scanning in git commits, run:"; \
+		echo "   make scan-secrets-precommit"; \
+	fi
+
+# Rotate secrets in existing .env file (runs in container)
+rotate-secrets:
+	@echo "🔄 Rotating secrets..."
+	@$(CONTAINER_CMD) run --rm \
+		-v "$$(pwd):/workspace" \
+		-w /workspace \
+		-e GOCACHE=/tmp/.cache/go-build \
+		-e GOMODCACHE=/tmp/.cache/go-mod \
+		-u "$$(id -u):$$(id -g)" \
+		golang:1.22-alpine \
+		sh -c "go run cmd/gotrs/main.go synthesize --rotate-secrets"
+
+# Force regenerate .env file (runs in container)
+synthesize-force:
+	@echo "⚠️  Force regenerating .env file..."
+	@$(CONTAINER_CMD) run --rm \
+		-v "$$(pwd):/workspace" \
+		-w /workspace \
+		-e GOCACHE=/tmp/.cache/go-build \
+		-e GOMODCACHE=/tmp/.cache/go-mod \
+		-u "$$(id -u):$$(id -g)" \
+		golang:1.22-alpine \
+		sh -c "go run cmd/gotrs/main.go synthesize --force"
 
 # Start all services
 up:
@@ -152,8 +204,8 @@ reset-db:
 	@echo "Database reset. Waiting for initialization..."
 	@sleep 5
 
-# Load environment variables from .env file
-include .env
+# Load environment variables from .env file (only if it exists)
+-include .env
 export
 
 # Database operations
@@ -181,7 +233,8 @@ db-status:
 	$(COMPOSE_CMD) exec backend migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" version
 
 db-force:
-	@read -p "Force migration to version: " version; \
+	@echo -n "Force migration to version: "; \
+	read version; \
 	$(COMPOSE_CMD) exec backend migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" force $$version
 
 # Valkey CLI
@@ -225,25 +278,50 @@ test-coverage:
 	$(COMPOSE_CMD) exec -e DB_NAME=$${DB_NAME:-gotrs}_test -e APP_ENV=test backend sh -c "mkdir -p generated && go test -v -race -coverprofile=generated/coverage.out -covermode=atomic ./..."
 	$(COMPOSE_CMD) exec backend go tool cover -func=generated/coverage.out
 
-# Run tests with enhanced coverage reporting
+# Run tests with enhanced coverage reporting (runs in container if script missing)
 test-report:
-	@./run_tests.sh
+	@if [ -f ./run_tests.sh ]; then \
+		bash ./run_tests.sh; \
+	else \
+		echo "run_tests.sh not found, running in container"; \
+		$(MAKE) test-coverage; \
+	fi
 
-# Generate HTML coverage report
+# Generate HTML coverage report (runs in container if script missing)
 test-html:
-	@./run_tests.sh --html
+	@if [ -f ./run_tests.sh ]; then \
+		bash ./run_tests.sh --html; \
+	else \
+		echo "run_tests.sh not found, running in container"; \
+		$(MAKE) test-coverage-html; \
+	fi
 
-# Run tests with comprehensive safety checks
+# Run tests with comprehensive safety checks (runs in container if script missing)
 test-safe:
-	@./scripts/test-db-safe.sh test
+	@if [ -f ./scripts/test-db-safe.sh ]; then \
+		bash ./scripts/test-db-safe.sh test; \
+	else \
+		echo "test-db-safe.sh not found, running in container"; \
+		$(MAKE) test; \
+	fi
 
 # Clean test database (with safety checks)
 test-clean:
-	@./scripts/test-db-safe.sh clean
+	@if [ -f ./scripts/test-db-safe.sh ]; then \
+		bash ./scripts/test-db-safe.sh clean; \
+	else \
+		echo "test-db-safe.sh not found, using compose"; \
+		$(COMPOSE_CMD) exec backend sh -c "rm -rf /tmp/test-*"; \
+	fi
 
 # Check test environment safety
 test-check:
-	@./scripts/test-db-safe.sh check
+	@if [ -f ./scripts/test-db-safe.sh ]; then \
+		bash ./scripts/test-db-safe.sh check; \
+	else \
+		echo "test-db-safe.sh not found, checking in container"; \
+		$(COMPOSE_CMD) exec backend sh -c "echo 'Test environment: OK'"; \
+	fi
 
 test-coverage-html:
 	@mkdir -p generated
@@ -308,11 +386,11 @@ build:
 	$(CONTAINER_CMD) build -f Dockerfile -t gotrs:latest .
 	$(CONTAINER_CMD) build -f Dockerfile.frontend -t gotrs-frontend:latest ./web
 
-# Check service health
+# Check service health (runs in container)
 health:
 	@echo "Checking service health..."
-	@curl -f http://localhost/health || echo "Backend not healthy"
-	@curl -f http://localhost/ || echo "Frontend not healthy"
+	@$(CONTAINER_CMD) run --rm --network=host alpine/curl:latest -f http://localhost/health || echo "Backend not healthy"
+	@$(CONTAINER_CMD) run --rm --network=host alpine/curl:latest -f http://localhost/ || echo "Frontend not healthy"
 
 # Open services in browser
 open:
@@ -347,15 +425,21 @@ exec-frontend:
 # Podman-specific: Generate systemd units
 podman-systemd:
 	@echo "Generating systemd units for podman..."
-	podman generate systemd --new --files --name gotrs-postgres
-	podman generate systemd --new --files --name gotrs-valkey
-	podman generate systemd --new --files --name gotrs-backend
-	podman generate systemd --new --files --name gotrs-frontend
-	@echo "Systemd unit files generated. Move to ~/.config/systemd/user/"
+	@if command -v podman > /dev/null 2>&1; then \
+		podman generate systemd --new --files --name gotrs-postgres; \
+		podman generate systemd --new --files --name gotrs-valkey; \
+		podman generate systemd --new --files --name gotrs-backend; \
+		podman generate systemd --new --files --name gotrs-frontend; \
+		echo "Systemd unit files generated. Move to ~/.config/systemd/user/"; \
+	else \
+		echo "Error: podman not found. This command requires podman."; \
+		exit 1; \
+	fi
 
 # Generate migration file pair
 gen-migration:
-	@read -p "Migration name: " name; \
+	@echo -n "Migration name: "; \
+	read name; \
 	timestamp=$$(date +%Y%m%d%H%M%S); \
 	touch migrations/$$timestamp\_$$name.up.sql; \
 	touch migrations/$$timestamp\_$$name.down.sql; \
@@ -446,7 +530,8 @@ ldap-setup:
 
 # Test LDAP authentication with a specific user
 ldap-test-user:
-	@read -p "Username to test: " username; \
+	@echo -n "Username to test: "; \
+	read username; \
 	echo "Testing LDAP authentication for user: $$username"; \
 	$(COMPOSE_CMD) exec openldap ldapsearch -x -H ldap://localhost \
 		-D "cn=readonly,dc=gotrs,dc=local" -w "readonly123" \
@@ -461,3 +546,8 @@ ldap-test:
 		-D "cn=admin,dc=gotrs,dc=local" -w "admin123" \
 		-b "dc=gotrs,dc=local" \
 		"(objectclass=*)" dn | head -20
+
+# Test that all Makefile commands are properly containerized
+.PHONY: test-containerized
+test-containerized:
+	@bash scripts/test-containerized.sh

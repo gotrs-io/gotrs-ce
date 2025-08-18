@@ -80,12 +80,7 @@ frontend/coverage/
 # ============================================
 
 # Environment files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env.*.local
+.env*
 
 # Configuration files with secrets
 config/config.yaml

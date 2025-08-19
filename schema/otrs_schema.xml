@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database Name="gotrs_otrs_schema" Version="1.0">
+  <Table Name="users">
+    <Column Name="id" Type="INTEGER" Required="true" PrimaryKey="true" AutoIncrement="true"/>
+    <Column Name="login" Type="VARCHAR" Size="200" Required="true"/>
+    <Column Name="pw" Type="VARCHAR" Size="128"/>
+    <Column Name="title" Type="VARCHAR" Size="50"/>
+    <Column Name="first_name" Type="VARCHAR" Size="100" Required="true"/>
+    <Column Name="last_name" Type="VARCHAR" Size="100" Required="true"/>
+    <Column Name="valid_id" Type="SMALLINT" Required="true" Default="1"/>
+    <Column Name="create_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="create_by" Type="INTEGER" Required="true"/>
+    <Column Name="change_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="change_by" Type="INTEGER" Required="true"/>
+    <Index Name="users_login_unique" Unique="true">
+      <Column Name="login"/>
+    </Index>
+  </Table>
+
+  <Table Name="groups">
+    <Column Name="id" Type="INTEGER" Required="true" PrimaryKey="true" AutoIncrement="true"/>
+    <Column Name="name" Type="VARCHAR" Size="200" Required="true"/>
+    <Column Name="comments" Type="VARCHAR" Size="250"/>
+    <Column Name="valid_id" Type="SMALLINT" Required="true" Default="1"/>
+    <Column Name="create_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="create_by" Type="INTEGER" Required="true"/>
+    <Column Name="change_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="change_by" Type="INTEGER" Required="true"/>
+    <Index Name="groups_name_unique" Unique="true">
+      <Column Name="name"/>
+    </Index>
+  </Table>
+
+  <Table Name="queue">
+    <Column Name="id" Type="INTEGER" Required="true" PrimaryKey="true" AutoIncrement="true"/>
+    <Column Name="name" Type="VARCHAR" Size="200" Required="true"/>
+    <Column Name="group_id" Type="INTEGER" Required="true"/>
+    <Column Name="system_address_id" Type="INTEGER"/>
+    <Column Name="salutation_id" Type="INTEGER"/>
+    <Column Name="signature_id" Type="INTEGER"/>
+    <Column Name="follow_up_id" Type="SMALLINT" Required="true" Default="1"/>
+    <Column Name="follow_up_lock" Type="SMALLINT" Required="true" Default="0"/>
+    <Column Name="unlock_timeout" Type="INTEGER" Required="true" Default="0"/>
+    <Column Name="first_response_time" Type="INTEGER" Required="true" Default="0"/>
+    <Column Name="first_response_notify" Type="SMALLINT" Default="0"/>
+    <Column Name="update_time" Type="INTEGER" Required="true" Default="0"/>
+    <Column Name="update_notify" Type="SMALLINT" Default="0"/>
+    <Column Name="solution_time" Type="INTEGER" Required="true" Default="0"/>
+    <Column Name="solution_notify" Type="SMALLINT" Default="0"/>
+    <Column Name="default_sign_key" Type="VARCHAR" Size="100"/>
+    <Column Name="comments" Type="VARCHAR" Size="250"/>
+    <Column Name="valid_id" Type="SMALLINT" Required="true" Default="1"/>
+    <Column Name="create_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="create_by" Type="INTEGER" Required="true"/>
+    <Column Name="change_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="change_by" Type="INTEGER" Required="true"/>
+    <Index Name="queue_name_unique" Unique="true">
+      <Column Name="name"/>
+    </Index>
+    <ForeignKey Name="queue_group_id_fk" Local="group_id" ForeignTable="groups" Foreign="id"/>
+  </Table>
+
+  <Table Name="ticket_priority">
+    <Column Name="id" Type="INTEGER" Required="true" PrimaryKey="true" AutoIncrement="true"/>
+    <Column Name="name" Type="VARCHAR" Size="200" Required="true"/>
+    <Column Name="valid_id" Type="SMALLINT" Required="true" Default="1"/>
+    <Column Name="create_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="create_by" Type="INTEGER" Required="true"/>
+    <Column Name="change_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="change_by" Type="INTEGER" Required="true"/>
+    <Index Name="ticket_priority_name_unique" Unique="true">
+      <Column Name="name"/>
+    </Index>
+  </Table>
+
+  <Table Name="ticket_state">
+    <Column Name="id" Type="INTEGER" Required="true" PrimaryKey="true" AutoIncrement="true"/>
+    <Column Name="name" Type="VARCHAR" Size="200" Required="true"/>
+    <Column Name="comments" Type="VARCHAR" Size="250"/>
+    <Column Name="type_id" Type="SMALLINT" Required="true"/>
+    <Column Name="valid_id" Type="SMALLINT" Required="true" Default="1"/>
+    <Column Name="create_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="create_by" Type="INTEGER" Required="true"/>
+    <Column Name="change_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="change_by" Type="INTEGER" Required="true"/>
+    <Index Name="ticket_state_name_unique" Unique="true">
+      <Column Name="name"/>
+    </Index>
+  </Table>
+
+  <Table Name="ticket_type">
+    <Column Name="id" Type="INTEGER" Required="true" PrimaryKey="true" AutoIncrement="true"/>
+    <Column Name="name" Type="VARCHAR" Size="200" Required="true"/>
+    <Column Name="valid_id" Type="SMALLINT" Required="true" Default="1"/>
+    <Column Name="create_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="create_by" Type="INTEGER" Required="true"/>
+    <Column Name="change_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="change_by" Type="INTEGER" Required="true"/>
+    <Index Name="ticket_type_name_unique" Unique="true">
+      <Column Name="name"/>
+    </Index>
+  </Table>
+
+  <Table Name="ticket">
+    <Column Name="id" Type="INTEGER" Required="true" PrimaryKey="true" AutoIncrement="true"/>
+    <Column Name="tn" Type="VARCHAR" Size="50" Required="true"/>
+    <Column Name="title" Type="VARCHAR" Size="255"/>
+    <Column Name="queue_id" Type="INTEGER" Required="true" Default="1"/>
+    <Column Name="ticket_lock_id" Type="SMALLINT" Required="true" Default="1"/>
+    <Column Name="ticket_priority_id" Type="INTEGER" Required="true" Default="3"/>
+    <Column Name="ticket_state_id" Type="INTEGER" Required="true" Default="1"/>
+    <Column Name="type_id" Type="INTEGER" Required="true" Default="1"/>
+    <Column Name="service_id" Type="INTEGER"/>
+    <Column Name="sla_id" Type="INTEGER"/>
+    <Column Name="user_id" Type="INTEGER" Required="true"/>
+    <Column Name="responsible_user_id" Type="INTEGER"/>
+    <Column Name="customer_id" Type="VARCHAR" Size="150"/>
+    <Column Name="customer_user_id" Type="VARCHAR" Size="250"/>
+    <Column Name="timeout" Type="INTEGER" Required="true" Default="0"/>
+    <Column Name="until_time" Type="INTEGER" Required="true" Default="0"/>
+    <Column Name="escalation_time" Type="INTEGER" Required="true" Default="0"/>
+    <Column Name="escalation_update_time" Type="INTEGER" Required="true" Default="0"/>
+    <Column Name="escalation_response_time" Type="INTEGER" Required="true" Default="0"/>
+    <Column Name="escalation_solution_time" Type="INTEGER" Required="true" Default="0"/>
+    <Column Name="create_time_unix" Type="INTEGER" Required="true"/>
+    <Column Name="create_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="create_by" Type="INTEGER" Required="true"/>
+    <Column Name="change_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="change_by" Type="INTEGER" Required="true"/>
+    <Index Name="ticket_tn_unique" Unique="true">
+      <Column Name="tn"/>
+    </Index>
+    <Index Name="ticket_queue_id_idx">
+      <Column Name="queue_id"/>
+    </Index>
+    <Index Name="ticket_state_id_idx">
+      <Column Name="ticket_state_id"/>
+    </Index>
+    <Index Name="ticket_priority_id_idx">
+      <Column Name="ticket_priority_id"/>
+    </Index>
+    <ForeignKey Name="ticket_queue_id_fk" Local="queue_id" ForeignTable="queue" Foreign="id"/>
+    <ForeignKey Name="ticket_priority_id_fk" Local="ticket_priority_id" ForeignTable="ticket_priority" Foreign="id"/>
+    <ForeignKey Name="ticket_state_id_fk" Local="ticket_state_id" ForeignTable="ticket_state" Foreign="id"/>
+    <ForeignKey Name="ticket_type_id_fk" Local="type_id" ForeignTable="ticket_type" Foreign="id"/>
+    <ForeignKey Name="ticket_user_id_fk" Local="user_id" ForeignTable="users" Foreign="id"/>
+  </Table>
+
+  <Table Name="article">
+    <Column Name="id" Type="INTEGER" Required="true" PrimaryKey="true" AutoIncrement="true"/>
+    <Column Name="ticket_id" Type="INTEGER" Required="true"/>
+    <Column Name="article_type_id" Type="SMALLINT" Required="true" Default="1"/>
+    <Column Name="article_sender_type_id" Type="SMALLINT" Required="true" Default="1"/>
+    <Column Name="create_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="create_by" Type="INTEGER" Required="true"/>
+    <Column Name="change_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="change_by" Type="INTEGER" Required="true"/>
+    <Index Name="article_ticket_id_idx">
+      <Column Name="ticket_id"/>
+    </Index>
+    <ForeignKey Name="article_ticket_id_fk" Local="ticket_id" ForeignTable="ticket" Foreign="id"/>
+  </Table>
+
+  <Table Name="article_data_mime">
+    <Column Name="id" Type="INTEGER" Required="true" PrimaryKey="true" AutoIncrement="true"/>
+    <Column Name="article_id" Type="INTEGER" Required="true"/>
+    <Column Name="a_from" Type="TEXT"/>
+    <Column Name="a_reply_to" Type="TEXT"/>
+    <Column Name="a_to" Type="TEXT"/>
+    <Column Name="a_cc" Type="TEXT"/>
+    <Column Name="a_bcc" Type="TEXT"/>
+    <Column Name="a_subject" Type="VARCHAR" Size="3800"/>
+    <Column Name="a_message_id" Type="VARCHAR" Size="3800"/>
+    <Column Name="a_message_id_md5" Type="VARCHAR" Size="32"/>
+    <Column Name="a_in_reply_to" Type="VARCHAR" Size="3800"/>
+    <Column Name="a_references" Type="TEXT"/>
+    <Column Name="a_content_type" Type="VARCHAR" Size="250"/>
+    <Column Name="a_body" Type="TEXT"/>
+    <Column Name="incoming_time" Type="INTEGER"/>
+    <Column Name="content_path" Type="VARCHAR" Size="250"/>
+    <Column Name="create_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="create_by" Type="INTEGER" Required="true"/>
+    <Column Name="change_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="change_by" Type="INTEGER" Required="true"/>
+    <Index Name="article_data_mime_article_id_idx">
+      <Column Name="article_id"/>
+    </Index>
+    <Index Name="article_data_mime_message_id_md5_idx">
+      <Column Name="a_message_id_md5"/>
+    </Index>
+    <ForeignKey Name="article_data_mime_article_id_fk" Local="article_id" ForeignTable="article" Foreign="id"/>
+  </Table>
+
+  <Table Name="customer_company">
+    <Column Name="customer_id" Type="VARCHAR" Size="150" Required="true" PrimaryKey="true"/>
+    <Column Name="name" Type="VARCHAR" Size="200" Required="true"/>
+    <Column Name="street" Type="VARCHAR" Size="200"/>
+    <Column Name="zip" Type="VARCHAR" Size="200"/>
+    <Column Name="city" Type="VARCHAR" Size="200"/>
+    <Column Name="country" Type="VARCHAR" Size="200"/>
+    <Column Name="url" Type="VARCHAR" Size="200"/>
+    <Column Name="comments" Type="VARCHAR" Size="250"/>
+    <Column Name="valid_id" Type="SMALLINT" Required="true" Default="1"/>
+    <Column Name="create_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="create_by" Type="INTEGER" Required="true"/>
+    <Column Name="change_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="change_by" Type="INTEGER" Required="true"/>
+    <Index Name="customer_company_name_unique" Unique="true">
+      <Column Name="name"/>
+    </Index>
+  </Table>
+
+  <Table Name="customer_user">
+    <Column Name="id" Type="INTEGER" Required="true" PrimaryKey="true" AutoIncrement="true"/>
+    <Column Name="login" Type="VARCHAR" Size="200" Required="true"/>
+    <Column Name="email" Type="VARCHAR" Size="150" Required="true"/>
+    <Column Name="customer_id" Type="VARCHAR" Size="150" Required="true"/>
+    <Column Name="pw" Type="VARCHAR" Size="128"/>
+    <Column Name="title" Type="VARCHAR" Size="50"/>
+    <Column Name="first_name" Type="VARCHAR" Size="100"/>
+    <Column Name="last_name" Type="VARCHAR" Size="100"/>
+    <Column Name="phone" Type="VARCHAR" Size="150"/>
+    <Column Name="fax" Type="VARCHAR" Size="150"/>
+    <Column Name="mobile" Type="VARCHAR" Size="150"/>
+    <Column Name="street" Type="VARCHAR" Size="150"/>
+    <Column Name="zip" Type="VARCHAR" Size="200"/>
+    <Column Name="city" Type="VARCHAR" Size="200"/>
+    <Column Name="country" Type="VARCHAR" Size="200"/>
+    <Column Name="comments" Type="VARCHAR" Size="250"/>
+    <Column Name="valid_id" Type="SMALLINT" Required="true" Default="1"/>
+    <Column Name="create_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="create_by" Type="INTEGER" Required="true"/>
+    <Column Name="change_time" Type="TIMESTAMP" Required="true" Default="CURRENT_TIMESTAMP"/>
+    <Column Name="change_by" Type="INTEGER" Required="true"/>
+    <Index Name="customer_user_login_unique" Unique="true">
+      <Column Name="login"/>
+    </Index>
+    <ForeignKey Name="customer_user_company_fk" Local="customer_id" ForeignTable="customer_company" Foreign="customer_id"/>
+  </Table>
+</database>

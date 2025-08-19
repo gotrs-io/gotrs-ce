@@ -278,8 +278,7 @@ func handleGetAttachments(c *gin.Context) {
 	// Get attachments for ticket
 	attachmentIDs, exists := attachmentsByTicket[ticketID]
 	if !exists {
-		c.JSON(http.StatusOK, gin.H{"attachments": []interface{}{}})
-		return
+		attachmentIDs = []int{}
 	}
 
 	result := []interface{}{}
@@ -310,10 +309,19 @@ func handleGetAttachments(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"attachments": result,
-		"total":       len(result),
-	})
+	// Check if this is an HTMX request
+	if c.GetHeader("HX-Request") == "true" {
+		// Return HTML partial for HTMX
+		c.HTML(http.StatusOK, "attachment_list.html", gin.H{
+			"attachments": result,
+		})
+	} else {
+		// Return JSON for API requests
+		c.JSON(http.StatusOK, gin.H{
+			"attachments": result,
+			"total":       len(result),
+		})
+	}
 }
 
 // handleDownloadAttachment serves the attachment file
@@ -537,6 +545,17 @@ func detectContentType(filename string, content []byte) string {
 
 	// Default fallback
 	return "application/octet-stream"
+}
+
+// handleGetThumbnail serves a thumbnail version of an image attachment
+func handleGetThumbnail(c *gin.Context) {
+	// For MVP, just redirect to the full image
+	// In production, we would generate and cache actual thumbnails
+	ticketIDStr := c.Param("id")
+	attachmentIDStr := c.Param("attachment_id")
+	
+	// Redirect to the full image download
+	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("/api/tickets/%s/attachments/%s", ticketIDStr, attachmentIDStr))
 }
 
 // validateFile validates uploaded file

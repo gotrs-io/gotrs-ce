@@ -2,11 +2,13 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/auth"
+	"github.com/gotrs-io/gotrs-ce/internal/models"
 )
 
 // SessionMiddleware validates JWT tokens from cookies or Authorization header
@@ -277,7 +279,7 @@ func RequireAnyPermission(rbac *auth.RBAC, permissions ...auth.Permission) gin.H
 // RequireTicketAccess checks if the user can access a specific ticket
 func RequireTicketAccess(rbac *auth.RBAC) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, userRole, _, hasUser := GetCurrentUser(c)
+		userID, _, userRole, hasUser := GetCurrentUser(c)
 		if !hasUser {
 			if isAPIRequest(c) {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
@@ -288,9 +290,25 @@ func RequireTicketAccess(rbac *auth.RBAC) gin.HandlerFunc {
 			return
 		}
 		
-		// For now, we'll implement basic ticket access control
-		// This could be enhanced to check actual ticket ownership from database
-		ticketOwnerID := userID // Simplified - in practice, get from ticket in DB
+		// Debug logging to understand what's happening
+		// Get ticket ID from URL parameter
+		ticketIDStr := c.Param("id")
+		if ticketIDStr == "" {
+			// If no ticket ID in URL, allow access (for list views, etc.)
+			c.Next()
+			return
+		}
+		
+		// For admins and agents, allow access to any ticket
+		// For customers, we'd need to check database ownership
+		if userRole == string(models.RoleAdmin) || userRole == string(models.RoleAgent) {
+			c.Next()
+			return
+		}
+		
+		// For customers, would need actual ticket lookup from database
+		// For now, simplified implementation
+		ticketOwnerID := userID // This needs proper DB lookup in production
 		
 		if !rbac.CanAccessTicket(userRole, ticketOwnerID, userID) {
 			if isAPIRequest(c) {

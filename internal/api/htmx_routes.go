@@ -191,6 +191,69 @@ func loadTemplateForRequest(c *gin.Context, templatePaths ...string) (*DummyTemp
 		"list": func(values ...interface{}) []interface{} {
 			return values
 		},
+		"formatFileSize": func(size interface{}) string {
+			var bytes int64
+			switch v := size.(type) {
+			case int64:
+				bytes = v
+			case int:
+				bytes = int64(v)
+			case float64:
+				bytes = int64(v)
+			default:
+				return "0 B"
+			}
+			
+			if bytes == 0 {
+				return "0 B"
+			}
+			const unit = 1024
+			if bytes < unit {
+				return fmt.Sprintf("%d B", bytes)
+			}
+			div, exp := int64(unit), 0
+			for n := bytes / unit; n >= unit; n /= unit {
+				div *= unit
+				exp++
+			}
+			return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+		},
+		"formatTimeAgo": func(t interface{}) string {
+			var timeVal time.Time
+			switch v := t.(type) {
+			case time.Time:
+				timeVal = v
+			case string:
+				parsed, err := time.Parse(time.RFC3339, v)
+				if err != nil {
+					return v
+				}
+				timeVal = parsed
+			default:
+				return "unknown"
+			}
+			
+			diff := time.Since(timeVal)
+			switch {
+			case diff < time.Minute:
+				return "just now"
+			case diff < time.Hour:
+				return fmt.Sprintf("%d min ago", int(diff.Minutes()))
+			case diff < 24*time.Hour:
+				return fmt.Sprintf("%d hours ago", int(diff.Hours()))
+			case diff < 7*24*time.Hour:
+				return fmt.Sprintf("%d days ago", int(diff.Hours()/24))
+			default:
+				return timeVal.Format("Jan 2, 2006")
+			}
+		},
+		"canPreview": func(contentType string) bool {
+			return strings.HasPrefix(contentType, "image/") ||
+				contentType == "application/pdf" ||
+				strings.HasPrefix(contentType, "text/") ||
+				contentType == "application/json" ||
+				contentType == "application/xml"
+		},
 	}
 	
 	// Create template with functions
@@ -254,6 +317,69 @@ func loadTemplate(templatePaths ...string) (*DummyTemplate, error) {
 		},
 		"list": func(values ...interface{}) []interface{} {
 			return values
+		},
+		"formatFileSize": func(size interface{}) string {
+			var bytes int64
+			switch v := size.(type) {
+			case int64:
+				bytes = v
+			case int:
+				bytes = int64(v)
+			case float64:
+				bytes = int64(v)
+			default:
+				return "0 B"
+			}
+			
+			if bytes == 0 {
+				return "0 B"
+			}
+			const unit = 1024
+			if bytes < unit {
+				return fmt.Sprintf("%d B", bytes)
+			}
+			div, exp := int64(unit), 0
+			for n := bytes / unit; n >= unit; n /= unit {
+				div *= unit
+				exp++
+			}
+			return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+		},
+		"formatTimeAgo": func(t interface{}) string {
+			var timeVal time.Time
+			switch v := t.(type) {
+			case time.Time:
+				timeVal = v
+			case string:
+				parsed, err := time.Parse(time.RFC3339, v)
+				if err != nil {
+					return v
+				}
+				timeVal = parsed
+			default:
+				return "unknown"
+			}
+			
+			diff := time.Since(timeVal)
+			switch {
+			case diff < time.Minute:
+				return "just now"
+			case diff < time.Hour:
+				return fmt.Sprintf("%d min ago", int(diff.Minutes()))
+			case diff < 24*time.Hour:
+				return fmt.Sprintf("%d hours ago", int(diff.Hours()))
+			case diff < 7*24*time.Hour:
+				return fmt.Sprintf("%d days ago", int(diff.Hours()/24))
+			default:
+				return timeVal.Format("Jan 2, 2006")
+			}
+		},
+		"canPreview": func(contentType string) bool {
+			return strings.HasPrefix(contentType, "image/") ||
+				contentType == "application/pdf" ||
+				strings.HasPrefix(contentType, "text/") ||
+				contentType == "application/json" ||
+				contentType == "application/xml"
 		},
 	}
 	
@@ -545,6 +671,7 @@ func SetupHTMXRoutes(r *gin.Engine) {
 		agentAPI.POST("/tickets/:id/attachments", handleUploadAttachment)
 		agentAPI.GET("/tickets/:id/attachments", handleGetAttachments)
 		agentAPI.GET("/tickets/:id/attachments/:attachment_id", handleDownloadAttachment)
+		agentAPI.GET("/tickets/:id/attachments/:attachment_id/thumbnail", handleGetThumbnail)
 		agentAPI.DELETE("/tickets/:id/attachments/:attachment_id", handleDeleteAttachment)
 		
 		// File serving endpoint (for stored attachments)

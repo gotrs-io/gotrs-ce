@@ -2,6 +2,7 @@ package config
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -81,18 +82,8 @@ func (s *Synthesizer) generateAlphaNum(length int) (string, error) {
 }
 
 func (s *Synthesizer) generateMixed(length int) (string, error) {
-	// Safe special characters that avoid shell/SQL/URL parsing issues
-	// Excludes: $ & * # % ^ ` ' " \ | ; < > ( ) { } [ ] space + , :
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@-_=."
-	result := make([]byte, length)
-	for i := range result {
-		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
-		if err != nil {
-			return "", err
-		}
-		result[i] = charset[num.Int64()]
-	}
-	return string(result), nil
+	// Use base64 for mixed secrets too - consistent and safe
+	return s.generatePassword(length)
 }
 
 func (s *Synthesizer) generatePassword(length int) (string, error) {
@@ -100,37 +91,29 @@ func (s *Synthesizer) generatePassword(length int) (string, error) {
 		length = 12
 	}
 	
-	const (
-		lower   = "abcdefghijklmnopqrstuvwxyz"
-		upper   = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-		digits  = "0123456789"
-		// Safe special characters that avoid shell/SQL/URL parsing issues
-		// Using: ! @ - _ = .
-		// Avoiding: # $ % ^ & * < > ? ` ' " \ | ; ( ) { } [ ] space + : ,
-		special = "!@-_=."
-	)
-	
-	all := lower + upper + digits + special
-	result := make([]byte, length)
-	
-	// Ensure at least one character from each set
-	result[0] = lower[s.randomInt(len(lower))]
-	result[1] = upper[s.randomInt(len(upper))]
-	result[2] = digits[s.randomInt(len(digits))]
-	result[3] = special[s.randomInt(len(special))]
-	
-	// Fill the rest randomly
-	for i := 4; i < length; i++ {
-		result[i] = all[s.randomInt(len(all))]
+	// Generate random bytes and base64 encode them
+	// Base64 uses only: A-Z, a-z, 0-9, +, /, =
+	// All safe for shells, URLs (when properly encoded), and SQL
+	byteLength := (length * 3) / 4 // Account for base64 expansion
+	if byteLength < 9 {
+		byteLength = 9
 	}
 	
-	// Shuffle to avoid predictable patterns
-	for i := len(result) - 1; i > 0; i-- {
-		j := s.randomInt(i + 1)
-		result[i], result[j] = result[j], result[i]
+	bytes := make([]byte, byteLength)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
 	}
 	
-	return string(result), nil
+	// Use URL-safe base64 encoding (replaces + with -, / with _)
+	// This gives us only: A-Z, a-z, 0-9, -, _
+	result := base64.RawURLEncoding.EncodeToString(bytes)
+	
+	// Trim to requested length
+	if len(result) > length {
+		result = result[:length]
+	}
+	
+	return result, nil
 }
 
 func (s *Synthesizer) generateAPIKey(keyType string, envPrefix string) (string, error) {

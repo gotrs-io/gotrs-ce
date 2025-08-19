@@ -197,7 +197,15 @@
             </h3>
         </div>
         
-        <div id="messages-list" class="divide-y divide-gray-200 dark:divide-gray-700">
+        <div id="messages-list" 
+             class="divide-y divide-gray-200 dark:divide-gray-700"
+             hx-get="/api/tickets/{{.TicketID}}/messages"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+            <!-- Messages will be loaded here via HTMX -->
+            <div class="px-4 py-8 text-center">
+                <span class="text-sm text-gray-500 dark:text-gray-400">Loading messages...</span>
+            </div>
             {{range .Articles}}
             <!-- Message/Article -->
             <div class="px-4 py-5 sm:px-6">
@@ -529,56 +537,93 @@ function uploadAttachments(files) {
 }
 
 function previewAttachment(url, filename, contentType) {
-    // For images, show in a modal
+    // For images, show in advanced lightbox with zoom
     if (contentType.startsWith('image/')) {
-        showImagePreview(url, filename);
+        showAdvancedImageViewer(url, filename, contentType);
     } 
-    // For PDFs, open in new tab
+    // For PDFs, show inline viewer
     else if (contentType === 'application/pdf') {
-        window.open(url, '_blank');
+        showPDFViewer(url, filename);
     }
-    // For text files, fetch and show in modal
-    else if (contentType.startsWith('text/') || contentType === 'application/json' || contentType === 'application/xml') {
-        showTextPreview(url, filename);
+    // For code/text files, show with syntax highlighting
+    else if (contentType.startsWith('text/') || contentType === 'application/json' || contentType === 'application/xml' 
+             || filename.match(/\.(js|ts|jsx|tsx|py|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|yml|yaml|toml|ini|cfg|conf|sql|html|css|scss|sass|less|md|markdown)$/i)) {
+        showCodeViewer(url, filename, contentType);
     }
-    // For others, just download
+    // For video files
+    else if (contentType.startsWith('video/')) {
+        showVideoPlayer(url, filename, contentType);
+    }
+    // For audio files
+    else if (contentType.startsWith('audio/')) {
+        showAudioPlayer(url, filename, contentType);
+    }
+    // For office documents
+    else if (contentType.includes('spreadsheet') || contentType.includes('word') || contentType.includes('presentation')) {
+        showOfficeViewer(url, filename, contentType);
+    }
+    // For others, download
     else {
         window.location.href = url;
     }
 }
 
-function showImagePreview(url, filename) {
-    // Create modal overlay
+// Advanced Image Viewer with zoom, pan, and gallery navigation
+function showAdvancedImageViewer(url, filename, contentType) {
     const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 z-50 overflow-auto bg-black bg-opacity-75 flex items-center justify-center';
-    modal.onclick = () => modal.remove();
+    modal.className = 'fixed inset-0 z-50 bg-black flex flex-col';
+    modal.innerHTML = `
+        <div class="flex items-center justify-between p-4 bg-gray-900/90 backdrop-blur">
+            <div class="flex items-center space-x-4">
+                <h3 class="text-white font-medium">${filename}</h3>
+                <span class="text-gray-400 text-sm">${contentType}</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="imageZoomIn()" class="p-2 text-white hover:bg-white/10 rounded" title="Zoom In">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"></path>
+                    </svg>
+                </button>
+                <button onclick="imageZoomOut()" class="p-2 text-white hover:bg-white/10 rounded" title="Zoom Out">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"></path>
+                    </svg>
+                </button>
+                <button onclick="imageRotate()" class="p-2 text-white hover:bg-white/10 rounded" title="Rotate">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                </button>
+                <button onclick="imageFullscreen()" class="p-2 text-white hover:bg-white/10 rounded" title="Fullscreen">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                    </svg>
+                </button>
+                <a href="${url}" download="${filename}" class="p-2 text-white hover:bg-white/10 rounded" title="Download">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                    </svg>
+                </a>
+                <button onclick="this.closest('.fixed').remove()" class="p-2 text-white hover:bg-white/10 rounded" title="Close">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="flex-1 overflow-hidden relative" id="imageViewerContainer">
+            <img id="viewerImage" src="${url}" alt="${filename}" 
+                 class="absolute inset-0 w-full h-full object-contain cursor-move transition-transform duration-200"
+                 style="transform: scale(1) rotate(0deg);"
+                 draggable="false">
+            <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-900/80 backdrop-blur px-3 py-1 rounded-full">
+                <span id="zoomLevel" class="text-white text-sm">100%</span>
+            </div>
+        </div>
+    `;
     
-    // Create image container
-    const container = document.createElement('div');
-    container.className = 'relative max-w-4xl max-h-full p-4';
-    
-    // Create close button
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'absolute top-0 right-0 m-4 text-white text-3xl font-bold';
-    closeBtn.innerHTML = '&times;';
-    closeBtn.onclick = () => modal.remove();
-    
-    // Create image
-    const img = document.createElement('img');
-    img.src = url;
-    img.alt = filename;
-    img.className = 'max-w-full max-h-screen object-contain';
-    
-    // Create filename label
-    const label = document.createElement('div');
-    label.className = 'text-white text-center mt-2';
-    label.textContent = filename;
-    
-    container.appendChild(closeBtn);
-    container.appendChild(img);
-    container.appendChild(label);
-    modal.appendChild(container);
     document.body.appendChild(modal);
+    setupImageControls();
 }
 
 function showTextPreview(url, filename) {
@@ -647,6 +692,266 @@ function deleteAttachment(attachmentID, filename) {
     .catch(error => {
         showNotification(`Failed to delete ${filename}: ${error.message}`, 'error');
     });
+}
+
+// Image viewer controls
+let currentZoom = 1;
+let currentRotation = 0;
+
+function setupImageControls() {
+    const img = document.getElementById('viewerImage');
+    const container = document.getElementById('imageViewerContainer');
+    let isDragging = false;
+    let startX, startY, scrollLeft, scrollTop;
+    
+    img.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.pageX - container.offsetLeft;
+        startY = e.pageY - container.offsetTop;
+        img.style.cursor = 'grabbing';
+    });
+    
+    img.addEventListener('mouseup', () => {
+        isDragging = false;
+        img.style.cursor = 'grab';
+    });
+    
+    img.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const x = e.pageX - container.offsetLeft;
+        const y = e.pageY - container.offsetTop;
+        const walkX = (x - startX) * 2;
+        const walkY = (y - startY) * 2;
+        img.style.left = walkX + 'px';
+        img.style.top = walkY + 'px';
+    });
+    
+    // Mouse wheel zoom
+    container.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        if (e.deltaY < 0) imageZoomIn();
+        else imageZoomOut();
+    });
+}
+
+function imageZoomIn() {
+    currentZoom = Math.min(currentZoom + 0.2, 5);
+    updateImageTransform();
+}
+
+function imageZoomOut() {
+    currentZoom = Math.max(currentZoom - 0.2, 0.2);
+    updateImageTransform();
+}
+
+function imageRotate() {
+    currentRotation += 90;
+    updateImageTransform();
+}
+
+function updateImageTransform() {
+    const img = document.getElementById('viewerImage');
+    const zoomLevel = document.getElementById('zoomLevel');
+    img.style.transform = `scale(${currentZoom}) rotate(${currentRotation}deg)`;
+    zoomLevel.textContent = Math.round(currentZoom * 100) + '%';
+}
+
+function imageFullscreen() {
+    const container = document.getElementById('imageViewerContainer');
+    if (container.requestFullscreen) {
+        container.requestFullscreen();
+    } else if (container.webkitRequestFullscreen) {
+        container.webkitRequestFullscreen();
+    } else if (container.msRequestFullscreen) {
+        container.msRequestFullscreen();
+    }
+}
+
+// PDF Viewer
+function showPDFViewer(url, filename) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 bg-gray-900 flex flex-col';
+    modal.innerHTML = `
+        <div class="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
+            <div class="flex items-center space-x-4">
+                <svg class="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-5L9 2H4z"></path>
+                </svg>
+                <h3 class="text-white font-medium">${filename}</h3>
+            </div>
+            <div class="flex items-center space-x-2">
+                <a href="${url}" download="${filename}" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
+                    Download PDF
+                </a>
+                <button onclick="this.closest('.fixed').remove()" class="p-2 text-gray-400 hover:text-white">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <iframe src="${url}" class="flex-1 w-full bg-white" style="min-height: 80vh;"></iframe>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Code Viewer with Syntax Highlighting
+function showCodeViewer(url, filename, contentType) {
+    fetch(url)
+        .then(response => response.text())
+        .then(code => {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 z-50 bg-gray-900 flex flex-col';
+            
+            // Detect language from filename
+            const ext = filename.split('.').pop().toLowerCase();
+            const langMap = {
+                'js': 'javascript', 'ts': 'typescript', 'py': 'python',
+                'go': 'go', 'java': 'java', 'cpp': 'cpp', 'c': 'c',
+                'html': 'html', 'css': 'css', 'json': 'json', 'xml': 'xml',
+                'sh': 'bash', 'yml': 'yaml', 'sql': 'sql', 'php': 'php',
+                'rb': 'ruby', 'rs': 'rust', 'swift': 'swift', 'kt': 'kotlin'
+            };
+            const language = langMap[ext] || 'plaintext';
+            
+            // Count lines
+            const lines = code.split('\n').length;
+            const fileSize = (new Blob([code]).size / 1024).toFixed(1);
+            
+            modal.innerHTML = `
+                <div class="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
+                    <div class="flex items-center space-x-4">
+                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                        </svg>
+                        <h3 class="text-white font-medium">${filename}</h3>
+                        <span class="text-gray-400 text-sm">${lines} lines • ${fileSize} KB • ${language}</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="copyCode('${btoa(code)}')" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600">
+                            Copy Code
+                        </button>
+                        <a href="${url}" download="${filename}" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            Download
+                        </a>
+                        <button onclick="this.closest('.fixed').remove()" class="p-2 text-gray-400 hover:text-white">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-auto bg-gray-900 p-4">
+                    <pre class="text-gray-300 font-mono text-sm"><code class="language-${language}">${escapeHtml(code)}</code></pre>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // Try to apply syntax highlighting if available
+            if (typeof Prism !== 'undefined') {
+                Prism.highlightAll();
+            }
+        });
+}
+
+// Video Player
+function showVideoPlayer(url, filename, contentType) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 bg-black flex items-center justify-center';
+    modal.innerHTML = `
+        <div class="relative max-w-4xl w-full">
+            <div class="absolute top-0 right-0 p-4 z-10">
+                <button onclick="this.closest('.fixed').remove()" class="p-2 bg-black/50 text-white rounded-full hover:bg-black/70">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <video controls autoplay class="w-full rounded-lg shadow-2xl">
+                <source src="${url}" type="${contentType}">
+                Your browser does not support the video tag.
+            </video>
+            <div class="mt-4 text-center">
+                <h3 class="text-white font-medium">${filename}</h3>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Audio Player
+function showAudioPlayer(url, filename, contentType) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 bg-gradient-to-br from-purple-900 to-blue-900 flex items-center justify-center';
+    modal.innerHTML = `
+        <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-md w-full">
+            <div class="text-center mb-6">
+                <div class="w-32 h-32 mx-auto mb-4 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center animate-pulse">
+                    <svg class="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-white font-semibold text-lg">${filename}</h3>
+            </div>
+            <audio controls class="w-full">
+                <source src="${url}" type="${contentType}">
+                Your browser does not support the audio element.
+            </audio>
+            <div class="mt-6 flex justify-center">
+                <button onclick="this.closest('.fixed').remove()" class="px-6 py-2 bg-white/20 text-white rounded-full hover:bg-white/30">
+                    Close
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Office Document Viewer
+function showOfficeViewer(url, filename, contentType) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 bg-gray-900 flex flex-col';
+    
+    // Use Google Docs viewer for office files
+    const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(window.location.origin + url)}&embedded=true`;
+    
+    modal.innerHTML = `
+        <div class="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
+            <div class="flex items-center space-x-4">
+                <svg class="w-6 h-6 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
+                    <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000 2H6a2 2 0 100 4h2a2 2 0 100-4h-.5a1 1 0 000-2H14a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h6a1 1 0 100-2H7zm0 3a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
+                </svg>
+                <h3 class="text-white font-medium">${filename}</h3>
+            </div>
+            <div class="flex items-center space-x-2">
+                <a href="${url}" download="${filename}" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
+                    Download
+                </a>
+                <button onclick="this.closest('.fixed').remove()" class="p-2 text-gray-400 hover:text-white">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <iframe src="${viewerUrl}" class="flex-1 w-full bg-white" style="min-height: 80vh;"></iframe>
+    `;
+    document.body.appendChild(modal);
+}
+
+function copyCode(encodedCode) {
+    const code = atob(encodedCode);
+    navigator.clipboard.writeText(code).then(() => {
+        showNotification('Code copied to clipboard!', 'success');
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 </script>
 {{end}}

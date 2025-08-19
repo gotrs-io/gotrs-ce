@@ -42,6 +42,7 @@ func handleTemplatesPage(c *gin.Context) {
 	
 	tmpl, err := loadTemplate(
 		"templates/layouts/base.html",
+		"templates/components/guru_meditation.html",
 		"templates/pages/tickets/templates.html",
 	)
 	if err != nil {

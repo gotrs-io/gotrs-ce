@@ -2,11 +2,15 @@ package service
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
+	"github.com/lib/pq"
 )
 
 // SimpleTicketService handles ticket operations without database transactions
@@ -155,17 +159,168 @@ func (s *SimpleTicketService) GetMessages(ticketID uint) ([]*SimpleTicketMessage
 	if err != nil {
 		return nil, fmt.Errorf("ticket not found: %w", err)
 	}
-	
+
+	// First check in-memory messages
 	s.messagesMu.RLock()
-	defer s.messagesMu.RUnlock()
-	
-	messages := s.messages[ticketID]
-	if messages == nil {
+	inMemoryMessages := s.messages[ticketID]
+	s.messagesMu.RUnlock()
+
+	// Also retrieve messages from the database (articles)
+	db, err := database.GetDB()
+	if err != nil {
+		// If database is not available, return in-memory messages only
+		if inMemoryMessages == nil {
+			return make([]*SimpleTicketMessage, 0), nil
+		}
+		result := make([]*SimpleTicketMessage, len(inMemoryMessages))
+		copy(result, inMemoryMessages)
+		return result, nil
+	}
+
+	// Query articles from database - join with article_data_mime for content
+	rows, err := db.Query(`
+		SELECT a.id, 
+		       COALESCE(adm.a_subject, ''),
+		       COALESCE(CONVERT_FROM(adm.a_body, 'UTF8'), ''),
+		       a.create_time, a.create_by,
+		       COALESCE(adm.a_from, ''), COALESCE(adm.a_to, ''),
+		       a.article_sender_type_id, a.is_visible_for_customer
+		FROM article a
+		LEFT JOIN article_data_mime adm ON a.id = adm.article_id
+		WHERE a.ticket_id = $1
+		ORDER BY a.create_time ASC
+	`, ticketID)
+	if err != nil {
+		// If query fails, return in-memory messages
+		if inMemoryMessages == nil {
+			return make([]*SimpleTicketMessage, 0), nil
+		}
+		result := make([]*SimpleTicketMessage, len(inMemoryMessages))
+		copy(result, inMemoryMessages)
+		return result, nil
+	}
+	defer rows.Close()
+
+	var dbMessages []*SimpleTicketMessage
+	var articleIDs []int
+
+	for rows.Next() {
+		var articleID int
+		var subject, body, fromAddr, toAddr string
+		var createTime time.Time
+		var createBy, senderTypeID, isVisible int
+
+		err := rows.Scan(&articleID, &subject, &body, &createTime, &createBy,
+			&fromAddr, &toAddr, &senderTypeID, &isVisible)
+		if err != nil {
+			continue
+		}
+
+		// Determine author type based on sender_type_id
+		authorType := "System"
+		if senderTypeID == 1 {
+			authorType = "Agent"
+		} else if senderTypeID == 3 {
+			authorType = "Customer"
+		}
+
+		// Extract author name from email or use default
+		authorName := fromAddr
+		if fromAddr != "" && strings.Contains(fromAddr, "@") {
+			parts := strings.Split(fromAddr, "@")
+			authorName = parts[0]
+		} else if authorType == "Agent" {
+			authorName = "Support Agent"
+		} else if authorType == "Customer" {
+			authorName = "Customer"
+		}
+
+		msg := &SimpleTicketMessage{
+			ID:          uint(articleID),
+			TicketID:    ticketID,
+			Body:        body,
+			Subject:     subject,
+			CreatedBy:   uint(createBy),
+			AuthorName:  authorName,
+			AuthorEmail: fromAddr,
+			AuthorType:  authorType,
+			IsPublic:    isVisible == 1,
+			IsInternal:  isVisible == 0,
+			CreatedAt:   createTime,
+			Attachments: []*SimpleAttachment{},
+		}
+
+		dbMessages = append(dbMessages, msg)
+		articleIDs = append(articleIDs, articleID)
+	}
+
+	// Now query attachments for all articles
+	if len(articleIDs) > 0 {
+		attachRows, err := db.Query(`
+			SELECT att.id, att.article_id, att.filename, 
+			       COALESCE(att.content_type, 'application/octet-stream'), 
+			       COALESCE(att.content_size, '0'),
+			       att.content
+			FROM article_data_mime_attachment att
+			WHERE att.article_id = ANY($1)
+			ORDER BY att.id
+		`, pq.Array(articleIDs))
+		
+		if err == nil {
+			defer attachRows.Close()
+			
+			// Create a map for quick message lookup
+			messageMap := make(map[uint]*SimpleTicketMessage)
+			for _, msg := range dbMessages {
+				messageMap[msg.ID] = msg
+			}
+			
+			for attachRows.Next() {
+				var attID, articleID int
+				var filename, contentType, contentSize string
+				var content []byte
+				
+				err := attachRows.Scan(&attID, &articleID, &filename, 
+					&contentType, &contentSize, &content)
+				if err != nil {
+					continue
+				}
+				
+				// Parse size
+				size, _ := strconv.ParseInt(contentSize, 10, 64)
+				
+				// Add attachment to the corresponding message
+				if msg, ok := messageMap[uint(articleID)]; ok {
+					attachment := &SimpleAttachment{
+						ID:          uint(attID),
+						MessageID:   uint(articleID),
+						Filename:    filename,
+						ContentType: contentType,
+						Size:        size,
+						URL:         fmt.Sprintf("/api/attachments/%d/download", attID),
+						CreatedAt:   msg.CreatedAt,
+					}
+					msg.Attachments = append(msg.Attachments, attachment)
+					fmt.Printf("DEBUG: Added attachment %s to message %d\n", filename, articleID)
+				}
+			}
+		}
+	}
+
+	// Return database messages if found
+	if len(dbMessages) > 0 {
+		fmt.Printf("DEBUG: Returning %d messages for ticket %d\n", len(dbMessages), ticketID)
+		for _, msg := range dbMessages {
+			fmt.Printf("DEBUG: Message %d has %d attachments\n", msg.ID, len(msg.Attachments))
+		}
+		return dbMessages, nil
+	}
+
+	// Return in-memory messages if no database messages found
+	if inMemoryMessages == nil {
 		return make([]*SimpleTicketMessage, 0), nil
 	}
-	
-	// Return a copy to prevent external modification
-	result := make([]*SimpleTicketMessage, len(messages))
-	copy(result, messages)
+	result := make([]*SimpleTicketMessage, len(inMemoryMessages))
+	copy(result, inMemoryMessages)
 	return result, nil
 }

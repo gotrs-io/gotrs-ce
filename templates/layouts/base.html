@@ -83,6 +83,8 @@
     {{block "head" .}}{{end}}
 </head>
 <body class="h-full bg-gray-50 dark:bg-gray-900 transition-colors duration-300" hx-ext="sse" x-data="{ darkMode: false }" x-init="darkMode = document.documentElement.classList.contains('dark')">
+    <!-- Guru Meditation Error Display -->
+    {{template "guru_meditation" .}}
     <div class="min-h-full">
         <!-- Dark mode toggle button (floating) -->
         <button @click="toggleDarkMode()" 

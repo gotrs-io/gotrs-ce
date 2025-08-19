@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/service"
 )
 
@@ -275,46 +276,70 @@ func handleGetAttachments(c *gin.Context) {
 		return
 	}
 
-	// Get attachments for ticket
-	attachmentIDs, exists := attachmentsByTicket[ticketID]
-	if !exists {
-		attachmentIDs = []int{}
+	// Get database connection
+	db, err := database.GetDB()
+	if err != nil {
+		sendGuruMeditation(c, err, "Failed to get database connection")
+		return
 	}
 
-	result := []interface{}{}
-	for _, attID := range attachmentIDs {
-		if att, exists := attachments[attID]; exists {
-			// Convert to public format
-			publicAtt := gin.H{
-				"id":           att.ID,
-				"filename":     att.Filename,
-				"size":         att.Size,
-				"content_type": att.ContentType,
-				"description":  att.Description,
-				"tags":         att.Tags,
-				"internal":     att.Internal,
-				"uploaded_at":  att.UploadedAt,
-				"uploaded_by":  att.UploadedBy,
-			}
-			
-			// Add download URL
-			publicAtt["download_url"] = fmt.Sprintf("/api/tickets/%d/attachments/%d", ticketID, att.ID)
-			
-			// Add thumbnail URL for images
-			if strings.HasPrefix(att.ContentType, "image/") {
-				publicAtt["thumbnail_url"] = fmt.Sprintf("/api/tickets/%d/attachments/%d/thumbnail", ticketID, att.ID)
-			}
-			
-			result = append(result, publicAtt)
+	// Query attachments from database - get all attachments for all articles of this ticket
+	rows, err := db.Query(`
+		SELECT att.id, att.filename, 
+		       COALESCE(att.content_type, 'application/octet-stream'), 
+		       COALESCE(att.content_size, '0'),
+		       att.create_time, att.create_by,
+		       att.article_id
+		FROM article_data_mime_attachment att
+		INNER JOIN article a ON att.article_id = a.id
+		WHERE a.ticket_id = $1
+		ORDER BY att.id
+	`, ticketID)
+	if err != nil {
+		sendGuruMeditation(c, err, "Failed to query attachments")
+		return
+	}
+	defer rows.Close()
+
+	result := []gin.H{}
+	for rows.Next() {
+		var attID, articleID, createBy int
+		var filename, contentType, contentSize string
+		var createTime time.Time
+
+		err := rows.Scan(&attID, &filename, &contentType, &contentSize, &createTime, &createBy, &articleID)
+		if err != nil {
+			continue
 		}
+
+		// Parse size
+		size, _ := strconv.ParseInt(contentSize, 10, 64)
+
+		publicAtt := gin.H{
+			"id":           attID,
+			"filename":     filename,
+			"size":         size,
+			"size_formatted": formatFileSize(size),
+			"content_type": contentType,
+			"uploaded_at":  createTime.Format("Jan 2, 2006 3:04 PM"),
+			"uploaded_by":  createBy,
+			"article_id":   articleID,
+			"download_url": fmt.Sprintf("/api/attachments/%d/download", attID),
+		}
+		
+		// Add thumbnail URL for images
+		if strings.HasPrefix(contentType, "image/") {
+			publicAtt["thumbnail_url"] = fmt.Sprintf("/api/attachments/%d/preview", attID)
+		}
+		
+		result = append(result, publicAtt)
 	}
 
 	// Check if this is an HTMX request
 	if c.GetHeader("HX-Request") == "true" {
 		// Return HTML partial for HTMX
-		c.HTML(http.StatusOK, "attachment_list.html", gin.H{
-			"attachments": result,
-		})
+		html := renderAttachmentListHTML(result)
+		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
 	} else {
 		// Return JSON for API requests
 		c.JSON(http.StatusOK, gin.H{
@@ -585,4 +610,68 @@ func validateFile(header *multipart.FileHeader) error {
 	}
 	
 	return nil
+}
+
+// renderAttachmentListHTML renders attachment list as HTML for HTMX
+func renderAttachmentListHTML(attachments []gin.H) string {
+	if len(attachments) == 0 {
+		return `<div class="text-center py-4 text-sm text-gray-500 dark:text-gray-400">No attachments found</div>`
+	}
+
+	html := `<div class="space-y-2 p-4">`
+	for _, att := range attachments {
+		attID := att["id"]
+		filename := att["filename"].(string)
+		sizeFormatted := att["size_formatted"].(string)
+		contentType := att["content_type"].(string)
+		downloadURL := att["download_url"].(string)
+		
+		// Icon based on content type
+		icon := `<svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+		</svg>`
+		
+		if strings.HasPrefix(contentType, "image/") {
+			icon = `<svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+			</svg>`
+		} else if contentType == "application/pdf" {
+			icon = `<svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+			</svg>`
+		} else if strings.HasPrefix(contentType, "text/") {
+			icon = `<svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+			</svg>`
+		}
+		
+		html += fmt.Sprintf(`
+		<div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+			<div class="flex items-center space-x-3">
+				%s
+				<div>
+					<a href="%s" class="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300" download>
+						%s
+					</a>
+					<p class="text-xs text-gray-500 dark:text-gray-400">%s</p>
+				</div>
+			</div>
+			<div class="flex items-center space-x-2">
+				<a href="%s" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Download">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+					</svg>
+				</a>
+				<button onclick="deleteAttachment(%v, '%s')" class="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400" title="Delete">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+					</svg>
+				</button>
+			</div>
+		</div>`,
+			icon, downloadURL, filename, sizeFormatted, downloadURL, attID, filename)
+	}
+	html += `</div>`
+	
+	return html
 }

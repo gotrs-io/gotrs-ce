@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"fmt"
 	"html/template"
 	"io"
@@ -648,14 +649,22 @@ func SetupHTMXRoutes(r *gin.Engine) {
 		agentAPI.GET("/tickets/search", handleTicketSearch)
 		agentAPI.GET("/search", handleTicketSearch)  // General search endpoint
 		agentAPI.PUT("/tickets/bulk", handleBulkUpdateTickets)
-		agentAPI.POST("/tickets", handleCreateTicket)
+		agentAPI.POST("/tickets", handleCreateTicketWithAttachments) // Fixed to handle attachments
 		agentAPI.PUT("/tickets/:id", handleUpdateTicketEnhanced)
 		agentAPI.POST("/tickets/:id/status", handleUpdateTicketStatus)
 		agentAPI.POST("/tickets/:id/assign", handleAssignTicket)
 		agentAPI.POST("/tickets/:id/reply", handleTicketReply)
 		agentAPI.POST("/tickets/:id/priority", handleUpdateTicketPriority)
 		agentAPI.POST("/tickets/:id/queue", handleUpdateTicketQueue)
-		agentAPI.GET("/tickets/:id/messages", underConstructionAPI("/tickets/:id/messages"))
+		agentAPI.GET("/tickets/:id/messages", handleGetTicketMessages)
+		agentAPI.POST("/tickets/:id/messages", handleAddTicketMessage)
+		
+		// Attachment operations
+		agentAPI.GET("/attachments/:id/download", handleAttachmentDownload)
+		agentAPI.GET("/attachments/:id/preview", handleAttachmentPreview)
+		agentAPI.GET("/attachments/:id/thumbnail", handleAttachmentThumbnail)
+		agentAPI.POST("/attachments/bulk-thumbnails", handleBulkThumbnails)
+		agentAPI.DELETE("/attachments/:id", handleAttachmentDelete)
 		
 		// SLA and Escalation
 		agentAPI.GET("/tickets/:id/sla", handleGetTicketSLA)
@@ -798,8 +807,99 @@ func handleTicketsList(c *gin.Context) {
 		}
 	}
 	
-	// Mock ticket data
-	tickets := getMockTickets()
+	// Get real ticket data from database
+	ticketService := GetTicketService()
+	ticketRequest := &models.TicketListRequest{
+		Page:    page,
+		PerPage: 1000, // Get all for client-side filtering for now
+	}
+	
+	ticketResponse, err := ticketService.ListTickets(ticketRequest)
+	if err != nil {
+		sendGuruMeditation(c, err, "handleTicketsList:ListTickets")
+		return
+	}
+	
+	// Convert tickets to display format
+	tickets := []gin.H{}
+	if ticketResponse != nil && ticketResponse.Tickets != nil {
+		for _, t := range ticketResponse.Tickets {
+			// Map priority
+			priorityStr := "normal"
+			switch t.TicketPriorityID {
+			case 1:
+				priorityStr = "low"
+			case 2, 3:
+				priorityStr = "normal"
+			case 4:
+				priorityStr = "high"
+			case 5:
+				priorityStr = "urgent"
+			}
+			
+			// Map status
+			statusStr := "new"
+			switch t.TicketStateID {
+			case 1:
+				statusStr = "new"
+			case 2:
+				statusStr = "open"
+			case 3:
+				statusStr = "pending"
+			case 4:
+				statusStr = "resolved"
+			case 5, 6:
+				statusStr = "closed"
+			}
+			
+			// Get queue name
+			queueName := "Unknown"
+			if t.QueueID == 1 {
+				queueName = "Raw"
+			} else if t.QueueID == 2 {
+				queueName = "Junk"
+			} else if t.QueueID == 3 {
+				queueName = "Misc"
+			} else if t.QueueID == 4 {
+				queueName = "Support"
+			}
+			
+			// Get customer email
+			customerEmail := ""
+			if t.CustomerUserID != nil {
+				customerEmail = *t.CustomerUserID
+			}
+			
+			// Format timestamps
+			createdAt := t.CreateTime.Format("2006-01-02 15:04")
+			updatedAt := t.ChangeTime.Format("2006-01-02 15:04")
+			
+			// Build ticket display object
+			ticket := gin.H{
+				"id":             t.ID,
+				"number":         t.TicketNumber,
+				"title":          t.Title,
+				"status":         statusStr,
+				"priority":       priorityStr,
+				"queue_id":       t.QueueID,
+				"queue_name":     queueName,
+				"customer_email": customerEmail,
+				"assigned_to":    "", // TODO: Get from UserID
+				"created_at":     createdAt,
+				"updated_at":     updatedAt,
+				"has_new_message": false, // TODO: Check for new articles
+				"sla_status":     "ok",
+				"due_in":         "",
+			}
+			
+			// Add assigned user if present
+			if t.UserID != nil {
+				ticket["assigned_to"] = fmt.Sprintf("User %d", *t.UserID)
+			}
+			
+			tickets = append(tickets, ticket)
+		}
+	}
 	
 	// Apply filters
 	filteredTickets := []gin.H{}
@@ -1544,11 +1644,49 @@ func underConstructionAPI(endpoint string) gin.HandlerFunc {
 
 // Dashboard stats (returns HTML fragment)
 func handleDashboardStats(c *gin.Context) {
+	// Get real statistics from database
+	db, err := database.GetDB()
+	
+	// No database, no dashboard - show Guru Meditation
+	if err != nil {
+		sendGuruMeditation(c, err, "handleDashboardStats:GetDB")
+		return
+	}
+	
+	// Initialize stats
 	stats := []gin.H{
-		{"title": "Open Tickets", "value": "24", "icon": "ticket", "color": "blue"},
-		{"title": "New Today", "value": "8", "icon": "plus", "color": "green"},
-		{"title": "Pending", "value": "12", "icon": "clock", "color": "yellow"},
-		{"title": "Overdue", "value": "3", "icon": "exclamation", "color": "red"},
+		{"title": "Open Tickets", "value": "0", "icon": "ticket", "color": "blue"},
+		{"title": "New Today", "value": "0", "icon": "plus", "color": "green"},
+		{"title": "Pending", "value": "0", "icon": "clock", "color": "yellow"},
+		{"title": "Resolved", "value": "0", "icon": "check", "color": "green"},
+	}
+	
+	// Query database
+	// Count open tickets (state_id = 2)
+	var openCount int
+	db.QueryRow("SELECT COUNT(*) FROM ticket WHERE ticket_state_id = 2").Scan(&openCount)
+	
+	// Count new tickets today (state_id = 1 and created today)
+	var newTodayCount int
+	db.QueryRow(`
+		SELECT COUNT(*) FROM ticket 
+		WHERE ticket_state_id = 1 
+		AND DATE(create_time) = CURRENT_DATE
+	`).Scan(&newTodayCount)
+	
+	// Count pending tickets (state_id = 3)
+	var pendingCount int
+	db.QueryRow("SELECT COUNT(*) FROM ticket WHERE ticket_state_id = 3").Scan(&pendingCount)
+	
+	// Count resolved tickets (state_id = 4)
+	var resolvedCount int
+	db.QueryRow("SELECT COUNT(*) FROM ticket WHERE ticket_state_id = 4").Scan(&resolvedCount)
+	
+	stats = []gin.H{
+		{"title": "Open Tickets", "value": fmt.Sprintf("%d", openCount), "icon": "ticket", "color": "blue"},
+		{"title": "New Today", "value": fmt.Sprintf("%d", newTodayCount), "icon": "plus", "color": "green"},
+		{"title": "Pending", "value": fmt.Sprintf("%d", pendingCount), "icon": "clock", "color": "yellow"},
+		{"title": "Resolved", "value": fmt.Sprintf("%d", resolvedCount), "icon": "check", "color": "green"},
 	}
 	
 	tmpl, err := loadTemplateForRequest(c, "templates/components/dashboard_stats.html")
@@ -1567,10 +1705,77 @@ func handleDashboardStats(c *gin.Context) {
 
 // Recent tickets (returns HTML fragment)
 func handleRecentTickets(c *gin.Context) {
-	tickets := []gin.H{
-		{"id": 1, "number": "TICKET-001", "title": "Login issues", "status": "open", "priority": "high", "created": "2 hours ago"},
-		{"id": 2, "number": "TICKET-002", "title": "Feature request", "status": "new", "priority": "medium", "created": "4 hours ago"},
-		{"id": 3, "number": "TICKET-003", "title": "Bug report", "status": "pending", "priority": "low", "created": "1 day ago"},
+	// Get recent tickets from database
+	db, err := database.GetDB()
+	
+	tickets := []gin.H{}
+	
+	if err == nil {
+		rows, err := db.Query(`
+			SELECT id, tn, title, ticket_state_id, ticket_priority_id, create_time
+			FROM ticket
+			ORDER BY create_time DESC
+			LIMIT 5
+		`)
+		
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var id int
+				var tn, title string
+				var stateID, priorityID int
+				var createTime time.Time
+				
+				if err := rows.Scan(&id, &tn, &title, &stateID, &priorityID, &createTime); err == nil {
+					// Map status
+					status := "new"
+					switch stateID {
+					case 1:
+						status = "new"
+					case 2:
+						status = "open"
+					case 3:
+						status = "pending"
+					case 4:
+						status = "resolved"
+					case 5, 6:
+						status = "closed"
+					}
+					
+					// Map priority
+					priority := "medium"
+					switch priorityID {
+					case 1:
+						priority = "low"
+					case 2, 3:
+						priority = "medium"
+					case 4:
+						priority = "high"
+					case 5:
+						priority = "urgent"
+					}
+					
+					// Calculate time ago
+					created := formatTimeAgo(createTime)
+					
+					tickets = append(tickets, gin.H{
+						"id":       id,
+						"number":   tn,
+						"title":    title,
+						"status":   status,
+						"priority": priority,
+						"created":  created,
+					})
+				}
+			}
+		}
+	}
+	
+	// If no tickets, use a placeholder
+	if len(tickets) == 0 {
+		tickets = []gin.H{
+			{"id": 0, "number": "No tickets", "title": "No recent tickets found", "status": "info", "priority": "low", "created": ""},
+		}
 	}
 	
 	tmpl, err := loadTemplateForRequest(c, "templates/components/recent_tickets.html")
@@ -1589,10 +1794,59 @@ func handleRecentTickets(c *gin.Context) {
 
 // Activity feed (returns HTML fragment)
 func handleActivityFeed(c *gin.Context) {
-	activities := []gin.H{
-		{"user": "John Doe", "action": "created", "target": "TICKET-001", "time": "2 minutes ago"},
-		{"user": "Jane Smith", "action": "updated", "target": "TICKET-002", "time": "15 minutes ago"},
-		{"user": "Bob Wilson", "action": "closed", "target": "TICKET-003", "time": "1 hour ago"},
+	// Get recent ticket activity from database
+	db, err := database.GetDB()
+	
+	activities := []gin.H{}
+	
+	if err == nil {
+		// Get recent ticket changes
+		rows, err := db.Query(`
+			SELECT t.tn, t.title, t.change_time, t.change_by,
+			       CASE 
+			         WHEN t.create_time = t.change_time THEN 'created'
+			         WHEN t.ticket_state_id IN (5,6) THEN 'closed'
+			         WHEN t.ticket_state_id = 4 THEN 'resolved'
+			         ELSE 'updated'
+			       END as action
+			FROM ticket t
+			ORDER BY t.change_time DESC
+			LIMIT 10
+		`)
+		
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var tn, title, action string
+				var changeTime time.Time
+				var changeBy int
+				
+				if err := rows.Scan(&tn, &title, &changeTime, &changeBy, &action); err == nil {
+					// Format time ago
+					timeAgo := formatTimeAgo(changeTime)
+					
+					// Get user name (simplified - would need user table join)
+					userName := fmt.Sprintf("User %d", changeBy)
+					if changeBy == 1 {
+						userName = "System"
+					}
+					
+					activities = append(activities, gin.H{
+						"user":   userName,
+						"action": action,
+						"target": tn,
+						"time":   timeAgo,
+					})
+				}
+			}
+		}
+	}
+	
+	// If no activities, use a placeholder
+	if len(activities) == 0 {
+		activities = []gin.H{
+			{"user": "System", "action": "info", "target": "No recent activity", "time": ""},
+		}
 	}
 	
 	// Use Pongo2 renderer for consistency
@@ -1615,13 +1869,76 @@ func handleTicketsAPI(c *gin.Context) {
 	fmt.Printf("Filter Debug - Status: %v, Priority: %v, Queue: %v, Assignee: %s, Assigned: %s, Search: %s\n", 
 		status, priority, queue, assignee, assigned, search)
 
-	// Mock ticket data for testing
-	allTickets := []gin.H{
-		{"id": 1, "number": "TICKET-001", "title": "Login issues", "status": "open", "priority": "high", "customer": "john@example.com", "agent": "Agent Smith", "queue": "General Support", "queueId": 1},
-		{"id": 2, "number": "TICKET-002", "title": "Feature request", "status": "new", "priority": "medium", "customer": "jane@example.com", "agent": "", "queue": "Technical Support", "queueId": 2},
-		{"id": 3, "number": "TICKET-003", "title": "Password reset", "status": "closed", "priority": "low", "customer": "bob@example.com", "agent": "John Doe", "queue": "General Support", "queueId": 1},
-		{"id": 4, "number": "TICKET-004", "title": "Billing inquiry", "status": "pending", "priority": "high", "customer": "alice@example.com", "agent": "", "queue": "Billing", "queueId": 3},
-		{"id": 5, "number": "TICKET-005", "title": "Technical issue", "status": "open", "priority": "critical", "customer": "dave@example.com", "agent": "Agent Smith", "queue": "Technical Support", "queueId": 2},
+	// Get real tickets from database
+	db, err := database.GetDB()
+	allTickets := []gin.H{}
+	
+	if err == nil {
+		query := `
+			SELECT t.id, t.tn, t.title, t.ticket_state_id, t.ticket_priority_id,
+			       t.queue_id, q.name, COALESCE(t.customer_user_id, ''), COALESCE(t.user_id, 0)
+			FROM ticket t
+			LEFT JOIN queue q ON t.queue_id = q.id
+			ORDER BY t.create_time DESC
+			LIMIT 100
+		`
+		
+		rows, err := db.Query(query)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var id, stateID, priorityID, queueID, userID int
+				var tn, title, queueName, customerEmail string
+				
+				if err := rows.Scan(&id, &tn, &title, &stateID, &priorityID, &queueID, &queueName, &customerEmail, &userID); err == nil {
+					// Map status
+					statusStr := "new"
+					switch stateID {
+					case 1:
+						statusStr = "new"
+					case 2:
+						statusStr = "open"
+					case 3:
+						statusStr = "pending"
+					case 4:
+						statusStr = "resolved"
+					case 5, 6:
+						statusStr = "closed"
+					}
+					
+					// Map priority
+					priorityStr := "medium"
+					switch priorityID {
+					case 1:
+						priorityStr = "low"
+					case 2, 3:
+						priorityStr = "medium"
+					case 4:
+						priorityStr = "high"
+					case 5:
+						priorityStr = "critical"
+					}
+					
+					// Get agent name
+					agent := ""
+					if userID > 0 {
+						agent = fmt.Sprintf("Agent %d", userID)
+					}
+					
+					allTickets = append(allTickets, gin.H{
+						"id":       id,
+						"number":   tn,
+						"title":    title,
+						"status":   statusStr,
+						"priority": priorityStr,
+						"customer": customerEmail,
+						"agent":    agent,
+						"queue":    queueName,
+						"queueId":  queueID,
+					})
+				}
+			}
+		}
 	}
 
 	// Apply filters
@@ -1773,34 +2090,94 @@ func handleTicketSearch(c *gin.Context) {
 		searchTerm = c.Query("q") // Support both ?search= and ?q=
 	}
 	
-	// Mock ticket data for testing
-	allTickets := []gin.H{
-		{"id": 1, "number": "TICKET-001", "title": "Login issues", "status": "open", "priority": "high", "customer": "john@example.com", "agent": "Agent Smith"},
-		{"id": 2, "number": "TICKET-002", "title": "Feature request", "status": "new", "priority": "medium", "customer": "jane@example.com", "agent": ""},
-		{"id": 3, "number": "TICKET-003", "title": "Password reset", "status": "closed", "priority": "low", "customer": "bob@example.com", "agent": "John Doe"},
-	}
-
-	filteredTickets := []gin.H{}
+	// Get tickets from database
+	db, err := database.GetDB()
+	allTickets := []gin.H{}
 	
-	if searchTerm != "" {
-		searchLower := strings.ToLower(searchTerm)
-		for _, ticket := range allTickets {
-			titleMatch := strings.Contains(strings.ToLower(ticket["title"].(string)), searchLower)
-			numberMatch := strings.Contains(strings.ToLower(ticket["number"].(string)), searchLower)
-			customerMatch := strings.Contains(strings.ToLower(ticket["customer"].(string)), searchLower)
-			
-			if titleMatch || numberMatch || customerMatch {
-				// Highlight search terms in title
-				if titleMatch && searchTerm != "" {
-					title := ticket["title"].(string)
-					// Case-insensitive replacement with <mark> tags
-					re := regexp.MustCompile("(?i)" + regexp.QuoteMeta(searchTerm))
-					ticket["highlighted_title"] = re.ReplaceAllString(title, "<mark>$0</mark>")
+	if err == nil && searchTerm != "" {
+		// Search in ticket number, title, and customer email
+		rows, err := db.Query(`
+			SELECT t.id, t.tn, t.title, t.ticket_state_id, t.ticket_priority_id,
+			       COALESCE(t.customer_user_id, ''), COALESCE(t.user_id, 0)
+			FROM ticket t
+			WHERE LOWER(t.tn) LIKE LOWER($1)
+			   OR LOWER(t.title) LIKE LOWER($1)
+			   OR LOWER(COALESCE(t.customer_user_id, '')) LIKE LOWER($1)
+			ORDER BY t.create_time DESC
+			LIMIT 50
+		`, "%"+searchTerm+"%")
+		
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var id int
+				var tn, title, customerEmail string
+				var stateID, priorityID, userID int
+				
+				if err := rows.Scan(&id, &tn, &title, &stateID, &priorityID, &customerEmail, &userID); err == nil {
+					// Map status
+					status := "new"
+					switch stateID {
+					case 1:
+						status = "new"
+					case 2:
+						status = "open"
+					case 3:
+						status = "pending"
+					case 4:
+						status = "resolved"
+					case 5, 6:
+						status = "closed"
+					}
+					
+					// Map priority
+					priority := "medium"
+					switch priorityID {
+					case 1:
+						priority = "low"
+					case 2, 3:
+						priority = "medium"
+					case 4:
+						priority = "high"
+					case 5:
+						priority = "urgent"
+					}
+					
+					// Get agent name
+					agent := ""
+					if userID > 0 {
+						agent = fmt.Sprintf("Agent %d", userID)
+					}
+					
+					allTickets = append(allTickets, gin.H{
+						"id":       id,
+						"number":   tn,
+						"title":    title,
+						"status":   status,
+						"priority": priority,
+						"customer": customerEmail,
+						"agent":    agent,
+					})
 				}
-				filteredTickets = append(filteredTickets, ticket)
 			}
 		}
-	} else {
+	}
+
+	// All tickets are already filtered by the SQL query
+	filteredTickets := allTickets
+	
+	// Highlight search terms if present
+	if searchTerm != "" {
+		for i := range filteredTickets {
+			titleStr := filteredTickets[i]["title"].(string)
+			// Case-insensitive replacement with <mark> tags
+			re := regexp.MustCompile("(?i)" + regexp.QuoteMeta(searchTerm))
+			filteredTickets[i]["highlighted_title"] = re.ReplaceAllString(titleStr, "<mark>$0</mark>")
+		}
+	}
+	
+	// If no search term provided, show recent tickets
+	if searchTerm == "" && len(filteredTickets) == 0 {
 		// Empty search returns all tickets
 		filteredTickets = allTickets
 	}
@@ -2161,107 +2538,6 @@ func handleQueuesJSON(c *gin.Context) {
 	})
 }
 
-// Helper function to get mock tickets
-func getMockTickets() []gin.H {
-	return []gin.H{
-		{
-			"id":             1,
-			"number":         "TICK-2024-001",
-			"title":          "Server is down",
-			"status":         "open",
-			"priority":       "high",
-			"queue_id":       1,
-			"queue_name":     "Raw",
-			"customer_email": "customer@example.com",
-			"assigned_to":    "Demo User",
-			"created_at":     "2024-01-15 10:00",
-			"updated_at":     "2024-01-15 14:30",
-			"has_new_message": true,
-			"sla_status":     "warning",
-			"due_in":         "2 hours",
-		},
-		{
-			"id":             2,
-			"number":         "TICK-2024-002",
-			"title":          "Cannot login to system",
-			"status":         "pending",
-			"priority":       "normal",
-			"queue_id":       4,
-			"queue_name":     "Support",
-			"customer_email": "user@company.com",
-			"assigned_to":    "",
-			"created_at":     "2024-01-15 11:00",
-			"updated_at":     "2024-01-15 11:00",
-			"has_new_message": false,
-			"sla_status":     "ok",
-			"due_in":         "4 hours",
-		},
-		{
-			"id":             3,
-			"number":         "TICK-2024-003",
-			"title":          "Feature request: Dark mode",
-			"status":         "new",
-			"priority":       "low",
-			"queue_id":       3,
-			"queue_name":     "Misc",
-			"customer_email": "feedback@example.org",
-			"assigned_to":    "",
-			"created_at":     "2024-01-15 09:00",
-			"updated_at":     "2024-01-15 09:00",
-			"has_new_message": false,
-			"sla_status":     "ok",
-			"due_in":         "24 hours",
-		},
-		{
-			"id":             4,
-			"number":         "TICK-2024-004",
-			"title":          "Database connection error",
-			"status":         "open",
-			"priority":       "urgent",
-			"queue_id":       1,
-			"queue_name":     "Raw",
-			"customer_email": "admin@enterprise.com",
-			"assigned_to":    "Demo User",
-			"created_at":     "2024-01-15 08:00",
-			"updated_at":     "2024-01-15 15:00",
-			"has_new_message": false,
-			"sla_status":     "breach",
-			"due_in":         "-1 hour",
-		},
-		{
-			"id":             5,
-			"number":         "TICK-2024-005",
-			"title":          "Password reset request",
-			"status":         "resolved",
-			"priority":       "normal",
-			"queue_id":       4,
-			"queue_name":     "Support",
-			"customer_email": "john@example.com",
-			"assigned_to":    "Agent Smith",
-			"created_at":     "2024-01-14 10:00",
-			"updated_at":     "2024-01-14 10:30",
-			"has_new_message": false,
-			"sla_status":     "ok",
-			"due_in":         "",
-		},
-		{
-			"id":             6,
-			"number":         "TICK-2024-006",
-			"title":          "Billing inquiry",
-			"status":         "closed",
-			"priority":       "normal",
-			"queue_id":       2,
-			"queue_name":     "Junk",
-			"customer_email": "billing@company.net",
-			"assigned_to":    "Agent Jones",
-			"created_at":     "2024-01-13 14:00",
-			"updated_at":     "2024-01-13 16:00",
-			"has_new_message": false,
-			"sla_status":     "ok",
-			"due_in":         "",
-		},
-	}
-}
 
 // Helper function to sort tickets
 func sortTickets(tickets []gin.H, sortBy string) {
@@ -2344,37 +2620,76 @@ func sortQueues(queues []gin.H, sortBy string) {
 
 // Get queues from database with ticket counts
 func getQueuesWithTicketCounts(status, search string) ([]gin.H, error) {
-	// Normalize inputs once outside the loop for better performance
-	search = strings.TrimSpace(search)
-	searchLower := strings.ToLower(search)
-	hasSearch := search != ""
-	hasStatusFilter := status != "" && status != "all"
-	
-	// Apply filtering to centralized mock data
-	filteredQueues := make([]gin.H, 0, len(mockQueueData)) // Pre-allocate with capacity
-	
-	for _, queue := range mockQueueData {
-		// Status filter
-		if hasStatusFilter {
-			queueStatus := queue["status"].(string)
-			if status != queueStatus {
-				continue
-			}
-		}
-		
-		// Search filter - check both name and comment
-		if hasSearch {
-			queueName := strings.ToLower(queue["name"].(string))
-			queueComment := strings.ToLower(queue["comment"].(string))
-			if !strings.Contains(queueName, searchLower) && !strings.Contains(queueComment, searchLower) {
-				continue
-			}
-		}
-		
-		filteredQueues = append(filteredQueues, queue)
+	db, err := database.GetDB()
+	if err != nil {
+		return nil, fmt.Errorf("database connection required: %w", err)
 	}
 	
-	return filteredQueues, nil
+	// Build query with optional search filter
+	query := `
+		SELECT q.id, q.name, COALESCE(q.comments, '') as comment, q.valid_id,
+		       COUNT(t.id) as ticket_count
+		FROM queue q
+		LEFT JOIN ticket t ON t.queue_id = q.id
+		WHERE 1=1
+	`
+	args := []interface{}{}
+	argCount := 0
+	
+	// Add search filter if provided
+	if search != "" {
+		argCount++
+		query += fmt.Sprintf(" AND (LOWER(q.name) LIKE $%d OR LOWER(COALESCE(q.comments, '')) LIKE $%d)", argCount, argCount)
+		args = append(args, "%"+strings.ToLower(search)+"%")
+	}
+	
+	// Add status filter (active = valid_id=1, inactive = valid_id!=1)
+	if status == "active" {
+		argCount++
+		query += fmt.Sprintf(" AND q.valid_id = $%d", argCount)
+		args = append(args, 1)
+	} else if status == "inactive" {
+		argCount++
+		query += fmt.Sprintf(" AND q.valid_id != $%d", argCount)
+		args = append(args, 1)
+	}
+	
+	query += " GROUP BY q.id, q.name, q.comments, q.valid_id ORDER BY q.id"
+	
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query queues: %w", err)
+	}
+	defer rows.Close()
+	
+	queues := []gin.H{}
+	for rows.Next() {
+		var id int
+		var name, comment string
+		var validID, ticketCount int
+		
+		if err := rows.Scan(&id, &name, &comment, &validID, &ticketCount); err != nil {
+			continue
+		}
+		
+		queueStatus := "active"
+		if validID != 1 {
+			queueStatus = "inactive"
+		}
+		
+		queue := gin.H{
+			"id":           id,
+			"name":         name,
+			"comment":      comment,
+			"ticket_count": ticketCount,
+			"status":       queueStatus,
+			"active":       validID == 1,
+		}
+		
+		queues = append(queues, queue)
+	}
+	
+	return queues, nil
 }
 
 // Helper function to check if client wants JSON response
@@ -2427,6 +2742,7 @@ func renderQueueList(c *gin.Context, queues []gin.H) {
 		// Return full page
 		tmpl, err := loadTemplateForRequest(c, 
 			"templates/layouts/base.html",
+			"templates/components/guru_meditation.html",
 			"templates/pages/queues/list.html",
 			"templates/components/queue_list.html",
 		)
@@ -2581,54 +2897,103 @@ func handleQueueTickets(c *gin.Context) {
 
 // Get queue details with associated tickets
 func getQueueWithTickets(queueID string) (gin.H, error) {
-	// Mock data for testing - matches the database schema
-	mockQueues := map[string]gin.H{
-		"1": {
-			"id":           1,
-			"name":         "Raw",
-			"comment":      "All new tickets are placed in this queue by default",
-			"ticket_count": 2,
-			"status":       "active",
-			"tickets": []gin.H{
-				{"id": 1, "number": "TICKET-001", "title": "Test login issue", "status": "new"},
-				{"id": 3, "number": "TICKET-003", "title": "UI bug report", "status": "new"},
-			},
-		},
-		"2": {
-			"id":           2,
-			"name":         "Junk",
-			"comment":      "Spam and junk emails",
-			"ticket_count": 1,
-			"status":       "active",
-			"tickets": []gin.H{
-				{"id": 2, "number": "TICKET-002", "title": "Database connection problem", "status": "open"},
-			},
-		},
-		"3": {
-			"id":           3,
-			"name":         "Misc",
-			"comment":      "Miscellaneous tickets",
-			"ticket_count": 0,
-			"status":       "active",
-			"tickets":      []gin.H{},
-		},
-		"4": {
-			"id":           4,
-			"name":         "Support",
-			"comment":      "General support requests",
-			"ticket_count": 0,
-			"status":       "active",
-			"tickets":      []gin.H{},
-		},
+	// Get queue details from database
+	db, err := database.GetDB()
+	if err != nil {
+		return nil, fmt.Errorf("database connection required: %w", err)
 	}
 	
-	queue, exists := mockQueues[queueID]
-	if !exists {
-		return nil, fmt.Errorf("queue not found")
+	qID, err := strconv.Atoi(queueID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid queue ID")
 	}
 	
-	return queue, nil
+	// Get queue details
+	var queue struct {
+		ID      int
+		Name    string
+		Comment sql.NullString
+		ValidID int
+	}
+	
+	err = db.QueryRow(`
+		SELECT id, name, comments, valid_id 
+		FROM queue 
+		WHERE id = $1
+	`, qID).Scan(&queue.ID, &queue.Name, &queue.Comment, &queue.ValidID)
+	
+	if err != nil {
+		if err == sql.ErrNoRows {
+			fmt.Printf("DEBUG: Queue %d not found in database\n", qID)
+			return nil, fmt.Errorf("queue not found")
+		}
+		fmt.Printf("DEBUG: Error querying queue %d: %v\n", qID, err)
+		return nil, fmt.Errorf("failed to get queue tickets: %w", err)
+	}
+	
+	fmt.Printf("DEBUG: Found queue %d: %s\n", queue.ID, queue.Name)
+	
+	// Get tickets in this queue
+	rows, err := db.Query(`
+		SELECT id, tn, title, ticket_state_id, ticket_priority_id
+		FROM ticket
+		WHERE queue_id = $1
+		ORDER BY create_time DESC
+		LIMIT 50
+	`, qID)
+	
+	tickets := []gin.H{}
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var ticketID int
+			var ticketNumber, title string
+			var stateID, priorityID int
+			
+			if err := rows.Scan(&ticketID, &ticketNumber, &title, &stateID, &priorityID); err == nil {
+				// Map status
+				statusStr := "new"
+				switch stateID {
+				case 1:
+					statusStr = "new"
+				case 2:
+					statusStr = "open"
+				case 3:
+					statusStr = "pending"
+				case 4:
+					statusStr = "resolved"
+				case 5, 6:
+					statusStr = "closed"
+				}
+				
+				tickets = append(tickets, gin.H{
+					"id":       ticketID,
+					"number":   ticketNumber,
+					"title":    title,
+					"status":   statusStr,
+					"priority": priorityID,
+				})
+			}
+		}
+	}
+	
+	// Build result
+	result := gin.H{
+		"id":           queue.ID,
+		"name":         queue.Name,
+		"comment":      queue.Comment.String,
+		"ticket_count": len(tickets),
+		"status":       "active",
+		"tickets":      tickets,
+	}
+	
+	if queue.ValidID != 1 {
+		result["status"] = "inactive"
+	}
+	
+	return result, nil
 }
+
 
 // Get tickets for a specific queue with filtering and pagination
 func getTicketsForQueue(queueID, status, page, limit string) (gin.H, error) {
@@ -2716,6 +3081,7 @@ func handleQueueDetailPage(c *gin.Context) {
 	
 	tmpl, err := loadTemplateForRequest(c, 
 		"templates/layouts/base.html",
+		"templates/components/guru_meditation.html",
 		"templates/pages/queues/detail.html",
 		"templates/components/queue_detail.html",
 	)
@@ -2764,7 +3130,26 @@ func handleQueuesList(c *gin.Context) {
 	// Get queues data with filtering
 	queues, err := getQueuesWithTicketCounts(status, search)
 	if err != nil {
-		c.String(http.StatusInternalServerError, "Database error: %v", err)
+		// Check if this is an HTMX request or full page load
+		if c.GetHeader("HX-Request") != "" {
+			sendGuruMeditation(c, err, "handleQueuesList:getQueuesWithTicketCounts")
+		} else {
+			// For full page loads, render standalone error page with Guru Meditation
+			tmpl, _ := loadTemplateForRequest(c, "templates/pages/error_guru.html")
+			if tmpl != nil {
+				c.Header("Content-Type", "text/html; charset=utf-8")
+				c.Status(http.StatusInternalServerError)
+				tmpl.ExecuteTemplate(c.Writer, "error_guru", gin.H{
+					"ErrorCode": "00000005.DEADBEEF",
+					"ErrorMessage": err.Error(),
+					"Task": "DATABASE.QUERY",
+					"Location": "handleQueuesList:getQueuesWithTicketCounts",
+					"Timestamp": time.Now().Format("2006-01-02 15:04:05"),
+				})
+			} else {
+				c.String(http.StatusInternalServerError, "Database error: %v", err)
+			}
+		}
 		return
 	}
 	
@@ -2933,42 +3318,54 @@ func validateQueueData(name, systemAddress *string, firstResponseTime, updateTim
 	return nil
 }
 
-// Centralized mock queue data
-var mockQueueData = []gin.H{
-	{"id": 1, "name": "Raw", "comment": "All new tickets are placed in this queue by default", "ticket_count": 2, "status": "active", "active": true},
-	{"id": 2, "name": "Junk", "comment": "Spam and junk emails", "ticket_count": 1, "status": "active", "active": true},
-	{"id": 3, "name": "Misc", "comment": "Miscellaneous tickets", "ticket_count": 0, "status": "active", "active": true},
-	{"id": 4, "name": "Support", "comment": "General support requests", "ticket_count": 3, "status": "active", "active": true},
-}
 
 // Helper function to check if queue name exists
 func queueNameExists(name string, excludeID int) bool {
-	for _, queue := range mockQueueData {
-		if queue["name"].(string) == name && queue["id"].(int) != excludeID {
-			return true
-		}
+	db, err := database.GetDB()
+	if err != nil {
+		return false
 	}
-	return false
+	
+	var count int
+	query := "SELECT COUNT(*) FROM queue WHERE LOWER(name) = LOWER($1) AND id != $2"
+	err = db.QueryRow(query, name, excludeID).Scan(&count)
+	if err != nil {
+		return false
+	}
+	
+	return count > 0
 }
 
-// Helper function to get next queue ID (mock implementation)
+// Helper function to get next queue ID
 func getNextQueueID() int {
-	return 5 // Simple incrementing ID for mock
+	db, err := database.GetDB()
+	if err != nil {
+		return 1
+	}
+	
+	var maxID int
+	err = db.QueryRow("SELECT COALESCE(MAX(id), 0) FROM queue").Scan(&maxID)
+	if err != nil {
+		return 1
+	}
+	
+	return maxID + 1
 }
 
 // Helper function to check if queue has tickets
 func queueHasTickets(queueID int) bool {
-	// Mock implementation - based on our mock data
-	switch queueID {
-	case 1: // Raw queue has 2 tickets
-		return true
-	case 2: // Junk queue has 1 ticket
-		return true
-	case 3, 4: // Misc and Support have no tickets
-		return false
-	default:
+	db, err := database.GetDB()
+	if err != nil {
 		return false
 	}
+	
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM ticket WHERE queue_id = $1", queueID).Scan(&count)
+	if err != nil {
+		return false
+	}
+	
+	return count > 0
 }
 
 // Create Queue API Handler
@@ -3565,23 +3962,35 @@ func handleBulkQueueAction(c *gin.Context) {
 		validIDs = append(validIDs, id)
 	}
 	
-	// Update queue statuses in mock data
-	updated := 0
-	newStatus := "active"
-	if action == "deactivate" {
-		newStatus = "inactive"
+	// Update queue statuses in database
+	db, err := database.GetDB()
+	if err != nil {
+		sendGuruMeditation(c, err, "handleBulkQueueAction:GetDB")
+		return
 	}
 	
-	for _, queue := range mockQueueData {
-		queueID := queue["id"].(int)
-		for _, targetID := range validIDs {
-			if queueID == targetID {
-				queue["status"] = newStatus
-				updated++
-				break
-			}
-		}
+	newValidID := 1 // active
+	if action == "deactivate" {
+		newValidID = 2 // inactive
 	}
+	
+	// Build placeholders for IN clause
+	placeholders := make([]string, len(validIDs))
+	args := make([]interface{}, len(validIDs)+1)
+	args[0] = newValidID
+	for i, id := range validIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
+		args[i+1] = id
+	}
+	
+	query := fmt.Sprintf("UPDATE queue SET valid_id = $1 WHERE id IN (%s)", strings.Join(placeholders, ","))
+	result, err := db.Exec(query, args...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update queues"})
+		return
+	}
+	
+	updated, _ := result.RowsAffected()
 	
 	// Send response with HTMX triggers
 	c.Header("HX-Trigger", `{"queues-updated": true, "show-toast": {"message": "` + fmt.Sprintf("%d queues %sd", updated, action) + `", "type": "success"}}`)
@@ -3638,6 +4047,12 @@ func handleBulkQueueDelete(c *gin.Context) {
 	}
 	
 	// Validate queue IDs and check for tickets
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection required"})
+		return
+	}
+	
 	deleted := 0
 	skipped := []string{}
 	
@@ -3648,32 +4063,35 @@ func handleBulkQueueDelete(c *gin.Context) {
 			return
 		}
 		
-		// Find queue and check for tickets  
-		queueIndex := -1
-		var queueToDelete gin.H
-		for i, queue := range mockQueueData {
-			if queue["id"].(int) == id {
-				queueIndex = i
-				queueToDelete = queue
-				break
-			}
-		}
+		// Check if queue exists and has tickets
+		var queueName string
+		var ticketCount int
+		err = db.QueryRow(`
+			SELECT q.name, COUNT(t.id) 
+			FROM queue q
+			LEFT JOIN ticket t ON t.queue_id = q.id
+			WHERE q.id = $1
+			GROUP BY q.name
+		`, id).Scan(&queueName, &ticketCount)
 		
-		if queueIndex == -1 {
+		if err == sql.ErrNoRows {
 			// Queue doesn't exist - skip silently
 			continue
+		} else if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database query failed"})
+			return
 		}
-		
-		queueName := queueToDelete["name"].(string)
-		ticketCount := queueToDelete["ticket_count"].(int)
 		
 		if ticketCount > 0 {
 			skipped = append(skipped, fmt.Sprintf("%s (contains %d tickets)", queueName, ticketCount))
 		} else {
-			// Actually remove queue from mock data (simulate deletion)
-			// Note: For simplicity, we're not actually removing from the slice in tests
-			// In production, this would delete from the database
-			deleted++
+			// Delete the queue from database
+			_, err = db.Exec("DELETE FROM queue WHERE id = $1", id)
+			if err != nil {
+				skipped = append(skipped, fmt.Sprintf("%s (deletion failed)", queueName))
+			} else {
+				deleted++
+			}
 		}
 	}
 	
@@ -3731,8 +4149,8 @@ const (
 func handleTicketWorkflow(c *gin.Context) {
 	ticketID := c.Param("id")
 	
-	// Get ticket data (mock)
-	ticket := getMockTicketByID(ticketID)
+	// Get ticket data from database
+	ticket := getTicketByID(ticketID)
 	if ticket == nil {
 		c.String(http.StatusNotFound, "Ticket not found")
 		return
@@ -3979,14 +4397,59 @@ func handleTicketAutoTransition(c *gin.Context) {
 
 // Helper functions for workflow
 
-func getMockTicketByID(id string) gin.H {
-	// Return mock ticket data
+func getTicketByID(id string) gin.H {
+	// Get real ticket from database
+	db, err := database.GetDB()
+	if err != nil {
+		// No database, no ticket
+		return nil
+	}
+	
+	ticketID, err := strconv.Atoi(id)
+	if err != nil {
+		return nil
+	}
+	
+	var ticket struct {
+		ID            int
+		TicketNumber  string
+		Title         string
+		TicketStateID int
+	}
+	
+	err = db.QueryRow(`
+		SELECT id, tn, title, ticket_state_id
+		FROM ticket
+		WHERE id = $1
+	`, ticketID).Scan(&ticket.ID, &ticket.TicketNumber, &ticket.Title, &ticket.TicketStateID)
+	
+	if err != nil {
+		return nil
+	}
+	
+	// Map state ID to state string
+	state := "new"
+	switch ticket.TicketStateID {
+	case 1:
+		state = "new"
+	case 2:
+		state = "open"
+	case 3:
+		state = "pending"
+	case 4:
+		state = "resolved"
+	case 5, 6:
+		state = "closed"
+	}
+	
 	return gin.H{
-		"id": id,
-		"state": "open",
-		"title": "Test Ticket",
+		"id":     id,
+		"state":  state,
+		"title":  ticket.Title,
+		"number": ticket.TicketNumber,
 	}
 }
+
 
 // getAvailableTransitions returns possible transitions for a given state
 func getAvailableTransitions(currentState string) []gin.H {
@@ -4843,4 +5306,41 @@ func formatFileSize(size int64) string {
 	default:
 		return fmt.Sprintf("%d bytes", size)
 	}
+}
+
+// sendGuruMeditation sends an Amiga-style Guru Meditation error response
+func sendGuruMeditation(c *gin.Context, err error, location string) {
+	// Generate error code based on error type
+	errorCode := "00000005.0000DEAD" // Default database error
+	
+	if err != nil {
+		if strings.Contains(err.Error(), "connection") {
+			errorCode = "00000005.DEADBEEF" // Connection error
+		} else if strings.Contains(err.Error(), "timeout") {
+			errorCode = "00000005.TIMEOUT0" // Timeout error
+		} else if strings.Contains(err.Error(), "permission") || strings.Contains(err.Error(), "denied") {
+			errorCode = "00000005.NOACCESS" // Permission error
+		}
+	}
+	
+	// Check if this is an HTMX request
+	if c.GetHeader("HX-Request") != "" {
+		// Send HTMX trigger to show Guru Meditation
+		c.Header("HX-Trigger", fmt.Sprintf(`{"show-guru-meditation": {"code": "%s", "message": "%s", "location": "%s"}}`, 
+			errorCode, err.Error(), location))
+		c.Header("HX-Retarget", "body")
+		c.Header("HX-Reswap", "none")
+	}
+	
+	// Send error response
+	c.JSON(http.StatusInternalServerError, gin.H{
+		"error": "Database failure",
+		"guru_meditation": gin.H{
+			"code": errorCode,
+			"message": err.Error(),
+			"location": location,
+			"timestamp": time.Now().Format("2006-01-02 15:04:05"),
+			"task": fmt.Sprintf("%s %s", c.Request.Method, c.Request.URL.Path),
+		},
+	})
 }

@@ -18,6 +18,7 @@ func handleAdminLookups(c *gin.Context) {
 	
 	tmpl, err := loadTemplate(
 		"templates/layouts/base.html",
+		"templates/components/guru_meditation.html",
 		"templates/pages/admin/lookups.html",
 	)
 	if err != nil {

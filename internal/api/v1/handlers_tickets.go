@@ -1,12 +1,15 @@
 package v1
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	. "github.com/gotrs-io/gotrs-ce/internal/api"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
+	"github.com/gotrs-io/gotrs-ce/internal/models"
 )
 
 // handleListTickets returns a paginated list of tickets
@@ -19,64 +22,57 @@ func (router *APIRouter) handleListTickets(c *gin.Context) {
 	queueID := c.Query("queue_id")
 	search := c.Query("search")
 
-	// TODO: Implement actual ticket retrieval with filters
-	// For now, return mock data
-	mockTickets := []gin.H{
-		{
-			"id":             1,
-			"number":         "T-2025-001",
-			"title":          "Sample ticket",
-			"status":         "open",
-			"priority":       "normal",
-			"queue_id":       1,
-			"queue_name":     "General",
-			"assigned_to":    1,
-			"assigned_name":  "John Doe",
-			"customer_email": "customer@example.com",
-			"created_at":     time.Now().Add(-2 * time.Hour).UTC(),
-			"updated_at":     time.Now().Add(-30 * time.Minute).UTC(),
-			"sla_due":        time.Now().Add(4 * time.Hour).UTC(),
-		},
-		{
-			"id":             2,
-			"number":         "T-2025-002",
-			"title":          "Another ticket",
-			"status":         "pending",
-			"priority":       "high",
-			"queue_id":       2,
-			"queue_name":     "Support",
-			"assigned_to":    nil,
-			"assigned_name":  nil,
-			"customer_email": "user@example.com",
-			"created_at":     time.Now().Add(-1 * time.Hour).UTC(),
-			"updated_at":     time.Now().Add(-10 * time.Minute).UTC(),
-			"sla_due":        time.Now().Add(2 * time.Hour).UTC(),
-		},
+	// Get tickets from service
+	ticketService := GetTicketService()
+	request := &models.TicketListRequest{
+		Page:     page,
+		PerPage:  perPage,
+		Status:   status,
+		Priority: priority,
+		QueueID:  queueID,
+		Search:   search,
 	}
-
-	// Apply filters (mock implementation)
-	filteredTickets := mockTickets
-	if status != "" {
-		// Filter by status
+	
+	response, err := ticketService.ListTickets(request)
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Failed to retrieve tickets")
+		return
 	}
-	if priority != "" {
-		// Filter by priority
+	
+	// Convert to API format
+	tickets := []gin.H{}
+	for _, t := range response.Tickets {
+		ticket := gin.H{
+			"id":             t.ID,
+			"number":         t.TicketNumber,
+			"title":          t.Title,
+			"status":         mapTicketState(t.TicketStateID),
+			"priority":       mapTicketPriority(t.TicketPriorityID),
+			"queue_id":       t.QueueID,
+			"queue_name":     fmt.Sprintf("Queue %d", t.QueueID), // TODO: Get actual queue name
+			"customer_email": t.CustomerUserID,
+			"created_at":     t.CreateTime,
+			"updated_at":     t.ChangeTime,
+		}
+		
+		if t.UserID != nil {
+			ticket["assigned_to"] = *t.UserID
+			ticket["assigned_name"] = fmt.Sprintf("User %d", *t.UserID) // TODO: Get actual user name
+		}
+		
+		tickets = append(tickets, ticket)
 	}
-	// ... other filters
-
-	total := len(filteredTickets)
-	totalPages := (total + perPage - 1) / perPage
-
+	
 	pagination := Pagination{
-		Page:       page,
-		PerPage:    perPage,
-		Total:      total,
-		TotalPages: totalPages,
-		HasNext:    page < totalPages,
-		HasPrev:    page > 1,
+		Page:       response.Pagination.Page,
+		PerPage:    response.Pagination.PerPage,
+		Total:      response.Pagination.Total,
+		TotalPages: response.Pagination.TotalPages,
+		HasNext:    response.Pagination.HasNext,
+		HasPrev:    response.Pagination.HasPrev,
 	}
 
-	sendPaginatedResponse(c, filteredTickets, pagination)
+	sendPaginatedResponse(c, tickets, pagination)
 }
 
 // handleCreateTicket creates a new ticket
@@ -548,4 +544,38 @@ func (router *APIRouter) handleBulkMoveQueue(c *gin.Context) {
 		"moved_at":   time.Now().UTC(),
 		"count":      len(bulkRequest.TicketIDs),
 	})
+}
+
+// Helper functions for mapping ticket states and priorities
+
+func mapTicketState(stateID int) string {
+	switch stateID {
+	case 1:
+		return "new"
+	case 2:
+		return "open"
+	case 3:
+		return "pending"
+	case 4:
+		return "resolved"
+	case 5, 6:
+		return "closed"
+	default:
+		return "unknown"
+	}
+}
+
+func mapTicketPriority(priorityID int) string {
+	switch priorityID {
+	case 1:
+		return "low"
+	case 2, 3:
+		return "normal"
+	case 4:
+		return "high"
+	case 5:
+		return "urgent"
+	default:
+		return "normal"
+	}
 }

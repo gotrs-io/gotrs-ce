@@ -50,6 +50,7 @@ func handleTicketEditForm(c *gin.Context) {
 	// Load edit form template
 	tmpl, err := loadTemplate(
 		"templates/layouts/base.html",
+		"templates/components/guru_meditation.html",
 		"templates/pages/tickets/edit.html",
 	)
 	if err != nil {

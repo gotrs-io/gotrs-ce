@@ -18,8 +18,10 @@ import (
 	
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
+	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	"github.com/gotrs-io/gotrs-ce/internal/service"
 	tmpl "github.com/gotrs-io/gotrs-ce/internal/template"
 )
@@ -258,15 +260,17 @@ func filterEmptyStrings(slice []string) []string {
 // getPriorityID converts priority string to ORTS priority ID
 func getPriorityID(priority string) int {
 	priorityMap := map[string]int{
-		"low":    1,
-		"normal": 2,
-		"high":   3,
-		"urgent": 4,
+		"very low":  1,
+		"low":       2,
+		"normal":    3,
+		"high":      4,
+		"very high": 5,
+		"urgent":    5, // Alias for very high
 	}
 	if id, ok := priorityMap[priority]; ok {
 		return id
 	}
-	return 2 // Default to normal
+	return 3 // Default to normal
 }
 
 // getProjectRoot finds the project root directory by looking for go.mod
@@ -1596,7 +1600,8 @@ func handleTicketSearch(c *gin.Context) {
 // Create ticket (HTMX)
 func handleCreateTicket(c *gin.Context) {
 	var req struct {
-		Subject       string `json:"subject" form:"subject" binding:"required"`
+		Title         string `json:"title" form:"title"`         // Accept both title and subject
+		Subject       string `json:"subject" form:"subject"`
 		CustomerEmail string `json:"customer_email" form:"customer_email" binding:"required,email"`
 		CustomerName  string `json:"customer_name" form:"customer_name"`
 		Priority      string `json:"priority" form:"priority"`
@@ -1608,6 +1613,16 @@ func handleCreateTicket(c *gin.Context) {
 	// Bind form data
 	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// Use title if provided, otherwise use subject
+	ticketTitle := req.Title
+	if ticketTitle == "" {
+		ticketTitle = req.Subject
+	}
+	if ticketTitle == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Title or subject is required"})
 		return
 	}
 
@@ -1635,10 +1650,10 @@ func handleCreateTicket(c *gin.Context) {
 	// In a real system, we'd get this from the authenticated user context
 	createdBy := uint(1)
 
-	// Create the ticket model with ORTS-compatible fields
+	// Create the ticket model with OTRS-compatible fields
 	customerEmail := req.CustomerEmail
 	ticket := &models.Ticket{
-		Title:            req.Subject,
+		Title:            ticketTitle,
 		QueueID:          int(queueID),
 		TypeID:           int(typeID),
 		TicketPriorityID: getPriorityID(req.Priority),
@@ -1649,29 +1664,39 @@ func handleCreateTicket(c *gin.Context) {
 		ChangeBy:         int(createdBy),
 	}
 
-	// Get the ticket service and create the ticket
-	ticketService := GetTicketService()
-	if err := ticketService.CreateTicket(ticket); err != nil {
+	// Get the ticket repository directly for real database operations
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+		return
+	}
+	
+	ticketRepo := repository.NewTicketRepository(db)
+	if err := ticketRepo.Create(ticket); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create ticket: " + err.Error()})
 		return
 	}
 
-	// Create the first message (ticket body)
-	message := &service.SimpleTicketMessage{
-		TicketID:    uint(ticket.ID),
-		Body:        req.Body,
-		Subject:     req.Subject,
-		CreatedBy:   createdBy,
-		AuthorName:  req.CustomerName,
-		AuthorEmail: req.CustomerEmail,
-		AuthorType:  "Customer",
-		IsPublic:    true,
-		IsInternal:  false,
+	// Create the first article (ticket body) using the article repository
+	log.Printf("DEBUG: About to create article for ticket ID %d", ticket.ID)
+	articleRepo := repository.NewArticleRepository(db)
+	article := &models.Article{
+		TicketID:             ticket.ID,
+		Subject:              ticketTitle,
+		Body:                 req.Body, // Will be converted to []byte in repository
+		SenderTypeID:         3, // Customer
+		CommunicationChannelID: 1, // Email
+		IsVisibleForCustomer: 1,
+		CreateBy:            int(createdBy),
+		ChangeBy:            int(createdBy),
 	}
 	
-	if err := ticketService.AddMessage(uint(ticket.ID), message); err != nil {
+	log.Printf("DEBUG: Article object created, calling Create...")
+	if err := articleRepo.Create(article); err != nil {
 		// Log error but don't fail the ticket creation
-		fmt.Printf("Warning: Failed to add initial message: %v\n", err)
+		log.Printf("ERROR: Failed to add initial article: %v", err)
+	} else {
+		log.Printf("Successfully created article ID %d for ticket ID %d", article.ID, ticket.ID)
 	}
 	
 	// For HTMX, set the redirect header to the ticket detail page

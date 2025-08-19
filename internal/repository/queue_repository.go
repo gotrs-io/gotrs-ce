@@ -20,35 +20,46 @@ func NewQueueRepository(db *sql.DB) *QueueRepository {
 // GetByID retrieves a queue by ID
 func (r *QueueRepository) GetByID(id uint) (*models.Queue, error) {
 	query := `
-		SELECT id, name, system_address_id, calendar_id, default_sign_key,
-		       salutation_id, signature_id, follow_up_id, follow_up_lock,
-		       unlock_timeout, group_id, email, realname, comment,
-		       valid_id, create_time, create_by, change_time, change_by
+		SELECT id, name, system_address_id, salutation_id, signature_id,
+		       follow_up_id, follow_up_lock, unlock_timeout, group_id,
+		       comments, valid_id, create_time, create_by, change_time, change_by
 		FROM queue
 		WHERE id = $1`
 
 	var queue models.Queue
+	var systemAddressID, salutationID, signatureID sql.NullInt32
+	var comments sql.NullString
+	
 	err := r.db.QueryRow(query, id).Scan(
 		&queue.ID,
 		&queue.Name,
-		&queue.SystemAddressID,
-		&queue.CalendarID,
-		&queue.DefaultSignKey,
-		&queue.SalutationID,
-		&queue.SignatureID,
+		&systemAddressID,
+		&salutationID,
+		&signatureID,
 		&queue.FollowUpID,
 		&queue.FollowUpLock,
 		&queue.UnlockTimeout,
 		&queue.GroupID,
-		&queue.Email,
-		&queue.RealName,
-		&queue.Comment,
+		&comments,
 		&queue.ValidID,
 		&queue.CreateTime,
 		&queue.CreateBy,
 		&queue.ChangeTime,
 		&queue.ChangeBy,
 	)
+	
+	if systemAddressID.Valid {
+		queue.SystemAddressID = int(systemAddressID.Int32)
+	}
+	if salutationID.Valid {
+		queue.SalutationID = int(salutationID.Int32)
+	}
+	if signatureID.Valid {
+		queue.SignatureID = int(signatureID.Int32)
+	}
+	if comments.Valid {
+		queue.Comment = comments.String
+	}
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("queue not found")
@@ -60,35 +71,46 @@ func (r *QueueRepository) GetByID(id uint) (*models.Queue, error) {
 // GetByName retrieves a queue by name
 func (r *QueueRepository) GetByName(name string) (*models.Queue, error) {
 	query := `
-		SELECT id, name, system_address_id, calendar_id, default_sign_key,
-		       salutation_id, signature_id, follow_up_id, follow_up_lock,
-		       unlock_timeout, group_id, email, realname, comment,
-		       valid_id, create_time, create_by, change_time, change_by
+		SELECT id, name, system_address_id, salutation_id, signature_id,
+		       follow_up_id, follow_up_lock, unlock_timeout, group_id,
+		       comments, valid_id, create_time, create_by, change_time, change_by
 		FROM queue
 		WHERE name = $1 AND valid_id = 1`
 
 	var queue models.Queue
+	var systemAddressID, salutationID, signatureID sql.NullInt32
+	var comments sql.NullString
+	
 	err := r.db.QueryRow(query, name).Scan(
 		&queue.ID,
 		&queue.Name,
-		&queue.SystemAddressID,
-		&queue.CalendarID,
-		&queue.DefaultSignKey,
-		&queue.SalutationID,
-		&queue.SignatureID,
+		&systemAddressID,
+		&salutationID,
+		&signatureID,
 		&queue.FollowUpID,
 		&queue.FollowUpLock,
 		&queue.UnlockTimeout,
 		&queue.GroupID,
-		&queue.Email,
-		&queue.RealName,
-		&queue.Comment,
+		&comments,
 		&queue.ValidID,
 		&queue.CreateTime,
 		&queue.CreateBy,
 		&queue.ChangeTime,
 		&queue.ChangeBy,
 	)
+	
+	if systemAddressID.Valid {
+		queue.SystemAddressID = int(systemAddressID.Int32)
+	}
+	if salutationID.Valid {
+		queue.SalutationID = int(salutationID.Int32)
+	}
+	if signatureID.Valid {
+		queue.SignatureID = int(signatureID.Int32)
+	}
+	if comments.Valid {
+		queue.Comment = comments.String
+	}
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("queue '%s' not found", name)
@@ -100,10 +122,9 @@ func (r *QueueRepository) GetByName(name string) (*models.Queue, error) {
 // List retrieves all active queues
 func (r *QueueRepository) List() ([]*models.Queue, error) {
 	query := `
-		SELECT id, name, system_address_id, calendar_id, default_sign_key,
-		       salutation_id, signature_id, follow_up_id, follow_up_lock,
-		       unlock_timeout, group_id, email, realname, comment,
-		       valid_id, create_time, create_by, change_time, change_by
+		SELECT id, name, system_address_id, salutation_id, signature_id,
+		       follow_up_id, follow_up_lock, unlock_timeout, group_id,
+		       comments, valid_id, create_time, create_by, change_time, change_by
 		FROM queue
 		WHERE valid_id = 1
 		ORDER BY name`
@@ -117,21 +138,20 @@ func (r *QueueRepository) List() ([]*models.Queue, error) {
 	var queues []*models.Queue
 	for rows.Next() {
 		var queue models.Queue
+		var systemAddressID, salutationID, signatureID sql.NullInt32
+		var comments sql.NullString
+		
 		err := rows.Scan(
 			&queue.ID,
 			&queue.Name,
-			&queue.SystemAddressID,
-			&queue.CalendarID,
-			&queue.DefaultSignKey,
-			&queue.SalutationID,
-			&queue.SignatureID,
+			&systemAddressID,
+			&salutationID,
+			&signatureID,
 			&queue.FollowUpID,
 			&queue.FollowUpLock,
 			&queue.UnlockTimeout,
 			&queue.GroupID,
-			&queue.Email,
-			&queue.RealName,
-			&queue.Comment,
+			&comments,
 			&queue.ValidID,
 			&queue.CreateTime,
 			&queue.CreateBy,
@@ -141,6 +161,20 @@ func (r *QueueRepository) List() ([]*models.Queue, error) {
 		if err != nil {
 			return nil, err
 		}
+		
+		if systemAddressID.Valid {
+			queue.SystemAddressID = int(systemAddressID.Int32)
+		}
+		if salutationID.Valid {
+			queue.SalutationID = int(salutationID.Int32)
+		}
+		if signatureID.Valid {
+			queue.SignatureID = int(signatureID.Int32)
+		}
+		if comments.Valid {
+			queue.Comment = comments.String
+		}
+		
 		queues = append(queues, &queue)
 	}
 
@@ -151,29 +185,40 @@ func (r *QueueRepository) List() ([]*models.Queue, error) {
 func (r *QueueRepository) Create(queue *models.Queue) error {
 	query := `
 		INSERT INTO queue (
-			name, system_address_id, calendar_id, default_sign_key,
-			salutation_id, signature_id, follow_up_id, follow_up_lock,
-			unlock_timeout, group_id, email, realname, comment,
-			valid_id, create_time, create_by, change_time, change_by
+			name, system_address_id, salutation_id, signature_id,
+			follow_up_id, follow_up_lock, unlock_timeout, group_id,
+			comments, valid_id, create_time, create_by, change_time, change_by
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
 		) RETURNING id`
+
+	var systemAddressID, salutationID, signatureID sql.NullInt32
+	var comments sql.NullString
+	
+	if queue.SystemAddressID > 0 {
+		systemAddressID = sql.NullInt32{Int32: int32(queue.SystemAddressID), Valid: true}
+	}
+	if queue.SalutationID > 0 {
+		salutationID = sql.NullInt32{Int32: int32(queue.SalutationID), Valid: true}
+	}
+	if queue.SignatureID > 0 {
+		signatureID = sql.NullInt32{Int32: int32(queue.SignatureID), Valid: true}
+	}
+	if queue.Comment != "" {
+		comments = sql.NullString{String: queue.Comment, Valid: true}
+	}
 
 	err := r.db.QueryRow(
 		query,
 		queue.Name,
-		queue.SystemAddressID,
-		queue.CalendarID,
-		queue.DefaultSignKey,
-		queue.SalutationID,
-		queue.SignatureID,
+		systemAddressID,
+		salutationID,
+		signatureID,
 		queue.FollowUpID,
 		queue.FollowUpLock,
 		queue.UnlockTimeout,
 		queue.GroupID,
-		queue.Email,
-		queue.RealName,
-		queue.Comment,
+		comments,
 		queue.ValidID,
 		queue.CreateTime,
 		queue.CreateBy,
@@ -190,38 +235,46 @@ func (r *QueueRepository) Update(queue *models.Queue) error {
 		UPDATE queue SET
 			name = $2,
 			system_address_id = $3,
-			calendar_id = $4,
-			default_sign_key = $5,
-			salutation_id = $6,
-			signature_id = $7,
-			follow_up_id = $8,
-			follow_up_lock = $9,
-			unlock_timeout = $10,
-			group_id = $11,
-			email = $12,
-			realname = $13,
-			comment = $14,
-			valid_id = $15,
-			change_time = $16,
-			change_by = $17
+			salutation_id = $4,
+			signature_id = $5,
+			follow_up_id = $6,
+			follow_up_lock = $7,
+			unlock_timeout = $8,
+			group_id = $9,
+			comments = $10,
+			valid_id = $11,
+			change_time = $12,
+			change_by = $13
 		WHERE id = $1`
+
+	var systemAddressID, salutationID, signatureID sql.NullInt32
+	var comments sql.NullString
+	
+	if queue.SystemAddressID > 0 {
+		systemAddressID = sql.NullInt32{Int32: int32(queue.SystemAddressID), Valid: true}
+	}
+	if queue.SalutationID > 0 {
+		salutationID = sql.NullInt32{Int32: int32(queue.SalutationID), Valid: true}
+	}
+	if queue.SignatureID > 0 {
+		signatureID = sql.NullInt32{Int32: int32(queue.SignatureID), Valid: true}
+	}
+	if queue.Comment != "" {
+		comments = sql.NullString{String: queue.Comment, Valid: true}
+	}
 
 	result, err := r.db.Exec(
 		query,
 		queue.ID,
 		queue.Name,
-		queue.SystemAddressID,
-		queue.CalendarID,
-		queue.DefaultSignKey,
-		queue.SalutationID,
-		queue.SignatureID,
+		systemAddressID,
+		salutationID,
+		signatureID,
 		queue.FollowUpID,
 		queue.FollowUpLock,
 		queue.UnlockTimeout,
 		queue.GroupID,
-		queue.Email,
-		queue.RealName,
-		queue.Comment,
+		comments,
 		queue.ValidID,
 		queue.ChangeTime,
 		queue.ChangeBy,

@@ -33,15 +33,11 @@ type TicketPriority struct {
 type Queue struct {
 	ID              uint      `json:"id" db:"id"`
 	Name            string    `json:"name" db:"name"`
-	SystemAddressID *uint     `json:"system_address_id,omitempty" db:"system_address_id"`
-	CalendarID      *uint     `json:"calendar_id,omitempty" db:"calendar_id"`
-	DefaultSignKey  *string   `json:"default_sign_key,omitempty" db:"default_sign_key"`
-	SalutationID    *uint     `json:"salutation_id,omitempty" db:"salutation_id"`
-	SignatureID     *uint     `json:"signature_id,omitempty" db:"signature_id"`
+	SystemAddressID int       `json:"system_address_id,omitempty" db:"system_address_id"`
+	SalutationID    int       `json:"salutation_id,omitempty" db:"salutation_id"`
+	SignatureID     int       `json:"signature_id,omitempty" db:"signature_id"`
 	GroupID         uint      `json:"group_id" db:"group_id"`
-	Email           *string   `json:"email,omitempty" db:"email"`
-	RealName        *string   `json:"realname,omitempty" db:"realname"`
-	Comment         *string   `json:"comment,omitempty" db:"comment"`
+	Comment         string    `json:"comment,omitempty" db:"comments"`
 	UnlockTimeout   int       `json:"unlock_timeout" db:"unlock_timeout"`
 	FollowUpID      int       `json:"follow_up_id" db:"follow_up_id"`
 	FollowUpLock    int       `json:"follow_up_lock" db:"follow_up_lock"`
@@ -90,24 +86,24 @@ type Ticket struct {
 
 // Article represents a message/comment within a ticket
 type Article struct {
-	ID                    int       `json:"id" db:"id"`
-	TicketID              int       `json:"ticket_id" db:"ticket_id"`
-	ArticleTypeID         int       `json:"article_type_id" db:"article_type_id"` // 1=email-external, 2=email-internal, etc.
-	SenderTypeID          int       `json:"sender_type_id" db:"sender_type_id"`   // 1=agent, 2=system, 3=customer
-	CommunicationChannelID int      `json:"communication_channel_id" db:"communication_channel_id"`
-	IsVisibleForCustomer  int       `json:"is_visible_for_customer" db:"is_visible_for_customer"`
-	Subject               string    `json:"subject" db:"subject"`
-	Body                  string    `json:"body" db:"body"`
-	BodyType              string    `json:"body_type" db:"body_type"` // text/plain, text/html
-	TemplateID            *uint     `json:"template_id,omitempty" db:"template_id"` // Track which template was used
-	Charset               string    `json:"charset" db:"charset"`
-	MimeType              string    `json:"mime_type" db:"mime_type"`
-	ContentPath           *string   `json:"content_path,omitempty" db:"content_path"`
-	ValidID               int       `json:"valid_id" db:"valid_id"`
-	CreateTime            time.Time `json:"create_time" db:"create_time"`
-	CreateBy              int       `json:"create_by" db:"create_by"`
-	ChangeTime            time.Time `json:"change_time" db:"change_time"`
-	ChangeBy              int       `json:"change_by" db:"change_by"`
+	ID                    int         `json:"id" db:"id"`
+	TicketID              int         `json:"ticket_id" db:"ticket_id"`
+	ArticleTypeID         int         `json:"article_type_id" db:"article_type_id"` // 1=email-external, 2=email-internal, etc.
+	SenderTypeID          int         `json:"sender_type_id" db:"sender_type_id"`   // 1=agent, 2=system, 3=customer
+	CommunicationChannelID int        `json:"communication_channel_id" db:"communication_channel_id"`
+	IsVisibleForCustomer  int         `json:"is_visible_for_customer" db:"is_visible_for_customer"`
+	Subject               string      `json:"subject" db:"subject"`
+	Body                  interface{} `json:"body" db:"body"` // Can be string or []byte
+	BodyType              string      `json:"body_type" db:"body_type"` // text/plain, text/html
+	TemplateID            *uint       `json:"template_id,omitempty" db:"template_id"` // Track which template was used
+	Charset               string      `json:"charset" db:"charset"`
+	MimeType              string      `json:"mime_type" db:"mime_type"`
+	ContentPath           *string     `json:"content_path,omitempty" db:"content_path"`
+	ValidID               int         `json:"valid_id" db:"valid_id"`
+	CreateTime            time.Time   `json:"create_time" db:"create_time"`
+	CreateBy              int         `json:"create_by" db:"create_by"`
+	ChangeTime            time.Time   `json:"change_time" db:"change_time"`
+	ChangeBy              int         `json:"change_by" db:"change_by"`
 	
 	// Joined fields
 	Ticket      *Ticket       `json:"ticket,omitempty"`

@@ -18,65 +18,97 @@ func NewArticleRepository(db *sql.DB) *ArticleRepository {
 	return &ArticleRepository{db: db}
 }
 
-// Create creates a new article in the database
+// Create creates a new article in the database (OTRS schema compatible)
 func (r *ArticleRepository) Create(article *models.Article) error {
-	article.CreateTime = time.Now()
-	article.ChangeTime = time.Now()
+	now := time.Now()
+	fmt.Printf("DEBUG: Creating article for ticket ID %d\n", article.TicketID)
 	
 	// Set defaults
-	if article.ArticleTypeID == 0 {
-		article.ArticleTypeID = models.ArticleTypeNoteInternal
-	}
 	if article.SenderTypeID == 0 {
-		article.SenderTypeID = models.SenderTypeAgent
+		article.SenderTypeID = 3 // Customer
 	}
 	if article.CommunicationChannelID == 0 {
-		article.CommunicationChannelID = 4 // internal
+		article.CommunicationChannelID = 1 // Email
 	}
-	if article.BodyType == "" {
-		article.BodyType = "text/plain"
-	}
-	if article.Charset == "" {
-		article.Charset = "utf-8"
-	}
-	if article.MimeType == "" {
-		article.MimeType = "text/plain"
-	}
-	if article.ValidID == 0 {
-		article.ValidID = 1
+	if article.IsVisibleForCustomer == 0 {
+		article.IsVisibleForCustomer = 1 // Visible by default
 	}
 	
-	query := `
+	// Begin transaction
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	
+	// Insert into article table
+	articleQuery := `
 		INSERT INTO article (
-			ticket_id, article_type_id, sender_type_id,
+			ticket_id, article_sender_type_id,
 			communication_channel_id, is_visible_for_customer,
-			subject, body, body_type, charset, mime_type,
-			content_path, valid_id,
 			create_time, create_by, change_time, change_by
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-			$11, $12, $13, $14, $15, $16
+			$1, $2, $3, $4, $5, $6, $7, $8
 		) RETURNING id`
 	
-	err := r.db.QueryRow(
-		query,
+	var articleID int
+	err = tx.QueryRow(
+		articleQuery,
 		article.TicketID,
-		article.ArticleTypeID,
 		article.SenderTypeID,
 		article.CommunicationChannelID,
 		article.IsVisibleForCustomer,
-		article.Subject,
-		article.Body,
-		article.BodyType,
-		article.Charset,
-		article.MimeType,
-		article.ContentPath,
-		article.ValidID,
-		article.CreateTime,
+		now,
 		article.CreateBy,
-		article.ChangeTime,
+		now,
 		article.ChangeBy,
-	).Scan(&article.ID)
+	).Scan(&articleID)
+	
+	if err != nil {
+		return err
+	}
+	
+	article.ID = articleID
+	
+	// Insert into article_data_mime table
+	mimeQuery := `
+		INSERT INTO article_data_mime (
+			article_id, a_subject, a_body, a_content_type,
+			incoming_time, create_time, create_by, change_time, change_by
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9
+		)`
+	
+	// Convert body to bytea
+	var bodyBytes []byte
+	if str, ok := article.Body.(string); ok {
+		bodyBytes = []byte(str)
+	} else if bytes, ok := article.Body.([]byte); ok {
+		bodyBytes = bytes
+	} else {
+		bodyBytes = []byte(fmt.Sprintf("%v", article.Body))
+	}
+	
+	contentType := "text/plain; charset=utf-8"
+	if article.MimeType != "" {
+		contentType = article.MimeType
+		if article.Charset != "" {
+			contentType += "; charset=" + article.Charset
+		}
+	}
+	
+	_, err = tx.Exec(
+		mimeQuery,
+		articleID,
+		article.Subject,
+		bodyBytes,
+		contentType,
+		int(now.Unix()),
+		now,
+		article.CreateBy,
+		now,
+		article.ChangeBy,
+	)
 	
 	if err != nil {
 		return err
@@ -88,9 +120,13 @@ func (r *ArticleRepository) Create(article *models.Article) error {
 		SET change_time = $2, change_by = $3
 		WHERE id = $1`
 	
-	_, err = r.db.Exec(updateTicketQuery, article.TicketID, time.Now(), article.CreateBy)
+	_, err = tx.Exec(updateTicketQuery, article.TicketID, now, article.CreateBy)
+	if err != nil {
+		return err
+	}
 	
-	return err
+	// Commit transaction
+	return tx.Commit()
 }
 
 // GetByID retrieves an article by its ID

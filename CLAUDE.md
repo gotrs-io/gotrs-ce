@@ -176,3 +176,19 @@ make up
 - **Make tests flexible for environments** - Tests should handle DB vs fallback data
 - **Use proper test data setup** - Don't assume global state exists
 - **Mock expectations must be flexible** - SQL regex patterns shouldn't be too strict
+
+### Schema Compatibility & Model Alignment (Aug 19, 2025)
+- **Always verify database schema before coding** - Don't assume columns exist
+- **Models must match actual schema** - Queue doesn't have calendar_id, email, realname
+- **Handle nullable columns properly** - Use sql.NullInt32, sql.NullString for optional fields
+- **Test with real database early** - Mock data hides schema mismatches
+- **OTRS compatibility is critical** - Never add columns to existing OTRS tables
+- **Repository pattern saves time** - Centralized query fixes vs scattered updates
+
+### Authentication Security Evolution (Aug 19, 2025)
+- **Started with hardcoded demo credentials** - Quick but insecure
+- **Evolved to environment variables** - Better but still in repository
+- **Final solution: Dynamic generation** - `make synthesize` creates unique secrets per installation
+- **Git history cleanup required** - Use `git filter-branch` to remove historical secrets
+- **Lesson**: Start with dynamic generation from day one, not hardcoded values
+- **Test data belongs in gitignored files** - Never commit even "test" passwords

@@ -57,10 +57,69 @@ func NewSimpleRouter() *gin.Engine {
 		})
 	})
 	apiV1.GET("/queues", func(c *gin.Context) {
+		queueRepo := GetQueueRepository()
+		if queueRepo == nil {
+			c.JSON(500, gin.H{
+				"success": false,
+				"error":   "Queue repository not initialized",
+			})
+			return
+		}
+		
+		queues, err := queueRepo.List()
+		if err != nil {
+			c.JSON(500, gin.H{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+		
+		// Convert to simpler format for API response
+		queueList := make([]gin.H, 0, len(queues))
+		for _, q := range queues {
+			queueList = append(queueList, gin.H{
+				"id":   q.ID,
+				"name": q.Name,
+			})
+		}
+		
 		c.JSON(200, gin.H{
 			"success": true,
-			"message": "Endpoint /api/v1/queues is under construction",
-			"data":    []interface{}{},
+			"data":    queueList,
+		})
+	})
+	apiV1.GET("/priorities", func(c *gin.Context) {
+		priorityRepo := GetPriorityRepository()
+		if priorityRepo == nil {
+			c.JSON(500, gin.H{
+				"success": false,
+				"error":   "Priority repository not initialized",
+			})
+			return
+		}
+		
+		priorities, err := priorityRepo.List()
+		if err != nil {
+			c.JSON(500, gin.H{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+		
+		// Convert to simpler format for API response
+		priorityList := make([]gin.H, 0, len(priorities))
+		for _, p := range priorities {
+			priorityList = append(priorityList, gin.H{
+				"id":   p.ID,
+				"name": p.Name,
+			})
+		}
+		
+		c.JSON(200, gin.H{
+			"success": true,
+			"data":    priorityList,
 		})
 	})
 	apiV1.GET("/search", func(c *gin.Context) {

@@ -12,6 +12,7 @@ import (
 var (
 	ticketRepo        repository.ITicketRepository
 	queueRepo         *repository.QueueRepository
+	priorityRepo      *repository.PriorityRepository
 	userRepo          *repository.UserRepository
 	simpleTicketService *service.SimpleTicketService
 	storageService    service.StorageService
@@ -34,6 +35,7 @@ func InitializeServices() {
 			// Initialize real database repositories
 			ticketRepo = repository.NewTicketRepository(db)
 			queueRepo = repository.NewQueueRepository(db)
+			priorityRepo = repository.NewPriorityRepository(db)
 			userRepo = repository.NewUserRepository(db)
 		}
 		
@@ -85,6 +87,12 @@ func GetLookupService() *service.LookupService {
 func GetQueueRepository() *repository.QueueRepository {
 	InitializeServices()
 	return queueRepo
+}
+
+// GetPriorityRepository returns the singleton priority repository instance
+func GetPriorityRepository() *repository.PriorityRepository {
+	InitializeServices()
+	return priorityRepo
 }
 
 // GetUserRepository returns the singleton user repository instance

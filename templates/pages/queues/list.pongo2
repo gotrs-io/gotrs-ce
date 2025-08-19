@@ -192,3 +192,58 @@
     </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+    // Bulk selection functionality
+    function selectAllQueues() {
+        const selectAll = document.getElementById('select-all-queues');
+        const checkboxes = document.querySelectorAll('input[name="queue-select"]');
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAll.checked;
+        });
+        
+        updateBulkActionsToolbar();
+    }
+    
+    function updateBulkActionsToolbar() {
+        const checkboxes = document.querySelectorAll('input[name="queue-select"]:checked');
+        const toolbar = document.getElementById('bulk-actions-toolbar');
+        
+        if (checkboxes.length > 0) {
+            toolbar.style.display = 'block';
+        } else {
+            toolbar.style.display = 'none';
+        }
+    }
+    
+    function deleteSelectedQueues() {
+        const checkboxes = document.querySelectorAll('input[name="queue-select"]:checked');
+        const queueIds = Array.from(checkboxes).map(cb => cb.value);
+        
+        if (queueIds.length === 0) {
+            alert('Please select at least one queue');
+            return;
+        }
+        
+        if (confirm(`Are you sure you want to delete ${queueIds.length} queue(s)?`)) {
+            // TODO: Implement bulk delete API call
+            console.log('Deleting queues:', queueIds);
+        }
+    }
+    
+    // Event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectAll = document.getElementById('select-all-queues');
+        if (selectAll) {
+            selectAll.addEventListener('change', selectAllQueues);
+        }
+        
+        const checkboxes = document.querySelectorAll('input[name="queue-select"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateBulkActionsToolbar);
+        });
+    });
+</script>
+{% endblock %}

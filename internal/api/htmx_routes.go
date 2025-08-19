@@ -398,7 +398,9 @@ func SetupHTMXRoutes(r *gin.Engine) {
 		// Ticket operations
 		// Note: Specific routes must be registered before parameterized routes
 		api.GET("/tickets", handleTicketsAPI)
+		api.GET("/tickets/filter", handleTicketsAPI)  // Filter uses same handler as list
 		api.GET("/tickets/search", handleTicketSearch)
+		api.GET("/search", handleTicketSearch)  // General search endpoint
 		api.PUT("/tickets/bulk", handleBulkUpdateTickets)
 		api.POST("/tickets", handleCreateTicket)
 		api.PUT("/tickets/:id", handleUpdateTicketEnhanced)
@@ -1126,6 +1128,16 @@ func handleTicketDetail(c *gin.Context) {
 
 // HTMX Login handler
 func handleHTMXLogin(c *gin.Context) {
+	// Handle GET requests (for form display or API testing)
+	if c.Request.Method == "GET" {
+		// Return a simple success response for GET requests
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Login endpoint ready",
+			"method": "Please use POST with email and password",
+		})
+		return
+	}
+	
 	var loginReq struct {
 		Email    string `json:"email" form:"email" binding:"required,email"`
 		Password string `json:"password" form:"password" binding:"required"`

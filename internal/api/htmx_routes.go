@@ -23,7 +23,6 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
-	"github.com/gotrs-io/gotrs-ce/internal/service"
 	tmpl "github.com/gotrs-io/gotrs-ce/internal/template"
 )
 
@@ -1239,46 +1238,50 @@ func handleHTMXLogin(c *gin.Context) {
 		return
 	}
 	
-	// Get auth service
-	authService := GetAuthService()
-	if authService == nil {
-		// Check if demo mode is enabled
-		demoMode := os.Getenv("DEMO_MODE") == "true"
-		if demoMode {
-			// In demo mode, require demo credentials from environment
-			demoEmail := os.Getenv("DEMO_ADMIN_EMAIL")
-			demoPassword := os.Getenv("DEMO_ADMIN_PASSWORD")
-			
-			if demoEmail == "" || demoPassword == "" {
-				// Refuse to start without demo credentials when demo mode is enabled
-				log.Printf("ERROR: Demo mode enabled but DEMO_ADMIN_EMAIL or DEMO_ADMIN_PASSWORD not set")
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Server configuration error: Demo credentials not configured"})
-				return
-			}
-			
-			if loginIdentifier == demoEmail && loginReq.Password == demoPassword {
-				// In demo mode, create a simple demo token
-				// Note: This is only for demo purposes, not secure for production
-				demoToken := "demo_session_" + fmt.Sprintf("%d", time.Now().Unix())
-				c.SetCookie("access_token", demoToken, 86400, "/", "", false, true)
-				
-				c.Header("HX-Redirect", "/dashboard")
-				c.JSON(http.StatusOK, gin.H{
-					"access_token":  demoToken,
-					"refresh_token": "demo_refresh_123",
-					"user": gin.H{
-						"id":         1,
-						"email":      loginIdentifier,
-						"first_name": "Demo",
-						"last_name":  "Admin",
-						"role":       "admin",
-					},
-				})
-				return
-			}
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+	// Check if demo mode is enabled FIRST
+	demoMode := os.Getenv("DEMO_MODE") == "true"
+	log.Printf("Demo mode check: DEMO_MODE=%s, demoMode=%v", os.Getenv("DEMO_MODE"), demoMode)
+	if demoMode {
+		// In demo mode, check demo credentials first
+		demoEmail := os.Getenv("DEMO_ADMIN_EMAIL")
+		demoPassword := os.Getenv("DEMO_ADMIN_PASSWORD")
+		log.Printf("Demo credentials: email=%s, password=%s, loginIdentifier=%s", demoEmail, demoPassword, loginIdentifier)
+		
+		if demoEmail == "" || demoPassword == "" {
+			// Refuse to start without demo credentials when demo mode is enabled
+			log.Printf("ERROR: Demo mode enabled but DEMO_ADMIN_EMAIL or DEMO_ADMIN_PASSWORD not set")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Server configuration error: Demo credentials not configured"})
 			return
 		}
+		
+		if loginIdentifier == demoEmail && loginReq.Password == demoPassword {
+			// In demo mode, create a simple demo token
+			// Note: This is only for demo purposes, not secure for production
+			demoToken := "demo_session_" + fmt.Sprintf("%d", time.Now().Unix())
+			c.SetCookie("access_token", demoToken, 86400, "/", "", false, true)
+			
+			c.Header("HX-Redirect", "/dashboard")
+			c.JSON(http.StatusOK, gin.H{
+				"access_token":  demoToken,
+				"refresh_token": "demo_refresh_123",
+				"user": gin.H{
+					"id":         1,
+					"email":      loginIdentifier,
+					"first_name": "Demo",
+					"last_name":  "Admin",
+					"role":       "admin",
+				},
+			})
+			return
+		}
+		// In demo mode but wrong credentials
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid demo credentials"})
+		return
+	}
+	
+	// Not in demo mode, try real authentication
+	authService := GetAuthService()
+	if authService == nil {
 		// Auth service not available and not in demo mode
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Authentication service unavailable"})
 		return

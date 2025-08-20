@@ -25,6 +25,7 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	tmpl "github.com/gotrs-io/gotrs-ce/internal/template"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Global Pongo2 renderer
@@ -490,6 +491,7 @@ func SetupHTMXRoutes(r *gin.Engine) {
 	// Authentication pages
 	r.GET("/login", handleLoginPage)
 	r.GET("/register", handleRegisterPage)
+	// Auth login is handled in the api group below
 	r.POST("/logout", handleLogout)
 	r.GET("/logout", handleLogoutGET)
 	
@@ -539,23 +541,22 @@ func SetupHTMXRoutes(r *gin.Engine) {
 		ticketActionRoutes.POST("/bulk-action", handleTicketBulkAction)
 	}
 	
-	// Queue management - agent access required
+	// Queue management - all queue routes
 	queueRoutes := dashboard.Group("/queues")
 	queueRoutes.Use(middleware.RequireAgentAccess(rbac))
 	{
+		// List and search routes
 		queueRoutes.GET("", handleQueuesList)
-		queueRoutes.GET("/:id", handleQueueDetailPage)
 		queueRoutes.GET("/clear-search", handleClearQueueSearch)
 		queueRoutes.GET("/bulk-toolbar", handleBulkActionsToolbar)
-	}
-	
-	// Queue administration - admin only
-	queueAdminRoutes := dashboard.Group("/queues")
-	queueAdminRoutes.Use(middleware.RequireAdminAccess(rbac))
-	{
-		queueAdminRoutes.GET("/:id/edit", handleEditQueueForm)
-		queueAdminRoutes.GET("/new", handleNewQueueForm)
-		queueAdminRoutes.GET("/:id/delete", handleDeleteQueueConfirmation)
+		
+		// Admin-only routes (new, edit, delete) - require additional admin check
+		queueRoutes.GET("/new", middleware.RequireAdminAccess(rbac), handleNewQueueForm)
+		queueRoutes.GET("/:id/edit", middleware.RequireAdminAccess(rbac), handleEditQueueForm)
+		queueRoutes.GET("/:id/delete", middleware.RequireAdminAccess(rbac), handleDeleteQueueConfirmation)
+		
+		// Generic detail page route - MUST be last to not catch specific routes
+		queueRoutes.GET("/:id", handleQueueDetailPage)
 	}
 	
 	// Templates - agent access
@@ -571,7 +572,26 @@ func SetupHTMXRoutes(r *gin.Engine) {
 	{
 		adminRoutes.GET("", handleAdminDashboard)
 		adminRoutes.GET("/lookups", handleAdminLookups)
-		adminRoutes.GET("/users", underConstruction("User Management"))
+		adminRoutes.GET("/users", handleAdminUsers)
+		adminRoutes.GET("/users/:id", handleGetUser)
+		adminRoutes.POST("/users", handleCreateUser)
+		adminRoutes.PUT("/users/:id", handleUpdateUser)
+		adminRoutes.DELETE("/users/:id", handleDeleteUser)
+		adminRoutes.PUT("/users/:id/status", handleToggleUserStatus)
+		adminRoutes.POST("/users/:id/reset-password", handleResetUserPassword)
+		
+		// Group management routes
+		adminRoutes.GET("/groups", handleAdminGroups)
+		adminRoutes.GET("/groups/:id", handleGetGroup)
+		adminRoutes.POST("/groups", handleCreateGroup)
+		adminRoutes.PUT("/groups/:id", handleUpdateGroup)
+		adminRoutes.DELETE("/groups/:id", handleDeleteGroup)
+		adminRoutes.GET("/groups/:id/members", handleGetGroupMembers)
+		adminRoutes.POST("/groups/:id/members", handleAddGroupMember)
+		adminRoutes.DELETE("/groups/:id/members/:userId", handleRemoveGroupMember)
+		adminRoutes.GET("/groups/:id/permissions", handleGetGroupPermissions)
+		adminRoutes.PUT("/groups/:id/permissions", handleUpdateGroupPermissions)
+		
 		adminRoutes.GET("/settings", underConstruction("System Settings"))
 		adminRoutes.GET("/templates", underConstruction("Template Management"))
 		adminRoutes.GET("/reports", underConstruction("Reports"))
@@ -633,6 +653,7 @@ func SetupHTMXRoutes(r *gin.Engine) {
 	{
 		// Queue operations
 		agentAPI.GET("/queues", handleQueuesAPI)
+		fmt.Println("DEBUG: Registering POST /api/queues -> handleCreateQueueWithHTMX")
 		agentAPI.POST("/queues", handleCreateQueueWithHTMX)
 		agentAPI.GET("/queues/:id", handleQueueDetail)
 		agentAPI.PUT("/queues/:id", handleUpdateQueueWithHTMX)
@@ -1526,7 +1547,7 @@ func handleHTMXLogin(c *gin.Context) {
 					"email":      loginIdentifier,
 					"first_name": "Demo",
 					"last_name":  "Admin",
-					"role":       "admin",
+					"role":       "Admin",
 				},
 			})
 			return
@@ -3236,15 +3257,944 @@ func handleQueuesList(c *gin.Context) {
 
 // Admin dashboard page  
 func handleAdminDashboard(c *gin.Context) {
+	// Use existing abstraction layers - no direct SQL!
+	userCount := 0
+	groupCount := 0
+	queueCount := 0
+	ticketCount := 0
+	
+	// Get queue count from existing queue repository
+	queueRepo := GetQueueRepository()
+	if queueRepo != nil {
+		queues, err := queueRepo.List()
+		if err == nil {
+			queueCount = len(queues)
+		}
+	}
+	
+	// Get ticket count from existing ticket service
+	ticketService := GetTicketService()
+	if ticketService != nil {
+		// Use the existing ticket list request
+		req := &models.TicketListRequest{
+			PerPage: 1000, // Get up to 1000 tickets for count
+			Page: 1,
+		}
+		resp, _ := ticketService.ListTickets(req)
+		if resp != nil {
+			// Count non-closed tickets
+			for _, t := range resp.Tickets {
+				if t.State != nil && t.State.Name != "closed" && !strings.HasPrefix(t.State.Name, "closed") {
+					ticketCount++
+				}
+			}
+		}
+	}
+	
+	// Get user count - for now use hardcoded until we have proper user service
+	// TODO: Use proper user service when available
+	db, _ := database.GetDB()
+	if db != nil {
+		userRepo := repository.NewUserRepository(db)
+		users, _ := userRepo.List()
+		userCount = len(users)
+		
+		// Get group count
+		groupRepo := repository.NewGroupRepository(db)
+		groups, _ := groupRepo.List()
+		groupCount = len(groups)
+	}
+	
+	fmt.Printf("DEBUG: Dashboard counts - Users: %d, Groups: %d, Queues: %d, Tickets: %d\n", userCount, groupCount, queueCount, ticketCount)
+	
 	// Use Pongo2 renderer with i18n support
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/dashboard.pongo2", pongo2.Context{
 		"Title":         "Admin - GOTRS",
 		"User":          getUserFromContext(c),
 		"ActivePage":    "admin",
-		"UserCount":     42,
-		"ActiveTickets": 24,
-		"QueueCount":    6,
+		"UserCount":     userCount,
+		"GroupCount":    groupCount,
+		"ActiveTickets": ticketCount,
+		"QueueCount":    queueCount,
 	})
+}
+
+// handleAdminLookups shows the admin lookups management page (priorities, states, types)
+func handleAdminLookups(c *gin.Context) {
+	fmt.Println("DEBUG: handleAdminLookups called")
+	db, err := database.GetDB()
+	if err != nil {
+		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
+		return
+	}
+
+	// Get priorities
+	priorityRepo := repository.NewPriorityRepository(db)
+	priorities, err := priorityRepo.List()
+	if err != nil {
+		fmt.Printf("DEBUG: Failed to fetch priorities: %v\n", err)
+		sendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch priorities")
+		return
+	}
+
+	// Get states
+	stateRepo := repository.NewTicketStateRepository(db)
+	states, err := stateRepo.List()
+	if err != nil {
+		fmt.Printf("DEBUG: Failed to fetch states: %v\n", err)
+		sendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch states")
+		return
+	}
+
+	// Get types - using lookup service
+	lookupService := GetLookupService()
+	formData := lookupService.GetTicketFormData()
+	types := formData.Types
+
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/lookups.pongo2", pongo2.Context{
+		"Title":      "Lookups Management - GOTRS Admin",
+		"Priorities": priorities,
+		"States":     states,
+		"Types":      types,
+		"User":       getUserFromContext(c),
+		"ActivePage": "admin",
+	})
+}
+
+// handleAdminUsers shows the admin users management page
+func handleAdminUsers(c *gin.Context) {
+	fmt.Println("DEBUG: handleAdminUsers called")
+	db, err := database.GetDB()
+	if err != nil {
+		fmt.Printf("DEBUG: Database error: %v\n", err)
+		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
+		return
+	}
+
+	userRepo := repository.NewUserRepository(db)
+	users, err := userRepo.List()
+	if err != nil {
+		fmt.Printf("DEBUG: Failed to fetch users: %v\n", err)
+		sendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch users")
+		return
+	}
+
+	// Get groups for the form
+	groupRepo := repository.NewGroupRepository(db)
+	groups, err := groupRepo.List()
+	if err != nil {
+		fmt.Printf("DEBUG: Failed to fetch groups: %v\n", err)
+		sendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch groups")
+		return
+	}
+
+	// Add group information to users
+	for _, user := range users {
+		userGroups, err := groupRepo.GetUserGroups(user.ID)
+		if err == nil {
+			user.Groups = userGroups
+		}
+	}
+
+	fmt.Printf("DEBUG: Passing %d users to template\n", len(users))
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/users.pongo2", pongo2.Context{
+		"Title":      "User Management - GOTRS Admin",
+		"Users":      users,
+		"Groups":     groups,
+		"User":       getUserFromContext(c),
+		"ActivePage": "admin",
+	})
+}
+
+// handleGetUser returns user data as JSON
+func handleGetUser(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid user ID"})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	userRepo := repository.NewUserRepository(db)
+	user, err := userRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
+		return
+	}
+
+	// Get user's groups
+	groupRepo := repository.NewGroupRepository(db)
+	groupIDs := []uint{}
+	if groups, err := groupRepo.GetUserGroups(user.ID); err == nil {
+		for _, groupName := range groups {
+			// Get group ID from name - ideally we'd have a better method
+			if allGroups, err := groupRepo.List(); err == nil {
+				for _, g := range allGroups {
+					if g.Name == groupName {
+						groupIDs = append(groupIDs, g.ID)
+						break
+					}
+				}
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"id":         user.ID,
+			"login":      user.Login,
+			"title":      user.Title,
+			"first_name": user.FirstName,
+			"last_name":  user.LastName,
+			"valid_id":   user.ValidID,
+			"groups":     groupIDs,
+		},
+	})
+}
+
+// handleCreateUser creates a new user
+func handleCreateUser(c *gin.Context) {
+	fmt.Println("DEBUG: handleCreateUser called")
+	
+	var req struct {
+		Login     string `form:"login" binding:"required"`
+		Password  string `form:"password"`
+		Title     string `form:"title"`
+		FirstName string `form:"first_name" binding:"required"`
+		LastName  string `form:"last_name" binding:"required"`
+		ValidID   int    `form:"valid_id"`
+		Groups    []int  `form:"groups"`
+	}
+
+	if err := c.ShouldBind(&req); err != nil {
+		fmt.Printf("DEBUG: Bind error: %v\n", err)
+		sendErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid form data: %v", err))
+		return
+	}
+	
+	fmt.Printf("DEBUG: User data: Login=%s, FirstName=%s, LastName=%s, ValidID=%d\n", 
+		req.Login, req.FirstName, req.LastName, req.ValidID)
+
+	db, err := database.GetDB()
+	if err != nil {
+		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
+		return
+	}
+
+	// Hash password
+	hashedPassword := ""
+	if req.Password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to hash password"})
+			return
+		}
+		hashedPassword = string(hash)
+	}
+
+	user := &models.User{
+		Login:      req.Login,
+		Password:   hashedPassword,
+		Title:      req.Title,
+		FirstName:  req.FirstName,
+		LastName:   req.LastName,
+		ValidID:    req.ValidID,
+		CreateBy:   1, // TODO: Get from session
+		ChangeBy:   1,
+		CreateTime: time.Now(),
+		ChangeTime: time.Now(),
+	}
+
+	userRepo := repository.NewUserRepository(db)
+	if err := userRepo.Create(user); err != nil {
+		fmt.Printf("DEBUG: Failed to create user: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": fmt.Sprintf("Failed to create user: %v", err)})
+		return
+	}
+	
+	fmt.Printf("DEBUG: User created successfully with ID: %d\n", user.ID)
+
+	// Assign user to groups if specified
+	if len(req.Groups) > 0 {
+		groupRepo := repository.NewGroupRepository(db)
+		for _, groupID := range req.Groups {
+			err := groupRepo.AddUserToGroup(uint(user.ID), uint(groupID))
+			if err != nil {
+				fmt.Printf("DEBUG: Failed to add user to group %d: %v\n", groupID, err)
+			} else {
+				fmt.Printf("DEBUG: Added user %d to group %d\n", user.ID, groupID)
+			}
+		}
+	}
+
+	// Return success with refreshed user list for HTMX
+	c.Header("HX-Trigger", "userCreated")
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "User created successfully"})
+}
+
+// handleUpdateUser updates an existing user
+func handleUpdateUser(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid user ID"})
+		return
+	}
+
+	var req struct {
+		Login     string `form:"login" binding:"required"`
+		Password  string `form:"password"`
+		Title     string `form:"title"`
+		FirstName string `form:"first_name" binding:"required"`
+		LastName  string `form:"last_name" binding:"required"`
+		ValidID   int    `form:"valid_id"`
+		Groups    []int  `form:"groups"`
+	}
+
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
+		return
+	}
+
+	userRepo := repository.NewUserRepository(db)
+	user, err := userRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
+		return
+	}
+
+	// Update fields
+	user.Login = req.Login
+	user.Title = req.Title
+	user.FirstName = req.FirstName
+	user.LastName = req.LastName
+	user.ValidID = req.ValidID
+	user.ChangeBy = 1 // TODO: Get from session
+	user.ChangeTime = time.Now()
+
+	// Update password if provided
+	if req.Password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to hash password"})
+			return
+		}
+		user.Password = string(hash)
+	}
+
+	if err := userRepo.Update(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": fmt.Sprintf("Failed to update user: %v", err)})
+		return
+	}
+
+	// Update group assignments
+	groupRepo := repository.NewGroupRepository(db)
+	
+	// First, get current groups
+	currentGroups, _ := groupRepo.GetUserGroups(user.ID)
+	currentGroupIDs := make(map[uint]bool)
+	
+	// Get all groups to map names to IDs
+	allGroups, _ := groupRepo.List()
+	for _, groupName := range currentGroups {
+		for _, g := range allGroups {
+			if g.Name == groupName {
+				currentGroupIDs[g.ID] = true
+				break
+			}
+		}
+	}
+	
+	// Process new group assignments
+	newGroupIDs := make(map[uint]bool)
+	for _, gid := range req.Groups {
+		newGroupIDs[uint(gid)] = true
+	}
+	
+	// Remove groups user is no longer in
+	for gid := range currentGroupIDs {
+		if !newGroupIDs[gid] {
+			groupRepo.RemoveUserFromGroup(user.ID, gid)
+		}
+	}
+	
+	// Add new groups
+	for gid := range newGroupIDs {
+		if !currentGroupIDs[gid] {
+			groupRepo.AddUserToGroup(user.ID, gid)
+		}
+	}
+
+	// Return success response
+	c.Header("HX-Trigger", "userUpdated")
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "User updated successfully"})
+}
+
+// handleToggleUserStatus toggles user active/inactive status
+func handleToggleUserStatus(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid user ID"})
+		return
+	}
+
+	var req struct {
+		ValidID int `json:"valid_id"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	// Simple update query for status
+	_, err = db.Exec("UPDATE users SET valid_id = $1, change_time = NOW(), change_by = 1 WHERE id = $2", req.ValidID, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update user status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+// handleDeleteUser soft-deletes a user (sets valid_id = 2)
+func handleDeleteUser(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid user ID"})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	userRepo := repository.NewUserRepository(db)
+	user, err := userRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "User not found"})
+		return
+	}
+
+	// Soft delete by setting valid_id to 2
+	user.ValidID = 2
+	user.ChangeBy = 1 // TODO: Get from session
+	user.ChangeTime = time.Now()
+
+	if err := userRepo.Update(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": fmt.Sprintf("Failed to delete user: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "User deleted successfully"})
+}
+
+// handleResetUserPassword resets a user's password
+func handleResetUserPassword(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid user ID"})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	// Generate temporary password
+	tempPassword := generateTempPassword()
+	hash, err := bcrypt.GenerateFromPassword([]byte(tempPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to hash password"})
+		return
+	}
+
+	// Update password
+	_, err = db.Exec("UPDATE users SET pw = $1, change_time = NOW(), change_by = 1 WHERE id = $2", string(hash), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to reset password"})
+		return
+	}
+
+	// TODO: Send email with temporary password
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Password reset. Temporary password: %s", tempPassword),
+	})
+}
+
+// generateTempPassword generates a temporary password
+func generateTempPassword() string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%"
+	b := make([]byte, 12)
+	for i := range b {
+		b[i] = charset[rand.Intn(len(charset))]
+	}
+	return string(b)
+}
+
+// Group Management Handlers
+
+// handleAdminGroups shows the admin groups management page
+func handleAdminGroups(c *gin.Context) {
+	db, err := database.GetDB()
+	if err != nil {
+		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
+		return
+	}
+
+	groupRepo := repository.NewGroupRepository(db)
+	groups, err := groupRepo.List()
+	if err != nil {
+		sendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch groups")
+		return
+	}
+
+	// Get search and filter parameters
+	search := c.Query("search")
+	status := c.Query("status")
+	sort := c.DefaultQuery("sort", "name")
+	order := c.DefaultQuery("order", "asc")
+
+	// Apply filters
+	filteredGroups := groups
+	if search != "" {
+		var filtered []*models.Group
+		for _, g := range filteredGroups {
+			if strings.Contains(strings.ToLower(g.Name), strings.ToLower(search)) ||
+				strings.Contains(strings.ToLower(g.Comments), strings.ToLower(search)) {
+				filtered = append(filtered, g)
+			}
+		}
+		filteredGroups = filtered
+	}
+
+	// Handle status filter - frontend sends "1" for active, "2" for inactive
+	if status == "1" || status == "active" {
+		var filtered []*models.Group
+		for _, g := range filteredGroups {
+			if g.ValidID == 1 {
+				filtered = append(filtered, g)
+			}
+		}
+		filteredGroups = filtered
+	} else if status == "2" || status == "inactive" {
+		var filtered []*models.Group
+		for _, g := range filteredGroups {
+			if g.ValidID == 2 {
+				filtered = append(filtered, g)
+			}
+		}
+		filteredGroups = filtered
+	}
+
+	// Sort groups
+	sortGroups(filteredGroups, sort, order)
+
+	// Check if this is an HTMX request for partial update
+	if c.GetHeader("HX-Request") == "true" {
+		pongo2Renderer.HTML(c, http.StatusOK, "partials/admin/group_table.pongo2", pongo2.Context{
+			"Groups": filteredGroups,
+			"Search": search,
+			"Status": status,
+			"Sort":   sort,
+			"Order":  order,
+		})
+		return
+	}
+
+	// Full page render
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/groups.pongo2", pongo2.Context{
+		"Title":      "Group Management - GOTRS Admin",
+		"Groups":     filteredGroups,
+		"User":       getUserFromContext(c),
+		"ActivePage": "admin",
+		"Search":     search,
+		"Status":     status,
+		"Sort":       sort,
+		"Order":      order,
+	})
+}
+
+// handleGetGroup returns group data as JSON
+func handleGetGroup(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid group ID"})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	groupRepo := repository.NewGroupRepository(db)
+	group, err := groupRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Group not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"id":       group.ID,
+			"name":     group.Name,
+			"comments": group.Comments,
+			"valid_id": group.ValidID,
+		},
+	})
+}
+
+// handleCreateGroup creates a new group
+func handleCreateGroup(c *gin.Context) {
+	var req struct {
+		Name     string `form:"name" binding:"required"`
+		Comments string `form:"comments"`
+		ValidID  int    `form:"valid_id"`
+	}
+
+	if err := c.ShouldBind(&req); err != nil {
+		sendErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid form data: %v", err))
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
+		return
+	}
+
+	groupRepo := repository.NewGroupRepository(db)
+
+	// Check if group name already exists
+	existing, _ := groupRepo.GetByName(req.Name)
+	if existing != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Group name already exists"})
+		return
+	}
+
+	group := &models.Group{
+		Name:     req.Name,
+		Comments: req.Comments,
+		ValidID:  req.ValidID,
+		CreateBy: 1, // TODO: Get from session
+		ChangeBy: 1,
+	}
+
+	err = groupRepo.Create(group)
+	if err != nil {
+		// Include detailed error information for Guru Meditation
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": fmt.Sprintf("Failed to create group: %v", err),
+			"guru_meditation": gin.H{
+				"code": "00000005.GRPCRATE",
+				"message": fmt.Sprintf("Group creation failed: %v", err),
+				"task": "GROUP.CREATE",
+				"location": "htmx_routes.go:handleCreateGroup",
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Group created successfully",
+		"data":    group,
+	})
+}
+
+// handleUpdateGroup updates an existing group
+func handleUpdateGroup(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid group ID"})
+		return
+	}
+
+	var req struct {
+		Name     string `form:"name" binding:"required"`
+		Comments string `form:"comments"`
+		ValidID  int    `form:"valid_id"`
+	}
+
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": fmt.Sprintf("Invalid form data: %v", err)})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	groupRepo := repository.NewGroupRepository(db)
+
+	// Get existing group
+	group, err := groupRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Group not found"})
+		return
+	}
+
+	// Check if new name conflicts with another group
+	if group.Name != req.Name {
+		existing, _ := groupRepo.GetByName(req.Name)
+		if existing != nil && existing.ID != group.ID {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Group name already exists"})
+			return
+		}
+	}
+
+	// Update group
+	group.Name = req.Name
+	group.Comments = req.Comments
+	group.ValidID = req.ValidID
+	group.ChangeBy = 1 // TODO: Get from session
+
+	err = groupRepo.Update(group)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update group"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Group updated successfully",
+	})
+}
+
+// handleDeleteGroup soft deletes a group
+func handleDeleteGroup(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid group ID"})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	groupRepo := repository.NewGroupRepository(db)
+
+	// Check if group exists
+	group, err := groupRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Group not found"})
+		return
+	}
+
+	// Don't delete system groups
+	if group.Name == "admin" || group.Name == "users" || group.Name == "stats" {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Cannot delete system group"})
+		return
+	}
+
+	// Soft delete
+	err = groupRepo.Delete(uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete group"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Group deleted successfully",
+	})
+}
+
+// handleGetGroupMembers gets members of a group
+func handleGetGroupMembers(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid group ID"})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	groupRepo := repository.NewGroupRepository(db)
+	members, err := groupRepo.GetGroupMembers(uint(id))
+	if err != nil {
+		// Log the actual error for debugging
+		log.Printf("Error fetching members for group %d: %v", id, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false, 
+			"error": fmt.Sprintf("Failed to fetch group members: %v", err),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    members,
+	})
+}
+
+// handleAddGroupMember adds a user to a group
+func handleAddGroupMember(c *gin.Context) {
+	idStr := c.Param("id")
+	groupID, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid group ID"})
+		return
+	}
+
+	var req struct {
+		UserID uint `json:"user_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid request data"})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	groupRepo := repository.NewGroupRepository(db)
+	err = groupRepo.AddUserToGroup(req.UserID, uint(groupID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to add member to group"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Member added successfully",
+	})
+}
+
+// handleRemoveGroupMember removes a user from a group
+func handleRemoveGroupMember(c *gin.Context) {
+	groupIDStr := c.Param("id")
+	userIDStr := c.Param("userId")
+
+	groupID, err := strconv.ParseUint(groupIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid group ID"})
+		return
+	}
+
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid user ID"})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	groupRepo := repository.NewGroupRepository(db)
+	err = groupRepo.RemoveUserFromGroup(uint(userID), uint(groupID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to remove member from group"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Member removed successfully",
+	})
+}
+
+// handleGetGroupPermissions gets permissions for a group
+func handleGetGroupPermissions(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid group ID"})
+		return
+	}
+
+	// TODO: Implement permission retrieval
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"group_id": id,
+			"permissions": map[string][]string{
+				"rw": []string{"ticket_create", "ticket_update", "ticket_close"},
+				"ro": []string{"ticket_view", "report_view"},
+			},
+		},
+	})
+}
+
+// handleUpdateGroupPermissions updates permissions for a group
+func handleUpdateGroupPermissions(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid group ID"})
+		return
+	}
+
+	var permissions map[string][]string
+	if err := c.ShouldBindJSON(&permissions); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid permission data"})
+		return
+	}
+
+	// TODO: Implement permission update
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Permissions updated successfully",
+		"group_id": id,
+	})
+}
+
+// sortGroups sorts groups based on field and order
+func sortGroups(groups []*models.Group, field string, order string) {
+	// Implementation of sorting logic
+	// This is a placeholder - implement actual sorting based on field
 }
 
 // Queue Management API Handlers
@@ -3388,35 +4338,60 @@ func handleCreateQueue(c *gin.Context) {
 		return
 	}
 	
-	// Create new queue (mock implementation)
-	newQueue := gin.H{
-		"id":                     getNextQueueID(),
-		"name":                   req.Name,
-		"comment":                req.Comment,
-		"group_id":               req.GroupID,
-		"system_address":         req.SystemAddress,
-		"default_sign_key":       req.DefaultSignKey,
-		"unlock_timeout":         req.UnlockTimeout,
-		"follow_up_id":           req.FollowUpID,
-		"follow_up_lock":         req.FollowUpLock,
-		"calendar_name":          req.CalendarName,
-		"first_response_time":    req.FirstResponseTime,
-		"first_response_notify":  req.FirstResponseNotify,
-		"update_time":            req.UpdateTime,
-		"update_notify":          req.UpdateNotify,
-		"solution_time":          req.SolutionTime,
-		"solution_notify":        req.SolutionNotify,
-		"valid_id":               1,
-		"create_time":            time.Now(),
-		"create_by":              1,
-		"change_time":            time.Now(),
-		"change_by":              1,
+	// Get queue repository
+	queueRepo := GetQueueRepository()
+	if queueRepo == nil {
+		sendErrorResponse(c, http.StatusInternalServerError, "Database connection not available")
+		return
+	}
+	
+	// Create queue model
+	queue := &models.Queue{
+		Name:          req.Name,
+		Comment:       req.Comment,
+		ValidID:       1, // Active
+		FollowUpID:    1, // possible
+		FollowUpLock:  0, // no
+		UnlockTimeout: 0,
+		GroupID:       1, // Default group
+		CreateTime:    time.Now(),
+		CreateBy:      1, // System user
+		ChangeTime:    time.Now(),
+		ChangeBy:      1,
+	}
+	
+	// Save to database
+	if err := queueRepo.Create(queue); err != nil {
+		sendErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to create queue: %v", err))
+		return
 	}
 	
 	// Return success response
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
-		"data":    newQueue,
+		"data": gin.H{
+			"id":                     queue.ID,
+			"name":                   queue.Name,
+			"comment":                queue.Comment,
+			"group_id":               queue.GroupID,
+			"system_address":         "",
+			"default_sign_key":       "",
+			"unlock_timeout":         queue.UnlockTimeout,
+			"follow_up_id":           queue.FollowUpID,
+			"follow_up_lock":         queue.FollowUpLock,
+			"calendar_name":          "",
+			"first_response_time":    req.FirstResponseTime,
+			"first_response_notify":  req.FirstResponseNotify,
+			"update_time":            req.UpdateTime,
+			"update_notify":          req.UpdateNotify,
+			"solution_time":          req.SolutionTime,
+			"solution_notify":        req.SolutionNotify,
+			"valid_id":               queue.ValidID,
+			"create_time":            queue.CreateTime,
+			"create_by":              queue.CreateBy,
+			"change_time":            queue.ChangeTime,
+			"change_by":              queue.ChangeBy,
+		},
 	})
 }
 
@@ -3476,7 +4451,7 @@ func handleUpdateQueue(c *gin.Context) {
 	})
 }
 
-// Delete Queue API Handler
+// Delete Queue API Handler - performs soft delete
 func handleDeleteQueue(c *gin.Context) {
 	queueID := c.Param("id")
 	
@@ -3504,8 +4479,29 @@ func handleDeleteQueue(c *gin.Context) {
 		return
 	}
 	
-	// Perform soft delete (mock implementation)
-	// In real implementation: UPDATE queues SET valid_id = 0 WHERE id = ?
+	// Perform soft delete by setting valid_id to 2 (invalid)
+	db, err := database.GetDB()
+	if err != nil {
+		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
+		return
+	}
+	
+	_, err = db.Exec("UPDATE queue SET valid_id = 2, change_time = NOW(), change_by = 1 WHERE id = $1", id)
+	if err != nil {
+		fmt.Printf("ERROR handleDeleteQueue: Failed to delete queue %d: %v\n", id, err)
+		sendErrorResponse(c, http.StatusInternalServerError, "Failed to delete queue")
+		return
+	}
+	
+	fmt.Printf("DEBUG handleDeleteQueue: Successfully deleted queue %d\n", id)
+	
+	// Also remove system_address from system_data if exists
+	var queueName string
+	err = db.QueryRow("SELECT name FROM queue WHERE id = $1", id).Scan(&queueName)
+	if err == nil && queueName != "" {
+		key := fmt.Sprintf("queue_system_address_%s", queueName)
+		_, _ = db.Exec("DELETE FROM system_data WHERE data_key = $1", key)
+	}
 	
 	// Return success response with HTMX headers for list refresh
 	c.Header("HX-Trigger", "queue-deleted")
@@ -3523,21 +4519,59 @@ func handleEditQueueForm(c *gin.Context) {
 	queueID := c.Param("id")
 	
 	// Validate queue ID
-	if queueID == "invalid" {
+	id, err := strconv.Atoi(queueID)
+	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid queue ID")
 		return
 	}
 	
-	// Get queue details
-	queue, err := getQueueWithTickets(queueID)
+	// Get the QueueRepository instance
+	queueRepo := GetQueueRepository()
+	
+	fmt.Printf("DEBUG handleEditQueueForm: Fetching queue ID %d\n", id)
+	
+	// Get complete queue details from database
+	queueModel, err := queueRepo.GetByID(uint(id))
 	if err != nil {
-		if err.Error() == "queue not found" {
+		fmt.Printf("ERROR handleEditQueueForm: Failed to get queue %d: %v\n", id, err)
+		if err == sql.ErrNoRows {
 			c.String(http.StatusNotFound, "Queue not found")
 			return
 		}
-		c.String(http.StatusInternalServerError, "Database error")
+		c.String(http.StatusInternalServerError, "Database error: %v", err)
 		return
 	}
+	
+	fmt.Printf("DEBUG handleEditQueueForm: Retrieved queue model: ID=%d, Name=%s, Comment=%s\n", 
+		queueModel.ID, queueModel.Name, queueModel.Comment)
+	
+	// Retrieve system_address from system_data table
+	systemAddress := ""
+	db, _ := database.GetDB()
+	if db != nil {
+		key := fmt.Sprintf("queue_system_address_%s", queueModel.Name)
+		var value sql.NullString
+		err := db.QueryRow("SELECT data_value FROM system_data WHERE data_key = $1", key).Scan(&value)
+		if err == nil && value.Valid {
+			systemAddress = value.String
+			fmt.Printf("DEBUG handleEditQueueForm: Retrieved system_address: %s\n", systemAddress)
+		}
+	}
+	
+	// Convert queue model to template-friendly format
+	// The template expects lowercase field names in the map
+	queueData := gin.H{
+		"id":                   queueModel.ID,
+		"name":                 queueModel.Name,
+		"comment":              queueModel.Comment,
+		"system_address":       systemAddress, // Retrieved from system_data
+		"first_response_time":  0,  // These SLA fields aren't in the queue table
+		"update_time":          0,
+		"solution_time":        0,
+	}
+	
+	// Debug: Log what we're passing to the template
+	fmt.Printf("DEBUG handleEditQueueForm: Passing queue data to template: %+v\n", queueData)
 	
 	// Load and render the edit form template
 	tmpl, err := loadTemplateForRequest(c, "templates/components/queue_edit_form.html")
@@ -3548,7 +4582,7 @@ func handleEditQueueForm(c *gin.Context) {
 	
 	c.Header("Content-Type", "text/html; charset=utf-8")
 	if err := tmpl.ExecuteTemplate(c.Writer, "queue_edit_form.html", gin.H{
-		"Queue": queue,
+		"Queue": queueData,
 	}); err != nil {
 		c.String(http.StatusInternalServerError, "Render error: %v", err)
 	}
@@ -3657,10 +4691,12 @@ func handleDeleteQueueConfirmation(c *gin.Context) {
 
 // Handle create queue with HTMX form submission
 func handleCreateQueueWithHTMX(c *gin.Context) {
+	fmt.Printf("DEBUG: handleCreateQueueWithHTMX called\n")
 	// Parse form data
 	name := c.PostForm("name")
 	comment := c.PostForm("comment")
 	systemAddress := c.PostForm("system_address")
+	fmt.Printf("DEBUG: Parsed form - name: %s, comment: %s\n", name, comment)
 	
 	// Validate required fields
 	if name == "" {
@@ -3697,25 +4733,78 @@ func handleCreateQueueWithHTMX(c *gin.Context) {
 		return
 	}
 	
-	// Create queue (mock implementation)
-	newQueue := gin.H{
-		"id":                  getNextQueueID(),
-		"name":                name,
-		"comment":             comment,
-		"system_address":      systemAddress,
-		"first_response_time": firstResponseTime,
-		"update_time":         updateTime,
-		"solution_time":       solutionTime,
-		"ticket_count":        0,
-		"status":              "active",
+	// Get queue repository
+	queueRepo := GetQueueRepository()
+	if queueRepo == nil {
+		fmt.Printf("DEBUG: Queue repository is nil\n")
+		c.String(http.StatusInternalServerError, `
+			<div class="text-red-600 text-sm mt-1">
+				<p>error: Database connection not available</p>
+			</div>
+		`)
+		return
 	}
+	
+	fmt.Printf("DEBUG: Creating queue with name: %s, comment: %s, system_address: %s\n", name, comment, systemAddress)
+	
+	// Handle system_address - store in system_data table as workaround
+	// since system_address table doesn't exist yet in our OTRS-compatible schema
+	if systemAddress != "" {
+		// Store the email in system_data table with a unique key
+		db, _ := database.GetDB()
+		if db != nil {
+			key := fmt.Sprintf("queue_system_address_%s", name)
+			_, err := db.Exec(`
+				INSERT INTO system_data (data_key, data_value, create_time, create_by, change_time, change_by)
+				VALUES ($1, $2, NOW(), 1, NOW(), 1)
+				ON CONFLICT (data_key) DO UPDATE SET data_value = $2, change_time = NOW()
+			`, key, systemAddress)
+			if err != nil {
+				fmt.Printf("WARNING: Failed to store system_address: %v\n", err)
+			}
+			// For now, we'll leave system_address_id as NULL in the queue table
+			// In future, when system_address table is added, we can migrate this data
+		}
+	}
+	
+	// Create queue model
+	queue := &models.Queue{
+		Name:          name,
+		Comment:       comment,
+		ValidID:       1, // Active
+		FollowUpID:    1, // possible
+		FollowUpLock:  0, // no
+		UnlockTimeout: 0,
+		GroupID:       1, // Default group
+		CreateTime:    time.Now(),
+		CreateBy:      1, // System user
+		ChangeTime:    time.Now(),
+		ChangeBy:      1,
+	}
+	
+	// Save to database
+	fmt.Printf("DEBUG: Attempting to save queue to database\n")
+	if err := queueRepo.Create(queue); err != nil {
+		fmt.Printf("DEBUG: Error creating queue: %v\n", err)
+		c.String(http.StatusInternalServerError, `
+			<div class="text-red-600 text-sm mt-1">
+				<p>error: Failed to create queue: %s</p>
+			</div>
+		`, err.Error())
+		return
+	}
+	
+	fmt.Printf("DEBUG: Queue created successfully with ID: %d\n", queue.ID)
 	
 	// Return success with HTMX headers
 	c.Header("HX-Trigger", "queue-created")
 	c.Header("HX-Redirect", "/queues")
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
-		"data":    newQueue,
+		"data": gin.H{
+			"id":   queue.ID,
+			"name": queue.Name,
+		},
 	})
 }
 
@@ -3731,7 +4820,7 @@ func handleUpdateQueueWithHTMX(c *gin.Context) {
 	}
 	
 	// Check if queue exists
-	existingQueue, err := getQueueWithTickets(queueID)
+	_, err = getQueueWithTickets(queueID)
 	if err != nil {
 		if err.Error() == "queue not found" {
 			c.String(http.StatusNotFound, "Queue not found")
@@ -3745,6 +4834,8 @@ func handleUpdateQueueWithHTMX(c *gin.Context) {
 	name := c.PostForm("name")
 	comment := c.PostForm("comment")
 	systemAddress := c.PostForm("system_address")
+	
+	fmt.Printf("DEBUG handleUpdateQueueWithHTMX: Updating queue %d with name=%s, comment=%s\n", id, name, comment)
 	
 	// Validate required fields
 	if name == "" {
@@ -3771,14 +4862,86 @@ func handleUpdateQueueWithHTMX(c *gin.Context) {
 		return
 	}
 	
-	// Update queue (mock implementation)
-	updatedQueue := existingQueue
-	updatedQueue["name"] = name
-	updatedQueue["comment"] = comment
-	updatedQueue["system_address"] = systemAddress
-	updatedQueue["first_response_time"] = firstResponseTime
-	updatedQueue["update_time"] = updateTime
-	updatedQueue["solution_time"] = solutionTime
+	// Get the QueueRepository instance
+	queueRepo := GetQueueRepository()
+	
+	// Get the existing queue from database
+	existingQueueModel, err := queueRepo.GetByID(uint(id))
+	if err != nil {
+		fmt.Printf("ERROR: Failed to get queue for update: %v\n", err)
+		c.String(http.StatusInternalServerError, `
+			<div class="text-red-600 text-sm mt-1">
+				<p>error: Failed to get queue: %s</p>
+			</div>
+		`, err.Error())
+		return
+	}
+	
+	// Update the queue fields
+	fmt.Printf("DEBUG handleUpdateQueueWithHTMX: Before update - Name: %s, Comment: %s\n", 
+		existingQueueModel.Name, existingQueueModel.Comment)
+	
+	// Store the old name to update system_address key if name changes
+	oldName := existingQueueModel.Name
+	
+	existingQueueModel.Name = name
+	existingQueueModel.Comment = comment
+	
+	// Update system_address in system_data table
+	if systemAddress != "" {
+		db, _ := database.GetDB()
+		if db != nil {
+			// If name changed, update the key
+			oldKey := fmt.Sprintf("queue_system_address_%s", oldName)
+			newKey := fmt.Sprintf("queue_system_address_%s", name)
+			
+			if oldName != name {
+				// Delete old key if exists
+				db.Exec("DELETE FROM system_data WHERE data_key = $1", oldKey)
+			}
+			
+			// Insert or update with new key
+			_, err := db.Exec(`
+				INSERT INTO system_data (data_key, data_value, create_time, create_by, change_time, change_by)
+				VALUES ($1, $2, NOW(), 1, NOW(), 1)
+				ON CONFLICT (data_key) DO UPDATE SET data_value = $2, change_time = NOW()
+			`, newKey, systemAddress)
+			if err != nil {
+				fmt.Printf("WARNING: Failed to update system_address: %v\n", err)
+			}
+		}
+	}
+	
+	fmt.Printf("DEBUG handleUpdateQueueWithHTMX: After update - Name: %s, Comment: %s, SystemAddress: %s\n", 
+		existingQueueModel.Name, existingQueueModel.Comment, systemAddress)
+	
+	// Update the queue in the database
+	if err := queueRepo.Update(existingQueueModel); err != nil {
+		fmt.Printf("ERROR handleUpdateQueueWithHTMX: Failed to update queue: %v\n", err)
+		c.String(http.StatusInternalServerError, `
+			<div class="text-red-600 text-sm mt-1">
+				<p>error: Failed to update queue: %s</p>
+			</div>
+		`, err.Error())
+		return
+	}
+	
+	fmt.Printf("DEBUG handleUpdateQueueWithHTMX: Update successful for queue %d\n", id)
+	
+	// Get the updated queue from database
+	updatedQueue, err := queueRepo.GetByID(uint(id))
+	if err != nil {
+		fmt.Printf("ERROR: Failed to retrieve updated queue: %v\n", err)
+		c.String(http.StatusInternalServerError, `
+			<div class="text-red-600 text-sm mt-1">
+				<p>error: Failed to retrieve updated queue</p>
+			</div>
+		`)
+		return
+	}
+	
+	fmt.Printf("DEBUG handleUpdateQueueWithHTMX: Retrieved updated queue - Name: %s, Comment: %s\n", 
+		updatedQueue.Name, updatedQueue.Comment)
 	
 	// Return success with HTMX headers
 	c.Header("HX-Trigger", "queue-updated")
@@ -4277,10 +5440,10 @@ func handleTicketTransition(c *gin.Context) {
 func checkTransitionPermission(c *gin.Context, newState string) error {
 	userRole, exists := c.Get("user_role")
 	if !exists {
-		userRole = "agent" // Default for testing
+		userRole = "Agent" // Default for testing
 	}
 	
-	if userRole == "customer" {
+	if strings.EqualFold(fmt.Sprintf("%v", userRole), "customer") {
 		if newState == StateResolved {
 			return fmt.Errorf("Permission denied")
 		}

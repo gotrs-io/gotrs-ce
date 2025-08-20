@@ -82,7 +82,7 @@ make clean                 # Reset everything
 **Ready for Phase 1**: Backend development (JWT auth, RBAC, ticket CRUD)
 
 ## Current Focus
-Building MVP with core ticketing functionality. See ROADMAP.md for timeline.
+Building MVP with core ticketing functionality using TDD methodology. Every UI component must meet the minimum quality bar established by /admin/users. No feature ships without comprehensive testing covering all interaction paths, error scenarios, and accessibility requirements.
 
 ## Troubleshooting
 
@@ -177,6 +177,38 @@ make up
 - **Use proper test data setup** - Don't assume global state exists
 - **Mock expectations must be flexible** - SQL regex patterns shouldn't be too strict
 
+### UI/UX Quality Standards - NEVER GO BELOW THIS BAR (Aug 20, 2025)
+**Pain Point Identified**: Admin Users page took excessive iteration to reach minimum acceptable quality
+**Root Cause**: No TDD for UI/UX, built features piecemeal without comprehensive testing
+
+**MINIMUM ACCEPTABLE STANDARD** (as demonstrated by /admin/users):
+- **Search & Filter**: Real-time search, sortable columns, status/group filters with clear button
+- **Modal Dialogs**: Branded styling, dark mode support, proper padding, Enter key submission
+- **Error Handling**: Friendly messages for database errors, form validation, field focus on errors
+- **Data Persistence**: Search/filter state preserved across modal operations via session storage
+- **CRUD Operations**: Full create, read, update, delete with proper confirmation dialogs
+- **Visual Polish**: Tooltips on all interactive elements, loading indicators, proper spacing
+- **Accessibility**: Keyboard navigation, screen reader support, focus management
+
+**TDD REQUIREMENTS FOR UI FEATURES**:
+1. **Write UI tests FIRST** - Define expected behavior before implementation
+2. **Test all interaction paths** - Search, sort, filter, CRUD, error handling
+3. **Test responsive behavior** - Mobile, tablet, desktop layouts
+4. **Test accessibility** - Keyboard nav, screen readers, ARIA labels
+5. **Test error scenarios** - Network failures, validation errors, duplicate data
+6. **Test state persistence** - Page refresh, navigation, modal operations
+
+**NEVER SHIP WITHOUT**:
+- Search functionality with clear button
+- Sortable columns where applicable  
+- Proper error handling with user-friendly messages
+- Modal dialogs that submit on Enter key
+- Form validation with field highlighting
+- Loading states and success feedback
+- Tooltips explaining all icons/actions
+- Full dark mode support
+- Session state preservation
+
 ### Schema Compatibility & Model Alignment (Aug 19, 2025)
 - **Always verify database schema before coding** - Don't assume columns exist
 - **Models must match actual schema** - Queue doesn't have calendar_id, email, realname
@@ -192,3 +224,40 @@ make up
 - **Git history cleanup required** - Use `git filter-branch` to remove historical secrets
 - **Lesson**: Start with dynamic generation from day one, not hardcoded values
 - **Test data belongs in gitignored files** - Never commit even "test" passwords
+
+### Groups Admin Module - Trust Through Testing (Aug 20, 2025)
+**Critical Failure**: Repeatedly claimed "it works" without testing, user found errors immediately
+**User Quote**: "behaving like a junior intern developer"
+
+**Template Engine Confusion**
+- Mixed Go template syntax (`{{define}}`) with Pongo2 templates
+- Result: "guru_meditation.html Line 1 Col 10 '}}' expected" errors
+- **Lesson**: ALWAYS verify which template engine is in use - Pongo2 ≠ Go templates
+
+**Database Schema Assumptions Kill Trust**  
+- Assumed `users` table had `email` column when it didn't
+- Result: 500 errors on `/admin/groups/{id}/members` after "successful" group creation
+- **Lesson**: NEVER assume database schema. Check actual table structure before writing SQL
+
+**Browser-Specific Selectors Don't Work in Browsers**
+- Used `:has-text()` selector (Playwright/testing library syntax) in production JavaScript
+- Result: `Uncaught SyntaxError: Failed to execute 'querySelector'` - Guru Meditation triggered
+- **Lesson**: Testing framework selectors are NOT valid CSS selectors for browsers
+
+**No Browser Dialogs in Professional Apps**
+- Left browser `confirm()` dialog in "completed" feature
+- User found it immediately: "delete group icon does NOT have sufficiently developed dialog"
+- **Lesson**: NEVER use alert(), confirm(), or prompt(). Every dialog must be branded
+
+**Quality Verification Before Claiming Done**
+- Open browser DevTools and check:
+  - Console tab: Zero errors (no exceptions, no 404s, no warnings)
+  - Network tab: Zero 500 responses, all requests succeed
+  - Application works: Test ALL CRUD operations completely
+  - UI quality: All dialogs branded, loading states, dark mode
+- **Lesson**: "It works" without verification = immediate trust loss
+
+**The Trust Equation**
+- Trust lost in seconds: One untested claim
+- Trust regained in hours: Only through consistent verified quality
+- **Most Bitter Lesson**: User shouldn't be discovering your bugs

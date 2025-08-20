@@ -24,6 +24,7 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
+	"github.com/gotrs-io/gotrs-ce/internal/service"
 	tmpl "github.com/gotrs-io/gotrs-ce/internal/template"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -591,6 +592,13 @@ func SetupHTMXRoutes(r *gin.Engine) {
 		adminRoutes.DELETE("/groups/:id/members/:userId", handleRemoveGroupMember)
 		adminRoutes.GET("/groups/:id/permissions", handleGetGroupPermissions)
 		adminRoutes.PUT("/groups/:id/permissions", handleUpdateGroupPermissions)
+		
+		// Permission management routes (OTRS Role equivalent)
+		adminRoutes.GET("/permissions", handleAdminPermissions)
+		adminRoutes.GET("/permissions/user/:userId", handleGetUserPermissionMatrix)
+		adminRoutes.PUT("/permissions/user/:userId", handleUpdateUserPermissions)
+		adminRoutes.GET("/permissions/group/:groupId", handleGetGroupPermissionMatrix)
+		adminRoutes.POST("/permissions/clone", handleCloneUserPermissions)
 		
 		adminRoutes.GET("/settings", underConstruction("System Settings"))
 		adminRoutes.GET("/templates", underConstruction("Template Management"))
@@ -6505,5 +6513,194 @@ func sendGuruMeditation(c *gin.Context, err error, location string) {
 			"timestamp": time.Now().Format("2006-01-02 15:04:05"),
 			"task": fmt.Sprintf("%s %s", c.Request.Method, c.Request.URL.Path),
 		},
+	})
+}
+// ============================================
+// Permission Management Handlers (OTRS Role equivalent)
+// ============================================
+
+// handleAdminPermissions shows the permission management page
+func handleAdminPermissions(c *gin.Context) {
+	db, err := database.GetDB()
+	if err != nil {
+		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
+		return
+	}
+
+	// Get all users and groups for the matrix view
+	userRepo := repository.NewUserRepository(db)
+	groupRepo := repository.NewGroupRepository(db)
+	permService := service.NewPermissionService(db)
+
+	users, err := userRepo.List()
+	if err != nil {
+		sendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch users")
+		return
+	}
+
+	groups, err := groupRepo.List()
+	if err != nil {
+		sendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch groups")
+		return
+	}
+
+	// Get selected user ID from query param
+	selectedUserID := c.DefaultQuery("user", "1")
+	userID, _ := strconv.ParseUint(selectedUserID, 10, 32)
+	
+	var matrix *service.PermissionMatrix
+	if userID > 0 {
+		matrix, err = permService.GetUserPermissionMatrix(uint(userID))
+		if err != nil {
+			sendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch permissions")
+			return
+		}
+	}
+
+	c.HTML(http.StatusOK, "admin/permissions.pongo2", gin.H{
+		"Users":            users,
+		"Groups":           groups,
+		"SelectedUserID":   userID,
+		"PermissionMatrix": matrix,
+		"PermissionKeys": []string{
+			"ro", "move_into", "create", "note", "owner", "priority", "rw",
+		},
+	})
+}
+
+// handleGetUserPermissionMatrix gets permissions for a specific user
+func handleGetUserPermissionMatrix(c *gin.Context) {
+	userIDStr := c.Param("userId")
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid user ID"})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	permService := service.NewPermissionService(db)
+	matrix, err := permService.GetUserPermissionMatrix(uint(userID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch permissions"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    matrix,
+	})
+}
+
+// handleUpdateUserPermissions updates all permissions for a user
+func handleUpdateUserPermissions(c *gin.Context) {
+	userIDStr := c.Param("userId")
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid user ID"})
+		return
+	}
+
+	// Parse permission data from form
+	permissions := make(map[uint]map[string]bool)
+	
+	// Get all form values
+	if err := c.Request.ParseForm(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid form data"})
+		return
+	}
+
+	// Process each permission checkbox
+	// Format: perm_<groupID>_<permissionKey>
+	for key, values := range c.Request.PostForm {
+		if strings.HasPrefix(key, "perm_") && len(values) > 0 {
+			parts := strings.Split(key, "_")
+			if len(parts) == 3 {
+				groupID, _ := strconv.ParseUint(parts[1], 10, 32)
+				permKey := parts[2]
+				
+				if permissions[uint(groupID)] == nil {
+					permissions[uint(groupID)] = make(map[string]bool)
+				}
+				permissions[uint(groupID)][permKey] = (values[0] == "1" || values[0] == "on")
+			}
+		}
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	permService := service.NewPermissionService(db)
+	if err := permService.UpdateUserPermissions(uint(userID), permissions); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update permissions"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Permissions updated successfully",
+	})
+}
+
+// handleGetGroupPermissionMatrix gets all users' permissions for a group
+func handleGetGroupPermissionMatrix(c *gin.Context) {
+	groupIDStr := c.Param("groupId")
+	groupID, err := strconv.ParseUint(groupIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid group ID"})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	permService := service.NewPermissionService(db)
+	matrix, err := permService.GetGroupPermissionMatrix(uint(groupID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch permissions"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    matrix,
+	})
+}
+
+// handleCloneUserPermissions copies permissions from one user to another
+func handleCloneUserPermissions(c *gin.Context) {
+	sourceUserID, _ := strconv.ParseUint(c.PostForm("source_user_id"), 10, 32)
+	targetUserID, _ := strconv.ParseUint(c.PostForm("target_user_id"), 10, 32)
+
+	if sourceUserID == 0 || targetUserID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid user IDs"})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	permService := service.NewPermissionService(db)
+	if err := permService.CloneUserPermissions(uint(sourceUserID), uint(targetUserID)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to clone permissions"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Permissions cloned successfully",
 	})
 }

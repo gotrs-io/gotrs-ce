@@ -1,4 +1,4 @@
-{% extends "../../layouts/base.pongo2" %}
+{% extends "layouts/base.pongo2" %}
 
 {% block title %}Permission Management{% endblock %}
 
@@ -367,12 +367,16 @@ function savePermissions() {
         return;
     }
     
-    const formData = new FormData();
+    // Collect all checkbox states - build URL-encoded string
+    const params = new URLSearchParams();
+    const checkboxes = document.querySelectorAll('input[type="checkbox"][name^="perm_"]');
+    console.log(`Found ${checkboxes.length} checkboxes`);
     
-    // Collect all checkbox states
-    document.querySelectorAll('input[type="checkbox"][name^="perm_"]').forEach(cb => {
-        formData.append(cb.name, cb.checked ? '1' : '0');
+    checkboxes.forEach(cb => {
+        params.append(cb.name, cb.checked ? '1' : '0');
     });
+    
+    console.log('Sending params:', params.toString());
     
     // Show loading state
     const saveBtn = document.getElementById('saveButton');
@@ -388,13 +392,20 @@ function savePermissions() {
     
     fetch(`/admin/permissions/user/${currentUserId}`, {
         method: 'PUT',
-        body: formData
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: params.toString()
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             showToast('success', 'Permissions saved successfully');
             hasChanges = false;
+            // Reload the page to show updated permissions
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
         } else {
             showToast('error', data.error || 'Failed to save permissions');
         }

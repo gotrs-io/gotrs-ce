@@ -26,14 +26,27 @@ func (r *GroupRepository) CreateGroup(ctx context.Context, group *models.Group) 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if group.ID == "" {
-		group.ID = fmt.Sprintf("group_%d", len(r.groups)+1)
+	// Handle ID as interface{} - convert to string for memory storage
+	var idStr string
+	switch v := group.ID.(type) {
+	case string:
+		idStr = v
+	case int:
+		idStr = fmt.Sprintf("%d", v)
+	default:
+		idStr = fmt.Sprintf("group_%d", len(r.groups)+1)
+		group.ID = idStr
 	}
 	
-	if _, exists := r.groups[group.ID]; exists {
+	if idStr == "" {
+		idStr = fmt.Sprintf("group_%d", len(r.groups)+1)
+		group.ID = idStr
+	}
+	
+	if _, exists := r.groups[idStr]; exists {
 		return fmt.Errorf("group already exists")
 	}
-	r.groups[group.ID] = group
+	r.groups[idStr] = group
 	return nil
 }
 
@@ -72,10 +85,21 @@ func (r *GroupRepository) UpdateGroup(ctx context.Context, group *models.Group) 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, exists := r.groups[group.ID]; !exists {
+	// Handle ID as interface{}
+	var idStr string
+	switch v := group.ID.(type) {
+	case string:
+		idStr = v
+	case int:
+		idStr = fmt.Sprintf("%d", v)
+	default:
+		return fmt.Errorf("invalid group ID type")
+	}
+	
+	if _, exists := r.groups[idStr]; !exists {
 		return fmt.Errorf("group not found")
 	}
-	r.groups[group.ID] = group
+	r.groups[idStr] = group
 	return nil
 }
 

@@ -111,16 +111,15 @@ func (r *UserRepository) GetByLogin(login string) (*models.User, error) {
 func (r *UserRepository) Create(user *models.User) error {
 	query := `
 		INSERT INTO users (
-			login, email, pw, title, first_name, last_name,
+			login, pw, title, first_name, last_name,
 			valid_id, create_time, create_by, change_time, change_by
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 		) RETURNING id`
 
 	err := r.db.QueryRow(
 		query,
 		user.Login,
-		user.Email,
 		user.Password,
 		user.Title,
 		user.FirstName,
@@ -140,21 +139,19 @@ func (r *UserRepository) Update(user *models.User) error {
 	query := `
 		UPDATE users SET
 			login = $2,
-			email = $3,
-			pw = $4,
-			title = $5,
-			first_name = $6,
-			last_name = $7,
-			valid_id = $8,
-			change_time = $9,
-			change_by = $10
+			pw = $3,
+			title = $4,
+			first_name = $5,
+			last_name = $6,
+			valid_id = $7,
+			change_time = $8,
+			change_by = $9
 		WHERE id = $1`
 
 	result, err := r.db.Exec(
 		query,
 		user.ID,
 		user.Login,
-		user.Email,
 		user.Password,
 		user.Title,
 		user.FirstName,
@@ -180,13 +177,12 @@ func (r *UserRepository) Update(user *models.User) error {
 	return nil
 }
 
-// List retrieves all active users
+// List retrieves all users (both active and inactive)
 func (r *UserRepository) List() ([]*models.User, error) {
 	query := `
-		SELECT id, login, email, pw, title, first_name, last_name,
+		SELECT id, login, pw, title, first_name, last_name,
 		       valid_id, create_time, create_by, change_time, change_by
 		FROM users
-		WHERE valid_id = 1
 		ORDER BY last_name, first_name`
 
 	rows, err := r.db.Query(query)
@@ -198,12 +194,12 @@ func (r *UserRepository) List() ([]*models.User, error) {
 	var users []*models.User
 	for rows.Next() {
 		var user models.User
+		var title sql.NullString
 		err := rows.Scan(
 			&user.ID,
 			&user.Login,
-			&user.Email,
 			&user.Password,
-			&user.Title,
+			&title,
 			&user.FirstName,
 			&user.LastName,
 			&user.ValidID,
@@ -214,6 +210,11 @@ func (r *UserRepository) List() ([]*models.User, error) {
 		)
 		if err != nil {
 			return nil, err
+		}
+		
+		// Handle nullable fields
+		if title.Valid {
+			user.Title = title.String
 		}
 		
 		// Set derived fields

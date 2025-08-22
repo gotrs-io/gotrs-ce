@@ -6,6 +6,7 @@ import (
 	"net/http"
 	
 	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/models"
 )
 
 // formatFileSize formats a file size in bytes to a human-readable string
@@ -25,6 +26,56 @@ func formatFileSize(size int64) string {
 		return fmt.Sprintf("%.2f KB", float64(size)/float64(KB))
 	default:
 		return fmt.Sprintf("%d B", size)
+	}
+}
+
+// getUserIDFromContext gets the user ID from the gin context
+func getUserIDFromContext(c *gin.Context) int {
+	// Try to get user from context
+	userInterface, exists := c.Get("user")
+	if !exists {
+		return 1 // Default to admin user
+	}
+	
+	// Try to cast to *models.User
+	if user, ok := userInterface.(*models.User); ok && user != nil {
+		return int(user.ID)
+	}
+	
+	// Try to cast to models.User
+	if user, ok := userInterface.(models.User); ok {
+		return int(user.ID)
+	}
+	
+	return 1 // Default to admin user
+}
+
+// getUserFromContext gets the user from the gin context
+func getUserFromContext(c *gin.Context) *models.User {
+	userInterface, exists := c.Get("user")
+	if !exists {
+		return &models.User{
+			ID:    1,
+			Login: "admin",
+			Email: "admin@localhost",
+		}
+	}
+	
+	// Try to cast to *models.User
+	if user, ok := userInterface.(*models.User); ok {
+		return user
+	}
+	
+	// Try to cast to models.User
+	if user, ok := userInterface.(models.User); ok {
+		return &user
+	}
+	
+	// Return default user
+	return &models.User{
+		ID:    1,
+		Login: "admin",
+		Email: "admin@localhost",
 	}
 }
 

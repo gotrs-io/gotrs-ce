@@ -1,4 +1,4 @@
-{% extends "../../layouts/base.pongo2" %}
+{% extends "layouts/base.pongo2" %}
 
 {% block title %}{{ t("admin.groups") }} - {{ t("app.name") }}{% endblock %}
 
@@ -147,7 +147,7 @@
                         <div class="text-sm font-medium text-gray-900 dark:text-white">
                             {{ group.Name }}
                             {% if group.Name == "admin" or group.Name == "users" or group.Name == "stats" %}
-                            <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-200" title="System group - cannot be deleted">
+                            <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-white" title="System group - cannot be deleted">
                                 System
                             </span>
                             {% endif %}
@@ -164,7 +164,7 @@
                         </a>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        {% if group.ValidID == 1 %}
+                        {% if group.IsActive %}
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-200">
                             {{ t("admin.active") }}
                         </span>
@@ -502,11 +502,11 @@ function showEditGroupModal(groupId) {
     fetch(`/admin/groups/${groupId}`)
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                document.getElementById('groupId').value = data.data.id;
-                document.getElementById('groupName').value = data.data.name;
-                document.getElementById('groupComments').value = data.data.comments || '';
-                document.getElementById('groupStatus').value = data.data.valid_id;
+            if (data.success && data.role) {
+                document.getElementById('groupId').value = data.role.ID;
+                document.getElementById('groupName').value = data.role.Name;
+                document.getElementById('groupComments').value = data.role.Description || '';
+                document.getElementById('groupStatus').value = data.role.IsActive ? 1 : 2;
                 document.getElementById('groupModal').classList.remove('hidden');
                 
                 setTimeout(() => {
@@ -516,7 +516,7 @@ function showEditGroupModal(groupId) {
         })
         .catch(error => {
             console.error('Error fetching group:', error);
-            showToast('error', 'Failed to load group data. Please try again.');
+            showGuruMeditation('Failed to Load Group', 'Unable to fetch group details: ' + error);
             closeGroupModal();
         });
 }
@@ -756,8 +756,8 @@ function showGroupMembers(groupId) {
 }
 
 function showGroupPermissions(groupId) {
-    // TODO: Show permissions modal
-    console.log('Show permissions for group:', groupId);
+    // Redirect to permissions page with group filter
+    window.location.href = `/admin/permissions?group=${groupId}`;
 }
 
 // Handle Enter key in modal
@@ -774,7 +774,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load member counts for each group
     {% for group in Groups %}
-    fetch(`/admin/groups/{{ group.ID }}/members`)
+    fetch(`/admin/groups/{{ group.ID }}/users`)
         .then(response => response.json())
         .then(data => {
             if (data.success && data.data) {
@@ -784,5 +784,23 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => console.error('Error loading members for group {{ group.ID }}:', error));
     {% endfor %}
 });
+
+// Guru Meditation error display (Amiga-style)
+function showGuruMeditation(title, message) {
+    const guru = document.createElement('div');
+    guru.className = 'fixed inset-0 z-50 bg-black flex items-center justify-center';
+    guru.innerHTML = `
+        <div class="text-red-500 font-mono text-center p-8 border-4 border-red-500 bg-black max-w-2xl">
+            <div class="text-4xl mb-4 animate-pulse">Software Failure. Press left mouse button to continue.</div>
+            <div class="text-2xl mb-4">Guru Meditation #00000025.65045338</div>
+            <div class="text-xl mb-4">${title}</div>
+            <div class="text-sm mb-6 text-red-400">${message}</div>
+            <button onclick="this.closest('.fixed').remove()" class="px-6 py-2 bg-red-500 text-white dark:text-gray-900 font-bold hover:bg-red-600">
+                LEFT MOUSE BUTTON
+            </button>
+        </div>
+    `;
+    document.body.appendChild(guru);
+}
 </script>
 {% endblock %}

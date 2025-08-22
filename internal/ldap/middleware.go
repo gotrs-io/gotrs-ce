@@ -115,7 +115,7 @@ func (m *AuthMiddleware) SyncUserMiddleware() gin.HandlerFunc {
 		}
 		
 		// Get current user from context (set by JWT middleware)
-		userInterface, exists := c.Get("user")
+		_, exists := c.Get("user")
 		if !exists {
 			c.Next()
 			return

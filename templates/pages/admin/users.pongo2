@@ -845,8 +845,15 @@ function toggleUserStatus(userId, currentStatus) {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    location.reload();
+                    closeConfirmModal();
+                    setTimeout(() => location.reload(), 100);
+                } else {
+                    showError(data.error || 'Failed to update user status');
                 }
+            })
+            .catch(error => {
+                console.error('Error updating status:', error);
+                showError('Failed to update user status: ' + error);
             });
         },
         'warning'

@@ -241,6 +241,122 @@ make up
 - **CI/CD should use synthesize**: Run synthesize in CI to generate secrets rather than hardcoding test values
 - **This is the way**: Let the application generate its own secure configuration
 
+### FormData vs URLSearchParams - The Permissions Save Bug (Aug 22, 2025)
+**Problem**: "Applying All shows None after refresh" - permissions not saving correctly
+**Root Cause**: FormData with multipart/form-data wasn't sending all checkbox data correctly
+
+**The Real Issue**:
+- JavaScript used FormData to collect checkbox states
+- Backend expected application/x-www-form-urlencoded or had issues parsing multipart
+- Only checkboxes from interacted groups were being sent/processed
+- Result: Clicking "All" for one group, then saving, only sent that group's data
+
+**Debugging Journey**:
+1. Initially thought it was a UI refresh issue - added page reload after save
+2. Added cache control headers thinking it was browser caching
+3. Checked backend permission rules - all working correctly
+4. Added extensive logging - showed only receiving 1 group's data instead of all 10
+5. Finally realized FormData wasn't sending all checkboxes properly
+
+**The Fix**:
+```javascript
+// OLD - Using FormData (broken)
+const formData = new FormData();
+document.querySelectorAll('input[type="checkbox"][name^="perm_"]').forEach(cb => {
+    formData.append(cb.name, cb.checked ? '1' : '0');
+});
+
+// NEW - Using URLSearchParams (working)
+const params = new URLSearchParams();
+document.querySelectorAll('input[type="checkbox"][name^="perm_"]').forEach(cb => {
+    params.append(cb.name, cb.checked ? '1' : '0');
+});
+fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString()
+})
+```
+
+**Lessons Learned**:
+- FormData behavior can be inconsistent with checkboxes
+- Always verify what data is actually being sent (browser DevTools Network tab)
+- URLSearchParams is more reliable for form-like data
+- Explicitly set Content-Type when sending form data
+- Log both what's sent (client) and received (server) when debugging
+
+### Login Page Regression - Translation System & Static Files (Aug 22, 2025)
+**Problem**: Login page broken - required @ symbol, missing goat logo, no dark mode
+**Root Cause**: Multiple issues from template changes
+
+**What Happened**:
+1. Someone changed input type from "text" to "email" (requires @ symbol)
+2. Translation functions `{{ t("...") }}` added but translation files missing
+3. Static file routes pointing to wrong directory (`./web/static` vs `./static`)
+4. Missing goat logo on login page itself
+
+**Translation System Discovery**:
+- Full i18n system exists and is properly configured
+- Falls back to showing translation keys when files missing
+- Better to preserve `{{ t("auth.login") }}` than hardcode "Login"
+- System is ready for future internationalization
+
+**Static Files Fix**:
+```go
+// Wrong
+r.Static("/static", "./web/static")
+// Right  
+r.Static("/static", "./static")
+```
+
+**Lessons Learned**:
+- Don't remove internationalization infrastructure even if not currently used
+- Check static file paths when assets don't load
+- Always test login page after template changes
+- Preserve forward compatibility (keep translation functions)
+
+### Permission Management UI Sync Issues (Aug 22, 2025)
+**Problem**: "Setting permissions to None, but they keep coming back as RO, Create & Owner"
+**Root Cause**: UI not refreshing after save, causing visual state to diverge from database state
+**Initial Misdiagnosis**: Spent time investigating backend logic and permission rules when the backend was working perfectly
+
+**What Actually Happened**:
+1. Backend correctly saved permissions to database
+2. JavaScript sent correct data ('0' for unchecked, '1' for checked)
+3. Database correctly stored the values
+4. BUT: Page didn't refresh after save, so checkboxes remained in old state
+5. User confusion: Visual state didn't match saved state
+
+**The Debugging Journey That Went Wrong**:
+1. Started by checking backend permission rules - working correctly
+2. Checked database values - correct
+3. Checked JavaScript form submission - correct
+4. Checked HTTP requests with curl - working perfectly
+5. Finally realized: Just needed page refresh after save!
+
+**Solution**: 
+```javascript
+// After successful save, reload page to show true state
+setTimeout(() => { window.location.reload(); }, 1000);
+```
+
+**Also Added**:
+- Cache-Control headers to prevent stale data
+- Detailed logging of permission values at each stage
+
+**Lessons Learned**:
+- **Check the obvious first**: If UI doesn't match database, check if UI is refreshing
+- **Trust your logs**: When logs show correct values, the backend is probably fine
+- **User perception is reality**: If UI shows wrong state, users will report bugs even if backend is correct
+- **State synchronization**: Any AJAX save operation should refresh the display to show saved state
+- **Debugging order**: UI refresh → Cache → Frontend JS → Backend logic → Database
+
+**Never Again**:
+- Don't dive deep into backend debugging when curl tests work perfectly
+- Always ensure UI reflects current state after any save operation
+- Add page refresh or dynamic update after AJAX saves
+- Check browser cache headers when data seems "stuck"
+
 ### Test Stabilization Approach (Aug 18, 2025)
 - **Fix compilation errors first** - Can't test if it doesn't build
 - **Address panics before logic errors** - Runtime failures block everything

@@ -178,8 +178,8 @@ func (r *PermissionRepository) SetUserGroupMatrix(userID, groupID uint, permissi
 
 	// Insert new permissions
 	insertQuery := `
-		INSERT INTO user_groups (user_id, group_id, permission_key, permission_value, create_by, change_by)
-		VALUES ($1, $2, $3, $4, $5, $6)`
+		INSERT INTO user_groups (user_id, group_id, permission_key, permission_value, create_time, create_by, change_time, change_by)
+		VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5, CURRENT_TIMESTAMP, $6)`
 
 	stmt, err := tx.Prepare(insertQuery)
 	if err != nil {
@@ -192,7 +192,7 @@ func (r *PermissionRepository) SetUserGroupMatrix(userID, groupID uint, permissi
 		if enabled {
 			value = 1
 		}
-		_, err = stmt.Exec(userID, groupID, permKey, value, userID, userID)
+		_, err = stmt.Exec(userID, groupID, permKey, value, 1, 1) // Using system user (1) for audit fields
 		if err != nil {
 			return fmt.Errorf("failed to insert permission %s: %w", permKey, err)
 		}

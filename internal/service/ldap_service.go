@@ -743,6 +743,7 @@ func (s *LDAPService) syncGroups(conn *ldap.Conn, config *LDAPConfig) (*LDAPSync
 		if existingGroup == nil {
 			// Create new group
 			group := &models.Group{
+				ID:          ldapGroup.Name, // Use name as ID for LDAP groups
 				Name:        ldapGroup.Name,
 				Description: ldapGroup.Description,
 				Type:        models.GroupTypeLDAP,

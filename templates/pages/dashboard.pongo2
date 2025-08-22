@@ -1,4 +1,4 @@
-{% extends "../layouts/base.pongo2" %}
+{% extends "layouts/base.pongo2" %}
 
 {% block title %}{{ t("navigation.dashboard") }} - {{ t("app.name") }}{% endblock %}
 

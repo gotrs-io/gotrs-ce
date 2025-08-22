@@ -1,7 +1,6 @@
 package ldap
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"

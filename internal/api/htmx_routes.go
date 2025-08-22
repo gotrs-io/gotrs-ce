@@ -20,6 +20,7 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	"github.com/gotrs-io/gotrs-ce/internal/service"
 	"github.com/xeonx/timeago"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Global variable to store pongo2 renderer
@@ -237,7 +238,7 @@ func NewPongo2Renderer(templateDir string) *Pongo2Renderer {
 }
 
 // getUserFromContext safely extracts user from Gin context
-func getUserFromContext(c *gin.Context) gin.H {
+func getUserMapForTemplate(c *gin.Context) gin.H {
 	// First try to get the user object
 	if userCtx, ok := c.Get("user"); ok {
 		// Convert the user object to gin.H for template usage
@@ -321,7 +322,7 @@ func sendErrorResponse(c *gin.Context, statusCode int, message string) {
 		pongo2Renderer.HTML(c, statusCode, "pages/error.pongo2", pongo2.Context{
 			"StatusCode": statusCode,
 			"Message":    message,
-			"User":       getUserFromContext(c),
+			"User":       getUserMapForTemplate(c),
 		})
 	} else {
 		// Fallback to plain text if template renderer is not available
@@ -332,7 +333,7 @@ func sendErrorResponse(c *gin.Context, statusCode int, message string) {
 // checkAdmin middleware ensures the user is an admin
 func checkAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		user := getUserFromContext(c)
+		user := getUserMapForTemplate(c)
 		
 		// Check if user is admin based on ID or login
 		if userID, ok := user["ID"].(uint); ok {
@@ -425,9 +426,9 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 	pongo2Renderer = NewPongo2Renderer(templateDir)
 
 	// Serve static files
-	r.Static("/static", "./web/static")
-	r.StaticFile("/favicon.ico", "./web/static/favicon.ico")
-	r.StaticFile("/favicon.svg", "./web/static/favicon.svg")
+	r.Static("/static", "./static")
+	r.StaticFile("/favicon.ico", "./static/favicon.ico")
+	r.StaticFile("/favicon.svg", "./static/favicon.svg")
 
 	// Health check endpoint - comprehensive check
 	r.GET("/health", func(c *gin.Context) {
@@ -537,31 +538,33 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		adminRoutes.GET("/users/:id/edit", handleEditUser)
 		adminRoutes.PUT("/users/:id", handleUpdateUser)
 		adminRoutes.DELETE("/users/:id", handleDeleteUser)
+		adminRoutes.PUT("/users/:id/status", handleUpdateUserStatus)
+		adminRoutes.POST("/users/:id/reset-password", handleResetUserPassword)
 		
-		// Queue management routes
-		adminRoutes.GET("/queues/:id", handleGetQueue)
-		adminRoutes.POST("/queues", handleCreateQueue)
-		adminRoutes.PUT("/queues/:id", handleUpdateQueue)
-		adminRoutes.DELETE("/queues/:id", handleDeleteQueue)
+		// Queue management routes (disabled - handlers not implemented)
+		// adminRoutes.GET("/queues/:id", handleGetQueue)
+		// adminRoutes.POST("/queues", handleCreateQueue)
+		// adminRoutes.PUT("/queues/:id", handleUpdateQueue)
+		// adminRoutes.DELETE("/queues/:id", handleDeleteQueue)
 		
-		// Priority management routes
-		adminRoutes.GET("/priorities/:id", handleGetPriority)
-		adminRoutes.POST("/priorities", handleCreatePriority)
-		adminRoutes.PUT("/priorities/:id", handleUpdatePriority)
-		adminRoutes.DELETE("/priorities/:id", handleDeletePriority)
+		// Priority management routes (disabled - handlers not implemented)
+		// adminRoutes.GET("/priorities/:id", handleGetPriority)
+		// adminRoutes.POST("/priorities", handleCreatePriority)
+		// adminRoutes.PUT("/priorities/:id", handleUpdatePriority)
+		// adminRoutes.DELETE("/priorities/:id", handleDeletePriority)
 		
-		// State management routes
-		adminRoutes.GET("/states", handleAdminStates)
-		adminRoutes.POST("/states/create", handleAdminStateCreate)
-		adminRoutes.POST("/states/:id/update", handleAdminStateUpdate)
-		adminRoutes.POST("/states/:id/delete", handleAdminStateDelete)
-		adminRoutes.GET("/states/types", handleGetStateTypes)
+		// State management routes (disabled - handlers not implemented)
+		// adminRoutes.GET("/states", handleAdminStates)
+		// adminRoutes.POST("/states/create", handleAdminStateCreate)
+		// adminRoutes.POST("/states/:id/update", handleAdminStateUpdate)
+		// adminRoutes.POST("/states/:id/delete", handleAdminStateDelete)
+		// adminRoutes.GET("/states/types", handleGetStateTypes)
 
-		// Type management routes
-		adminRoutes.GET("/types", handleAdminTypes)
-		adminRoutes.POST("/types/create", handleAdminTypeCreate)
-		adminRoutes.POST("/types/:id/update", handleAdminTypeUpdate)
-		adminRoutes.POST("/types/:id/delete", handleAdminTypeDelete)
+		// Type management routes (disabled - handlers not implemented)
+		// adminRoutes.GET("/types", handleAdminTypes)
+		// adminRoutes.POST("/types/create", handleAdminTypeCreate)
+		// adminRoutes.POST("/types/:id/update", handleAdminTypeUpdate)
+		// adminRoutes.POST("/types/:id/delete", handleAdminTypeDelete)
 		
 		// Permission management routes (OTRS Role equivalent)
 		adminRoutes.GET("/permissions", handleAdminPermissions)
@@ -581,10 +584,10 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		adminRoutes.POST("/groups/:id/users", handleAddUserToGroup)
 		adminRoutes.DELETE("/groups/:id/users/:userId", handleRemoveUserFromGroup)
 		
-		// Customer management routes
-		adminRoutes.GET("/customer-users", handleAdminCustomerUsers)
-		adminRoutes.GET("/customer-companies", handleAdminCustomerCompanies)
-		adminRoutes.GET("/customer-user-group", handleAdminCustomerUserGroup)
+		// Customer management routes (disabled - handlers not implemented)
+		// adminRoutes.GET("/customer-users", handleAdminCustomerUsers)
+		// adminRoutes.GET("/customer-companies", handleAdminCustomerCompanies)
+		// adminRoutes.GET("/customer-user-group", handleAdminCustomerUserGroup)
 		
 		adminRoutes.GET("/settings", underConstruction("System Settings"))
 		adminRoutes.GET("/templates", underConstruction("Template Management"))
@@ -692,25 +695,25 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		}
 	}
 	
-	// Lookup data endpoints
+	// Lookup data endpoints (disabled - handlers in lookup_handlers.go.disabled)
 	{
-		protectedAPI.GET("/lookups/queues", handleGetQueues)
-		protectedAPI.GET("/lookups/priorities", handleGetPriorities)
-		protectedAPI.GET("/lookups/types", handleGetTypes)
-		protectedAPI.GET("/lookups/statuses", handleGetStatuses)
-		protectedAPI.GET("/lookups/form-data", handleGetFormData)
-		protectedAPI.GET("/lookups/audit", handleGetAuditLogs)
-		protectedAPI.GET("/lookups/export", handleExportConfiguration)
-		protectedAPI.POST("/lookups/import", handleImportConfiguration)
+		// protectedAPI.GET("/lookups/queues", handleGetQueues)
+		// protectedAPI.GET("/lookups/priorities", handleGetPriorities)
+		// protectedAPI.GET("/lookups/types", handleGetTypes)
+		// protectedAPI.GET("/lookups/statuses", handleGetStatuses)
+		// protectedAPI.GET("/lookups/form-data", handleGetFormData)
+		// protectedAPI.GET("/lookups/audit", handleGetAuditLogs)
+		// protectedAPI.GET("/lookups/export", handleExportConfiguration)
+		// protectedAPI.POST("/lookups/import", handleImportConfiguration)
 		
-		// State CRUD endpoints
-		protectedAPI.GET("/states", handleGetStates)
-		protectedAPI.POST("/states", handleCreateState)
-		protectedAPI.PUT("/states/:id", handleUpdateState)
-		protectedAPI.DELETE("/states/:id", handleDeleteState)
+		// State CRUD endpoints (disabled - handlers not implemented)
+		// protectedAPI.GET("/states", handleGetStates)
+		// protectedAPI.POST("/states", handleCreateState)
+		// protectedAPI.PUT("/states/:id", handleUpdateState)
+		// protectedAPI.DELETE("/states/:id", handleDeleteState)
 		
-		// Type CRUD endpoints
-		protectedAPI.GET("/types", handleGetTypes)
+		// Type CRUD endpoints (some handlers exist in lookup_crud_handlers.go)
+		// protectedAPI.GET("/types", handleGetTypes)
 		protectedAPI.POST("/types", handleCreateType)
 		protectedAPI.PUT("/types/:id", handleUpdateType)
 		protectedAPI.DELETE("/types/:id", handleDeleteType)
@@ -718,13 +721,13 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		// Customer search endpoint for autocomplete
 		protectedAPI.GET("/customers/search", handleCustomerSearch)
 		
-		// Queue CRUD endpoints
-		protectedAPI.GET("/queues", handleGetQueuesAPI)
-		protectedAPI.POST("/queues", handleCreateQueue)
-		protectedAPI.GET("/queues/:id", handleGetQueue)
-		protectedAPI.PUT("/queues/:id", handleUpdateQueue)
-		protectedAPI.DELETE("/queues/:id", handleDeleteQueue)
-		protectedAPI.GET("/queues/:id/details", handleGetQueueDetails)
+		// Queue CRUD endpoints (disabled - handlers not implemented)
+		// protectedAPI.GET("/queues", handleGetQueuesAPI)
+		// protectedAPI.POST("/queues", handleCreateQueue)
+		// protectedAPI.GET("/queues/:id", handleGetQueue)
+		// protectedAPI.PUT("/queues/:id", handleUpdateQueue)
+		// protectedAPI.DELETE("/queues/:id", handleDeleteQueue)
+		// protectedAPI.GET("/queues/:id/details", handleGetQueueDetails)
 		
 		// Priority CRUD endpoints are handled by admin routes
 		// protectedAPI.GET("/priorities/:id", handleGetPriority)
@@ -732,46 +735,46 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		// protectedAPI.PUT("/priorities/:id", handleUpdatePriority)
 		// protectedAPI.DELETE("/priorities/:id", handleDeletePriority)
 		
-		// Customer User CRUD endpoints
-		db, _ := database.GetDB()
-		if db != nil {
-			protectedAPI.GET("/customer-users", handleGetCustomerUsers(db))
-			protectedAPI.GET("/customer-users/:id", handleGetCustomerUser(db))
-			protectedAPI.GET("/customer-users/:id/details", handleGetCustomerUserDetails(db))
-			protectedAPI.POST("/customer-users", handleCreateCustomerUser(db))
-			protectedAPI.PUT("/customer-users/:id", handleUpdateCustomerUser(db))
-			protectedAPI.DELETE("/customer-users/:id", handleDeleteCustomerUser(db))
-			protectedAPI.POST("/customer-users/import", handleImportCustomerUsers(db))
-			// protectedAPI.GET("/customer-companies", handleGetAvailableCompanies(db)) // Removed - duplicate with line 733
-			
-			// Customer User Group assignments
-			protectedAPI.GET("/customer-user-groups/:login", handleGetCustomerUserGroups(db))
-			protectedAPI.POST("/customer-user-groups/:login", handleSaveCustomerUserGroups(db))
-			protectedAPI.GET("/group-customer-users/:id", handleGetGroupCustomerUsers(db))
-			protectedAPI.POST("/group-customer-users/:id", handleSaveGroupCustomerUsers(db))
-		}
+		// Customer User CRUD endpoints (disabled - handlers not implemented)
+		// db, _ := database.GetDB()
+		// if db != nil {
+		//	protectedAPI.GET("/customer-users", handleGetCustomerUsers(db))
+		//	protectedAPI.GET("/customer-users/:id", handleGetCustomerUser(db))
+		//	protectedAPI.GET("/customer-users/:id/details", handleGetCustomerUserDetails(db))
+		//	protectedAPI.POST("/customer-users", handleCreateCustomerUser(db))
+		//	protectedAPI.PUT("/customer-users/:id", handleUpdateCustomerUser(db))
+		//	protectedAPI.DELETE("/customer-users/:id", handleDeleteCustomerUser(db))
+		//	protectedAPI.POST("/customer-users/import", handleImportCustomerUsers(db))
+		//	// protectedAPI.GET("/customer-companies", handleGetAvailableCompanies(db)) // Removed - duplicate with line 733
+		//	
+		//	// Customer User Group assignments
+		//	protectedAPI.GET("/customer-user-groups/:login", handleGetCustomerUserGroups(db))
+		//	protectedAPI.POST("/customer-user-groups/:login", handleSaveCustomerUserGroups(db))
+		//	protectedAPI.GET("/group-customer-users/:id", handleGetGroupCustomerUsers(db))
+		//	protectedAPI.POST("/group-customer-users/:id", handleSaveGroupCustomerUsers(db))
+		// }
 		
-		// Customer Company CRUD endpoints
-		protectedAPI.GET("/customer-companies", handleGetCustomerCompaniesAPI)
-		protectedAPI.POST("/customer-companies", handleCreateCustomerCompanyAPI)
-		protectedAPI.GET("/customer-companies/:id", handleGetCustomerCompanyAPI)
-		protectedAPI.PUT("/customer-companies/:id", handleUpdateCustomerCompanyAPI)
-		protectedAPI.DELETE("/customer-companies/:id", handleDeleteCustomerCompanyAPI)
+		// Customer Company CRUD endpoints (disabled - handlers not implemented)
+		// protectedAPI.GET("/customer-companies", handleGetCustomerCompaniesAPI)
+		// protectedAPI.POST("/customer-companies", handleCreateCustomerCompanyAPI)
+		// protectedAPI.GET("/customer-companies/:id", handleGetCustomerCompanyAPI)
+		// protectedAPI.PUT("/customer-companies/:id", handleUpdateCustomerCompanyAPI)
+		// protectedAPI.DELETE("/customer-companies/:id", handleDeleteCustomerCompanyAPI)
 	}
 	
-	// Template endpoints
+	// Template endpoints (disabled - duplicate handlers in ticket_template_handlers.go)
 	{
-		protectedAPI.GET("/templates", handleGetTemplates)
-		protectedAPI.GET("/templates/:id", handleGetTemplate)
-		protectedAPI.POST("/templates", handleCreateTemplate)
-		protectedAPI.PUT("/templates/:id", handleUpdateTemplate)
-		protectedAPI.DELETE("/templates/:id", handleDeleteTemplate)
-		protectedAPI.GET("/templates/search", handleSearchTemplates)
-		protectedAPI.GET("/templates/categories", handleGetTemplateCategories)
-		protectedAPI.GET("/templates/popular", handleGetPopularTemplates)
-		protectedAPI.POST("/templates/apply", handleApplyTemplate)
-		protectedAPI.GET("/templates/:id/load", handleLoadTemplateIntoForm)
-		protectedAPI.GET("/templates/modal", handleTemplateSelectionModal)
+		// protectedAPI.GET("/templates", handleGetTemplates)
+		// protectedAPI.GET("/templates/:id", handleGetTemplate)
+		// protectedAPI.POST("/templates", handleCreateTemplate)
+		// protectedAPI.PUT("/templates/:id", handleUpdateTemplate)
+		// protectedAPI.DELETE("/templates/:id", handleDeleteTemplate)
+		// protectedAPI.GET("/templates/search", handleSearchTemplates)
+		// protectedAPI.GET("/templates/categories", handleGetTemplateCategories)
+		// protectedAPI.GET("/templates/popular", handleGetPopularTemplates)
+		// protectedAPI.POST("/templates/apply", handleApplyTemplate)
+		// protectedAPI.GET("/templates/:id/load", handleLoadTemplateIntoForm)
+		// protectedAPI.GET("/templates/modal", handleTemplateSelectionModal)
 	}
 	
 	// SSE endpoints (Server-Sent Events for real-time updates)
@@ -795,7 +798,7 @@ func underConstruction(feature string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		pongo2Renderer.HTML(c, http.StatusOK, "pages/under_construction.pongo2", pongo2.Context{
 			"Feature":    feature,
-			"User":       getUserFromContext(c),
+			"User":       getUserMapForTemplate(c),
 			"ActivePage": "admin",
 		})
 	}
@@ -965,7 +968,17 @@ func handleDashboard(c *gin.Context) {
 	
 	// Get recent tickets from database
 	ticketRepo := repository.NewTicketRepository(db)
-	tickets, err := ticketRepo.GetRecent(5) // Get 5 most recent tickets
+	listReq := &models.TicketListRequest{
+		Page:      1,
+		PerPage:   5,
+		SortBy:    "create_time",
+		SortOrder: "desc",
+	}
+	ticketResponse, err := ticketRepo.List(listReq)
+	tickets := []models.Ticket{}
+	if err == nil && ticketResponse != nil {
+		tickets = ticketResponse.Tickets
+	}
 	
 	recentTickets := []gin.H{}
 	if err == nil && tickets != nil {
@@ -1001,7 +1014,7 @@ func handleDashboard(c *gin.Context) {
 		"Title":         "Dashboard - GOTRS",
 		"Stats":         stats,
 		"RecentTickets": recentTickets,
-		"User":          getUserFromContext(c),
+		"User":          getUserMapForTemplate(c),
 		"ActivePage":    "dashboard",
 	})
 }
@@ -1152,7 +1165,7 @@ func handleTickets(c *gin.Context) {
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets.pongo2", pongo2.Context{
 		"Title":          "Tickets - GOTRS",
 		"Tickets":        tickets,
-		"User":           getUserFromContext(c),
+		"User":           getUserMapForTemplate(c),
 		"ActivePage":     "tickets",
 		"Statuses":       states,
 		"Priorities":     priorities,
@@ -1187,7 +1200,7 @@ func handleQueues(c *gin.Context) {
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/queues.pongo2", pongo2.Context{
 		"Title":      "Queues - GOTRS",
 		"Queues":     queues,
-		"User":       getUserFromContext(c),
+		"User":       getUserMapForTemplate(c),
 		"ActivePage": "queues",
 	})
 }
@@ -1219,7 +1232,7 @@ func handleQueueDetail(c *gin.Context) {
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/queue_detail.pongo2", pongo2.Context{
 		"Title":      "Queue: " + queue.Name + " - GOTRS",
 		"Queue":      queue,
-		"User":       getUserFromContext(c),
+		"User":       getUserMapForTemplate(c),
 		"ActivePage": "queues",
 	})
 }
@@ -1274,7 +1287,7 @@ func handleNewTicket(c *gin.Context) {
 	
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/ticket_new.pongo2", pongo2.Context{
 		"Title":      "New Ticket - GOTRS",
-		"User":       getUserFromContext(c),
+		"User":       getUserMapForTemplate(c),
 		"ActivePage": "tickets",
 		"Queues":     queues,
 		"Priorities": priorities,
@@ -1398,14 +1411,14 @@ func handleTicketDetail(c *gin.Context) {
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/ticket_detail.pongo2", pongo2.Context{
 		"Title":      fmt.Sprintf("Ticket %s - GOTRS", ticketID),
 		"Ticket":     ticketData,
-		"User":       getUserFromContext(c),
+		"User":       getUserMapForTemplate(c),
 		"ActivePage": "tickets",
 	})
 }
 
 // handleProfile shows user profile page
 func handleProfile(c *gin.Context) {
-	user := getUserFromContext(c)
+	user := getUserMapForTemplate(c)
 	
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/profile.pongo2", pongo2.Context{
 		"Title":      "Profile - GOTRS",
@@ -1416,7 +1429,7 @@ func handleProfile(c *gin.Context) {
 
 // handleSettings shows settings page
 func handleSettings(c *gin.Context) {
-	user := getUserFromContext(c)
+	user := getUserMapForTemplate(c)
 	
 	// TODO: Load actual user settings from database
 	// For now, use default settings
@@ -1481,7 +1494,17 @@ func handleRecentTickets(c *gin.Context) {
 	}
 	
 	ticketRepo := repository.NewTicketRepository(db)
-	tickets, err := ticketRepo.GetRecent(5)
+	listReq := &models.TicketListRequest{
+		Page:      1,
+		PerPage:   5,
+		SortBy:    "create_time",
+		SortOrder: "desc",
+	}
+	ticketResponse, err := ticketRepo.List(listReq)
+	tickets := []models.Ticket{}
+	if err == nil && ticketResponse != nil {
+		tickets = ticketResponse.Tickets
+	}
 	
 	ticketList := []gin.H{}
 	if err == nil && tickets != nil {
@@ -1889,7 +1912,7 @@ func handleAddTicketNote(c *gin.Context) {
 		TicketID:             ticketIDInt,
 		Subject:              "Note",
 		Body:                 noteData.Content,
-		ArticleSenderTypeID:  1, // Agent
+		SenderTypeID:         1, // Agent
 		CommunicationChannelID: 7, // Note
 		IsVisibleForCustomer: 0,  // Internal note by default
 		CreateBy:            userID,
@@ -2702,7 +2725,7 @@ func handleAdminDashboard(c *gin.Context) {
 		"GroupCount":    groupCount,
 		"ActiveTickets": activeTickets,
 		"QueueCount":    queueCount,
-		"User":          getUserFromContext(c),
+		"User":          getUserMapForTemplate(c),
 		"ActivePage":    "admin",
 	})
 }
@@ -2775,7 +2798,7 @@ func handleAdminUsers(c *gin.Context) {
 		"Search":       search,
 		"StatusFilter": statusFilter,
 		"GroupFilter":  groupFilter,
-		"User":         getUserFromContext(c),
+		"User":         getUserMapForTemplate(c),
 		"ActivePage":   "admin",
 	})
 }
@@ -2795,7 +2818,7 @@ func handleNewUser(c *gin.Context) {
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/user_form.pongo2", pongo2.Context{
 		"Title":      "New User",
 		"Groups":     groups,
-		"User":       getUserFromContext(c),
+		"User":       getUserMapForTemplate(c),
 		"ActivePage": "admin",
 	})
 }
@@ -2890,8 +2913,17 @@ func handleGetUser(c *gin.Context) {
 	groupNames, _ := groupRepo.GetUserGroups(user.ID)
 	
 	c.JSON(http.StatusOK, gin.H{
-		"user":   user,
-		"groups": groupNames,
+		"success": true,
+		"data": gin.H{
+			"id":         user.ID,
+			"login":      user.Login,
+			"title":      user.Title,
+			"first_name": user.FirstName,
+			"last_name":  user.LastName,
+			"email":      user.Email,
+			"valid_id":   user.ValidID,
+			"groups":     groupNames,
+		},
 	})
 }
 
@@ -2926,7 +2958,7 @@ func handleEditUser(c *gin.Context) {
 		"EditUser":   user,
 		"Groups":     groups,
 		"UserGroups": userGroups,
-		"User":       getUserFromContext(c),
+		"User":       getUserMapForTemplate(c),
 		"ActivePage": "admin",
 	})
 }
@@ -3039,6 +3071,108 @@ func handleDeleteUser(c *gin.Context) {
 	})
 }
 
+// handleUpdateUserStatus updates a user's active/inactive status
+func handleUpdateUserStatus(c *gin.Context) {
+	userID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+	
+	var request struct {
+		ValidID int `json:"valid_id"`
+	}
+	
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+		return
+	}
+	
+	userRepo := repository.NewUserRepository(db)
+	user, err := userRepo.GetByID(uint(userID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	
+	user.ValidID = request.ValidID
+	user.ChangeTime = time.Now()
+	user.ChangeBy = int(getUserFromContext(c).ID)
+	
+	if err := userRepo.Update(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user status"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "User status updated successfully",
+	})
+}
+
+// handleResetUserPassword resets a user's password
+func handleResetUserPassword(c *gin.Context) {
+	userID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+	
+	var request struct {
+		Password string `json:"password"`
+	}
+	
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	
+	if request.Password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password is required"})
+		return
+	}
+	
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+		return
+	}
+	
+	userRepo := repository.NewUserRepository(db)
+	user, err := userRepo.GetByID(uint(userID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	
+	// Hash the new password - use bcrypt
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+	
+	user.Password = string(hashedPassword)
+	user.ChangeTime = time.Now()
+	user.ChangeBy = int(getUserFromContext(c).ID)
+	
+	if err := userRepo.Update(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reset password"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Password reset successfully",
+	})
+}
+
 // handleAdminGroups shows the admin groups page
 func handleAdminGroups(c *gin.Context) {
 	db, err := database.GetDB()
@@ -3058,7 +3192,8 @@ func handleAdminGroups(c *gin.Context) {
 	var groupList []gin.H
 	for _, group := range groups {
 		// Get member count for each group
-		members, _ := groupRepo.GetGroupMembers(group.ID)
+		groupIDUint, _ := group.ID.(uint)
+		members, _ := groupRepo.GetGroupMembers(groupIDUint)
 		memberCount := len(members)
 		
 		groupList = append(groupList, gin.H{
@@ -3066,15 +3201,16 @@ func handleAdminGroups(c *gin.Context) {
 			"Name":        group.Name,
 			"Description": group.Comments,
 			"MemberCount": memberCount,
+			"ValidID":     group.ValidID,
 			"IsActive":    group.ValidID == 1,
 			"IsSystem":    group.Name == "admin" || group.Name == "users" || group.Name == "stats",
-			"CreateTime":  group.CreateTime.Format("2006-01-02 15:04"),
+			"CreateTime":  group.CreateTime,
 		})
 	}
 	
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/groups.pongo2", pongo2.Context{
 		"Groups":     groupList,
-		"User":       getUserFromContext(c),
+		"User":       getUserMapForTemplate(c),
 		"ActivePage": "admin",
 	})
 }
@@ -3147,7 +3283,8 @@ func handleGetGroup(c *gin.Context) {
 	}
 	
 	// Get group members
-	members, _ := groupRepo.GetGroupMembers(group.ID)
+	groupIDUint, _ := group.ID.(uint)
+	members, _ := groupRepo.GetGroupMembers(groupIDUint)
 	
 	// Format response to match frontend expectations
 	c.JSON(http.StatusOK, gin.H{
@@ -3174,6 +3311,7 @@ func handleUpdateGroup(c *gin.Context) {
 	var groupForm struct {
 		Name        string `form:"name" json:"name"`
 		Description string `form:"description" json:"description"`
+		ValidID     int    `form:"valid_id" json:"valid_id"`
 	}
 	
 	if err := c.ShouldBind(&groupForm); err != nil {
@@ -3208,6 +3346,9 @@ func handleUpdateGroup(c *gin.Context) {
 	}
 	if groupForm.Description != "" {
 		group.Comments = groupForm.Description
+	}
+	if groupForm.ValidID > 0 {
+		group.ValidID = groupForm.ValidID
 	}
 	group.ChangeBy = userID
 	
@@ -3314,7 +3455,7 @@ func handleAdminQueues(c *gin.Context) {
 		"SystemAddresses": systemAddresses,
 		"Salutations":     salutations,
 		"Signatures":      signatures,
-		"User":            getUserFromContext(c),
+		"User":            getUserMapForTemplate(c),
 		"ActivePage":      "admin",
 	})
 }
@@ -3366,7 +3507,7 @@ func handleAdminPriorities(c *gin.Context) {
 	
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/priorities.pongo2", pongo2.Context{
 		"Priorities": priorities,
-		"User":       getUserFromContext(c),
+		"User":       getUserMapForTemplate(c),
 		"ActivePage": "admin",
 	})
 }
@@ -3508,7 +3649,7 @@ func handleAdminLookups(c *gin.Context) {
 		"TicketTypes":  types,
 		"Services":     services,
 		"SLAs":         slas,
-		"User":         getUserFromContext(c),
+		"User":         getUserMapForTemplate(c),
 		"ActivePage":   "admin",
 		"CurrentTab":   currentTab,
 	})
@@ -3821,6 +3962,11 @@ func handleGetMergeHistory(c *gin.Context) {
 
 // handleAdminPermissions displays the permission management page
 func handleAdminPermissions(c *gin.Context) {
+	// Prevent caching of this page
+	c.Header("Cache-Control", "no-store, no-cache, must-revalidate, private")
+	c.Header("Pragma", "no-cache")
+	c.Header("Expires", "0")
+	
 	db, err := database.GetDB()
 	if err != nil {
 		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
@@ -3852,6 +3998,16 @@ func handleAdminPermissions(c *gin.Context) {
 		if err != nil {
 			// Log error but don't fail the page
 			log.Printf("Failed to get permission matrix for user %d: %v", selectedUserID, err)
+		} else if permissionMatrix != nil {
+			log.Printf("Got permission matrix for user %d: %d groups", selectedUserID, len(permissionMatrix.Groups))
+			// Debug: Log OBC permissions specifically
+			for _, gp := range permissionMatrix.Groups {
+				if gp.Group.Name == "OBC" {
+					log.Printf("OBC permissions for user %d: %+v", selectedUserID, gp.Permissions)
+				}
+			}
+		} else {
+			log.Printf("Permission matrix is nil for user %d", selectedUserID)
 		}
 	}
 
@@ -3859,7 +4015,7 @@ func handleAdminPermissions(c *gin.Context) {
 		"Users":           users,
 		"SelectedUserID":  selectedUserID,
 		"PermissionMatrix": permissionMatrix,
-		"User":            getUserFromContext(c),
+		"User":            getUserMapForTemplate(c),
 		"ActivePage":      "admin",
 	})
 }
@@ -3904,15 +4060,40 @@ func handleUpdateUserPermissions(c *gin.Context) {
 	// Parse permission data from form
 	permissions := make(map[uint]map[string]bool)
 	
-	// Get all form values
-	if err := c.Request.ParseForm(); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid form data"})
-		return
+	// Parse form data - handle both multipart and urlencoded
+	var formValues map[string][]string
+	
+	contentType := c.GetHeader("Content-Type")
+	if strings.Contains(contentType, "multipart/form-data") {
+		// Parse multipart form
+		if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid multipart form data"})
+			return
+		}
+		formValues = c.Request.MultipartForm.Value
+	} else {
+		// Parse URL-encoded form
+		if err := c.Request.ParseForm(); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid form data"})
+			return
+		}
+		formValues = c.Request.PostForm
 	}
 
+	// Debug: Log all received form data
+	log.Printf("DEBUG: Received form data for user %d (Content-Type: %s):", userID, contentType)
+	for key, values := range formValues {
+		if strings.HasPrefix(key, "perm_") {
+			log.Printf("  %s = %v", key, values)
+		}
+	}
+
+	// First, collect all groups that have checkboxes
+	groupsWithCheckboxes := make(map[uint]bool)
+	
 	// Process each permission checkbox
 	// Format: perm_<groupID>_<permissionKey>
-	for key, values := range c.Request.PostForm {
+	for key, values := range formValues {
 		if strings.HasPrefix(key, "perm_") && len(values) > 0 {
 			// Split into exactly 3 parts to handle permission keys with underscores (e.g., "move_into")
 			parts := strings.SplitN(key, "_", 3)
@@ -3920,12 +4101,40 @@ func handleUpdateUserPermissions(c *gin.Context) {
 				groupID, _ := strconv.ParseUint(parts[1], 10, 32)
 				permKey := parts[2]
 				
+				groupsWithCheckboxes[uint(groupID)] = true
+				
 				if permissions[uint(groupID)] == nil {
 					permissions[uint(groupID)] = make(map[string]bool)
 				}
 				permissions[uint(groupID)][permKey] = (values[0] == "1" || values[0] == "on")
 			}
 		}
+	}
+	
+	// Ensure all groups with checkboxes have all permission keys
+	for groupID := range groupsWithCheckboxes {
+		if permissions[groupID] == nil {
+			permissions[groupID] = make(map[string]bool)
+		}
+		// Ensure all permission keys exist (default to false if not set)
+		for _, key := range []string{"ro", "move_into", "create", "note", "owner", "priority", "rw"} {
+			if _, exists := permissions[groupID][key]; !exists {
+				permissions[groupID][key] = false
+			}
+		}
+	}
+	
+	// Debug log
+	log.Printf("DEBUG: Updating permissions for user %d, received %d groups with checkboxes", userID, len(groupsWithCheckboxes))
+	for gid, perms := range permissions {
+		hasAny := false
+		for _, v := range perms {
+			if v {
+				hasAny = true
+				break
+			}
+		}
+		log.Printf("  Group %d: has permissions=%v", gid, hasAny)
 	}
 
 	db, err := database.GetDB()

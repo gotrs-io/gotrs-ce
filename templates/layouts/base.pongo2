@@ -78,6 +78,7 @@
                 <div class="flex h-16 justify-between">
                     <div class="flex">
                         <div class="flex flex-shrink-0 items-center">
+                            <img src="/static/favicon.svg" alt="GOTRS Logo" class="h-8 w-8 mr-2">
                             <span class="text-2xl font-bold text-gotrs-600 dark:text-gotrs-400">GOTRS</span>
                         </div>
                         <div class="hidden sm:ml-6 sm:flex sm:space-x-8">

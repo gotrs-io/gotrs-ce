@@ -1,0 +1,337 @@
+{% extends "layouts/base.pongo2" %}
+
+{% block title %}Service Management - GOTRS Admin{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg mb-6">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between">
+                    <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">
+                        <i class="fas fa-concierge-bell mr-2"></i>Service Management
+                    </h1>
+                    <button onclick="openCreateModal()" 
+                            class="bg-gotrs-primary hover:bg-gotrs-primary-dark text-white font-medium py-2 px-4 rounded-lg transition duration-150 ease-in-out">
+                        <i class="fas fa-plus mr-2"></i>Add Service
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Services Table -->
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <input type="text" 
+                                   id="searchInput"
+                                   placeholder="Search services..." 
+                                   class="w-64 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-gotrs-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
+                                   onkeyup="filterServices()">
+                            <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
+                        </div>
+                        <select id="validityFilter" onchange="filterServices()" 
+                                class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-gotrs-primary focus:border-transparent dark:bg-gray-700 dark:text-white">
+                            <option value="">All States</option>
+                            <option value="valid">Valid</option>
+                            <option value="invalid">Invalid</option>
+                            <option value="invalid-temporarily">Invalid Temporarily</option>
+                        </select>
+                    </div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                        Total: <span id="serviceCount">{{ Services|length }}</span> services
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable(0)">
+                                Name <i class="fas fa-sort ml-1"></i>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                Comments
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortTable(2)">
+                                Tickets <i class="fas fa-sort ml-1"></i>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                Validity
+                            </th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="servicesTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {% for service in Services %}
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 service-row" 
+                            data-name="{{ service.Name|lower }}"
+                            data-validity="{{ service.Validity }}">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900 dark:text-white">
+                                    {{ service.Name }}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm text-gray-600 dark:text-gray-400">
+                                    {% if service.Comments.Valid %}
+                                        {{ service.Comments.String|default:"-" }}
+                                    {% else %}
+                                        <span class="text-gray-400">-</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-600 dark:text-gray-400">
+                                    {% if service.TicketCount > 0 %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100">
+                                            {{ service.TicketCount }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-gray-400">0</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if service.ValidID == 1 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">
+                                        <i class="fas fa-check-circle mr-1"></i>Valid
+                                    </span>
+                                {% elif service.ValidID == 2 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100">
+                                        <i class="fas fa-times-circle mr-1"></i>Invalid
+                                    </span>
+                                {% elif service.ValidID == 3 %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100">
+                                        <i class="fas fa-clock mr-1"></i>Invalid Temporarily
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button onclick="editService({{ service.ID }}, '{{ service.Name|escapejs }}', '{{ service.Comments.String|default:""|escapejs }}', {{ service.ValidID }})" 
+                                        class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3"
+                                        title="Edit Service">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Service Modal -->
+<div id="serviceModal" class="fixed z-50 inset-0 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <form id="serviceForm" onsubmit="saveService(event)">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="mb-4">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modalTitle">
+                            Add New Service
+                        </h3>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="serviceName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Service Name <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" 
+                                   id="serviceName" 
+                                   name="name" 
+                                   required
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-gotrs-primary dark:bg-gray-700 dark:text-white"
+                                   placeholder="Enter service name">
+                        </div>
+                        <div>
+                            <label for="serviceComments" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Comments
+                            </label>
+                            <textarea id="serviceComments" 
+                                      name="comments" 
+                                      rows="3"
+                                      class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-gotrs-primary dark:bg-gray-700 dark:text-white"
+                                      placeholder="Optional comments"></textarea>
+                        </div>
+                        <div>
+                            <label for="serviceValidID" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Validity
+                            </label>
+                            <select id="serviceValidID" 
+                                    name="valid_id"
+                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-gotrs-primary dark:bg-gray-700 dark:text-white">
+                                <option value="1">Valid</option>
+                                <option value="2">Invalid</option>
+                                <option value="3">Invalid Temporarily</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="submit" 
+                            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gotrs-primary text-base font-medium text-white hover:bg-gotrs-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-primary sm:ml-3 sm:w-auto sm:text-sm">
+                        Save
+                    </button>
+                    <button type="button" 
+                            onclick="closeModal()"
+                            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Toast notification function
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+    toast.className = `fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-opacity duration-500`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 500);
+    }, 3000);
+}
+
+let currentServiceId = null;
+
+function openCreateModal() {
+    currentServiceId = null;
+    document.getElementById('modalTitle').textContent = 'Add New Service';
+    document.getElementById('serviceForm').reset();
+    document.getElementById('serviceModal').classList.remove('hidden');
+}
+
+function editService(id, name, comments, validId) {
+    currentServiceId = id;
+    document.getElementById('modalTitle').textContent = 'Edit Service';
+    document.getElementById('serviceName').value = name;
+    document.getElementById('serviceComments').value = comments;
+    document.getElementById('serviceValidID').value = validId;
+    document.getElementById('serviceModal').classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('serviceModal').classList.add('hidden');
+    document.getElementById('serviceForm').reset();
+    currentServiceId = null;
+}
+
+function saveService(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const url = currentServiceId 
+        ? `/admin/services/${currentServiceId}/update`
+        : '/admin/services/create';
+    
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success || data.id) {
+            showToast(currentServiceId ? 'Service updated successfully' : 'Service created successfully');
+            closeModal();
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast(data.error || 'Failed to save service', 'error');
+        }
+    })
+    .catch(error => {
+        showToast('An error occurred: ' + error, 'error');
+    });
+}
+
+function filterServices() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const validityFilter = document.getElementById('validityFilter').value;
+    const rows = document.querySelectorAll('.service-row');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const name = row.dataset.name;
+        const validity = row.dataset.validity;
+        
+        const matchesSearch = name.includes(searchTerm);
+        const matchesValidity = !validityFilter || validity === validityFilter;
+        
+        if (matchesSearch && matchesValidity) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    document.getElementById('serviceCount').textContent = visibleCount;
+}
+
+function sortTable(columnIndex) {
+    const table = document.querySelector('table');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    const sortedRows = rows.sort((a, b) => {
+        let aValue, bValue;
+        
+        if (columnIndex === 0) { // Name
+            aValue = a.querySelector('td:nth-child(1)').textContent.trim();
+            bValue = b.querySelector('td:nth-child(1)').textContent.trim();
+        } else if (columnIndex === 2) { // Tickets
+            aValue = parseInt(a.querySelector('td:nth-child(3)').textContent.trim()) || 0;
+            bValue = parseInt(b.querySelector('td:nth-child(3)').textContent.trim()) || 0;
+        }
+        
+        if (typeof aValue === 'string') {
+            return aValue.localeCompare(bValue);
+        } else {
+            return aValue - bValue;
+        }
+    });
+    
+    // Toggle sort direction
+    if (tbody.dataset.sortColumn == columnIndex && tbody.dataset.sortDirection === 'asc') {
+        sortedRows.reverse();
+        tbody.dataset.sortDirection = 'desc';
+    } else {
+        tbody.dataset.sortDirection = 'asc';
+    }
+    tbody.dataset.sortColumn = columnIndex;
+    
+    // Re-append sorted rows
+    sortedRows.forEach(row => tbody.appendChild(row));
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeModal();
+    }
+});
+
+// Submit form on Enter key in modal
+document.getElementById('serviceModal').addEventListener('keydown', function(event) {
+    if (event.key === 'Enter' && event.target.tagName !== 'TEXTAREA') {
+        event.preventDefault();
+        document.getElementById('serviceForm').dispatchEvent(new Event('submit'));
+    }
+});
+</script>
+{% endblock %}

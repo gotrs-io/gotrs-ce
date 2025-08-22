@@ -1,0 +1,719 @@
+{% extends "layouts/base.pongo2" %}
+
+{% block title %}Ticket {{ Ticket.id }} - GOTRS{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Page header -->
+    <div class="mb-8">
+        <div class="sm:flex sm:items-center sm:justify-between">
+            <div>
+                <nav class="flex" aria-label="Breadcrumb">
+                    <ol class="flex items-center space-x-4">
+                        <li>
+                            <a href="/tickets" class="text-gotrs-600 hover:text-gotrs-500">Tickets</a>
+                        </li>
+                        <li>
+                            <svg class="flex-shrink-0 h-5 w-5 text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                <path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z" />
+                            </svg>
+                        </li>
+                        <li>
+                            <span class="text-gray-500 dark:text-gray-400">{{ Ticket.id }}</span>
+                        </li>
+                    </ol>
+                </nav>
+                <h1 class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{{ Ticket.subject }}</h1>
+                <div class="mt-2 flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full 
+                        {% if Ticket.status == 'open' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200
+                        {% elif Ticket.status == 'pending' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200
+                        {% elif Ticket.status == 'closed' %}bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200
+                        {% else %}bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200{% endif %}">
+                        {{ Ticket.status|title }}
+                    </span>
+                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full 
+                        {% if Ticket.priority == 'critical' %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200
+                        {% elif Ticket.priority == 'high' %}bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200
+                        {% elif Ticket.priority == 'medium' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200
+                        {% elif Ticket.priority == 'low' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200
+                        {% else %}bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200{% endif %}">
+                        {{ Ticket.priority|title }} Priority
+                    </span>
+                    <span>{{ Ticket.queue }}</span>
+                    <span>Created {{ Ticket.created }}</span>
+                    <span>Updated {{ Ticket.updated }}</span>
+                </div>
+            </div>
+            <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+                <button type="button" onclick="updateTicket()"
+                    class="inline-flex items-center justify-center rounded-md bg-gotrs-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gotrs-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gotrs-600">
+                    Update Ticket
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main content -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Ticket Description -->
+            <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Description</h2>
+                <div class="prose dark:prose-invert max-w-none">
+                    <p>{{ Ticket.description }}</p>
+                </div>
+            </div>
+
+            <!-- Ticket Notes/History -->
+            {% if Ticket.notes and Ticket.notes|length > 0 %}
+            <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Notes & Updates</h2>
+                <div class="flow-root">
+                    <ul class="-mb-8">
+                        {% for note in Ticket.notes %}
+                        <li>
+                            <div class="relative pb-8">
+                                {% if not forloop.last %}
+                                <span class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200 dark:bg-gray-600" aria-hidden="true"></span>
+                                {% endif %}
+                                <div class="relative flex space-x-3">
+                                    <div>
+                                        <span class="h-8 w-8 rounded-full bg-gotrs-500 flex items-center justify-center ring-8 ring-white dark:ring-gray-800">
+                                            <svg class="h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd" />
+                                            </svg>
+                                        </span>
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <div>
+                                            <div class="text-sm">
+                                                <span class="font-medium text-gray-900 dark:text-white">{{ note.author }}</span>
+                                            </div>
+                                            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{{ note.time }}</p>
+                                        </div>
+                                        <div class="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                                            <p>{{ note.content }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Add Note Form -->
+            <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Add Note</h2>
+                <form id="noteForm" class="space-y-4">
+                    <div>
+                        <label for="note_content" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Note Content
+                        </label>
+                        <textarea id="note_content" name="content" rows="4" required
+                            class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm"
+                            placeholder="Add your note or update..."></textarea>
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="submit"
+                            class="rounded-md bg-gotrs-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gotrs-500 focus:outline-none focus:ring-2 focus:ring-gotrs-500 focus:ring-offset-2">
+                            Add Note
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Customer Information -->
+            {% if Ticket.customer %}
+            <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Customer</h2>
+                <dl class="space-y-3">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Name</dt>
+                        <dd class="text-sm text-gray-900 dark:text-white">{{ Ticket.customer.name }}</dd>
+                    </div>
+                    {% if Ticket.customer.email %}
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Email</dt>
+                        <dd class="text-sm text-gray-900 dark:text-white">
+                            <a href="mailto:{{ Ticket.customer.email }}" class="text-gotrs-600 hover:text-gotrs-500">
+                                {{ Ticket.customer.email }}
+                            </a>
+                        </dd>
+                    </div>
+                    {% endif %}
+                    {% if Ticket.customer.phone %}
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Phone</dt>
+                        <dd class="text-sm text-gray-900 dark:text-white">
+                            <a href="tel:{{ Ticket.customer.phone }}" class="text-gotrs-600 hover:text-gotrs-500">
+                                {{ Ticket.customer.phone }}
+                            </a>
+                        </dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+            {% endif %}
+
+            <!-- Assigned Agent -->
+            {% if Ticket.agent %}
+            <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Assigned Agent</h2>
+                <dl class="space-y-3">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Name</dt>
+                        <dd class="text-sm text-gray-900 dark:text-white">{{ Ticket.agent.name }}</dd>
+                    </div>
+                    {% if Ticket.agent.email %}
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Email</dt>
+                        <dd class="text-sm text-gray-900 dark:text-white">
+                            <a href="mailto:{{ Ticket.agent.email }}" class="text-gotrs-600 hover:text-gotrs-500">
+                                {{ Ticket.agent.email }}
+                            </a>
+                        </dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+            {% endif %}
+
+            <!-- Ticket Actions -->
+            <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Actions</h2>
+                <div class="space-y-3">
+                    {% if Ticket.is_closed %}
+                    {# TODO: Check config option for allowing ticket reopen #}
+                    <button type="button" onclick="reopenTicket()"
+                        class="w-full rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                        Reopen Ticket
+                    </button>
+                    {% else %}
+                    {% if Ticket.status != 'merged' and Ticket.status != 'removed' %}
+                    <button type="button" onclick="closeTicket()"
+                        class="w-full rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                        Close Ticket
+                    </button>
+                    {% endif %}
+                    {% endif %}
+                    <button type="button" onclick="assignTicket()"
+                        class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gotrs-500 focus:ring-offset-2">
+                        Assign Agent
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Agent Dialog -->
+<div id="assignAgentDialog" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex min-h-screen items-center justify-center px-4 py-12">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="hideAssignDialog()"></div>
+        
+        <!-- Dialog -->
+        <div class="relative z-50 w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    Assign Agent to Ticket #{{ Ticket.tn }}
+                </h3>
+            </div>
+            
+            <form id="assignAgentForm" class="p-6">
+                <!-- Agent Selection -->
+                <div class="mb-4">
+                    <label for="assignAgent" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Select Agent <span class="text-red-500">*</span>
+                    </label>
+                    <select id="assignAgent" name="assignAgent" required
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500">
+                        <option value="">Loading agents...</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Only agents with permissions for this queue are shown
+                    </p>
+                </div>
+                
+                <!-- Action buttons -->
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="hideAssignDialog()"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="px-4 py-2 text-sm font-medium text-white bg-gotrs-600 rounded-md hover:bg-gotrs-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500">
+                        Assign Agent
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Close Ticket Dialog -->
+<div id="closeTicketDialog" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex min-h-screen items-center justify-center px-4 py-12">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="hideCloseDialog()"></div>
+        
+        <!-- Dialog -->
+        <div class="relative z-50 w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    Close Ticket - {{ Ticket.id }}
+                </h3>
+            </div>
+            
+            <form id="closeTicketForm" class="p-6">
+                <!-- State Selection -->
+                <div class="mb-4">
+                    <label for="closeState" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Close State <span class="text-red-500">*</span>
+                    </label>
+                    <select id="closeState" name="closeState" required
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500">
+                        <option value="3">Closed Successful</option>
+                        <option value="4">Closed Unsuccessful</option>
+                    </select>
+                </div>
+
+                <!-- Resolution -->
+                <div class="mb-4">
+                    <label for="resolution" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Resolution/Solution
+                    </label>
+                    <textarea id="resolution" name="resolution" rows="3"
+                        placeholder="Describe the resolution or solution provided..."
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500"></textarea>
+                </div>
+
+                <!-- Close Notes -->
+                <div class="mb-4">
+                    <label for="closeNotes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Close Notes <span class="text-red-500">*</span>
+                    </label>
+                    <textarea id="closeNotes" name="closeNotes" rows="4" required
+                        placeholder="Add notes about closing this ticket..."
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500"></textarea>
+                </div>
+
+                <!-- Time Units -->
+                <div class="mb-4">
+                    <label for="timeUnits" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Time Units (minutes)
+                    </label>
+                    <input type="number" id="timeUnits" name="timeUnits" min="0" step="1"
+                        placeholder="Time spent on resolution"
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500">
+                </div>
+
+                <!-- Notify Customer -->
+                <div class="mb-6">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="notifyCustomer" name="notifyCustomer" checked
+                            class="rounded border-gray-300 dark:border-gray-600 text-gotrs-600 focus:ring-gotrs-500">
+                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                            Notify customer about ticket closure
+                        </span>
+                    </label>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="hideCloseDialog()"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gotrs-500">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
+                        Close Ticket
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Reopen Ticket Dialog -->
+<div id="reopenTicketDialog" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex min-h-screen items-center justify-center px-4 py-12">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="hideReopenDialog()"></div>
+        
+        <!-- Dialog -->
+        <div class="relative z-50 w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    Reopen Ticket - {{ Ticket.id }}
+                </h3>
+            </div>
+            
+            <form id="reopenTicketForm" class="p-6">
+                <!-- Target State Selection -->
+                <div class="mb-4">
+                    <label for="reopenState" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Target State <span class="text-red-500">*</span>
+                    </label>
+                    <select id="reopenState" name="reopenState" required
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500">
+                        <option value="1">New</option>
+                        <option value="2" selected>Open</option>
+                    </select>
+                </div>
+
+                <!-- Reason for Reopening -->
+                <div class="mb-4">
+                    <label for="reopenReason" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Reason for Reopening <span class="text-red-500">*</span>
+                    </label>
+                    <textarea id="reopenReason" name="reopenReason" rows="3" required
+                        placeholder="Explain why this ticket needs to be reopened..."
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500"></textarea>
+                </div>
+
+                <!-- Additional Notes -->
+                <div class="mb-4">
+                    <label for="reopenNotes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Additional Notes
+                    </label>
+                    <textarea id="reopenNotes" name="reopenNotes" rows="3"
+                        placeholder="Any additional information or context..."
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500"></textarea>
+                </div>
+
+                <!-- Notify Customer -->
+                <div class="mb-6">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="notifyCustomerReopen" name="notifyCustomerReopen" checked
+                            class="rounded border-gray-300 dark:border-gray-600 text-gotrs-600 focus:ring-gotrs-500">
+                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                            Notify customer about ticket reopening
+                        </span>
+                    </label>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="hideReopenDialog()"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gotrs-500">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+                        Reopen Ticket
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const ticketId = '{{ Ticket.id }}';
+
+// Helper function to show notifications instead of alerts
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    const bgColor = type === 'error' ? 'bg-red-50 text-red-800 border-red-200' : 'bg-blue-50 text-blue-800 border-blue-200';
+    notification.className = `${bgColor} p-4 rounded-lg border mb-4 fixed top-20 right-4 z-50 max-w-md shadow-lg`;
+    notification.innerHTML = `
+        <div class="flex items-start">
+            <div class="flex-1">
+                <p class="text-sm font-medium">${message}</p>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-3 -mr-1 -mt-1">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                </svg>
+            </button>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+function updateTicket() {
+    // Placeholder for ticket update functionality
+    showNotification('Update ticket functionality coming soon!', 'info');
+}
+
+function closeTicket() {
+    // Show the close ticket dialog instead of using confirm()
+    document.getElementById('closeTicketDialog').classList.remove('hidden');
+}
+
+function hideCloseDialog() {
+    document.getElementById('closeTicketDialog').classList.add('hidden');
+    // Reset form
+    document.getElementById('closeTicketForm').reset();
+}
+
+// Handle close ticket form submission
+document.getElementById('closeTicketForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const closeState = document.getElementById('closeState').value;
+    const resolution = document.getElementById('resolution').value;
+    const closeNotes = document.getElementById('closeNotes').value;
+    const timeUnits = document.getElementById('timeUnits').value;
+    const notifyCustomer = document.getElementById('notifyCustomer').checked;
+    
+    if (!closeNotes.trim()) {
+        showNotification('Please enter close notes', 'error');
+        return;
+    }
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Closing...';
+    submitBtn.disabled = true;
+    
+    fetch(`/api/tickets/${ticketId}/close`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            state_id: parseInt(closeState),
+            resolution: resolution,
+            notes: closeNotes,
+            time_units: timeUnits ? parseInt(timeUnits) : 0,
+            notify_customer: notifyCustomer
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Ticket closed successfully', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification('Error closing ticket: ' + (data.error || 'Unknown error'), 'error');
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Network error. Please try again.', 'error');
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    });
+});
+
+// Handle reopen ticket form submission
+document.getElementById('reopenTicketForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const reopenState = document.getElementById('reopenState').value;
+    const reopenReason = document.getElementById('reopenReason').value;
+    const reopenNotes = document.getElementById('reopenNotes').value;
+    const notifyCustomerReopen = document.getElementById('notifyCustomerReopen').checked;
+    
+    if (!reopenReason.trim()) {
+        showNotification('Please enter a reason for reopening', 'error');
+        return;
+    }
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Reopening...';
+    submitBtn.disabled = true;
+    
+    fetch(`/api/tickets/${ticketId}/reopen`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            state_id: parseInt(reopenState),
+            reason: reopenReason,
+            notes: reopenNotes,
+            notify_customer: notifyCustomerReopen
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Ticket reopened successfully', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification('Error reopening ticket: ' + (data.error || 'Unknown error'), 'error');
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Network error. Please try again.', 'error');
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    });
+});
+
+function reopenTicket() {
+    // Show the reopen ticket dialog instead of using confirm()
+    document.getElementById('reopenTicketDialog').classList.remove('hidden');
+}
+
+function hideReopenDialog() {
+    document.getElementById('reopenTicketDialog').classList.add('hidden');
+    // Reset form
+    document.getElementById('reopenTicketForm').reset();
+}
+
+function assignTicket() {
+    // Show the assign agent dialog
+    document.getElementById('assignAgentDialog').classList.remove('hidden');
+    
+    // Load available agents
+    fetch(`/api/tickets/${ticketId}/available-agents`)
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('assignAgent');
+            select.innerHTML = '<option value="">Select an agent...</option>';
+            
+            if (data.success && data.agents && data.agents.length > 0) {
+                data.agents.forEach(agent => {
+                    const option = document.createElement('option');
+                    option.value = agent.id;
+                    option.textContent = `${agent.name} (${agent.login})`;
+                    select.appendChild(option);
+                });
+            } else {
+                select.innerHTML = '<option value="">No agents available</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading agents:', error);
+            const select = document.getElementById('assignAgent');
+            select.innerHTML = '<option value="">Error loading agents</option>';
+        });
+}
+
+function hideAssignDialog() {
+    document.getElementById('assignAgentDialog').classList.add('hidden');
+    // Reset form
+    document.getElementById('assignAgentForm').reset();
+}
+
+// Handle assign agent form submission
+document.getElementById('assignAgentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const agentId = document.getElementById('assignAgent').value;
+    
+    if (!agentId) {
+        showNotification('Please select an agent', 'error');
+        return;
+    }
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Assigning...';
+    submitBtn.disabled = true;
+    
+    fetch(`/api/tickets/${ticketId}/assign`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            agentId: parseInt(agentId)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.assigned) {
+            showNotification(`Ticket assigned to ${data.assigned}`, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification('Error assigning ticket: ' + (data.error || 'Unknown error'), 'error');
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Network error. Please try again.', 'error');
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    });
+});
+
+// Handle note form submission
+document.getElementById('noteForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const content = document.getElementById('note_content').value.trim();
+    if (!content) {
+        // Show error message in a div instead of alert
+        const errorDiv = document.getElementById('note-error') || (() => {
+            const div = document.createElement('div');
+            div.id = 'note-error';
+            div.className = 'bg-red-50 text-red-800 p-3 rounded mb-3';
+            document.getElementById('note_content').parentElement.prepend(div);
+            return div;
+        })();
+        errorDiv.textContent = 'Please enter note content.';
+        return;
+    }
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Adding Note...';
+    submitBtn.disabled = true;
+    
+    fetch(`/api/tickets/${ticketId}/notes`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ content: content })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            // Show error message properly
+            const errorDiv = document.getElementById('note-error') || (() => {
+                const div = document.createElement('div');
+                div.id = 'note-error';
+                div.className = 'bg-red-50 text-red-800 p-3 rounded mb-3';
+                document.getElementById('note_content').parentElement.prepend(div);
+                return div;
+            })();
+            errorDiv.textContent = 'Error adding note: ' + (data.error || 'Unknown error');
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        // Show error message properly
+        const errorDiv = document.getElementById('note-error') || (() => {
+            const div = document.createElement('div');
+            div.id = 'note-error';
+            div.className = 'bg-red-50 text-red-800 p-3 rounded mb-3';
+            document.getElementById('note_content').parentElement.prepend(div);
+            return div;
+        })();
+        errorDiv.textContent = 'Network error. Please try again.';
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    });
+});
+</script>
+{% endblock %}

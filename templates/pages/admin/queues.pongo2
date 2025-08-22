@@ -1,0 +1,720 @@
+{% extends "layouts/base.pongo2" %}
+
+{% block title %}{{ t("admin.queues") }} - GOTRS Admin{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Page header -->
+    <div class="mb-8">
+        <div class="sm:flex sm:items-center sm:justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">{{ t("admin.queues") }}</h1>
+                <p class="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                    Manage ticket queues and routing rules
+                </p>
+            </div>
+            <div class="mt-4 sm:mt-0">
+                <button onclick="openQueueModal()"
+                    class="inline-flex items-center justify-center rounded-md bg-gotrs-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gotrs-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gotrs-600">
+                    <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                    </svg>
+                    Add Queue
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and filters -->
+    <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+                <label for="searchQueue" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search</label>
+                <input type="text" id="searchQueue" 
+                    class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm dark:text-white"
+                    placeholder="Search queues..." onkeyup="filterQueues()">
+            </div>
+            <div>
+                <label for="filterGroup" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Group</label>
+                <select id="filterGroup" 
+                    class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm dark:text-white"
+                    onchange="filterQueues()">
+                    <option value="">All Groups</option>
+                    {% for group in Groups %}
+                    <option value="{{ group.ID }}">{{ group.Name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="filterStatus" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                <select id="filterStatus" 
+                    class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm dark:text-white"
+                    onchange="filterQueues()">
+                    <option value="">All</option>
+                    <option value="1">Active</option>
+                    <option value="2">Inactive</option>
+                </select>
+            </div>
+        </div>
+        <div class="mt-4 flex justify-end">
+            <button onclick="clearFilters()" 
+                class="text-sm text-gotrs-600 hover:text-gotrs-900 dark:text-gotrs-400 dark:hover:text-gotrs-200">
+                Clear filters
+            </button>
+        </div>
+    </div>
+
+    <!-- Queues table -->
+    <div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortQueues('id')">
+                        ID <span class="sort-indicator">↕</span>
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onclick="sortQueues('name')">
+                        Name <span class="sort-indicator">↕</span>
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Group
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Settings
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Status
+                    </th>
+                    <th scope="col" class="relative px-6 py-3">
+                        <span class="sr-only">Actions</span>
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700" id="queuesTableBody">
+                {% for queue in Queues %}
+                <tr class="queue-row hover:bg-gray-50 dark:hover:bg-gray-700" 
+                    data-id="{{ queue.ID }}" 
+                    data-name="{{ queue.Name|lower }}"
+                    data-group="{{ queue.GroupID }}"
+                    data-status="{{ queue.ValidID }}">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {{ queue.ID }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ queue.Name }}</div>
+                        {% if queue.Comments %}
+                        <div class="text-sm text-gray-500 dark:text-gray-400">{{ queue.Comments }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gotrs-100 text-gotrs-800 dark:bg-gotrs-900 dark:text-gotrs-200">
+                            {{ queue.GroupName|default:"No Group" }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        <div class="flex items-center space-x-2">
+                            {% if queue.UnlockTimeout > 0 %}
+                            <span class="inline-flex items-center" title="Auto-unlock after {{ queue.UnlockTimeout }} minutes">
+                                <svg class="h-4 w-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2H7V7a3 3 0 015.905-.75 1 1 0 001.937-.5A5.002 5.002 0 0010 2z" />
+                                </svg>
+                            </span>
+                            {% endif %}
+                            {% if queue.FollowUpLock == 1 %}
+                            <span class="inline-flex items-center" title="Follow-up locked">
+                                <svg class="h-4 w-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                                </svg>
+                            </span>
+                            {% endif %}
+                            {% if queue.SystemAddressID %}
+                            <span class="inline-flex items-center" title="Email configured">
+                                <svg class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                                </svg>
+                            </span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if queue.ValidID == 1 %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                            Active
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                            Inactive
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick="viewQueueDetails({{ queue.ID }})" 
+                            class="text-gotrs-600 hover:text-gotrs-900 dark:text-gotrs-400 dark:hover:text-gotrs-200 mr-3"
+                            title="View details">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </button>
+                        <button onclick="editQueue({{ queue.ID }})" 
+                            class="text-gotrs-600 hover:text-gotrs-900 dark:text-gotrs-400 dark:hover:text-gotrs-200 mr-3"
+                            title="Edit">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </button>
+                        <button onclick="deleteQueue({{ queue.ID }}, '{{ queue.Name }}')" 
+                            class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"
+                            title="Delete">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- Empty state -->
+        {% if not Queues %}
+        <div class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No queues</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by creating a new queue.</p>
+            <div class="mt-6">
+                <button onclick="openQueueModal()" 
+                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gotrs-600 hover:bg-gotrs-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500">
+                    <svg class="-ml-1 mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                    New Queue
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Queue Modal -->
+<div id="queueModal" class="fixed z-50 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+            <form id="queueForm" onsubmit="saveQueue(event)">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4" id="queue-modal-title">
+                        Add Queue
+                    </h3>
+                    
+                    <input type="hidden" id="queueId" name="id">
+                    
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <!-- Basic Information -->
+                        <div class="sm:col-span-2">
+                            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Basic Information</h4>
+                        </div>
+                        
+                        <div>
+                            <label for="queueName" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name *</label>
+                            <input type="text" name="name" id="queueName" required
+                                class="mt-1 focus:ring-gotrs-500 focus:border-gotrs-500 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md">
+                        </div>
+                        
+                        <div>
+                            <label for="queueGroup" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Group *</label>
+                            <select name="group_id" id="queueGroup" required
+                                class="mt-1 block w-full py-2 px-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-gotrs-500 focus:border-gotrs-500 sm:text-sm dark:text-white">
+                                <option value="">Select a group...</option>
+                                {% for group in Groups %}
+                                <option value="{{ group.ID }}">{{ group.Name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="sm:col-span-2">
+                            <label for="queueComments" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Comments</label>
+                            <textarea name="comments" id="queueComments" rows="2"
+                                class="mt-1 focus:ring-gotrs-500 focus:border-gotrs-500 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"></textarea>
+                        </div>
+                        
+                        <!-- Email Settings -->
+                        <div class="sm:col-span-2 mt-4">
+                            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Email Settings</h4>
+                        </div>
+                        
+                        <div>
+                            <label for="queueSystemAddress" class="block text-sm font-medium text-gray-700 dark:text-gray-300">System Address</label>
+                            <select name="system_address_id" id="queueSystemAddress"
+                                class="mt-1 block w-full py-2 px-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-gotrs-500 focus:border-gotrs-500 sm:text-sm dark:text-white">
+                                <option value="">None</option>
+                                {% for address in SystemAddresses %}
+                                <option value="{{ address.ID }}">{{ address.Email }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="queueSalutation" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Salutation</label>
+                            <select name="salutation_id" id="queueSalutation"
+                                class="mt-1 block w-full py-2 px-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-gotrs-500 focus:border-gotrs-500 sm:text-sm dark:text-white">
+                                <option value="">None</option>
+                                {% for salutation in Salutations %}
+                                <option value="{{ salutation.ID }}">{{ salutation.Name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="queueSignature" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Signature</label>
+                            <select name="signature_id" id="queueSignature"
+                                class="mt-1 block w-full py-2 px-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-gotrs-500 focus:border-gotrs-500 sm:text-sm dark:text-white">
+                                <option value="">None</option>
+                                {% for signature in Signatures %}
+                                <option value="{{ signature.ID }}">{{ signature.Name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- Ticket Settings -->
+                        <div class="sm:col-span-2 mt-4">
+                            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Ticket Settings</h4>
+                        </div>
+                        
+                        <div>
+                            <label for="queueUnlockTimeout" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Unlock Timeout (minutes)
+                                <span class="text-xs text-gray-500 dark:text-gray-400">0 = disabled</span>
+                            </label>
+                            <input type="number" name="unlock_timeout" id="queueUnlockTimeout" min="0" value="0"
+                                class="mt-1 focus:ring-gotrs-500 focus:border-gotrs-500 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md">
+                        </div>
+                        
+                        <div>
+                            <label for="queueFollowUp" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Follow-up Option</label>
+                            <select name="follow_up_id" id="queueFollowUp"
+                                class="mt-1 block w-full py-2 px-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-gotrs-500 focus:border-gotrs-500 sm:text-sm dark:text-white">
+                                <option value="1">Possible</option>
+                                <option value="2">Reject</option>
+                                <option value="3">New ticket</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <input type="checkbox" name="follow_up_lock" id="queueFollowUpLock" value="1"
+                                    class="mr-2 rounded border-gray-300 text-gotrs-600 shadow-sm focus:border-gotrs-300 focus:ring focus:ring-gotrs-200 focus:ring-opacity-50">
+                                Lock follow-ups to owner
+                            </label>
+                        </div>
+                        
+                        <div>
+                            <label for="queueValidID" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                            <select name="valid_id" id="queueValidID"
+                                class="mt-1 block w-full py-2 px-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-gotrs-500 focus:border-gotrs-500 sm:text-sm dark:text-white">
+                                <option value="1">Active</option>
+                                <option value="2">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="submit"
+                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gotrs-600 text-base font-medium text-white hover:bg-gotrs-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500 sm:ml-3 sm:w-auto sm:text-sm">
+                        Save
+                    </button>
+                    <button type="button" onclick="closeQueueModal()"
+                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Queue Details Modal -->
+<div id="queueDetailsModal" class="fixed z-50 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
+            <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                        Queue Details
+                    </h3>
+                    <button onclick="closeQueueDetailsModal()" class="text-gray-400 hover:text-gray-500">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <div id="queueDetailsContent">
+                    <!-- Queue details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="fixed z-50 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900 sm:mx-0 sm:h-10 sm:w-10">
+                        <svg class="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                            Delete Queue
+                        </h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Are you sure you want to delete the queue "<span id="deleteQueueName"></span>"? 
+                                All tickets in this queue will need to be reassigned. This action cannot be undone.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" onclick="confirmDeleteQueue()"
+                    class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm">
+                    Delete
+                </button>
+                <button type="button" onclick="closeDeleteModal()"
+                    class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentEditId = null;
+let deleteQueueId = null;
+let currentSort = { field: 'id', direction: 'asc' };
+
+// Restore filters from session storage
+document.addEventListener('DOMContentLoaded', function() {
+    const savedSearch = sessionStorage.getItem('queueSearch');
+    const savedGroup = sessionStorage.getItem('queueGroup');
+    const savedStatus = sessionStorage.getItem('queueStatus');
+    
+    if (savedSearch) document.getElementById('searchQueue').value = savedSearch;
+    if (savedGroup) document.getElementById('filterGroup').value = savedGroup;
+    if (savedStatus) document.getElementById('filterStatus').value = savedStatus;
+    
+    filterQueues();
+});
+
+function filterQueues() {
+    const search = document.getElementById('searchQueue').value.toLowerCase();
+    const group = document.getElementById('filterGroup').value;
+    const status = document.getElementById('filterStatus').value;
+    
+    // Save to session storage
+    sessionStorage.setItem('queueSearch', search);
+    sessionStorage.setItem('queueGroup', group);
+    sessionStorage.setItem('queueStatus', status);
+    
+    const rows = document.querySelectorAll('.queue-row');
+    rows.forEach(row => {
+        const name = row.dataset.name;
+        const rowGroup = row.dataset.group;
+        const rowStatus = row.dataset.status;
+        
+        let show = true;
+        
+        if (search && !name.includes(search)) {
+            show = false;
+        }
+        
+        if (group && rowGroup !== group) {
+            show = false;
+        }
+        
+        if (status && rowStatus !== status) {
+            show = false;
+        }
+        
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+function clearFilters() {
+    document.getElementById('searchQueue').value = '';
+    document.getElementById('filterGroup').value = '';
+    document.getElementById('filterStatus').value = '';
+    
+    sessionStorage.removeItem('queueSearch');
+    sessionStorage.removeItem('queueGroup');
+    sessionStorage.removeItem('queueStatus');
+    
+    filterQueues();
+}
+
+function sortQueues(field) {
+    if (currentSort.field === field) {
+        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort.field = field;
+        currentSort.direction = 'asc';
+    }
+    
+    const tbody = document.getElementById('queuesTableBody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    rows.sort((a, b) => {
+        let aVal, bVal;
+        
+        if (field === 'id') {
+            aVal = parseInt(a.dataset.id);
+            bVal = parseInt(b.dataset.id);
+        } else if (field === 'name') {
+            aVal = a.dataset.name;
+            bVal = b.dataset.name;
+        }
+        
+        if (currentSort.direction === 'asc') {
+            return aVal > bVal ? 1 : -1;
+        } else {
+            return aVal < bVal ? 1 : -1;
+        }
+    });
+    
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+function openQueueModal() {
+    currentEditId = null;
+    document.getElementById('queue-modal-title').textContent = 'Add Queue';
+    document.getElementById('queueForm').reset();
+    document.getElementById('queueValidID').value = '1';
+    document.getElementById('queueModal').classList.remove('hidden');
+}
+
+function closeQueueModal() {
+    document.getElementById('queueModal').classList.add('hidden');
+}
+
+async function editQueue(id) {
+    currentEditId = id;
+    document.getElementById('queue-modal-title').textContent = 'Edit Queue';
+    
+    try {
+        const response = await fetch(`/api/queues/${id}`, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const queue = data.data;
+            
+            document.getElementById('queueId').value = queue.id;
+            document.getElementById('queueName').value = queue.name;
+            document.getElementById('queueGroup').value = queue.group_id;
+            document.getElementById('queueComments').value = queue.comments || '';
+            document.getElementById('queueSystemAddress').value = queue.system_address_id || '';
+            document.getElementById('queueSalutation').value = queue.salutation_id || '';
+            document.getElementById('queueSignature').value = queue.signature_id || '';
+            document.getElementById('queueUnlockTimeout').value = queue.unlock_timeout || 0;
+            document.getElementById('queueFollowUp').value = queue.follow_up_id || 1;
+            document.getElementById('queueFollowUpLock').checked = queue.follow_up_lock === 1;
+            document.getElementById('queueValidID').value = queue.valid_id || 1;
+            
+            document.getElementById('queueModal').classList.remove('hidden');
+        } else {
+            showToast('Failed to load queue details', 'error');
+        }
+    } catch (error) {
+        showToast('Network error: ' + error.message, 'error');
+    }
+}
+
+async function saveQueue(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    
+    const data = {
+        name: formData.get('name'),
+        group_id: parseInt(formData.get('group_id')),
+        comments: formData.get('comments') || null,
+        system_address_id: formData.get('system_address_id') ? parseInt(formData.get('system_address_id')) : null,
+        salutation_id: formData.get('salutation_id') ? parseInt(formData.get('salutation_id')) : null,
+        signature_id: formData.get('signature_id') ? parseInt(formData.get('signature_id')) : null,
+        unlock_timeout: parseInt(formData.get('unlock_timeout')) || 0,
+        follow_up_id: parseInt(formData.get('follow_up_id')) || 1,
+        follow_up_lock: formData.get('follow_up_lock') === '1' ? 1 : 0,
+        valid_id: parseInt(formData.get('valid_id')) || 1
+    };
+    
+    const url = currentEditId ? `/api/queues/${currentEditId}` : '/api/queues';
+    const method = currentEditId ? 'PUT' : 'POST';
+    
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            closeQueueModal();
+            location.reload();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to save queue', 'error');
+        }
+    } catch (error) {
+        showToast('Network error: ' + error.message, 'error');
+    }
+}
+
+async function viewQueueDetails(id) {
+    try {
+        const response = await fetch(`/api/queues/${id}/details`, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const queue = data.data;
+            
+            // Generate details HTML
+            const detailsHTML = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Name</p>
+                            <p class="mt-1 text-sm text-gray-900 dark:text-white">${queue.name}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Group</p>
+                            <p class="mt-1 text-sm text-gray-900 dark:text-white">${queue.group_name || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</p>
+                            <p class="mt-1 text-sm text-gray-900 dark:text-white">${queue.valid_id === 1 ? 'Active' : 'Inactive'}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Tickets</p>
+                            <p class="mt-1 text-sm text-gray-900 dark:text-white">${queue.ticket_count || 0}</p>
+                        </div>
+                    </div>
+                    
+                    ${queue.comments ? `
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Comments</p>
+                        <p class="mt-1 text-sm text-gray-900 dark:text-white">${queue.comments}</p>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="border-t dark:border-gray-700 pt-4">
+                        <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-2">Statistics</h4>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Open Tickets</p>
+                                <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">${queue.open_tickets || 0}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Avg Response Time</p>
+                                <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">${queue.avg_response_time || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Agents</p>
+                                <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">${queue.agent_count || 0}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('queueDetailsContent').innerHTML = detailsHTML;
+            document.getElementById('queueDetailsModal').classList.remove('hidden');
+        } else {
+            showToast('Failed to load queue details', 'error');
+        }
+    } catch (error) {
+        showToast('Network error: ' + error.message, 'error');
+    }
+}
+
+function closeQueueDetailsModal() {
+    document.getElementById('queueDetailsModal').classList.add('hidden');
+}
+
+function deleteQueue(id, name) {
+    deleteQueueId = id;
+    document.getElementById('deleteQueueName').textContent = name;
+    document.getElementById('deleteModal').classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.add('hidden');
+    deleteQueueId = null;
+}
+
+async function confirmDeleteQueue() {
+    if (!deleteQueueId) return;
+    
+    try {
+        const response = await fetch(`/api/queues/${deleteQueueId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            closeDeleteModal();
+            location.reload();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to delete queue', 'error');
+        }
+    } catch (error) {
+        showToast('Network error: ' + error.message, 'error');
+    }
+}
+
+// Toast notification
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white z-50 ${
+        type === 'error' ? 'bg-red-600' : 
+        type === 'success' ? 'bg-green-600' : 
+        'bg-blue-600'
+    }`;
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+// Allow Enter key to submit modal form
+document.getElementById('queueModal').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        document.getElementById('queueForm').requestSubmit();
+    }
+});
+</script>
+{% endblock %}

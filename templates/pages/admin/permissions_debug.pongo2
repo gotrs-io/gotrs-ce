@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DEBUG</title>
+</head>
+<body>
+    <h1>DEBUG - Permissions</h1>
+    
+    <p>Testing basic variables...</p>
+    <p>Users: {{ Users|length }}</p>
+    <p>Groups: {{ Groups|length }}</p>
+    <p>Selected User ID: {{ SelectedUserID }}</p>
+    
+    <p>Testing matrix existence...</p>
+    {% if PermissionMatrix %}
+        <p>Matrix exists: Yes</p>
+    {% else %}
+        <p>Matrix exists: No</p>
+    {% endif %}
+</body>
+</html>

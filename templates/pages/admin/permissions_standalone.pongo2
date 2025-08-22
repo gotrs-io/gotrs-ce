@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Permission Management</title>
+    <link rel="stylesheet" href="/static/css/output.css">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-6">Permission Management</h1>
+        
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-lg font-semibold mb-4">User Selection</h2>
+            <select class="border rounded px-3 py-2">
+                <option>Select a user...</option>
+                {% for user in Users %}
+                <option value="{{ user.ID }}">{{ user.FirstName }} {{ user.LastName }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold mb-4">Permission Matrix</h2>
+            
+            {% if PermissionMatrix %}
+                <p class="mb-4">User: {{ PermissionMatrix.User.FirstName }} {{ PermissionMatrix.User.LastName }}</p>
+                
+                <table class="min-w-full border">
+                    <thead>
+                        <tr>
+                            <th class="border px-4 py-2">Group</th>
+                            <th class="border px-4 py-2">RO</th>
+                            <th class="border px-4 py-2">Create</th>
+                            <th class="border px-4 py-2">Owner</th>
+                            <th class="border px-4 py-2">RW</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for groupPerm in PermissionMatrix.Groups %}
+                        <tr>
+                            <td class="border px-4 py-2">{{ groupPerm.Group.Name }}</td>
+                            <td class="border px-4 py-2 text-center">
+                                {% if groupPerm.Permissions.ro %}✓{% endif %}
+                            </td>
+                            <td class="border px-4 py-2 text-center">
+                                {% if groupPerm.Permissions.create %}✓{% endif %}
+                            </td>
+                            <td class="border px-4 py-2 text-center">
+                                {% if groupPerm.Permissions.owner %}✓{% endif %}
+                            </td>
+                            <td class="border px-4 py-2 text-center">
+                                {% if groupPerm.Permissions.rw %}✓{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Please select a user to view permissions.</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

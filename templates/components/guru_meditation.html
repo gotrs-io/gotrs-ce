@@ -28,16 +28,9 @@
 
 <style>
 /* Amiga Topaz font approximation using CSS */
-@font-face {
-    font-family: 'TopazPlus';
-    src: url('data:font/woff2;base64,') format('woff2');
-    font-weight: normal;
-    font-style: normal;
-}
-
-/* Fallback to a bitmap-style font stack that approximates Topaz */
+/* Using only fallback fonts - no broken base64 font */
 .amiga-font {
-    font-family: 'Topaz', 'TopazPlus', 'Perfect DOS VGA 437', 'MS DOS', 
+    font-family: 'Courier New', 'Lucida Console', 'Monaco', 
                  'Fixedsys', 'Terminal', 'Courier New', monospace;
     font-size: 16px;
     line-height: 1.2;

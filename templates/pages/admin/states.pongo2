@@ -367,8 +367,14 @@ function editStateFromRow(btn) {
 }
 
 function closeStateModal() {
-    document.getElementById('stateModal').classList.add('hidden');
-    document.getElementById('stateForm').reset();
+    const modal = document.getElementById('stateModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    const form = document.getElementById('stateForm');
+    if (form) {
+        form.reset();
+    }
     clearErrors();
 }
 
@@ -396,7 +402,7 @@ function saveState(event) {
     console.log('Saving state:', { isEdit, data, url });
     
     fetch(url, {
-        method: 'POST',
+        method: isEdit ? 'PUT' : 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
@@ -455,7 +461,10 @@ function confirmDeleteFromRow(btn) {
 }
 
 function closeDeleteModal() {
-    document.getElementById('deleteModal').classList.add('hidden');
+    const modal = document.getElementById('deleteModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
     deleteStateId = null;
 }
 
@@ -463,7 +472,7 @@ function deleteState() {
     if (!deleteStateId) return;
     
     fetch(`/admin/states/${deleteStateId}/delete`, {
-        method: 'POST'
+        method: 'DELETE'
     })
     .then(response => response.json())
     .then(result => {

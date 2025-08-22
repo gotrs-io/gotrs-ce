@@ -175,9 +175,7 @@
                         {% endif %}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        <time datetime="{{ group.CreateTime.Format("2006-01-02T15:04:05Z07:00") }}" title="{{ group.CreateTime.Format("Jan 2, 2006 3:04 PM") }}">
-                            {{ group.CreateTime.Format("Jan 2, 2006") }}
-                        </time>
+                        {{ group.CreateTime|default:"-" }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div class="flex items-center justify-end space-x-2">

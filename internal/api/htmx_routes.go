@@ -584,11 +584,33 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		adminRoutes.POST("/groups/:id/users", handleAddUserToGroup)
 		adminRoutes.DELETE("/groups/:id/users/:userId", handleRemoveUserFromGroup)
 		
-		// Customer management routes (disabled - handlers not implemented)
-		// adminRoutes.GET("/customer-users", handleAdminCustomerUsers)
-		// adminRoutes.GET("/customer-companies", handleAdminCustomerCompanies)
-		// adminRoutes.GET("/customer-user-group", handleAdminCustomerUserGroup)
+		// Customer management routes
+		adminRoutes.GET("/customer-users", underConstruction("Customer Users"))
+		adminRoutes.GET("/customer-companies", underConstruction("Customer Companies"))
+		adminRoutes.GET("/customer-user-group", underConstruction("Customer User Groups"))
+		adminRoutes.GET("/customers", underConstruction("Customer Management"))
 		
+		// Ticket configuration routes
+		adminRoutes.GET("/states", handleAdminStates)
+		adminRoutes.POST("/states/create", handleAdminStateCreate)
+		adminRoutes.PUT("/states/:id/update", handleAdminStateUpdate)
+		adminRoutes.DELETE("/states/:id/delete", handleAdminStateDelete)
+		adminRoutes.GET("/states/types", handleGetStateTypes)
+		
+		adminRoutes.GET("/types", handleAdminTypes)
+		adminRoutes.POST("/types/create", handleAdminTypeCreate)
+		adminRoutes.POST("/types/:id/update", handleAdminTypeUpdate)
+		adminRoutes.POST("/types/:id/delete", handleAdminTypeDelete)
+		adminRoutes.GET("/roles", underConstruction("Role Management"))
+		adminRoutes.GET("/services", underConstruction("Service Catalog"))
+		adminRoutes.GET("/slas", underConstruction("Service Level Agreements"))
+		
+		// Communication templates
+		adminRoutes.GET("/signatures", underConstruction("Email Signatures"))
+		adminRoutes.GET("/salutations", underConstruction("Email Salutations"))
+		adminRoutes.GET("/notifications", underConstruction("Notification Templates"))
+		
+		// System configuration
 		adminRoutes.GET("/settings", underConstruction("System Settings"))
 		adminRoutes.GET("/templates", underConstruction("Template Management"))
 		adminRoutes.GET("/reports", underConstruction("Reports"))
@@ -652,6 +674,10 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		protectedAPI.GET("/tickets/:id/attachments/:attachment_id/thumbnail", handleGetThumbnail)
 		protectedAPI.DELETE("/tickets/:id/attachments/:attachment_id", handleDeleteAttachment)
 		protectedAPI.GET("/files/*path", handleServeFile)
+		
+		// Group management API endpoints
+		protectedAPI.GET("/groups/:id/members", handleGetGroupMembers)
+		protectedAPI.GET("/groups/:id", handleGetGroupAPI)
 		
 		// Ticket Advanced Search endpoints
 		protectedAPI.GET("/tickets/advanced-search", handleAdvancedTicketSearch)
@@ -4438,4 +4464,109 @@ func getPriorityLabel(priorityID int) string {
 	default:
 		return "unknown"
 	}
+}
+
+// handleGetGroupMembers returns group members as JSON for API requests
+func handleGetGroupMembers(c *gin.Context) {
+	groupID := c.Param("id")
+	
+	// Get database connection
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": "Database connection failed",
+		})
+		return
+	}
+	
+	// Query for group members
+	query := `
+		SELECT DISTINCT u.id, u.login, u.first_name, u.last_name
+		FROM users u
+		INNER JOIN group_user gu ON u.id = gu.user_id
+		WHERE gu.group_id = $1 AND u.valid_id = 1
+		ORDER BY u.id`
+	
+	rows, err := db.Query(query, groupID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": "Failed to fetch group members",
+		})
+		return
+	}
+	defer rows.Close()
+	
+	members := []map[string]interface{}{}
+	for rows.Next() {
+		var id int
+		var login, firstName, lastName sql.NullString
+		err := rows.Scan(&id, &login, &firstName, &lastName)
+		if err != nil {
+			continue
+		}
+		
+		member := map[string]interface{}{
+			"id": id,
+			"login": login.String,
+			"first_name": firstName.String,
+			"last_name": lastName.String,
+		}
+		members = append(members, member)
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": members,
+	})
+}
+
+// handleGetGroupAPI returns group details as JSON for API requests
+func handleGetGroupAPI(c *gin.Context) {
+	groupID := c.Param("id")
+	
+	// Get database connection
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": "Database connection failed",
+		})
+		return
+	}
+	
+	// Query for group details
+	var id int
+	var name, comments sql.NullString
+	var validID sql.NullInt32
+	
+	query := `SELECT id, name, comments, valid_id FROM groups WHERE id = $1`
+	err = db.QueryRow(query, groupID).Scan(&id, &name, &comments, &validID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{
+				"success": false,
+				"error": "Group not found",
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error": "Failed to fetch group",
+			})
+		}
+		return
+	}
+	
+	group := map[string]interface{}{
+		"id": id,
+		"name": name.String,
+		"comments": comments.String,
+		"valid_id": validID.Int32,
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": group,
+	})
 }

@@ -250,9 +250,18 @@ function editType(button) {
 }
 
 function closeTypeModal() {
-    document.getElementById('typeModal').classList.add('hidden');
-    document.getElementById('typeForm').reset();
-    document.getElementById('nameError').classList.add('hidden');
+    const modal = document.getElementById('typeModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    const form = document.getElementById('typeForm');
+    if (form) {
+        form.reset();
+    }
+    const nameError = document.getElementById('nameError');
+    if (nameError) {
+        nameError.classList.add('hidden');
+    }
 }
 
 function saveType(event) {
@@ -302,7 +311,10 @@ function deleteType(id, name) {
 }
 
 function closeDeleteModal() {
-    document.getElementById('deleteModal').classList.add('hidden');
+    const modal = document.getElementById('deleteModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
 }
 
 function confirmDelete() {

@@ -83,3 +83,9 @@ permissions:
   - create
   - update
   - delete
+
+validation:
+  unique_fields:
+    - name
+  required_fields:
+    - name

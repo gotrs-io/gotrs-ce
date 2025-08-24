@@ -1,0 +1,187 @@
+# Lambda Demo Module - Showcases JavaScript lambda functions
+module:
+  name: lambda_demo
+  singular: Demo
+  plural: Lambda Demos
+  table: ticket_priority  # Using existing OTRS table for demo
+  description: Demonstration of JavaScript lambda functions in dynamic modules
+  route_prefix: /admin/dynamic/lambda_demo
+
+fields:
+  - name: id
+    type: int
+    db_column: id
+    label: ID
+    show_in_list: true
+    show_in_form: false
+    sortable: true
+
+  - name: name
+    type: string
+    db_column: name
+    label: Name
+    required: true
+    searchable: true
+    sortable: true
+    show_in_list: true
+    show_in_form: true
+
+  - name: valid_id
+    type: int
+    db_column: valid_id
+    label: Status
+    show_in_list: false  # Hidden - we'll show computed version
+    show_in_form: false
+    default: 1
+
+  - name: create_time
+    type: datetime
+    db_column: create_time
+    label: Created
+    show_in_list: false  # Hidden - we'll show computed version
+    show_in_form: false
+
+# Lambda-powered computed fields
+computed_fields:
+  # Basic conditional rendering
+  - name: status_colored
+    label: Status
+    show_in_list: true
+    show_in_form: false
+    lambda: |
+      if (item.valid_id === 1) {
+        return '<span class="text-green-600 font-semibold">✓ Active</span>';
+      } else {
+        return '<span class="text-red-600 font-semibold">✗ Inactive</span>';
+      }
+
+  # Date formatting with relative time
+  - name: created_ago
+    label: Created
+    show_in_list: true
+    show_in_form: false
+    lambda: |
+      if (!item.create_time) {
+        return '<span class="text-gray-400">Unknown</span>';
+      }
+      
+      var date = new Date(item.create_time);
+      var now = new Date();
+      var diffMs = now - date;
+      var diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+      var relativeTime = '';
+      if (diffDays === 0) {
+        relativeTime = 'Today';
+      } else if (diffDays === 1) {
+        relativeTime = 'Yesterday';
+      } else if (diffDays < 30) {
+        relativeTime = diffDays + ' days ago';
+      } else if (diffDays < 365) {
+        var months = Math.floor(diffDays / 30);
+        relativeTime = months + ' month' + (months > 1 ? 's' : '') + ' ago';
+      } else {
+        var years = Math.floor(diffDays / 365);
+        relativeTime = years + ' year' + (years > 1 ? 's' : '') + ' ago';
+      }
+      
+      return '<span title="' + formatDate(item.create_time) + '">' + relativeTime + '</span>';
+
+  # Name with custom styling
+  - name: name_styled
+    label: Display Name
+    show_in_list: true
+    show_in_form: false
+    lambda: |
+      var name = item.name || 'Unnamed';
+      var length = name.length;
+      var color = '';
+      
+      if (length <= 5) {
+        color = 'text-red-600';
+      } else if (length <= 10) {
+        color = 'text-yellow-600';
+      } else {
+        color = 'text-green-600';
+      }
+      
+      return '<span class="' + color + ' font-medium">' + name + '</span>';
+
+  # Database query example (ticket count for this priority)
+  - name: usage_stats
+    label: Usage
+    show_in_list: true
+    show_in_form: false  
+    lambda: |
+      try {
+        var count = db.queryRow("SELECT COUNT(*) as count FROM ticket WHERE ticket_priority_id = $1", item.id.toString());
+        if (count && count.count !== undefined) {
+          var num = parseInt(count.count);
+          if (num === 0) {
+            return '<span class="text-gray-400">Not used</span>';
+          } else if (num === 1) {
+            return '<span class="text-blue-600">1 ticket</span>';
+          } else {
+            return '<span class="text-blue-600 font-semibold">' + num + ' tickets</span>';
+          }
+        }
+        return '<span class="text-gray-400">-</span>';
+      } catch (error) {
+        return '<span class="text-red-400">Error: ' + error + '</span>';
+      }
+
+  # Complex HTML generation
+  - name: priority_chart
+    label: Visual Priority
+    show_in_list: true
+    show_in_form: false
+    lambda: |
+      var id = item.id || 1;
+      var priority = Math.min(Math.max(id, 1), 5); // Clamp to 1-5
+      var width = priority * 20; // 20% per priority level
+      var color = '';
+      
+      if (priority <= 2) {
+        color = 'bg-green-500';
+      } else if (priority <= 3) {
+        color = 'bg-yellow-500';
+      } else {
+        color = 'bg-red-500';
+      }
+      
+      return '<div class="w-full bg-gray-200 rounded-full h-2">' +
+             '<div class="' + color + ' h-2 rounded-full" style="width: ' + width + '%"></div>' +
+             '</div>';
+
+features:
+  soft_delete: true
+  search: true
+  import_csv: false
+  export_csv: false
+  status_toggle: true
+
+permissions:
+  - view
+  - create
+  - update
+  - delete
+
+validation:
+  unique_fields:
+    - name
+  required_fields:
+    - name
+
+# Lambda execution configuration
+lambda_config:
+  timeout_ms: 3000      # 3 second timeout per lambda
+  memory_limit_mb: 16   # 16MB memory limit
+
+# UI customization to show lambda-generated columns
+ui:
+  list_columns:
+    - name_styled
+    - status_colored
+    - created_ago
+    - usage_stats
+    - priority_chart

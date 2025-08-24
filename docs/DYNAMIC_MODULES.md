@@ -225,11 +225,54 @@ vim modules/priority.yaml
 
 ## Advanced Features
 
+### Automatic Datetime Formatting
+All datetime fields are automatically formatted to the user's local timezone with relative time tooltips:
+
+- **Automatic timezone conversion**: UTC dates are converted to browser's local timezone
+- **User-friendly format**: Shows as "Aug 23, 2025, 4:30 PM" 
+- **Relative time tooltips**: Hover to see "2 hours ago", "3 days ago", etc.
+- **Smart handling**: Works with any field of type `datetime`
+- **No configuration needed**: Just set `type: datetime` in your YAML
+
+Example field configuration:
+```yaml
+- name: change_time
+  type: datetime
+  db_column: change_time
+  label: Last Modified
+  show_in_list: true
+  sortable: true
+```
+
 ### Schema Discovery (Coming Soon)
 ```bash
 # Generate YAML from existing table
 gotrs discover-schema --table=my_table > modules/my_table.yaml
 ```
+
+### Computed Fields
+Define fields that are calculated or derived from other data:
+
+```yaml
+computed_fields:
+  - name: full_name
+    label: Name
+    show_in_list: true
+    show_in_form: false
+    source: "CONCAT first_name, last_name"
+    
+  - name: group_names
+    label: Groups
+    show_in_list: true
+    show_in_form: false
+    source: "JOIN user_groups"
+```
+
+The handler can implement custom logic for computed fields, such as:
+- Concatenating multiple fields
+- Joining data from related tables
+- Calculating values based on other fields
+- Formatting complex data structures
 
 ### Custom Validations
 ```yaml

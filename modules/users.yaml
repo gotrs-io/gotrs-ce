@@ -130,6 +130,27 @@ computed_fields:
     show_in_list: true
     show_in_form: false
     source: "JOIN user_groups"
+    
+  - name: status_badge
+    label: Status
+    show_in_list: true
+    show_in_form: false
+    lambda: |
+      if (item.valid_id === 1) {
+        return '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Active</span>';
+      } else {
+        return '<span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">Inactive</span>';
+      }
+      
+  - name: last_login_formatted
+    label: Last Activity
+    show_in_list: true
+    show_in_form: false
+    lambda: |
+      if (!item.change_time || item.change_time === null) {
+        return '<span class="text-gray-400">Never</span>';
+      }
+      return '<span title="' + item.change_time + '">' + formatDate(item.change_time) + '</span>';
 
 features:
   soft_delete: true      # Use valid_id for soft deletes

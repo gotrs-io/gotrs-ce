@@ -231,3 +231,7 @@ validation:
     - status
     - priority
     - start_date
+  field_patterns:
+    - field: email
+      pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+      message: "Please enter a valid email address"

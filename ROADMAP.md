@@ -1,39 +1,46 @@
 # GOTRS Development Roadmap
 
-## 🚀 SCHEMA DISCOVERY SYSTEM COMPLETE! (August 23, 2025) 
+## 🚀 LAMBDA FUNCTIONS SYSTEM COMPLETE! (August 24, 2025) 
 
-**BREAKTHROUGH**: Automatic module generation from database schema achieved!
-**Revolutionary Speed**: Generate ANY module in 33ms (9000x faster than manual)
-**Zero Configuration**: Database → YAML → Working CRUD in seconds!
+**BREAKTHROUGH**: JavaScript Lambda Functions in YAML module configurations achieved!
+**Revolutionary Power**: Embed custom business logic directly in YAML without touching Go backend
+**ESPHome-Inspired**: Configuration-driven programming model for maximum flexibility
 
-## 🎯 DYNAMIC MODULE SYSTEM + SCHEMA DISCOVERY = GAME OVER! 
+## 🎯 DYNAMIC MODULE SYSTEM + LAMBDA FUNCTIONS = INFINITE CUSTOMIZATION! 
 
 **Combined Power**: 
+- Dynamic Module System serves modules from YAML configurations
+- Lambda Functions enable custom JavaScript code execution in computed fields
 - Schema Discovery generates perfect YAML configs automatically
-- Dynamic Module System instantly serves them without compilation
-- Result: ANY database table to working admin interface in <1 second!
+- Result: Customers can customize ANY module logic without developer intervention!
 
-### What We've Built Today:
-- ✅ **Dynamic Module Handler**: ONE handler serves ALL admin modules
-- ✅ **Hot Reload System**: File watcher detects YAML changes instantly
-- ✅ **Universal Template**: Single template adapts to any module config
-- ✅ **Shared Components**: Form macros, table macros, modal macros
-- ✅ **Zero Compilation**: Drop YAML file → instant module, no build needed!
+### What We've Built:
+- ✅ **Dynamic Module Handler**: ONE handler serves ALL admin modules (Aug 23, 2025)
+- ✅ **Hot Reload System**: File watcher detects YAML changes instantly (Aug 23, 2025)
+- ✅ **Universal Template**: Single template adapts to any module config (Aug 23, 2025)
+- ✅ **Shared Components**: Form macros, table macros, modal macros (Aug 23, 2025)
+- ✅ **Zero Compilation**: Drop YAML file → instant module, no build needed! (Aug 23, 2025)
+- ✅ **Lambda Functions System**: JavaScript execution engine for computed fields (Aug 24, 2025)
+- ✅ **Safe Sandboxing**: Read-only database access, timeouts, memory limits (Aug 24, 2025)
+- ✅ **HTML Rendering**: Lambda-generated HTML renders as styled content (Aug 24, 2025)
 
-### Architecture Revolution Achieved (Aug 23, 2025):
+### Architecture Revolution Achieved (Aug 23-24, 2025):
 - **From 90% duplication → 0% duplication** - True DRY principles
 - **From 200+ files → ~10 core files** - 95% reduction in code
 - **From 2-5 days per module → 2 minutes** - Just write YAML
 - **From developer-only → customer-friendly** - Anyone can add modules
 - **From static generation → dynamic runtime** - No compilation ever
+- **From hardcoded logic → programmable** - Lambda functions enable unlimited customization
 
-### The New Reality - Dynamic Modules:
+### The New Reality - Dynamic Modules with Lambda Functions:
 - **Drop a YAML file** in `modules/` directory
 - **Module instantly available** at `/admin/{module}`
 - **Hot reload** picks up changes without restart
 - **One handler** processes all CRUD operations
 - **One template** renders any module configuration
-- **Customer can customize** without touching code!
+- **Lambda functions** execute custom JavaScript for computed fields
+- **Customer can customize** logic without touching Go backend!
+- **ESPHome-style** configuration-driven programming model
 
 ## Current Priority: ADMIN UI IMPLEMENTATION 🚨
 
@@ -66,22 +73,26 @@ gantt
     Platform Maturity         :phase7, 2025-12-01, 30d
 ```
 
-## Phase 2.5: Dynamic Module Revolution ✅ COMPLETE IN ONE DAY! (Aug 23, 2025)
+## Phase 2.5: Dynamic Module Revolution ✅ COMPLETE! (Aug 23-24, 2025)
 
-### What We Accomplished in ONE DAY:
-- ✅ **Dynamic Module Handler** - Serves infinite modules from YAML
-- ✅ **Hot Reload System** - File watcher with instant updates
-- ✅ **Universal Template** - One template for all modules
-- ✅ **Shared Component Library** - Forms, tables, modals macros
-- ✅ **Working Modules** - Priority, Queue, State, Service all tested
-- ✅ **Complete Documentation** - DYNAMIC_MODULES.md guide
+### What We Accomplished in TWO DAYS:
+- ✅ **Dynamic Module Handler** - Serves infinite modules from YAML (Aug 23)
+- ✅ **Hot Reload System** - File watcher with instant updates (Aug 23)
+- ✅ **Universal Template** - One template for all modules (Aug 23)
+- ✅ **Shared Component Library** - Forms, tables, modals macros (Aug 23)
+- ✅ **Working Modules** - Priority, Queue, State, Service all tested (Aug 23)
+- ✅ **Lambda Functions System** - JavaScript execution for computed fields (Aug 24)
+- ✅ **Safe Sandboxing** - Read-only database, timeouts, memory limits (Aug 24)
+- ✅ **HTML Rendering Fix** - Lambda HTML renders as styled content (Aug 24)
+- ✅ **Complete Documentation** - LAMBDA_FUNCTIONS.md with examples (Aug 24)
 
 ### The New Module Process (2 minutes instead of 2-5 days):
 1. Create YAML file in `modules/` directory
-2. Define fields and features
+2. Define fields, features, and optional lambda functions
 3. Save file
 4. Module instantly available - NO compilation!
 5. Hot reload for instant changes
+6. **NEW**: Add JavaScript lambda functions for custom business logic!
 
 ## Phase 2A: Admin UI Implementation (ACCELERATED)
 
@@ -378,7 +389,46 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ---
 
-*Last updated: August 23, 2025 - CRITICAL ARCHITECTURE REFACTOR INITIATED*
+*Last updated: August 24, 2025 - LAMBDA FUNCTIONS SYSTEM COMPLETE*
+
+## Recent Accomplishments (August 24, 2025)
+
+### Lambda Functions System Implementation ✅ COMPLETE:
+1. **JavaScript Execution Engine** ✅
+   - Built secure lambda execution engine using goja (pure Go JavaScript)
+   - Implemented execution timeouts and memory limits for safety
+   - Created read-only database interface for lambda functions
+   - Added utility functions (formatDate, etc.) for common operations
+
+2. **YAML Configuration Support** ✅
+   - Extended YAML schema with `computed_fields` and `lambda` attributes
+   - Created comprehensive demo module showcasing lambda capabilities
+   - Implemented hot reload for lambda function changes
+   - Added lambda configuration (timeout_ms, memory_limit_mb)
+
+3. **Template HTML Rendering Fix** ✅
+   - Fixed critical issue where lambda-generated HTML displayed as raw text
+   - Added conditional `|safe` filter for lambda-generated content
+   - Preserved security by only applying to lambda fields, not regular fields
+   - Updated both `allFields` and regular `fields` template sections
+
+4. **Security & Performance** ✅
+   - Implemented read-only database access (only SELECT queries allowed)
+   - Added execution timeouts (default 5 seconds, configurable)
+   - Set memory limits (default 32MB, configurable)
+   - Created safe database wrapper with security validation
+
+5. **Demo & Documentation** ✅
+   - Created lambda_demo.yaml with real-world examples
+   - Implemented colored status indicators, relative time, database queries
+   - Built visual priority charts and usage statistics
+   - Added comprehensive error handling with fallback values
+
+### ESPHome-Inspired Architecture Achievement:
+- **Configuration-Driven Programming**: Customers can now embed JavaScript directly in YAML
+- **Zero Backend Changes**: Lambda functions execute without modifying Go code
+- **Infinite Customization**: Any business logic can be implemented via lambda
+- **Customer Empowerment**: Non-developers can customize module behavior
 
 ## Recent Accomplishments (August 23, 2025)
 

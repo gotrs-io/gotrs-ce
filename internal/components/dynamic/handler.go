@@ -1,6 +1,7 @@
 package dynamic
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
@@ -18,6 +19,9 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
+
+	"github.com/gotrs-io/gotrs-ce/internal/components/lambda"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 )
 
 // hashPassword hashes a password using SHA256 with salt
@@ -83,6 +87,8 @@ type ModuleConfig struct {
 	UI struct {
 		ListColumns []string `yaml:"list_columns"`
 	} `yaml:"ui"`
+
+	LambdaConfig lambda.LambdaConfig `yaml:"lambda_config"`
 }
 
 // Field represents a field in the module
@@ -108,7 +114,8 @@ type ComputedField struct {
 	Label      string `yaml:"label"`
 	ShowInList bool   `yaml:"show_in_list"`
 	ShowInForm bool   `yaml:"show_in_form"`
-	Source     string `yaml:"source"`
+	Source     string `yaml:"source"`  // Traditional source (e.g., SQL)
+	Lambda     string `yaml:"lambda"`  // JavaScript lambda function
 }
 
 // Option for select fields
@@ -119,21 +126,31 @@ type Option struct {
 
 // DynamicModuleHandler handles all dynamic modules
 type DynamicModuleHandler struct {
-	configs  map[string]*ModuleConfig
-	mu       sync.RWMutex
-	db       *sql.DB
-	renderer *pongo2.TemplateSet
-	watcher  *fsnotify.Watcher
-	modulesPath string
+	configs       map[string]*ModuleConfig
+	mu            sync.RWMutex
+	db            *sql.DB
+	renderer      *pongo2.TemplateSet
+	watcher       *fsnotify.Watcher
+	modulesPath   string
+	lambdaEngine  *lambda.Engine
+	ctx           context.Context
 }
 
 // NewDynamicModuleHandler creates a new dynamic module handler
 func NewDynamicModuleHandler(db *sql.DB, renderer *pongo2.TemplateSet, modulesPath string) (*DynamicModuleHandler, error) {
+	ctx := context.Background()
+	lambdaEngine, err := lambda.NewEngine(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create lambda engine: %w", err)
+	}
+
 	h := &DynamicModuleHandler{
-		configs:     make(map[string]*ModuleConfig),
-		db:          db,
-		renderer:    renderer,
-		modulesPath: modulesPath,
+		configs:      make(map[string]*ModuleConfig),
+		db:           db,
+		renderer:     renderer,
+		modulesPath:  modulesPath,
+		lambdaEngine: lambdaEngine,
+		ctx:          ctx,
 	}
 	
 	// Load all module configs
@@ -305,52 +322,8 @@ func (h *DynamicModuleHandler) handleList(c *gin.Context, config *ModuleConfig) 
 	
 	items := h.scanRows(rows, config)
 	
-	// For users module, add group information and computed fields
-	if config.Module.Name == "users" {
-		for i := range items {
-			// Compute full_name from first_name and last_name
-			firstName := ""
-			lastName := ""
-			if fn, ok := items[i]["first_name"].(string); ok {
-				firstName = fn
-			}
-			if ln, ok := items[i]["last_name"].(string); ok {
-				lastName = ln
-			}
-			fullName := strings.TrimSpace(firstName + " " + lastName)
-			if fullName == "" {
-				// Fall back to login if no name
-				if login, ok := items[i]["login"].(string); ok {
-					fullName = login
-				}
-			}
-			items[i]["full_name"] = fullName
-			
-			// Get groups for this user
-			if id, ok := items[i]["id"].(int64); ok {
-				groupQuery := `
-					SELECT DISTINCT g.name 
-					FROM groups g 
-					INNER JOIN user_groups ug ON g.id = ug.group_id 
-					WHERE ug.user_id = $1
-					ORDER BY g.name`
-				
-				groupRows, err := h.db.Query(groupQuery, id)
-				if err == nil {
-					var groups []string
-					for groupRows.Next() {
-						var groupName string
-						if err := groupRows.Scan(&groupName); err == nil {
-							groups = append(groups, groupName)
-						}
-					}
-					groupRows.Close()
-					items[i]["Groups"] = groups
-					items[i]["group_names"] = strings.Join(groups, ", ")
-				}
-			}
-		}
-	}
+	// Process computed fields for all items
+	h.processComputedFields(items, config)
 	
 	// Check if this is an API request
 	if h.isAPIRequest(c) {
@@ -973,5 +946,187 @@ func (h *DynamicModuleHandler) handleSchemaDiscovery(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid action. Use: tables, columns, generate, or save",
 		})
+	}
+}
+
+// processComputedFields processes all computed fields for the given items
+func (h *DynamicModuleHandler) processComputedFields(items []map[string]interface{}, config *ModuleConfig) {
+	if len(config.ComputedFields) == 0 {
+		return
+	}
+
+	// Get lambda configuration with defaults
+	lambdaConfig := config.LambdaConfig
+	if lambdaConfig.TimeoutMs == 0 {
+		lambdaConfig = lambda.DefaultLambdaConfig()
+	}
+
+	// Create safe database interface for lambda execution
+	dbInterface := h.createDatabaseInterface()
+
+	for i := range items {
+		for _, field := range config.ComputedFields {
+			// Skip if neither source nor lambda is defined
+			if field.Source == "" && field.Lambda == "" {
+				continue
+			}
+
+			var value interface{}
+			var err error
+
+			// Process lambda functions first (they take precedence over source)
+			if field.Lambda != "" {
+				value, err = h.executeLambda(field.Lambda, items[i], dbInterface, lambdaConfig)
+				if err != nil {
+					// Log error and use fallback value
+					fmt.Printf("Lambda execution error for field %s: %v\n", field.Name, err)
+					value = fmt.Sprintf("Error: %v", err)
+				}
+			} else if field.Source != "" {
+				// Handle traditional source-based computed fields
+				value, err = h.executeSource(field.Source, items[i], config)
+				if err != nil {
+					fmt.Printf("Source execution error for field %s: %v\n", field.Name, err)
+					value = "-"
+				}
+			}
+
+			// Set the computed value
+			if value != nil {
+				items[i][field.Name] = value
+			}
+		}
+	}
+}
+
+// executeLambda executes a JavaScript lambda function for a computed field
+func (h *DynamicModuleHandler) executeLambda(lambdaCode string, item map[string]interface{}, dbInterface *lambda.SafeDBInterface, config lambda.LambdaConfig) (string, error) {
+	// Create execution context
+	execCtx := lambda.ExecutionContext{
+		Item: item,
+		DB:   dbInterface,
+	}
+
+	// Execute the lambda
+	result, err := h.lambdaEngine.ExecuteLambda(lambdaCode, execCtx, config)
+	if err != nil {
+		return "", fmt.Errorf("lambda execution failed: %w", err)
+	}
+
+	return result, nil
+}
+
+// executeSource executes traditional source-based computed fields (backward compatibility)
+func (h *DynamicModuleHandler) executeSource(source string, item map[string]interface{}, config *ModuleConfig) (interface{}, error) {
+	// Handle legacy computed field sources
+	switch source {
+	case "CONCAT first_name, last_name":
+		// Handle full_name computation
+		firstName := ""
+		lastName := ""
+		if fn, ok := item["first_name"].(string); ok {
+			firstName = fn
+		}
+		if ln, ok := item["last_name"].(string); ok {
+			lastName = ln
+		}
+		fullName := strings.TrimSpace(firstName + " " + lastName)
+		if fullName == "" {
+			// Fall back to login if no name
+			if login, ok := item["login"].(string); ok {
+				fullName = login
+			}
+		}
+		return fullName, nil
+
+	case "JOIN user_groups":
+		// Handle group names for users
+		if config.Module.Name == "users" {
+			if id, ok := item["id"].(int64); ok {
+				groupQuery := `
+					SELECT DISTINCT g.name 
+					FROM groups g 
+					INNER JOIN user_groups ug ON g.id = ug.group_id 
+					WHERE ug.user_id = $1
+					ORDER BY g.name`
+				
+				groupRows, err := h.db.Query(groupQuery, id)
+				if err != nil {
+					return nil, err
+				}
+				defer groupRows.Close()
+
+				var groups []string
+				for groupRows.Next() {
+					var groupName string
+					if err := groupRows.Scan(&groupName); err == nil {
+						groups = append(groups, groupName)
+					}
+				}
+
+				// Set both Groups array and group_names string for compatibility
+				item["Groups"] = groups
+				return strings.Join(groups, ", "), nil
+			}
+		}
+		return "", nil
+
+	default:
+		return fmt.Sprintf("Unknown source: %s", source), nil
+	}
+}
+
+// createDatabaseInterface creates a safe database interface for lambda execution
+func (h *DynamicModuleHandler) createDatabaseInterface() *lambda.SafeDBInterface {
+	return lambda.NewSafeDBInterface(&simpleDatabaseWrapper{db: h.db})
+}
+
+// simpleDatabaseWrapper implements the database.IDatabase interface for lambda use
+type simpleDatabaseWrapper struct {
+	db *sql.DB
+}
+
+func (w *simpleDatabaseWrapper) QueryRow(ctx context.Context, query string, args ...interface{}) *sql.Row {
+	return w.db.QueryRow(query, args...)
+}
+
+func (w *simpleDatabaseWrapper) Query(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
+	return w.db.Query(query, args...)
+}
+
+func (w *simpleDatabaseWrapper) Exec(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+	return w.db.Exec(query, args...)
+}
+
+// Implement the required interface methods (minimal implementation for lambda use)
+func (w *simpleDatabaseWrapper) Connect() error { return nil }
+func (w *simpleDatabaseWrapper) Close() error { return nil }
+func (w *simpleDatabaseWrapper) Ping() error { return w.db.Ping() }
+func (w *simpleDatabaseWrapper) GetType() database.DatabaseType { return database.PostgreSQL }
+func (w *simpleDatabaseWrapper) GetConfig() database.DatabaseConfig { return database.DatabaseConfig{} }
+func (w *simpleDatabaseWrapper) Begin(ctx context.Context) (database.ITransaction, error) { return nil, fmt.Errorf("transactions not supported in lambda") }
+func (w *simpleDatabaseWrapper) BeginTx(ctx context.Context, opts *sql.TxOptions) (database.ITransaction, error) { return nil, fmt.Errorf("transactions not supported in lambda") }
+func (w *simpleDatabaseWrapper) TableExists(ctx context.Context, tableName string) (bool, error) { return false, fmt.Errorf("not implemented") }
+func (w *simpleDatabaseWrapper) GetTableColumns(ctx context.Context, tableName string) ([]database.ColumnInfo, error) { return nil, fmt.Errorf("not implemented") }
+func (w *simpleDatabaseWrapper) CreateTable(ctx context.Context, definition *database.TableDefinition) error { return fmt.Errorf("not supported") }
+func (w *simpleDatabaseWrapper) DropTable(ctx context.Context, tableName string) error { return fmt.Errorf("not supported") }
+func (w *simpleDatabaseWrapper) CreateIndex(ctx context.Context, tableName, indexName string, columns []string, unique bool) error { return fmt.Errorf("not supported") }
+func (w *simpleDatabaseWrapper) DropIndex(ctx context.Context, tableName, indexName string) error { return fmt.Errorf("not supported") }
+func (w *simpleDatabaseWrapper) Quote(identifier string) string { return `"` + identifier + `"` }
+func (w *simpleDatabaseWrapper) QuoteValue(value interface{}) string { return fmt.Sprintf("'%v'", value) }
+func (w *simpleDatabaseWrapper) BuildInsert(tableName string, data map[string]interface{}) (string, []interface{}) { return "", nil }
+func (w *simpleDatabaseWrapper) BuildUpdate(tableName string, data map[string]interface{}, where string, whereArgs []interface{}) (string, []interface{}) { return "", nil }
+func (w *simpleDatabaseWrapper) BuildSelect(tableName string, columns []string, where string, orderBy string, limit int) string { return "" }
+func (w *simpleDatabaseWrapper) GetLimitClause(limit, offset int) string { return fmt.Sprintf("LIMIT %d OFFSET %d", limit, offset) }
+func (w *simpleDatabaseWrapper) GetDateFunction() string { return "NOW()" }
+func (w *simpleDatabaseWrapper) GetConcatFunction(fields []string) string { return strings.Join(fields, " || ") }
+func (w *simpleDatabaseWrapper) SupportsReturning() bool { return true }
+func (w *simpleDatabaseWrapper) Stats() sql.DBStats { return w.db.Stats() }
+func (w *simpleDatabaseWrapper) IsHealthy() bool { return w.db.Ping() == nil }
+
+// Close closes the lambda engine
+func (h *DynamicModuleHandler) Close() {
+	if h.lambdaEngine != nil {
+		h.lambdaEngine.Close()
 	}
 }

@@ -139,6 +139,8 @@
                                     {% endif %}
                                 {% elif field.Type == "datetime" %}
                                     <span class="datetime-field" data-utc="{{ item[field.Name] }}">{{ item[field.Name]|default:"-" }}</span>
+                                {% elif field.Lambda %}
+                                    {{ item[field.Name]|default:"-"|safe }}
                                 {% else %}
                                     {{ item[field.Name]|default:"-" }}
                                 {% endif %}
@@ -163,6 +165,8 @@
                                     </div>
                                 {% elif field.Type == "datetime" %}
                                     <span class="datetime-field" data-utc="{{ item[field.Name] }}">{{ item[field.Name]|default:"-" }}</span>
+                                {% elif field.Lambda %}
+                                    {{ item[field.Name]|default:"-"|safe }}
                                 {% else %}
                                     {{ item[field.Name]|default:"-" }}
                                 {% endif %}

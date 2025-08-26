@@ -1,0 +1,59 @@
+apiVersion: goatkit.io/v1
+kind: RouteConfig
+metadata:
+  name: admin-customer-users
+  namespace: admin
+  
+spec:
+  name: Admin Customer User Management
+  path_prefix: /admin/customer-users
+  routes:
+  - path: /admin/customer-users
+    method: GET
+    handler: admin_customer_users_list
+    name: Customer User List
+
+  - path: /admin/customer-users
+    method: POST
+    handler: admin_customer_users_create
+    name: Create Customer User
+
+  - path: /admin/customer-users/:id
+    method: GET
+    handler: admin_customer_users_get
+    name: Get Customer User Details
+
+  - path: /admin/customer-users/:id
+    method: PUT
+    handler: admin_customer_users_update
+    name: Update Customer User
+
+  - path: /admin/customer-users/:id
+    method: DELETE
+    handler: admin_customer_users_delete
+    name: Delete Customer User (Set Invalid)
+
+  - path: /admin/customer-users/import
+    method: GET
+    handler: admin_customer_users_import_form
+    name: Customer User Import Form
+
+  - path: /admin/customer-users/import
+    method: POST
+    handler: admin_customer_users_import
+    name: Import Customer Users
+
+  - path: /admin/customer-users/export
+    method: GET
+    handler: admin_customer_users_export
+    name: Export Customer Users
+
+  - path: /admin/customer-users/:id/tickets
+    method: GET
+    handler: admin_customer_users_tickets
+    name: Get Customer User Tickets
+
+  - path: /admin/customer-users/bulk-action
+    method: POST
+    handler: admin_customer_users_bulk_action
+    name: Bulk Actions

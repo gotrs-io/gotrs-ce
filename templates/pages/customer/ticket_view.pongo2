@@ -1,0 +1,203 @@
+{% extends "layouts/base.pongo2" %}
+
+{% block title %}Ticket #{{ Ticket.tn }} - GOTRS{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-6">
+        <nav class="mb-4" aria-label="Breadcrumb">
+            <ol class="flex items-center space-x-2 text-sm">
+                <li>
+                    <a href="/customer/dashboard" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                        Dashboard
+                    </a>
+                </li>
+                <li>
+                    <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                </li>
+                <li>
+                    <a href="/customer/tickets" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                        My Tickets
+                    </a>
+                </li>
+                <li>
+                    <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                </li>
+                <li class="text-gray-900 dark:text-white font-medium">
+                    Ticket #{{ Ticket.tn }}
+                </li>
+            </ol>
+        </nav>
+        
+        <div class="flex items-center justify-between">
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ Ticket.title }}</h1>
+            <div class="flex items-center space-x-3">
+                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                    {% if 'new' in Ticket.state|lower %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200{% endif %}
+                    {% if 'open' in Ticket.state|lower %}bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200{% endif %}
+                    {% if 'pending' in Ticket.state|lower %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200{% endif %}
+                    {% if 'closed' in Ticket.state|lower %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                    {{ Ticket.state }}
+                </span>
+                {% if Ticket.can_close %}
+                <button onclick="confirmCloseTicket()" class="px-4 py-2 border border-red-300 dark:border-red-600 text-sm font-medium rounded-md text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-900">
+                    Close Ticket
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticket Info -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow mb-6">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Ticket Information</h2>
+        </div>
+        <div class="p-6">
+            <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-3">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Ticket Number</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-white font-mono">#{{ Ticket.tn }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Priority</dt>
+                    <dd class="mt-1 text-sm font-medium" {% if Ticket.priority_color %}style="color: {{ Ticket.priority_color }}"{% endif %}>
+                        {{ Ticket.priority }}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Service</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ Ticket.service|default:"-" }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Queue</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ Ticket.queue }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Created</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ Ticket.age }} ago</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ Ticket.last_changed }} ago</dd>
+                </div>
+                {% if Ticket.owner %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Owner</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ Ticket.owner }}</dd>
+                </div>
+                {% endif %}
+                {% if Ticket.responsible %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Assigned To</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ Ticket.responsible }}</dd>
+                </div>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+
+    <!-- Articles/Messages -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow mb-6">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Conversation</h2>
+        </div>
+        <div class="divide-y divide-gray-200 dark:divide-gray-700">
+            {% for article in Articles %}
+            <div class="p-6 {% if article.is_customer %}bg-blue-50 dark:bg-blue-900/20{% endif %}">
+                <div class="flex items-start space-x-4">
+                    <div class="flex-shrink-0">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center {% if article.is_customer %}bg-blue-500{% else %}bg-gray-500{% endif %}">
+                            <span class="text-white text-sm font-medium">
+                                {% if article.is_customer %}C{% else %}A{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between mb-2">
+                            <div>
+                                <span class="text-sm font-medium text-gray-900 dark:text-white">
+                                    {{ article.author }}
+                                </span>
+                                <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                                    {% if article.is_customer %}(Customer){% else %}(Agent){% endif %}
+                                </span>
+                            </div>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">
+                                {{ article.create_time }}
+                            </span>
+                        </div>
+                        {% if article.subject and article.subject != Ticket.title %}
+                        <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            {{ article.subject }}
+                        </div>
+                        {% endif %}
+                        <div class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ article.body }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Reply Form -->
+    {% if Ticket.state_id != 3 %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow" id="reply">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Add Reply</h2>
+        </div>
+        <form method="post" action="/customer/tickets/{{ Ticket.id }}/reply" class="p-6">
+            <div class="mb-4">
+                <label for="message" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Your Message <span class="text-red-500">*</span>
+                </label>
+                <textarea id="message" 
+                          name="message" 
+                          rows="6"
+                          required
+                          placeholder="Type your reply here..."
+                          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500"></textarea>
+            </div>
+            
+            <div class="flex items-center justify-between">
+                <a href="/customer/tickets" class="text-sm text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                    ← Back to tickets
+                </a>
+                <button type="submit" class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Send Reply
+                </button>
+            </div>
+        </form>
+    </div>
+    {% else %}
+    <!-- Ticket is closed -->
+    <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 text-center">
+        <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+        </svg>
+        <p class="text-gray-600 dark:text-gray-400">This ticket is closed. No further replies can be added.</p>
+        <a href="/customer/tickets" class="mt-4 inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+            ← Back to tickets
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function confirmCloseTicket() {
+    if (confirm('Are you sure you want to close this ticket? This action cannot be undone.')) {
+        // Create form and submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/customer/tickets/{{ Ticket.id }}/close';
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

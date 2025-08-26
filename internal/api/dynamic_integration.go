@@ -31,6 +31,9 @@ func SetupDynamicModules(router *gin.RouterGroup, db *sql.DB) error {
 		// List route - shows all items
 		dynamicRoutes.GET("/:module", handler.ServeModule)
 		
+		// Export route (must be before /:id to match correctly)
+		dynamicRoutes.GET("/:module/export", handler.ServeModule)
+		
 		// Single item routes
 		dynamicRoutes.GET("/:module/:id", handler.ServeModule)
 		

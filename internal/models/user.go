@@ -9,7 +9,7 @@ import (
 type User struct {
 	ID               uint      `json:"id" db:"id"`
 	Login            string    `json:"login" db:"login"`
-	Email            string    `json:"email" db:"email"`
+	Email            string    `json:"email"` // Not in users table, use login as email
 	Password         string    `json:"-" db:"pw"` // Never expose in JSON
 	Title            string    `json:"title" db:"title"`
 	FirstName        string    `json:"first_name" db:"first_name"`

@@ -1,0 +1,97 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: api-v1-tickets
+  description: REST API v1 ticket endpoints
+  namespace: api
+  enabled: true
+  labels:
+    environment: all
+    version: v1
+    api: rest
+
+spec:
+  prefix: /api/v1
+  middleware:
+    - cors
+    - rateLimit
+  
+  routes:
+    - path: /tickets
+      method: GET
+      handler: api_v1_tickets_list
+      name: List Tickets
+      description: Get list of tickets (under construction)
+      openapi:
+        summary: List tickets
+        tags: [API v1, Tickets]
+        responses:
+          200: Success
+                      
+    - path: /tickets/:id
+      method: GET
+      handler: api_v1_ticket_get
+      name: Get Ticket
+      description: Get single ticket by ID
+      params:
+        id:
+          type: int
+          required: true
+      openapi:
+        summary: Get ticket details
+        tags: [API v1, Tickets]
+        responses:
+          200: Success
+          404: NotFound
+          
+    - path: /tickets
+      method: POST
+      handler: api_v1_ticket_create
+      name: Create Ticket
+      description: Create new ticket
+      openapi:
+        summary: Create ticket
+        tags: [API v1, Tickets]
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [title, message, queue_id, priority_id]
+                properties:
+                  title:
+                    type: string
+                  message:
+                    type: string
+                  queue_id:
+                    type: integer
+                  priority_id:
+                    type: integer
+        responses:
+          201: Created
+          400: BadRequest
+          
+    - path: /tickets/:id
+      method: PUT
+      handler: api_v1_ticket_update
+      name: Update Ticket
+      description: Update existing ticket
+      openapi:
+        summary: Update ticket
+        tags: [API v1, Tickets]
+        responses:
+          200: Success
+          404: NotFound
+          
+    - path: /tickets/:id
+      method: DELETE
+      handler: api_v1_ticket_delete
+      name: Delete Ticket
+      description: Delete ticket
+      openapi:
+        summary: Delete ticket
+        tags: [API v1, Tickets]
+        responses:
+          204: NoContent
+          404: NotFound

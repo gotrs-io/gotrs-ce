@@ -1,0 +1,23 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: admin-queues
+  description: Queue management interface
+  namespace: admin
+  enabled: true
+
+spec:
+  prefix: ""
+  middleware:
+    - auth
+    - admin
+    - i18n
+  
+  routes:
+    - path: /admin/queues
+      method: GET
+      handler: admin_queues
+      name: Admin Queues
+      config:
+        template: pages/admin/queues.pongo2
+        repository: queues

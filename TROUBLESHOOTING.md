@@ -15,7 +15,7 @@ FATAL: database "gotrs_user" does not exist
 
 1. **Run the fix script:**
    ```bash
-   ./fix-database.sh
+   ./scripts/fix-database.sh
    ```
 
 2. **Or manually fix:**
@@ -53,7 +53,7 @@ make debug-env
 
 You can also use the wrapper script:
 ```bash
-./compose.sh up     # Auto-detects the right command
+./scripts/compose.sh up     # Auto-detects the right command
 ```
 
 ### 3. Container Won't Start
@@ -220,7 +220,7 @@ docker compose exec postgres psql -U gotrs -d gotrs
 ### Clean Slate Reset
 ```bash
 # Complete cleanup and restart
-./fix-database.sh
+./scripts/fix-database.sh
 make clean
 make setup
 make up
@@ -254,4 +254,4 @@ If you continue to experience issues:
 2. **Keep .env and .env.example in sync** - Update both when changing config
 3. **Use make clean before major changes** - Ensures fresh state
 4. **Check logs early** - Don't wait for multiple errors
-5. **Use the wrapper scripts** - `./compose.sh` and `./fix-database.sh` handle edge cases
+5. **Use the wrapper scripts** - `./scripts/compose.sh` and `./scripts/fix-database.sh` handle edge cases

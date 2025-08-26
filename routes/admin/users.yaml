@@ -1,0 +1,85 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: admin-users
+  description: User management interface
+  namespace: admin
+  enabled: true
+
+spec:
+  prefix: ""
+  middleware:
+    - auth
+    - admin
+    - i18n
+  
+  routes:
+    - path: /admin/users
+      method: GET
+      handler: admin_users
+      name: Admin Users
+      config:
+        template: pages/admin/users.pongo2
+        repository: users
+    
+    - path: /admin/users/:id
+      method: GET
+      handler: admin_user_get
+      name: Get User Details
+      config:
+        repository: users
+    
+    - path: /admin/users
+      method: POST
+      handler: admin_users_create
+      name: Create User
+      config:
+        repository: users
+        success_message: User created successfully
+        error_redirect: /admin/users
+    
+    - path: /admin/users/:id
+      method: PUT
+      handler: admin_users_update
+      name: Update User
+      config:
+        repository: users
+        success_message: User updated successfully
+    
+    - path: /admin/users/:id
+      method: DELETE
+      handler: admin_users_delete
+      name: Delete User
+      config:
+        repository: users
+        soft_delete: true
+        success_message: User deleted successfully
+    
+    - path: /admin/users/:id/groups
+      method: GET
+      handler: admin_user_groups
+      name: Get User Groups
+      config:
+        repository: users
+    
+    - path: /admin/users/:id/status
+      method: PUT
+      handler: admin_users_status
+      name: Toggle User Status
+      config:
+        repository: users
+        field: valid_id
+    
+    - path: /admin/users/:id/reset-password
+      method: POST
+      handler: admin_users_reset_password
+      name: Reset User Password
+      config:
+        repository: users
+    
+    - path: /admin/password-policy
+      method: GET
+      handler: admin_password_policy
+      name: Get Password Policy
+      config:
+        cache: true

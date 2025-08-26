@@ -88,6 +88,36 @@ features:
   export_csv: true
   status_toggle: true
   color_picker: false
+  filters: true
+
+filters:
+  - field: type_id
+    type: select
+    label: Type
+    options:
+      - value: ""
+        label: "All Types"
+      - value: "1"
+        label: "New"
+      - value: "2"
+        label: "Open"
+      - value: "3"
+        label: "Pending"
+      - value: "4"
+        label: "Closed"
+  - field: valid_id
+    type: select
+    label: Status
+    options:
+      - value: ""
+        label: "All States"
+      - value: "1"
+        label: "Valid"
+      - value: "2"
+        label: "Invalid"
+  - field: create_time
+    type: date_range
+    label: Created
 
 permissions:
   - view

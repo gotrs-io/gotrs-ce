@@ -1,0 +1,41 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: agent-queues
+  description: Agent queue management
+  namespace: agent
+  enabled: true
+  labels:
+    environment: all
+    security: agent
+
+spec:
+  prefix: "/agent"
+  middleware:
+    - auth
+    - agent
+  
+  routes:
+    - path: /queues
+      method: GET
+      handler: agent_queues
+      name: Agent Queues
+      description: List agent queues
+      
+    - path: /queues/:id
+      method: GET
+      handler: agent_queue_view
+      name: View Queue
+      description: View queue details
+      
+    - path: /queues/:id/lock
+      method: POST
+      handler: agent_queue_lock
+      name: Lock Queue
+      description: Lock queue for processing
+      
+    - path: /queues/:id/unlock
+      method: POST
+      handler: agent_queue_unlock
+      name: Unlock Queue
+      description: Unlock queue after processing

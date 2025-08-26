@@ -1,0 +1,38 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: login-routes
+  description: Authentication routes
+  namespace: core
+  enabled: true
+
+spec:
+  prefix: ""
+  middleware:
+    - i18n
+  
+  routes:
+    - path: /login
+      method: GET
+      handler: login
+      name: Login Page
+      config:
+        template: pages/login.pongo2
+        
+    - path: /login
+      method: POST
+      handler: auth_login
+      name: Login Submit
+      config:
+        success_redirect: /dashboard
+        failure_redirect: /login
+        cookie_name: access_token
+        cookie_max_age: 86400
+        
+    - path: /logout
+      method: GET
+      handler: logout
+      name: Logout
+      config:
+        redirect_to: /login
+        cookie_name: access_token

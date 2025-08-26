@@ -235,15 +235,6 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                                 </svg>
                             </button>
-                            <button
-                                onclick="deleteUser({{ user.ID }})"
-                                title="{{ t("admin.delete_user") }}"
-                                class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                            >
-                                <svg class="icon-md" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
                         </div>
                     </td>
                 </tr>
@@ -307,7 +298,7 @@
                             <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-200">
                                 {{ t("admin.password") }} <span id="passwordHint" class="text-xs text-gray-500">({{ t("admin.leave_blank_to_keep") }})</span>
                             </label>
-                            <input type="password" id="password" name="password" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm px-3 py-2">
+                            <input type="password" id="password" name="password" autocomplete="new-password" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm px-3 py-2">
                         </div>
                         
                         <div>
@@ -524,14 +515,14 @@ function submitUserForm(event) {
     const formData = new FormData(form);
     const userId = document.getElementById('userId').value;
     
-    // Get selected groups
+    // Get selected groups - send group names, not IDs
     const groupSelect = document.getElementById('groups');
-    const selectedGroups = Array.from(groupSelect.selectedOptions).map(opt => opt.value);
+    const selectedGroups = Array.from(groupSelect.selectedOptions).map(opt => opt.textContent);
     
     // Clear existing groups in formData and add selected ones
     formData.delete('groups');
-    selectedGroups.forEach(groupId => {
-        formData.append('groups', groupId);
+    selectedGroups.forEach(groupName => {
+        formData.append('groups', groupName);
     });
     
     const url = userId ? `/admin/users/${userId}` : '/admin/users';
@@ -630,10 +621,10 @@ function editUser(userId) {
                 document.getElementById('password').removeAttribute('required');
                 document.getElementById('password').value = ''; // Clear password field
                 
-                // Set selected groups
+                // Set selected groups - match by name
                 const groupSelect = document.getElementById('groups');
                 Array.from(groupSelect.options).forEach(option => {
-                    option.selected = user.groups && user.groups.includes(parseInt(option.value));
+                    option.selected = user.groups && user.groups.includes(option.textContent);
                 });
                 
                 document.getElementById('userModal').classList.remove('hidden');
@@ -756,13 +747,66 @@ function showGuruMeditation(title, message) {
                             <p class="text-sm text-gray-500 dark:text-gray-400">
                                 {{ t("admin.reset_password_message") }}
                             </p>
-                            <div class="mt-4">
-                                <label for="newPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                                    New Password (optional - leave blank for auto-generated)
-                                </label>
-                                <input type="password" id="newPassword" name="new_password" 
-                                    class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm px-3 py-2"
-                                    onkeypress="if(event.key === 'Enter') { confirmPasswordReset(); return false; }">
+                            <div class="mt-4 space-y-4">
+                                <div>
+                                    <label for="newPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                                        New Password
+                                    </label>
+                                    <div class="mt-1 relative">
+                                        <input type="password" id="newPassword" name="new_password" autocomplete="new-password"
+                                            class="block w-full pr-20 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm px-3 py-2"
+                                            oninput="validatePassword()"
+                                            onkeypress="if(event.key === 'Enter' && passwordsValid()) { confirmPasswordReset(); return false; }">
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 space-x-1">
+                                            <button type="button" onclick="togglePasswordVisibility('newPassword')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                                <svg id="newPassword-show" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                                </svg>
+                                                <svg id="newPassword-hide" class="h-5 w-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                                                </svg>
+                                            </button>
+                                            <button type="button" onclick="clearPasswordField('newPassword')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label for="confirmPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                                        Confirm Password
+                                    </label>
+                                    <input type="password" id="confirmPassword" name="confirm_password" autocomplete="new-password"
+                                        class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm px-3 py-2"
+                                        oninput="validatePassword()"
+                                        onkeypress="if(event.key === 'Enter' && passwordsValid()) { confirmPasswordReset(); return false; }">
+                                </div>
+                                
+                                <!-- Password validation feedback -->
+                                <div id="passwordFeedback" class="space-y-2">
+                                    <div id="lengthCheck" class="flex items-center text-sm">
+                                        <svg id="lengthIcon" class="h-4 w-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                        <span class="text-gray-600 dark:text-gray-400">At least 8 characters</span>
+                                    </div>
+                                    <div id="matchCheck" class="flex items-center text-sm">
+                                        <svg id="matchIcon" class="h-4 w-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                        <span class="text-gray-600 dark:text-gray-400">Passwords match</span>
+                                    </div>
+                                    <div id="strengthCheck" class="flex items-center text-sm">
+                                        <svg id="strengthIcon" class="h-4 w-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                        <span class="text-gray-600 dark:text-gray-400">Contains uppercase, lowercase, and number</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -785,6 +829,25 @@ function showGuruMeditation(title, message) {
 <script>
 let currentConfirmAction = null;
 let currentUserId = null;
+let passwordPolicy = {
+    minLength: 8,
+    requireUppercase: true,
+    requireLowercase: true,
+    requireDigit: true,
+    requireSpecial: false
+};
+
+// Fetch password policy on page load
+fetch('/admin/password-policy')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            passwordPolicy = data.policy;
+            // Update the UI with the actual policy
+            updatePasswordPolicyDisplay();
+        }
+    })
+    .catch(err => console.error('Failed to fetch password policy:', err));
 
 function showConfirmModal(title, message, action, type = 'warning') {
     const modal = document.getElementById('confirmModal');
@@ -860,29 +923,28 @@ function toggleUserStatus(userId, currentStatus) {
     );
 }
 
-function deleteUser(userId) {
-    showConfirmModal(
-        '{{ t("admin.delete_user") }}',
-        '{{ t("admin.delete_user_warning") }}',
-        () => {
-            fetch(`/admin/users/${userId}`, {
-                method: 'DELETE',
-                headers: {'Content-Type': 'application/json'}
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                }
-            });
-        },
-        'danger'
-    );
-}
+// deleteUser function removed - users should only be deactivated, not deleted
 
 function resetPassword(userId) {
     currentUserId = userId;
     document.getElementById('newPassword').value = '';
+    document.getElementById('confirmPassword').value = '';
+    // Reset validation icons
+    updateValidationIcon('lengthIcon', false);
+    updateValidationIcon('matchIcon', false);
+    updateValidationIcon('strengthIcon', false);
+    // Reset icons to default state
+    const icons = ['lengthIcon', 'matchIcon', 'strengthIcon'];
+    icons.forEach(iconId => {
+        const icon = document.getElementById(iconId);
+        const parent = icon.parentElement;
+        const text = parent.querySelector('span');
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>';
+        icon.classList.remove('text-green-500', 'text-red-500');
+        icon.classList.add('text-gray-400');
+        text.classList.remove('text-green-600', 'dark:text-green-400', 'text-red-600', 'dark:text-red-400');
+        text.classList.add('text-gray-600', 'dark:text-gray-400');
+    });
     document.getElementById('passwordResetModal').classList.remove('hidden');
 }
 
@@ -891,7 +953,121 @@ function closePasswordResetModal() {
     currentUserId = null;
 }
 
+function togglePasswordVisibility(fieldId) {
+    const field = document.getElementById(fieldId);
+    const showIcon = document.getElementById(fieldId + '-show');
+    const hideIcon = document.getElementById(fieldId + '-hide');
+    
+    if (field.type === 'password') {
+        field.type = 'text';
+        showIcon.classList.add('hidden');
+        hideIcon.classList.remove('hidden');
+    } else {
+        field.type = 'password';
+        showIcon.classList.remove('hidden');
+        hideIcon.classList.add('hidden');
+    }
+}
+
+function clearPasswordField(fieldId) {
+    document.getElementById(fieldId).value = '';
+    document.getElementById('confirmPassword').value = '';
+    validatePassword();
+}
+
+function updatePasswordPolicyDisplay() {
+    // Update the length requirement text
+    const lengthText = document.querySelector('#lengthCheck span');
+    if (lengthText) {
+        lengthText.textContent = `At least ${passwordPolicy.minLength} characters`;
+    }
+    
+    // Update the strength requirement text
+    const strengthText = document.querySelector('#strengthCheck span');
+    if (strengthText) {
+        const requirements = [];
+        if (passwordPolicy.requireUppercase) requirements.push('uppercase');
+        if (passwordPolicy.requireLowercase) requirements.push('lowercase');
+        if (passwordPolicy.requireDigit) requirements.push('number');
+        if (passwordPolicy.requireSpecial) requirements.push('special character (!@#$%^&*)');
+        
+        if (requirements.length > 0) {
+            strengthText.textContent = `Contains ${requirements.join(', ')}`;
+        } else {
+            strengthText.textContent = 'No additional requirements';
+        }
+    }
+}
+
+function validatePassword() {
+    const password = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    // Check length
+    const lengthValid = password.length >= passwordPolicy.minLength;
+    updateValidationIcon('lengthIcon', lengthValid);
+    
+    // Check if passwords match
+    const matchValid = password !== '' && password === confirmPassword;
+    updateValidationIcon('matchIcon', matchValid);
+    
+    // Check strength requirements based on policy
+    let strengthValid = true;
+    
+    if (passwordPolicy.requireUppercase) {
+        strengthValid = strengthValid && /[A-Z]/.test(password);
+    }
+    if (passwordPolicy.requireLowercase) {
+        strengthValid = strengthValid && /[a-z]/.test(password);
+    }
+    if (passwordPolicy.requireDigit) {
+        strengthValid = strengthValid && /[0-9]/.test(password);
+    }
+    if (passwordPolicy.requireSpecial) {
+        strengthValid = strengthValid && /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    }
+    
+    updateValidationIcon('strengthIcon', strengthValid);
+    
+    return lengthValid && matchValid && strengthValid;
+}
+
+function updateValidationIcon(iconId, isValid) {
+    const icon = document.getElementById(iconId);
+    const parent = icon.parentElement;
+    const text = parent.querySelector('span');
+    
+    if (isValid) {
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>';
+        icon.classList.remove('text-gray-400', 'text-red-500');
+        icon.classList.add('text-green-500');
+        text.classList.remove('text-gray-600', 'dark:text-gray-400', 'text-red-600', 'dark:text-red-400');
+        text.classList.add('text-green-600', 'dark:text-green-400');
+    } else if (document.getElementById('newPassword').value !== '') {
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>';
+        icon.classList.remove('text-gray-400', 'text-green-500');
+        icon.classList.add('text-red-500');
+        text.classList.remove('text-gray-600', 'dark:text-gray-400', 'text-green-600', 'dark:text-green-400');
+        text.classList.add('text-red-600', 'dark:text-red-400');
+    } else {
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>';
+        icon.classList.remove('text-green-500', 'text-red-500');
+        icon.classList.add('text-gray-400');
+        text.classList.remove('text-green-600', 'dark:text-green-400', 'text-red-600', 'dark:text-red-400');
+        text.classList.add('text-gray-600', 'dark:text-gray-400');
+    }
+}
+
+function passwordsValid() {
+    return validatePassword();
+}
+
 function confirmPasswordReset() {
+    if (!passwordsValid()) {
+        showError('Please ensure all password requirements are met');
+        return;
+    }
+    
     const newPassword = document.getElementById('newPassword').value;
     
     fetch(`/admin/users/${currentUserId}/reset-password`, {

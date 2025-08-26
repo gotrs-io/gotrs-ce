@@ -1,0 +1,166 @@
+# Service Registry Configuration
+# This file defines all service connections and bindings
+
+services:
+  # Database Services
+  - id: primary-db
+    name: Primary PostgreSQL Database
+    type: database
+    provider: postgres
+    host: localhost
+    port: 5432
+    database: gotrs
+    username: gotrs_user
+    password: ${DB_PASSWORD}  # Use environment variable
+    max_conns: 25
+    min_conns: 5
+    options:
+      sslmode: disable
+      application_name: gotrs-primary
+    labels:
+      environment: development
+      role: primary
+      
+  - id: replica-db
+    name: Read Replica Database
+    type: database
+    provider: postgres
+    host: localhost
+    port: 5433
+    database: gotrs
+    username: gotrs_reader
+    password: ${DB_READER_PASSWORD}
+    max_conns: 50
+    min_conns: 10
+    options:
+      sslmode: disable
+      application_name: gotrs-replica
+    labels:
+      environment: development
+      role: replica
+      
+  # Cache Services
+  - id: primary-cache
+    name: Primary Cache
+    type: cache
+    provider: valkey
+    host: localhost
+    port: 6379
+    password: ${CACHE_PASSWORD}
+    max_conns: 100
+    options:
+      db: 0
+      pool_size: 10
+    labels:
+      environment: development
+      
+  # Search Services
+  - id: search-engine
+    name: Search Engine
+    type: search
+    provider: zinc
+    host: localhost
+    port: 4080
+    username: admin
+    password: ${SEARCH_PASSWORD}
+    options:
+      index_prefix: gotrs_
+    labels:
+      environment: development
+      
+  # Queue Services
+  - id: message-queue
+    name: Message Queue
+    type: queue
+    provider: nats
+    host: localhost
+    port: 4222
+    options:
+      cluster_id: gotrs-cluster
+      client_id: gotrs-backend
+    labels:
+      environment: development
+      
+  # Storage Services
+  - id: file-storage
+    name: File Storage
+    type: storage
+    provider: minio
+    host: localhost
+    port: 9000
+    username: ${MINIO_ACCESS_KEY}
+    password: ${MINIO_SECRET_KEY}
+    options:
+      bucket: gotrs-attachments
+      use_ssl: false
+    labels:
+      environment: development
+
+# Service Bindings
+bindings:
+  # GOTRS Application Bindings
+  - app_id: gotrs
+    service_id: primary-db
+    name: Primary Database
+    purpose: primary
+    priority: 100
+    
+  - app_id: gotrs
+    service_id: replica-db
+    name: Read Replica
+    purpose: replica
+    priority: 90
+    
+  - app_id: gotrs
+    service_id: primary-cache
+    name: Session Cache
+    purpose: session
+    priority: 100
+    
+  - app_id: gotrs
+    service_id: search-engine
+    name: Ticket Search
+    purpose: search
+    priority: 100
+    
+  - app_id: gotrs
+    service_id: message-queue
+    name: Event Bus
+    purpose: events
+    priority: 100
+    
+  - app_id: gotrs
+    service_id: file-storage
+    name: Attachment Storage
+    purpose: attachments
+    priority: 100
+    
+  # Analytics Application Bindings
+  - app_id: analytics
+    service_id: replica-db
+    name: Analytics Database
+    purpose: primary
+    priority: 100
+    
+  - app_id: analytics
+    service_id: primary-cache
+    name: Query Cache
+    purpose: cache
+    priority: 100
+
+# Migration Strategies
+migrations:
+  database:
+    strategy: blue-green
+    health_check_interval: 30s
+    rollback_on_error: true
+    
+  cache:
+    strategy: canary
+    canary_percentage: 10
+    canary_duration: 5m
+    
+  storage:
+    strategy: gradual
+    batch_size: 1000
+    delay_between_batches: 10s

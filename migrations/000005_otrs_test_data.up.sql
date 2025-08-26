@@ -33,7 +33,7 @@ ON CONFLICT (id) DO NOTHING;
 -- ============================================
 -- User Group Assignments
 -- ============================================
-INSERT INTO user_groups (user_id, group_id, permission_key, permission_value, create_by, change_by) VALUES
+INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_by, change_by) VALUES
 -- Admin has access to all groups
 (1, 1, 'rw', 1, 1, 1),
 (1, 2, 'rw', 1, 1, 1),

@@ -123,13 +123,32 @@ computed_fields:
     label: Name
     show_in_list: true
     show_in_form: false
-    source: "CONCAT first_name, last_name"
+    lambda: |
+      var firstName = item.first_name || '';
+      var lastName = item.last_name || '';
+      var fullName = (firstName + ' ' + lastName).trim();
+      return fullName || item.login || 'Unknown';
     
   - name: group_names
     label: Groups
     show_in_list: true
     show_in_form: false
-    source: "JOIN user_groups"
+    lambda: |
+      // Query user's groups from database
+      try {
+        var groups = db.query("SELECT g.name FROM groups g JOIN user_groups ug ON g.id = ug.group_id WHERE ug.user_id = $1 AND g.valid_id = 1 ORDER BY g.name", item.id.toString());
+        if (groups && groups.length > 0) {
+          var html = '<div class="flex flex-wrap gap-1">';
+          for (var i = 0; i < groups.length; i++) {
+            html += '<span class="px-2 py-1 text-xs rounded bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100">' + groups[i].name + '</span>';
+          }
+          html += '</div>';
+          return html;
+        }
+        return '<span class="text-gray-400">No groups</span>';
+      } catch (error) {
+        return '<span class="text-gray-400">-</span>';
+      }
     
   - name: status_badge
     label: Status
@@ -160,10 +179,26 @@ features:
   status_toggle: true    # Toggle valid/invalid status
   password_reset: true   # Allow password reset
   group_assignment: true # Manage group membership
-  filters:              # Advanced filtering
-    - status
-    - groups
-    - created_date
+  filters: true          # Enable filtering
+
+filters:
+  - field: valid_id
+    type: select
+    label: Status
+    options:
+      - value: ""
+        label: "All Users"
+      - value: "1"
+        label: "Active"
+      - value: "2"
+        label: "Inactive"
+  - field: group_id
+    type: multi_select
+    label: Groups
+    source: database
+    lookup_table: groups
+    lookup_key: id
+    lookup_display: name
 
 permissions:
   - view

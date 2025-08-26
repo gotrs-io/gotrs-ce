@@ -46,9 +46,12 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: gotrs-backend
     environment:
+      # Enable YAML-based routing by default  
+      ENABLE_YAML_ROUTING: true
+      ROUTES_DIR: /app/routes
       APP_ENV: development
       APP_PORT: 8080
       DB_HOST: postgres
@@ -78,7 +81,8 @@ services:
         condition: service_healthy
     networks:
       - gotrs-network
-    command: go run ./cmd/server
+    # Production binary runs automatically from Dockerfile CMD
+    # For development hot reload, volume mount handles code changes
 
   # Nginx Reverse Proxy (serves static assets and proxies to backend)
   nginx:
@@ -104,119 +108,119 @@ services:
     networks:
       - gotrs-network
 
-  # Temporal Workflow Engine
-  temporal:
-    image: temporalio/auto-setup:1.22.4
-    container_name: gotrs-temporal
-    depends_on:
-      - postgres
-    environment:
-      - DB=postgresql
-      - DB_PORT=5432
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PWD=${DB_PASSWORD}
-      - POSTGRES_SEEDS=postgres
-      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig.yaml
-    ports:
-      - "${TEMPORAL_PORT:-7233}:7233"
-    volumes:
-      - ./docker/temporal/dynamicconfig.yaml:/etc/temporal/config/dynamicconfig.yaml:ro,Z
-    networks:
-      - gotrs-network
+  # Temporal Workflow Engine - COMMENTED OUT until code is implemented
+  # temporal:
+  #   image: temporalio/auto-setup:1.22.4
+  #   container_name: gotrs-temporal
+  #   depends_on:
+  #     - postgres
+  #   environment:
+  #     - DB=postgresql
+  #     - DB_PORT=5432
+  #     - POSTGRES_USER=${DB_USER}
+  #     - POSTGRES_PWD=${DB_PASSWORD}
+  #     - POSTGRES_SEEDS=postgres
+  #     - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig.yaml
+  #   ports:
+  #     - "${TEMPORAL_PORT:-7233}:7233"
+  #   volumes:
+  #     - ./docker/temporal/dynamicconfig.yaml:/etc/temporal/config/dynamicconfig.yaml:ro,Z
+  #   networks:
+  #     - gotrs-network
 
-  # Temporal Web UI
-  temporal-ui:
-    image: temporalio/ui:2.21.3
-    container_name: gotrs-temporal-ui
-    depends_on:
-      - temporal
-    environment:
-      - TEMPORAL_ADDRESS=temporal:7233
-      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
-    ports:
-      - "${TEMPORAL_UI_PORT:-8088}:8080"
-    networks:
-      - gotrs-network
+  # Temporal Web UI - COMMENTED OUT until code is implemented
+  # temporal-ui:
+  #   image: temporalio/ui:2.21.3
+  #   container_name: gotrs-temporal-ui
+  #   depends_on:
+  #     - temporal
+  #   environment:
+  #     - TEMPORAL_ADDRESS=temporal:7233
+  #     - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+  #   ports:
+  #     - "${TEMPORAL_UI_PORT:-8088}:8080"
+  #   networks:
+  #     - gotrs-network
 
-  # Zinc Search Engine (Elasticsearch compatible)
-  zinc:
-    image: public.ecr.aws/zinclabs/zincsearch:latest
-    container_name: gotrs-zinc
-    environment:
-      - ZINC_FIRST_ADMIN_USER=${ZINC_USER}
-      - ZINC_FIRST_ADMIN_PASSWORD=${ZINC_PASSWORD}
-      - ZINC_DATA_PATH=/data
-    ports:
-      - "${ZINC_PORT:-4080}:4080"
-    volumes:
-      - zinc_data:/data
-    networks:
-      - gotrs-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4080/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # Zinc Search Engine (Elasticsearch compatible) - COMMENTED OUT until code is implemented
+  # zinc:
+  #   image: public.ecr.aws/zinclabs/zincsearch:latest
+  #   container_name: gotrs-zinc
+  #   environment:
+  #     - ZINC_FIRST_ADMIN_USER=${ZINC_USER}
+  #     - ZINC_FIRST_ADMIN_PASSWORD=${ZINC_PASSWORD}
+  #     - ZINC_DATA_PATH=/data
+  #   ports:
+  #     - "${ZINC_PORT:-4080}:4080"
+  #   volumes:
+  #     - zinc_data:/data
+  #   networks:
+  #     - gotrs-network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:4080/health"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
-  # OpenLDAP Server for Testing
-  openldap:
-    image: osixia/openldap:1.5.0
-    container_name: gotrs-openldap
-    environment:
-      - LDAP_ORGANISATION=GOTRS Test Corp
-      - LDAP_DOMAIN=gotrs.local
-      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD:-admin123}
-      - LDAP_CONFIG_PASSWORD=${LDAP_CONFIG_PASSWORD:-config123}
-      - LDAP_READONLY_USER=true
-      - LDAP_READONLY_USER_USERNAME=readonly
-      - LDAP_READONLY_USER_PASSWORD=${LDAP_READONLY_PASSWORD:-readonly123}
-      - LDAP_RFC2307BIS_SCHEMA=false
-      - LDAP_BACKEND=mdb
-      - LDAP_TLS=true
-      - LDAP_TLS_CRT_FILENAME=ldap.crt
-      - LDAP_TLS_KEY_FILENAME=ldap.key
-      - LDAP_TLS_DH_PARAM_FILENAME=dhparam.pem
-      - LDAP_TLS_CA_CRT_FILENAME=ca.crt
-      - LDAP_TLS_ENFORCE=false
-      - LDAP_TLS_CIPHER_SUITE=SECURE256:-VERS-SSL3.0
-      - LDAP_TLS_PROTOCOL_MIN=3.1
-      - LDAP_TLS_VERIFY_CLIENT=demand
-      - LDAP_REPLICATION=false
-      - KEEP_EXISTING_CONFIG=false
-      - LDAP_REMOVE_CONFIG_AFTER_SETUP=true
-      - LDAP_SSL_HELPER_PREFIX=ldap
-    ports:
-      - "${LDAP_PORT:-389}:389"
-      - "${LDAPS_PORT:-636}:636"
-    volumes:
-      - ldap_data:/var/lib/ldap
-      - ldap_config:/etc/ldap/slapd.d
-      - ./docker/ldap/bootstrap:/container/service/slapd/assets/config/bootstrap/ldif/custom:Z
-    command: --copy-service --loglevel debug
-    networks:
-      - gotrs-network
-    healthcheck:
-      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost", "-b", "dc=gotrs,dc=local", "-D", "cn=admin,dc=gotrs,dc=local", "-w", "${LDAP_ADMIN_PASSWORD:-admin123}", "(objectclass=*)", "dn"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+  # OpenLDAP Server for Testing - COMMENTED OUT until code is implemented
+  # openldap:
+  #   image: osixia/openldap:1.5.0
+  #   container_name: gotrs-openldap
+  #   environment:
+  #     - LDAP_ORGANISATION=GOTRS Test Corp
+  #     - LDAP_DOMAIN=gotrs.local
+  #     - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD:-admin123}
+  #     - LDAP_CONFIG_PASSWORD=${LDAP_CONFIG_PASSWORD:-config123}
+  #     - LDAP_READONLY_USER=true
+  #     - LDAP_READONLY_USER_USERNAME=readonly
+  #     - LDAP_READONLY_USER_PASSWORD=${LDAP_READONLY_PASSWORD:-readonly123}
+  #     - LDAP_RFC2307BIS_SCHEMA=false
+  #     - LDAP_BACKEND=mdb
+  #     - LDAP_TLS=true
+  #     - LDAP_TLS_CRT_FILENAME=ldap.crt
+  #     - LDAP_TLS_KEY_FILENAME=ldap.key
+  #     - LDAP_TLS_DH_PARAM_FILENAME=dhparam.pem
+  #     - LDAP_TLS_CA_CRT_FILENAME=ca.crt
+  #     - LDAP_TLS_ENFORCE=false
+  #     - LDAP_TLS_CIPHER_SUITE=SECURE256:-VERS-SSL3.0
+  #     - LDAP_TLS_PROTOCOL_MIN=3.1
+  #     - LDAP_TLS_VERIFY_CLIENT=demand
+  #     - LDAP_REPLICATION=false
+  #     - KEEP_EXISTING_CONFIG=false
+  #     - LDAP_REMOVE_CONFIG_AFTER_SETUP=true
+  #     - LDAP_SSL_HELPER_PREFIX=ldap
+  #   ports:
+  #     - "${LDAP_PORT:-389}:389"
+  #     - "${LDAPS_PORT:-636}:636"
+  #   volumes:
+  #     - ldap_data:/var/lib/ldap
+  #     - ldap_config:/etc/ldap/slapd.d
+  #     - ./docker/ldap/bootstrap:/container/service/slapd/assets/config/bootstrap/ldif/custom:Z
+  #   command: --copy-service --loglevel debug
+  #   networks:
+  #     - gotrs-network
+  #   healthcheck:
+  #     test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost", "-b", "dc=gotrs,dc=local", "-D", "cn=admin,dc=gotrs,dc=local", "-w", "${LDAP_ADMIN_PASSWORD:-admin123}", "(objectclass=*)", "dn"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 60s
 
-  # phpLDAPadmin for LDAP Management (Optional)
-  phpldapadmin:
-    image: osixia/phpldapadmin:latest
-    container_name: gotrs-phpldapadmin
-    environment:
-      - PHPLDAPADMIN_LDAP_HOSTS=openldap
-      - PHPLDAPADMIN_HTTPS=false
-    ports:
-      - "${PHPLDAPADMIN_PORT:-8091}:80"
-    depends_on:
-      - openldap
-    networks:
-      - gotrs-network
-    profiles:
-      - tools
+  # phpLDAPadmin for LDAP Management (Optional) - COMMENTED OUT until code is implemented
+  # phpldapadmin:
+  #   image: osixia/phpldapadmin:latest
+  #   container_name: gotrs-phpldapadmin
+  #   environment:
+  #     - PHPLDAPADMIN_LDAP_HOSTS=openldap
+  #     - PHPLDAPADMIN_HTTPS=false
+  #   ports:
+  #     - "${PHPLDAPADMIN_PORT:-8091}:80"
+  #   depends_on:
+  #     - openldap
+  #   networks:
+  #     - gotrs-network
+  #   profiles:
+  #     - tools
 
   # Adminer for Database Management (Optional)
   adminer:
@@ -231,6 +235,24 @@ services:
     profiles:
       - tools
 
+  # Container-first test runner
+  gotrs-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.tests
+    container_name: gotrs-tests
+    environment:
+      GOTRS_HOST: http://gotrs-backend:8080
+      VERBOSE: "true"
+      OUTPUT_DIR: /app/results
+    volumes:
+      - ./test-results:/app/results:Z
+    depends_on:
+      - backend
+    networks:
+      - gotrs-network
+    profiles: ["testing"]
+
 networks:
   gotrs-network:
     driver: bridge
@@ -239,7 +261,7 @@ volumes:
   postgres_data:
   valkey_data:
   go_modules:
-  zinc_data:
-  temporal_data:
-  ldap_data:
-  ldap_config:
+  # zinc_data:         # Commented out - zinc service disabled
+  # temporal_data:     # Commented out - temporal service disabled  
+  # ldap_data:         # Commented out - openldap service disabled
+  # ldap_config:       # Commented out - openldap service disabled

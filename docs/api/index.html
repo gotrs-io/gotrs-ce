@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GOTRS API Documentation</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f7fa; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { border-bottom: 2px solid #e2e8f0; margin-bottom: 30px; padding-bottom: 20px; }
+        .route-group { margin-bottom: 40px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+        .group-header { background: #4299e1; color: white; padding: 15px 20px; }
+        .group-content { padding: 20px; }
+        .route { margin-bottom: 25px; padding: 15px; border-left: 4px solid #4299e1; background: #f7fafc; }
+        .method { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: white; margin-right: 10px; }
+        .get { background: #48bb78; }
+        .post { background: #ed8936; }
+        .put { background: #4299e1; }
+        .delete { background: #f56565; }
+        .path { font-family: Monaco, monospace; background: #2d3748; color: #e2e8f0; padding: 8px 12px; border-radius: 4px; }
+        .params { margin-top: 15px; }
+        .param { background: white; padding: 10px; margin: 5px 0; border-radius: 4px; border: 1px solid #e2e8f0; }
+        .permissions { margin-top: 10px; }
+        .permission { display: inline-block; background: #9f7aea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin: 2px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌐 GOTRS API Documentation</h1>
+            <p>Generated from YAML route definitions</p>
+        </div>
+
+        
+        <div class="route-group">
+            <div class="group-header">
+                <h2>Admin: admin-customer-companies</h2>
+                <p>Customer company management endpoints</p>
+            </div>
+            <div class="group-content">
+                
+                <div class="route">
+                    <h3>List Customer Companies</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/customer-companies</code>
+                    <p>Get list of all customer companies</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">customer:read</span>
+                        
+                    </div>
+                    
+                    
+                    
+                    <div class="params">
+                        <strong>Parameters:</strong>
+                        
+                        <div class="param">
+                            <strong>limit</strong> (int)
+                            <br>
+                            <br><small>Default: 20</small>
+                        </div>
+                        
+                        <div class="param">
+                            <strong>page</strong> (int)
+                            <br>
+                            <br><small>Default: 1</small>
+                        </div>
+                        
+                        <div class="param">
+                            <strong>search</strong> (string)
+                            <br>Search term for company name or ID
+                            
+                        </div>
+                        
+                        <div class="param">
+                            <strong>valid</strong> (string)
+                            <br>Filter by validity status
+                            <br><small>Default: all</small>
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Create Customer Company</h3>
+                    <div class="method [GET POST]">[GET POST]</div>
+                    <code class="path">/customer-companies/new</code>
+                    <p>Create a new customer company</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">customer:write</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Edit Customer Company</h3>
+                    <div class="method [GET POST]">[GET POST]</div>
+                    <code class="path">/customer-companies/:id/edit</code>
+                    <p>Edit customer company details</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">customer:write</span>
+                        
+                    </div>
+                    
+                    
+                    
+                    <div class="params">
+                        <strong>Parameters:</strong>
+                        
+                        <div class="param">
+                            <strong>id</strong> (string) <em>required</em>
+                            <br>Customer company ID
+                            
+                        </div>
+                        
+                        <div class="param">
+                            <strong>tab</strong> (string)
+                            <br>
+                            <br><small>Default: general</small>
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Delete Customer Company</h3>
+                    <div class="method POST">POST</div>
+                    <code class="path">/customer-companies/:id/delete</code>
+                    <p>Soft delete (deactivate) a customer company</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">customer:delete</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>List Company Users</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/customer-companies/:id/users</code>
+                    <p>Get all users belonging to a company</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">customer:read</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>List Company Tickets</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/customer-companies/:id/tickets</code>
+                    <p>Get all tickets for a company</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">customer:read</span>
+                        
+                        <span class="permission">ticket:read</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Manage Company Services</h3>
+                    <div class="method [GET POST]">[GET POST]</div>
+                    <code class="path">/customer-companies/:id/services</code>
+                    <p>Manage services available to a company</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">customer:write</span>
+                        
+                        <span class="permission">service:assign</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Portal Customization</h3>
+                    <div class="method [GET POST]">[GET POST]</div>
+                    <code class="path">/customer-companies/:id/portal</code>
+                    <p>Customize the customer portal for a company</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">portal:admin</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Upload Portal Logo</h3>
+                    <div class="method POST">POST</div>
+                    <code class="path">/customer-companies/:id/portal/logo</code>
+                    <p>Upload a custom logo for the customer portal</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">portal:admin</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+            </div>
+        </div>
+        
+        <div class="route-group">
+            <div class="group-header">
+                <h2>Agent: agent-dashboard</h2>
+                <p>Agent dashboard and ticket management</p>
+            </div>
+            <div class="group-content">
+                
+                <div class="route">
+                    <h3>Agent Dashboard</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/dashboard</code>
+                    <p>Main dashboard for agents with ticket statistics</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>List Tickets</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/tickets</code>
+                    <p>List tickets with advanced filtering</p>
+                    
+                    
+                    
+                    
+                    <div class="params">
+                        <strong>Parameters:</strong>
+                        
+                        <div class="param">
+                            <strong>assigned_to</strong> (string)
+                            <br>Filter by assigned agent
+                            
+                        </div>
+                        
+                        <div class="param">
+                            <strong>limit</strong> (int)
+                            <br>
+                            <br><small>Default: 50</small>
+                        </div>
+                        
+                        <div class="param">
+                            <strong>page</strong> (int)
+                            <br>
+                            <br><small>Default: 1</small>
+                        </div>
+                        
+                        <div class="param">
+                            <strong>priority</strong> (int)
+                            <br>
+                            
+                        </div>
+                        
+                        <div class="param">
+                            <strong>queue</strong> (int)
+                            <br>Filter by queue ID
+                            
+                        </div>
+                        
+                        <div class="param">
+                            <strong>search</strong> (string)
+                            <br>Search in ticket content
+                            
+                        </div>
+                        
+                        <div class="param">
+                            <strong>state</strong> (string)
+                            <br>
+                            <br><small>Default: open</small>
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>View Ticket</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/tickets/:id</code>
+                    <p>View detailed ticket information</p>
+                    
+                    
+                    
+                    
+                    <div class="params">
+                        <strong>Parameters:</strong>
+                        
+                        <div class="param">
+                            <strong>id</strong> (int) <em>required</em>
+                            <br>
+                            
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Update Ticket</h3>
+                    <div class="method PUT">PUT</div>
+                    <code class="path">/tickets/:id</code>
+                    <p>Update ticket properties</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">ticket:write</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Add Note</h3>
+                    <div class="method POST">POST</div>
+                    <code class="path">/tickets/:id/note</code>
+                    <p>Add an internal note to a ticket</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">ticket:note</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Reply to Ticket</h3>
+                    <div class="method POST">POST</div>
+                    <code class="path">/tickets/:id/reply</code>
+                    <p>Send a reply to the customer</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">ticket:reply</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Assign Ticket</h3>
+                    <div class="method POST">POST</div>
+                    <code class="path">/tickets/:id/assign</code>
+                    <p>Assign ticket to an agent</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">ticket:assign</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Merge Tickets</h3>
+                    <div class="method POST">POST</div>
+                    <code class="path">/tickets/:id/merge</code>
+                    <p>Merge multiple tickets into one</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">ticket:merge</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Split Ticket</h3>
+                    <div class="method POST">POST</div>
+                    <code class="path">/tickets/:id/split</code>
+                    <p>Split a ticket into multiple tickets</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">ticket:split</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>List Customers</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/customers</code>
+                    <p>List and search customers</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">customer:read</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>View Customer</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/customers/:id</code>
+                    <p>View customer details and ticket history</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">customer:read</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Customer Tickets</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/customers/:id/tickets</code>
+                    <p>Get all tickets for a specific customer</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">customer:read</span>
+                        
+                        <span class="permission">ticket:read</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>List Queues</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/queues</code>
+                    <p>List available queues for the agent</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Queue Tickets</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/queues/:id/tickets</code>
+                    <p>Get all tickets in a specific queue</p>
+                    
+                    
+                    
+                    
+                    <div class="params">
+                        <strong>Parameters:</strong>
+                        
+                        <div class="param">
+                            <strong>id</strong> (int) <em>required</em>
+                            <br>
+                            
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Agent Statistics</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/stats</code>
+                    <p>Get agent performance statistics</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Ticket Statistics</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/stats/tickets</code>
+                    <p>Get ticket statistics for the agent</p>
+                    
+                    
+                    
+                    
+                    <div class="params">
+                        <strong>Parameters:</strong>
+                        
+                        <div class="param">
+                            <strong>period</strong> (string)
+                            <br>
+                            <br><small>Default: month</small>
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Global Search</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/search</code>
+                    <p>Search across tickets, customers, and articles</p>
+                    
+                    
+                    
+                    
+                    <div class="params">
+                        <strong>Parameters:</strong>
+                        
+                        <div class="param">
+                            <strong>limit</strong> (int)
+                            <br>
+                            <br><small>Default: 20</small>
+                        </div>
+                        
+                        <div class="param">
+                            <strong>q</strong> (string) <em>required</em>
+                            <br>
+                            
+                        </div>
+                        
+                        <div class="param">
+                            <strong>type</strong> (string)
+                            <br>
+                            <br><small>Default: all</small>
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+                
+            </div>
+        </div>
+        
+        <div class="route-group">
+            <div class="group-header">
+                <h2>Core: authentication</h2>
+                <p>Authentication and authorization endpoints</p>
+            </div>
+            <div class="group-content">
+                
+                <div class="route">
+                    <h3>User Login</h3>
+                    <div class="method [GET POST]">[GET POST]</div>
+                    <code class="path">/login</code>
+                    <p>Login endpoint for agents and customers</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>User Logout</h3>
+                    <div class="method POST">POST</div>
+                    <code class="path">/logout</code>
+                    <p>Logout and invalidate session</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Refresh Token</h3>
+                    <div class="method POST">POST</div>
+                    <code class="path">/auth/refresh</code>
+                    <p>Refresh authentication token</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Verify Authentication</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/auth/verify</code>
+                    <p>Verify if current session is valid</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Password Reset</h3>
+                    <div class="method [GET POST]">[GET POST]</div>
+                    <code class="path">/auth/password/reset</code>
+                    <p>Request password reset</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Change Password</h3>
+                    <div class="method POST">POST</div>
+                    <code class="path">/auth/password/change</code>
+                    <p>Change user password</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+            </div>
+        </div>
+        
+        <div class="route-group">
+            <div class="group-header">
+                <h2>Core: health-checks</h2>
+                <p>Health check and monitoring endpoints</p>
+            </div>
+            <div class="group-content">
+                
+                <div class="route">
+                    <h3>Health Check</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/health</code>
+                    <p>Basic health check endpoint</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Detailed Health Check</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/health/detailed</code>
+                    <p>Detailed health check with component status</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">monitoring:read</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Prometheus Metrics</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/metrics</code>
+                    <p>Expose metrics for Prometheus scraping</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+            </div>
+        </div>
+        
+        <div class="route-group">
+            <div class="group-header">
+                <h2>Customer: customer-portal</h2>
+                <p>Customer portal endpoints</p>
+            </div>
+            <div class="group-content">
+                
+                <div class="route">
+                    <h3>Customer Dashboard</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/dashboard</code>
+                    <p>Customer portal main dashboard</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>List Customer Tickets</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/tickets</code>
+                    <p>List all tickets for the customer</p>
+                    
+                    
+                    
+                    
+                    <div class="params">
+                        <strong>Parameters:</strong>
+                        
+                        <div class="param">
+                            <strong>order</strong> (string)
+                            <br>
+                            <br><small>Default: desc</small>
+                        </div>
+                        
+                        <div class="param">
+                            <strong>search</strong> (string)
+                            <br>Search in ticket number or title
+                            
+                        </div>
+                        
+                        <div class="param">
+                            <strong>sort</strong> (string)
+                            <br>
+                            <br><small>Default: create_time</small>
+                        </div>
+                        
+                        <div class="param">
+                            <strong>status</strong> (string)
+                            <br>
+                            <br><small>Default: all</small>
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Create Ticket</h3>
+                    <div class="method [GET POST]">[GET POST]</div>
+                    <code class="path">/tickets/new</code>
+                    <p>Create a new support ticket</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>View Ticket</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/tickets/:id</code>
+                    <p>View ticket details and conversation</p>
+                    
+                    
+                    
+                    
+                    <div class="params">
+                        <strong>Parameters:</strong>
+                        
+                        <div class="param">
+                            <strong>id</strong> (int) <em>required</em>
+                            <br>Ticket ID
+                            
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Reply to Ticket</h3>
+                    <div class="method POST">POST</div>
+                    <code class="path">/tickets/:id/reply</code>
+                    <p>Add a reply to an existing ticket</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Close Ticket</h3>
+                    <div class="method POST">POST</div>
+                    <code class="path">/tickets/:id/close</code>
+                    <p>Close a ticket</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Customer Profile</h3>
+                    <div class="method [GET POST]">[GET POST]</div>
+                    <code class="path">/profile</code>
+                    <p>View and update customer profile</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Change Password</h3>
+                    <div class="method [GET POST]">[GET POST]</div>
+                    <code class="path">/profile/password</code>
+                    <p>Change customer password</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Knowledge Base</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/kb</code>
+                    <p>Browse knowledge base articles</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Search Knowledge Base</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/kb/search</code>
+                    <p>Search knowledge base articles</p>
+                    
+                    
+                    
+                    
+                    <div class="params">
+                        <strong>Parameters:</strong>
+                        
+                        <div class="param">
+                            <strong>q</strong> (string) <em>required</em>
+                            <br>Search query
+                            
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>View KB Article</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/kb/article/:id</code>
+                    <p>View a knowledge base article</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Company Information</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/company</code>
+                    <p>View company information</p>
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="route">
+                    <h3>Company Users</h3>
+                    <div class="method GET">GET</div>
+                    <code class="path">/company/users</code>
+                    <p>View other users in the same company</p>
+                    
+                    
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        
+                        <span class="permission">company:users:read</span>
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                
+            </div>
+        </div>
+        
+
+        <footer style="text-align: center; margin-top: 40px; color: #718096;">
+            Generated by GOTRS Route Documentation Generator
+        </footer>
+    </div>
+</body>
+</html>

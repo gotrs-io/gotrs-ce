@@ -64,13 +64,12 @@
         chatContainer.innerHTML = `
             <!-- Collapsed State - Floating Button -->
             <div id="claude-chat-button" class="chat-collapsed">
-                <button class="bg-gotrs-600 hover:bg-gotrs-700 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all">
-                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z">
-                        </path>
+                <button class="bg-gotrs-600 hover:bg-gotrs-700 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all relative">
+                    <!-- Chat Bubble Icon -->
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                     </svg>
-                    <span id="chat-notification" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">!</span>
+                    <span id="chat-notification" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce">!</span>
                 </button>
                 <div class="absolute bottom-full right-0 mb-2 px-3 py-1 bg-gray-800 text-white text-sm rounded-lg opacity-0 hover:opacity-100 transition-opacity whitespace-nowrap">
                     Report issue to Claude Code
@@ -106,8 +105,8 @@
                         </div>
                     </div>
 
-                    <!-- Context Bar -->
-                    <div id="chat-context-bar" class="hidden bg-blue-50 dark:bg-gray-700 px-4 py-2 text-xs border-b dark:border-gray-600">
+                    <!-- Context Bar (Shown by default) -->
+                    <div id="chat-context-bar" class="bg-blue-50 dark:bg-gray-700 px-4 py-2 text-xs border-b dark:border-gray-600">
                         <div class="flex items-center justify-between">
                             <span class="text-gray-600 dark:text-gray-300">
                                 Page: <span class="font-mono text-blue-600 dark:text-blue-400">${window.location.pathname}</span>
@@ -133,19 +132,20 @@
                         </div>
                     </div>
 
-                    <!-- Input Area -->
+                    <!-- Input Area with Multi-line Support -->
                     <div class="border-t dark:border-gray-700 p-4">
-                        <div class="flex space-x-2">
-                            <input 
+                        <div class="flex space-x-2 items-end">
+                            <textarea 
                                 id="chat-input" 
-                                type="text" 
-                                class="flex-1 px-3 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500 dark:bg-gray-700 dark:text-white"
+                                rows="1"
+                                class="flex-1 px-3 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500 dark:bg-gray-700 dark:text-white resize-none overflow-hidden"
                                 placeholder="Describe the issue or suggestion..."
                                 autocomplete="off"
-                            />
+                                style="min-height: 40px; max-height: 120px;"
+                            ></textarea>
                             <button 
                                 id="chat-send-btn"
-                                class="bg-gotrs-600 hover:bg-gotrs-700 text-white px-4 py-2 rounded-lg transition-colors"
+                                class="bg-gotrs-600 hover:bg-gotrs-700 text-white px-4 py-2 rounded-lg transition-colors mb-0"
                             >
                                 Send
                             </button>
@@ -193,6 +193,28 @@
                 }
             }
 
+            #chat-input {
+                line-height: 1.5;
+                transition: height 0.1s ease;
+            }
+            
+            #chat-input::-webkit-scrollbar {
+                width: 6px;
+            }
+            
+            #chat-input::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            
+            #chat-input::-webkit-scrollbar-thumb {
+                background: #888;
+                border-radius: 3px;
+            }
+            
+            #chat-input::-webkit-scrollbar-thumb:hover {
+                background: #555;
+            }
+            
             .element-highlight {
                 outline: 3px solid #3B82F6 !important;
                 outline-offset: 2px !important;
@@ -260,11 +282,20 @@
 
         // Send message
         document.getElementById('chat-send-btn').addEventListener('click', sendMessage);
-        document.getElementById('chat-input').addEventListener('keydown', (e) => {
+        
+        const chatInput = document.getElementById('chat-input');
+        
+        // Handle Enter/Shift+Enter
+        chatInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }
+        });
+        
+        // Auto-resize textarea as user types
+        chatInput.addEventListener('input', function() {
+            autoResizeTextarea(this);
         });
 
         // Context toggle
@@ -498,6 +529,24 @@
         const contextBar = document.getElementById('chat-context-bar');
         contextBar.classList.toggle('hidden');
     }
+    
+    function autoResizeTextarea(textarea) {
+        // Reset height to calculate new height
+        textarea.style.height = '40px';
+        
+        // Calculate new height based on content
+        const scrollHeight = textarea.scrollHeight;
+        const maxHeight = 120; // Max height in pixels
+        
+        // Set new height, capped at maxHeight
+        if (scrollHeight > maxHeight) {
+            textarea.style.height = maxHeight + 'px';
+            textarea.style.overflowY = 'auto';
+        } else {
+            textarea.style.height = scrollHeight + 'px';
+            textarea.style.overflowY = 'hidden';
+        }
+    }
 
     function startElementSelection() {
         document.body.classList.add('element-selecting');
@@ -600,6 +649,11 @@
     }
 
     function collectPageContext() {
+        // Always update current location
+        chatState.context.page = window.location.pathname;
+        chatState.context.url = window.location.href;
+        chatState.context.timestamp = new Date().toISOString();
+        
         // Collect form data if any
         const forms = document.querySelectorAll('form');
         chatState.context.forms = Array.from(forms).map(form => ({
@@ -645,16 +699,34 @@
         // Add user message
         addMessage('user', message);
         
-        // Clear input
+        // Clear input and reset height
         input.value = '';
+        input.style.height = '40px';
         
-        // Check if WebSocket is connected
-        if (chatState.websocket && chatState.websocket.readyState === WebSocket.OPEN) {
-            // Send via WebSocket for real-time chat
+        // Refresh context with current page info
+        collectPageContext();
+        
+        // Always include at minimum the current URL and page
+        const messageContext = {
+            ...chatState.context,
+            currentUrl: window.location.href,
+            currentPath: window.location.pathname,
+            pageTitle: document.title,
+            timestamp: new Date().toISOString()
+        };
+        
+        // Check if this is an error report - always use HTTP for ticket creation
+        const isErrorReport = /\b(error|500|404|broken|bug|issue|fail|crash|not working)\b/i.test(message);
+        
+        if (isErrorReport) {
+            // Always use HTTP for error reports to ensure ticket creation
+            fallbackToHTTP(message);
+        } else if (chatState.websocket && chatState.websocket.readyState === WebSocket.OPEN) {
+            // Send via WebSocket for real-time chat (non-error messages)
             const wsMessage = {
                 type: 'user',
                 message: message,
-                context: chatState.context,
+                context: messageContext,
                 timestamp: new Date().toISOString(),
                 sessionId: chatState.sessionId
             };
@@ -676,10 +748,19 @@
         // Collect current context
         collectPageContext();
         
+        // Always include at minimum the current URL and page
+        const messageContext = {
+            ...chatState.context,
+            currentUrl: window.location.href,
+            currentPath: window.location.pathname,
+            pageTitle: document.title,
+            timestamp: new Date().toISOString()
+        };
+        
         // Prepare payload
         const payload = {
             message: message,
-            context: chatState.context,
+            context: messageContext,
             timestamp: new Date().toISOString()
         };
 
@@ -708,7 +789,8 @@
                         status: 'new'
                     });
                     
-                    addMessage('claude', `Ticket #${data.ticketNumber} created. I'll work on this issue and update you with progress.`);
+                    // Use the response from the API which includes the ticket number and context
+                    addMessage('claude', data.response || `Ticket #${data.ticketNumber} created. I'll work on this issue and update you with progress.`);
                     
                     // Start polling for ticket updates
                     startTicketPolling();

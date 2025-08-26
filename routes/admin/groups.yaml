@@ -1,0 +1,76 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: admin-groups
+  description: Group management interface
+  namespace: admin
+  enabled: true
+
+spec:
+  prefix: ""
+  middleware:
+    - auth
+    - admin
+    - i18n
+  
+  routes:
+    - path: /admin/groups
+      method: GET
+      handler: admin_groups
+      name: Admin Groups
+      config:
+        template: pages/admin/groups.pongo2
+        repository: groups
+    
+    - path: /admin/groups
+      method: POST
+      handler: admin_groups_create
+      name: Create Group
+      config:
+        repository: groups
+        success_message: Group created successfully
+    
+    - path: /admin/groups/:id
+      method: GET
+      handler: admin_group_get
+      name: Get Group Details
+      config:
+        repository: groups
+    
+    - path: /admin/groups/:id
+      method: PUT
+      handler: admin_groups_update
+      name: Update Group
+      config:
+        repository: groups
+        success_message: Group updated successfully
+    
+    - path: /admin/groups/:id
+      method: DELETE
+      handler: admin_groups_delete
+      name: Delete Group
+      config:
+        repository: groups
+        soft_delete: true
+        success_message: Group deleted successfully
+    
+    - path: /admin/groups/:id/users
+      method: GET
+      handler: admin_groups_users
+      name: Group Users
+      config:
+        repository: groups
+    
+    - path: /admin/groups/:id/users
+      method: POST
+      handler: admin_groups_add_user
+      name: Add User to Group
+      config:
+        repository: groups
+    
+    - path: /admin/groups/:id/users/:userId
+      method: DELETE
+      handler: admin_groups_remove_user
+      name: Remove User from Group
+      config:
+        repository: groups

@@ -83,10 +83,10 @@ If you have Go installed locally:
 
 ```bash
 # Run the test script
-./run_tests.sh
+./scripts/run_tests.sh
 
 # Generate HTML coverage report
-./run_tests.sh --html
+./scripts/run_tests.sh --html
 ```
 
 ### Using Go Commands Directly

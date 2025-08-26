@@ -48,6 +48,10 @@ help:
 	@echo "  make synthesize-force - Force regenerate .env (overwrite existing)"
 	@echo "  make k8s-secrets      - Generate k8s/secrets.yaml from template"
 	@echo ""
+	@echo "Schema discovery:"
+	@echo "  make schema-discovery - Generate YAML modules from database schema"
+	@echo "  make schema-table     - Generate YAML for specific table (TABLE=tablename)"
+	@echo ""
 	@echo "Toolbox commands (fast, containerized dev tools):"
 	@echo "  make toolbox-build    - Build toolbox container (auto-runs before use)"
 	@echo "  make toolbox-run      - Interactive shell with all tools"
@@ -300,6 +304,20 @@ trivy-images:
 		aquasec/trivy:latest \
 		image gotrs-frontend:latest
 
+# Schema discovery - generate YAML modules from database
+schema-discovery:
+	@echo "🔍 Discovering database schema and generating YAML modules..."
+	@./scripts/schema-discovery.sh --verbose
+
+# Schema discovery for specific table
+schema-table:
+	@if [ -z "$(TABLE)" ]; then \
+		echo "Error: TABLE not specified. Usage: make schema-table TABLE=tablename"; \
+		exit 1; \
+	fi
+	@echo "🔍 Generating YAML module for table: $(TABLE)..."
+	@./scripts/schema-discovery.sh --table $(TABLE) --verbose
+
 # Start all services
 up:
 	$(COMPOSE_CMD) up --build
@@ -455,8 +473,8 @@ test-coverage:
 
 # Run tests with enhanced coverage reporting (runs in container if script missing)
 test-report:
-	@if [ -f ./run_tests.sh ]; then \
-		bash ./run_tests.sh; \
+	@if [ -f ./scripts/run_tests.sh ]; then \
+		bash ./scripts/run_tests.sh; \
 	else \
 		echo "run_tests.sh not found, running in container"; \
 		$(MAKE) test-coverage; \
@@ -464,8 +482,8 @@ test-report:
 
 # Generate HTML coverage report (runs in container if script missing)
 test-html:
-	@if [ -f ./run_tests.sh ]; then \
-		bash ./run_tests.sh --html; \
+	@if [ -f ./scripts/run_tests.sh ]; then \
+		bash ./scripts/run_tests.sh --html; \
 	else \
 		echo "run_tests.sh not found, running in container"; \
 		$(MAKE) test-coverage-html; \
@@ -617,7 +635,6 @@ security-scan: scan-secrets scan-vulnerabilities
 # Build for production
 build:
 	$(CONTAINER_CMD) build -f Dockerfile -t gotrs:latest .
-	$(CONTAINER_CMD) build -f Dockerfile.frontend -t gotrs-frontend:latest ./web
 
 # Check service health (runs in container)
 health:

@@ -40,7 +40,7 @@ func NewPermissionRepository(db *sql.DB) *PermissionRepository {
 func (r *PermissionRepository) GetUserPermissions(userID uint) (map[uint][]string, error) {
 	query := `
 		SELECT group_id, permission_key 
-		FROM user_groups 
+		FROM group_user 
 		WHERE user_id = $1 AND permission_value = 1
 		ORDER BY group_id, permission_key`
 
@@ -67,7 +67,7 @@ func (r *PermissionRepository) GetUserPermissions(userID uint) (map[uint][]strin
 func (r *PermissionRepository) GetGroupPermissions(groupID uint) (map[uint][]string, error) {
 	query := `
 		SELECT user_id, permission_key 
-		FROM user_groups 
+		FROM group_user 
 		WHERE group_id = $1 AND permission_value = 1
 		ORDER BY user_id, permission_key`
 
@@ -94,7 +94,7 @@ func (r *PermissionRepository) GetGroupPermissions(groupID uint) (map[uint][]str
 func (r *PermissionRepository) SetUserGroupPermission(userID, groupID uint, permKey string, value int) error {
 	// First try to update existing permission
 	updateQuery := `
-		UPDATE user_groups 
+		UPDATE group_user 
 		SET permission_value = $4, change_time = CURRENT_TIMESTAMP, change_by = $5
 		WHERE user_id = $1 AND group_id = $2 AND permission_key = $3`
 
@@ -111,7 +111,7 @@ func (r *PermissionRepository) SetUserGroupPermission(userID, groupID uint, perm
 	// If no rows were updated, insert new permission
 	if rowsAffected == 0 {
 		insertQuery := `
-			INSERT INTO user_groups (user_id, group_id, permission_key, permission_value, create_by, change_by)
+			INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_by, change_by)
 			VALUES ($1, $2, $3, $4, $5, $6)`
 
 		_, err = r.db.Exec(insertQuery, userID, groupID, permKey, value, userID, userID)
@@ -133,7 +133,7 @@ func (r *PermissionRepository) RemoveUserGroupPermission(userID, groupID uint, p
 func (r *PermissionRepository) GetUserGroupMatrix(userID, groupID uint) (map[string]bool, error) {
 	query := `
 		SELECT permission_key, permission_value 
-		FROM user_groups 
+		FROM group_user 
 		WHERE user_id = $1 AND group_id = $2`
 
 	rows, err := r.db.Query(query, userID, groupID)
@@ -170,7 +170,7 @@ func (r *PermissionRepository) SetUserGroupMatrix(userID, groupID uint, permissi
 	defer tx.Rollback()
 
 	// Delete existing permissions
-	deleteQuery := `DELETE FROM user_groups WHERE user_id = $1 AND group_id = $2`
+	deleteQuery := `DELETE FROM group_user WHERE user_id = $1 AND group_id = $2`
 	_, err = tx.Exec(deleteQuery, userID, groupID)
 	if err != nil {
 		return fmt.Errorf("failed to delete existing permissions: %w", err)
@@ -178,7 +178,7 @@ func (r *PermissionRepository) SetUserGroupMatrix(userID, groupID uint, permissi
 
 	// Insert new permissions
 	insertQuery := `
-		INSERT INTO user_groups (user_id, group_id, permission_key, permission_value, create_time, create_by, change_time, change_by)
+		INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_time, create_by, change_time, change_by)
 		VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5, CURRENT_TIMESTAMP, $6)`
 
 	stmt, err := tx.Prepare(insertQuery)
@@ -205,7 +205,7 @@ func (r *PermissionRepository) SetUserGroupMatrix(userID, groupID uint, permissi
 func (r *PermissionRepository) GetAllUserGroupPermissions() ([]UserGroupPermission, error) {
 	query := `
 		SELECT ug.user_id, ug.group_id, ug.permission_key, ug.permission_value
-		FROM user_groups ug
+		FROM group_user ug
 		JOIN users u ON ug.user_id = u.id
 		JOIN groups g ON ug.group_id = g.id
 		WHERE u.valid_id = 1 AND g.valid_id = 1

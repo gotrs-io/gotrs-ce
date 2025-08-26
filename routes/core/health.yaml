@@ -1,0 +1,52 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: health-checks
+  description: Health check and monitoring endpoints
+  namespace: core
+  enabled: true
+  labels:
+    environment: all
+    priority: critical
+
+spec:
+  prefix: ""
+  middleware: []
+  
+  routes:
+    - path: /health
+      method: GET
+      handler: handleHealthCheck
+      name: Health Check
+      description: Basic health check endpoint
+      openapi:
+        summary: Check system health
+        tags: [Monitoring]
+        responses:
+          200: HealthResponse
+          503: ServiceUnavailable
+      
+    - path: /health/detailed
+      method: GET
+      handler: handleDetailedHealthCheck
+      name: Detailed Health Check
+      description: Detailed health check with component status
+      permissions:
+        - monitoring:read
+      openapi:
+        summary: Get detailed health status
+        tags: [Monitoring]
+        responses:
+          200: DetailedHealthResponse
+          
+    - path: /metrics
+      method: GET
+      handler: handleMetrics
+      name: Prometheus Metrics
+      description: Expose metrics for Prometheus scraping
+      condition: ${METRICS_ENABLED}
+      openapi:
+        summary: Get Prometheus metrics
+        tags: [Monitoring]
+        responses:
+          200: PrometheusMetrics# Updated at Sun 24 Aug 21:09:50 BST 2025

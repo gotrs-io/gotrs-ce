@@ -1,0 +1,291 @@
+# Data Maintenance and Quality Workflows
+
+workflows:
+  # Data quality monitoring
+  - id: data_quality_check
+    name: Data Quality Monitor
+    module: system
+    description: Regular data quality checks across all modules
+    enabled: true
+    triggers:
+      - type: schedule
+        schedule: "0 0 4 * * *"  # Daily at 4 AM
+    conditions:
+      - type: always
+    actions:
+      - type: run_checks
+        order: 1
+        config:
+          checks:
+            - orphaned_records
+            - missing_required_fields
+            - invalid_email_formats
+            - duplicate_entries
+            - referential_integrity
+      - type: generate_report
+        order: 2
+        config:
+          format: html
+          include_recommendations: true
+      - type: conditional
+        order: 3
+        config:
+          condition: errors_found
+          actions:
+            - type: send_email
+              config:
+                to: "{{data_admin_email}}"
+                subject: "⚠️ Data Quality Issues Detected"
+                priority: high
+                attachment: "{{quality_report}}"
+
+  # Database backup verification
+  - id: backup_verification
+    name: Backup Verification
+    module: system
+    description: Verify database backups are successful and restorable
+    enabled: true
+    triggers:
+      - type: schedule
+        schedule: "0 30 5 * * *"  # Daily at 5:30 AM
+    conditions:
+      - type: backup_exists
+        config:
+          age_hours: 24
+    actions:
+      - type: verify_backup
+        order: 1
+        config:
+          check_integrity: true
+          test_restore: true  # On test instance
+      - type: update_metrics
+        order: 2
+        config:
+          metric: backup_verification
+          status: "{{verification_result}}"
+      - type: conditional
+        order: 3
+        config:
+          condition: verification_failed
+          actions:
+            - type: send_alert
+              config:
+                to: "{{ops_team}}"
+                severity: critical
+                message: "Backup verification failed"
+
+  # Archive old records
+  - id: archive_old_data
+    name: Archive Old Records
+    module: system
+    description: Move old records to archive tables
+    enabled: true
+    triggers:
+      - type: schedule
+        schedule: "0 0 2 * * 0"  # Weekly on Sunday at 2 AM
+    conditions:
+      - type: storage_check
+        config:
+          table_size_gb: 50  # Trigger if table > 50GB
+    actions:
+      - type: identify_records
+        order: 1
+        config:
+          criteria:
+            - closed_tickets_older_than_days: 365
+            - resolved_tickets_older_than_days: 180
+            - deleted_users_older_than_days: 90
+      - type: create_archive_batch
+        order: 2
+        config:
+          batch_id: "{{timestamp}}_archive"
+          record_count: "{{identified_count}}"
+      - type: move_to_archive
+        order: 3
+        config:
+          batch_size: 1000
+          verify_each_batch: true
+          maintain_references: true
+      - type: optimize_tables
+        order: 4
+        config:
+          tables:
+            - ticket
+            - article
+            - users
+          operations:
+            - vacuum
+            - analyze
+            - reindex
+      - type: generate_report
+        order: 5
+        config:
+          include:
+            - records_archived
+            - space_recovered
+            - performance_impact
+            - archive_location
+
+  # Duplicate detection and merge
+  - id: duplicate_detection
+    name: Duplicate Record Detection
+    module: customers
+    description: Find and merge duplicate customer records
+    enabled: true
+    triggers:
+      - type: schedule
+        schedule: "0 0 3 * * 1"  # Weekly on Monday at 3 AM
+    conditions:
+      - type: record_count
+        config:
+          module: customer_user
+          operator: greater_than
+          value: 100
+    actions:
+      - type: find_duplicates
+        order: 1
+        config:
+          match_criteria:
+            - email: exact
+            - name: fuzzy_80  # 80% similarity
+            - phone: normalized
+          confidence_threshold: 0.85
+      - type: create_merge_suggestions
+        order: 2
+        config:
+          review_required: true
+          auto_merge_threshold: 0.95
+      - type: send_report
+        order: 3
+        config:
+          to: "{{data_steward_email}}"
+          subject: "Duplicate Records Review Required"
+          include:
+            - duplicate_pairs
+            - confidence_scores
+            - suggested_actions
+
+  # Index optimization
+  - id: index_optimization
+    name: Database Index Optimization
+    module: system
+    description: Analyze and optimize database indexes
+    enabled: true
+    triggers:
+      - type: schedule
+        schedule: "0 0 3 * * 6"  # Weekly on Saturday at 3 AM
+    conditions:
+      - type: performance_check
+        config:
+          slow_query_threshold_ms: 1000
+          slow_query_count: 10
+    actions:
+      - type: analyze_indexes
+        order: 1
+        config:
+          check:
+            - unused_indexes
+            - duplicate_indexes
+            - missing_indexes
+            - fragmented_indexes
+      - type: generate_recommendations
+        order: 2
+        config:
+          auto_apply_safe: true  # Only safe optimizations
+          require_approval: true  # For drops and major changes
+      - type: apply_optimizations
+        order: 3
+        config:
+          maintenance_window: true
+          backup_first: true
+      - type: monitor_performance
+        order: 4
+        config:
+          duration_minutes: 60
+          compare_before_after: true
+
+  # Cache management
+  - id: cache_management
+    name: Cache Management
+    module: system
+    description: Manage and optimize cache usage
+    enabled: true
+    triggers:
+      - type: schedule
+        schedule: "0 */6 * * *"  # Every 6 hours
+      - type: event
+        event: cache_hit_ratio_low
+    conditions:
+      - type: cache_metrics
+        config:
+          hit_ratio_below: 0.8
+          or_memory_usage_above: 0.9
+    actions:
+      - type: analyze_cache
+        order: 1
+        config:
+          metrics:
+            - hit_ratio
+            - miss_ratio
+            - eviction_rate
+            - memory_usage
+      - type: optimize_cache
+        order: 2
+        config:
+          strategies:
+            - remove_expired
+            - evict_least_used
+            - compress_large_values
+      - type: warm_cache
+        order: 3
+        config:
+          preload:
+            - frequently_accessed
+            - critical_data
+            - user_sessions
+
+  # Data retention policy enforcement
+  - id: retention_policy
+    name: Data Retention Policy
+    module: system
+    description: Enforce data retention policies
+    enabled: true
+    triggers:
+      - type: schedule
+        schedule: "0 0 1 * * *"  # Daily at 1 AM
+    conditions:
+      - type: always
+    actions:
+      - type: identify_expired_data
+        order: 1
+        config:
+          policies:
+            - personal_data: 730  # 2 years
+            - log_files: 90      # 90 days
+            - temp_files: 7      # 7 days
+            - audit_logs: 2555   # 7 years
+      - type: create_deletion_batch
+        order: 2
+        config:
+          require_approval: true
+          grace_period_days: 30
+      - type: backup_before_delete
+        order: 3
+        config:
+          destination: long_term_storage
+          compress: true
+          encrypt: true
+      - type: delete_expired
+        order: 4
+        config:
+          batch_size: 1000
+          verify_each: true
+          log_deletions: true
+      - type: generate_compliance_report
+        order: 5
+        config:
+          format: pdf
+          include:
+            - deleted_records
+            - retention_compliance
+            - audit_trail

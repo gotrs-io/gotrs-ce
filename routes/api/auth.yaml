@@ -1,0 +1,29 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: api-auth
+  description: Authentication API endpoints
+  namespace: api
+  enabled: true
+
+spec:
+  prefix: "/api/auth"
+  
+  routes:
+    - path: /login
+      method: POST
+      handler: auth_login
+      name: API Login
+      description: Authenticate user and get session
+      
+    - path: /logout
+      method: POST
+      handler: auth_logout
+      name: API Logout
+      description: Logout and clear session
+      
+    - path: /check
+      method: GET
+      handler: auth_check
+      name: Check Auth
+      description: Check if user is authenticated

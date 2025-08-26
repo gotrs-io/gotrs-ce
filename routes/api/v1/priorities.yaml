@@ -1,0 +1,45 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: api-v1-priorities
+  description: REST API v1 priority endpoints
+  namespace: api
+  enabled: true
+  labels:
+    environment: all
+    version: v1
+    api: rest
+
+spec:
+  prefix: /api/v1
+  middleware:
+    - cors
+  
+  routes:
+    - path: /priorities
+      method: GET
+      handler: api_v1_priorities_list
+      name: List Priorities
+      description: Get list of priorities
+      openapi:
+        summary: List priorities
+        tags: [API v1, Priorities]
+        responses:
+          200: Success
+          500: InternalServerError
+          
+    - path: /priorities/:id
+      method: GET
+      handler: api_v1_priority_get
+      name: Get Priority
+      description: Get priority by ID
+      params:
+        id:
+          type: int
+          required: true
+      openapi:
+        summary: Get priority details
+        tags: [API v1, Priorities]
+        responses:
+          200: Success
+          404: NotFound

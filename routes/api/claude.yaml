@@ -1,0 +1,24 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: claude-api
+  description: Claude chat widget API endpoints
+  namespace: api
+  enabled: true
+
+spec:
+  prefix: /api
+  middleware: []  # No auth required for feedback submission
+  
+  routes:
+    - path: /claude-feedback
+      method: POST
+      handler: claude_feedback
+      name: Claude Feedback
+      description: Receive feedback from Claude chat widget and create tickets
+      
+    - path: /claude/tickets/status
+      method: POST
+      handler: claude_ticket_status
+      name: Claude Ticket Status
+      description: Check status of Claude-created tickets for real-time updates

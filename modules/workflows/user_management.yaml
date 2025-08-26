@@ -1,0 +1,256 @@
+# User Management Workflows
+
+workflows:
+  # New user onboarding
+  - id: user_onboarding
+    name: New User Onboarding
+    module: users
+    description: Automated onboarding process for new users
+    enabled: true
+    triggers:
+      - type: event
+        event: create
+    conditions:
+      - type: field_value
+        field: valid_id
+        operator: equals
+        value: 1  # Active
+    actions:
+      - type: send_email
+        order: 1
+        config:
+          to: "{{email}}"
+          subject: "Welcome to GOTRS!"
+          template: welcome_email
+      - type: create_record
+        order: 2
+        config:
+          module: onboarding_tasks
+          fields:
+            user_id: "{{id}}"
+            task: setup_profile
+            due_date: "{{current_date_plus_3}}"
+      - type: create_record
+        order: 3
+        config:
+          module: onboarding_tasks
+          fields:
+            user_id: "{{id}}"
+            task: complete_training
+            due_date: "{{current_date_plus_7}}"
+      - type: add_to_group
+        order: 4
+        config:
+          group: new_users
+          duration: 30  # days
+
+  # Inactive user cleanup
+  - id: inactive_user_cleanup
+    name: Inactive User Cleanup
+    module: users
+    description: Disable users who haven't logged in for 90 days
+    enabled: true
+    triggers:
+      - type: schedule
+        schedule: "0 0 3 * * 0"  # Weekly on Sunday at 3 AM
+    conditions:
+      - type: field_value
+        field: valid_id
+        operator: equals
+        value: 1  # Currently active
+      - type: time_based
+        config:
+          field: last_login
+          condition: older_than
+          value: 90  # days
+    actions:
+      - type: send_email
+        order: 1
+        config:
+          to: "{{email}}"
+          subject: "Your account will be deactivated soon"
+          template: inactivity_warning
+      - type: wait
+        order: 2
+        config:
+          duration: 168  # 7 days in hours
+      - type: update_field
+        order: 3
+        config:
+          field: valid_id
+          value: 2  # Inactive
+      - type: update_field
+        order: 4
+        config:
+          field: deactivation_reason
+          value: "Inactive for 90+ days"
+      - type: log_activity
+        order: 5
+        config:
+          message: "User deactivated due to inactivity"
+
+  # Password expiry notification
+  - id: password_expiry
+    name: Password Expiry Notification
+    module: users
+    description: Notify users before password expires
+    enabled: true
+    triggers:
+      - type: schedule
+        schedule: "0 0 9 * * *"  # Daily at 9 AM
+    conditions:
+      - type: field_value
+        field: valid_id
+        operator: equals
+        value: 1
+      - type: time_based
+        config:
+          field: password_changed_date
+          condition: age_days
+          operator: greater_than
+          value: 83  # 7 days before 90-day expiry
+    actions:
+      - type: send_email
+        order: 1
+        config:
+          to: "{{email}}"
+          subject: "Password expires in {{days_until_expiry}} days"
+          template: password_expiry_warning
+      - type: update_field
+        order: 2
+        config:
+          field: password_warning_sent
+          value: true
+
+  # Group membership audit
+  - id: group_audit
+    name: Group Membership Audit
+    module: users
+    description: Review and report on group memberships
+    enabled: true
+    triggers:
+      - type: schedule
+        schedule: "0 0 1 1 * *"  # Monthly on the 1st at 1 AM
+    conditions:
+      - type: always  # No conditions, always run
+    actions:
+      - type: generate_report
+        order: 1
+        config:
+          report_type: group_membership
+          include:
+            - user_count_per_group
+            - inactive_users_in_groups
+            - users_with_multiple_groups
+            - empty_groups
+      - type: send_email
+        order: 2
+        config:
+          to: "{{admin_email}}"
+          subject: "Monthly Group Membership Audit Report"
+          attachment: "{{report_file}}"
+      - type: cleanup_empty_groups
+        order: 3
+        config:
+          action: disable  # or delete
+          
+  # Role permission changes notification
+  - id: permission_change_alert
+    name: Permission Change Alert
+    module: user_groups
+    description: Alert when user permissions are modified
+    enabled: true
+    triggers:
+      - type: event
+        event: update
+    conditions:
+      - type: field_change
+        field: permission_key
+    actions:
+      - type: log_activity
+        order: 1
+        config:
+          message: "Permissions changed for user {{user_id}} in group {{group_id}}"
+          level: security
+      - type: send_email
+        order: 2
+        config:
+          to: "{{security_team_email}}"
+          subject: "🔐 Permission Change Alert"
+          body: |
+            User: {{user_login}}
+            Group: {{group_name}}
+            Changed by: {{modified_by}}
+            Old permissions: {{old_permissions}}
+            New permissions: {{new_permissions}}
+            Timestamp: {{current_timestamp}}
+      - type: create_audit_record
+        order: 3
+        config:
+          module: audit_log
+          fields:
+            event_type: permission_change
+            user_id: "{{user_id}}"
+            group_id: "{{group_id}}"
+            old_value: "{{old_permissions}}"
+            new_value: "{{new_permissions}}"
+            changed_by: "{{modified_by}}"
+
+  # Bulk user import validation
+  - id: bulk_import_validation
+    name: Bulk User Import Validation
+    module: users
+    description: Validate and process bulk user imports
+    enabled: true
+    triggers:
+      - type: event
+        event: bulk_import
+    conditions:
+      - type: file_uploaded
+        config:
+          file_type: csv
+          max_size: 10485760  # 10MB
+    actions:
+      - type: validate_csv
+        order: 1
+        config:
+          required_columns:
+            - login
+            - email
+            - first_name
+            - last_name
+          unique_fields:
+            - login
+            - email
+      - type: check_duplicates
+        order: 2
+        config:
+          fields:
+            - login
+            - email
+      - type: create_import_batch
+        order: 3
+        config:
+          status: pending
+          total_records: "{{record_count}}"
+      - type: process_records
+        order: 4
+        config:
+          batch_size: 100
+          on_error: skip  # or stop
+          create_users: true
+          send_welcome: false  # Send after all imported
+      - type: generate_report
+        order: 5
+        config:
+          include:
+            - successful_imports
+            - failed_imports
+            - duplicate_records
+            - validation_errors
+      - type: send_email
+        order: 6
+        config:
+          to: "{{requester_email}}"
+          subject: "Bulk Import Complete: {{successful_count}}/{{total_count}} users imported"
+          attachment: "{{import_report}}"

@@ -1,0 +1,193 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: admin-customer-companies
+  description: Customer company management endpoints
+  namespace: admin
+  enabled: true
+  labels:
+    environment: all
+    module: customer-management
+    
+spec:
+  prefix: /admin
+  middleware:
+    - auth
+    - admin
+    - audit
+    
+  routes:
+    # List companies
+    - path: /customer-companies
+      method: GET
+      handler: handleAdminCustomerCompanies
+      name: List Customer Companies
+      description: Get list of all customer companies
+      permissions:
+        - customer:read
+      params:
+        search:
+          type: string
+          description: Search term for company name or ID
+        valid:
+          type: string
+          enum: [all, valid, invalid]
+          default: all
+          description: Filter by validity status
+        page:
+          type: int
+          min: 1
+          default: 1
+        limit:
+          type: int
+          min: 10
+          max: 100
+          default: 20
+          
+    # Create new company
+    - path: /customer-companies/new
+      method: [GET, POST]
+      handlers:
+        GET: handleAdminNewCustomerCompany
+        POST: handleAdminCreateCustomerCompany
+      name: Create Customer Company
+      description: Create a new customer company
+      permissions:
+        - customer:write
+      testCases:
+        - name: Create valid company
+          input:
+            customer_id: TEST001
+            name: Test Company
+            city: New York
+          statusCode: 201
+          
+    # Edit company
+    - path: /customer-companies/:id/edit
+      method: [GET, POST]
+      handlers:
+        GET: handleAdminEditCustomerCompany
+        POST: handleAdminUpdateCustomerCompany
+      name: Edit Customer Company
+      description: Edit customer company details
+      permissions:
+        - customer:write
+      params:
+        id:
+          type: string
+          required: true
+          pattern: "^[A-Z0-9_-]+$"
+          description: Customer company ID
+        tab:
+          type: string
+          enum: [general, portal, services, users]
+          default: general
+          
+    # Delete (deactivate) company
+    - path: /customer-companies/:id/delete
+      method: POST
+      handler: handleAdminDeleteCustomerCompany
+      name: Delete Customer Company
+      description: Soft delete (deactivate) a customer company
+      permissions:
+        - customer:delete
+        
+    # Company users
+    - path: /customer-companies/:id/users
+      method: GET
+      handler: handleAdminCustomerCompanyUsers
+      name: List Company Users
+      description: Get all users belonging to a company
+      permissions:
+        - customer:read
+        
+    # Company tickets
+    - path: /customer-companies/:id/tickets
+      method: GET
+      handler: handleAdminCustomerCompanyTickets
+      name: List Company Tickets
+      description: Get all tickets for a company
+      permissions:
+        - customer:read
+        - ticket:read
+        
+    # Service management
+    - path: /customer-companies/:id/services
+      method: [GET, POST]
+      handlers:
+        GET: handleAdminCustomerCompanyServices
+        POST: handleAdminUpdateCustomerCompanyServices
+      name: Manage Company Services
+      description: Manage services available to a company
+      permissions:
+        - customer:write
+        - service:assign
+        
+    # Portal customization
+    - path: /customer-companies/:id/portal
+      method: [GET, POST]
+      handlers:
+        GET: handleAdminCustomerPortalSettings
+        POST: handleAdminUpdateCustomerPortalSettings
+      name: Portal Customization
+      description: Customize the customer portal for a company
+      features:
+        - white-label
+      permissions:
+        - portal:admin
+      openapi:
+        summary: Configure white-label portal settings
+        tags: [Customer Portal, White Label]
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logo_url:
+                    type: string
+                  primary_color:
+                    type: string
+                    pattern: "^#[0-9A-Fa-f]{6}$"
+                  secondary_color:
+                    type: string
+                    pattern: "^#[0-9A-Fa-f]{6}$"
+                  welcome_message:
+                    type: string
+                  custom_css:
+                    type: string
+                  enable_kb:
+                    type: boolean
+                  custom_domain:
+                    type: string
+                    
+    # Logo upload
+    - path: /customer-companies/:id/portal/logo
+      method: POST
+      handler: handleAdminUploadCustomerPortalLogo
+      name: Upload Portal Logo
+      description: Upload a custom logo for the customer portal
+      features:
+        - white-label
+      permissions:
+        - portal:admin
+      rateLimit:
+        requests: 10
+        period: 1h
+        key: user
+      openapi:
+        summary: Upload customer portal logo
+        tags: [Customer Portal, White Label]
+        requestBody:
+          content:
+            multipart/form-data:
+              schema:
+                type: object
+                properties:
+                  logo:
+                    type: string
+                    format: binary
+        responses:
+          200: LogoUploadSuccess
+          400: BadRequest
+          413: PayloadTooLarge

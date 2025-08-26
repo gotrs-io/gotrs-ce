@@ -641,27 +641,31 @@ func handleDevDatabase(c *gin.Context) {
 
 // RegisterDevRoutes registers all developer routes
 func RegisterDevRoutes(r *gin.RouterGroup) {
-	// Main dashboard
-	r.GET("", handleDevDashboard)
-	r.GET("/", handleDevDashboard)
+	// Note: Routes are now handled via YAML configuration files
+	// See routes/dev/*.yaml for route definitions
 	
-	// Tools
-	r.GET("/claude-tickets", handleClaudeTickets)
-	r.GET("/database", handleDevDatabase)
-	r.POST("/database", handleDevDatabase)
-	r.GET("/logs", handleDevLogs)
-	
-	// Server-Sent Events for real-time updates
-	r.GET("/tickets/events", handleTicketEvents)
-	
-	// Actions
-	r.POST("/action/:action", handleDevAction)
-	
-	// TODO: Add more dev tools as needed
-	// dev.GET("/api-tester", handleAPITester)
-	// dev.GET("/templates", handleTemplatePlayground)
-	// dev.GET("/services", handleServiceMonitor)
-	// dev.GET("/migrations", handleMigrationManager)
+	// Commented out - now handled by YAML routes
+	// // Main dashboard
+	// r.GET("", handleDevDashboard)
+	// r.GET("/", handleDevDashboard)
+	// 
+	// // Tools
+	// r.GET("/claude-tickets", handleClaudeTickets)
+	// r.GET("/database", handleDevDatabase)
+	// r.POST("/database", handleDevDatabase)
+	// r.GET("/logs", handleDevLogs)
+	// 
+	// // Server-Sent Events for real-time updates
+	// r.GET("/tickets/events", handleTicketEvents)
+	// 
+	// // Actions
+	// r.POST("/action/:action", handleDevAction)
+	// 
+	// // TODO: Add more dev tools as needed
+	// // dev.GET("/api-tester", handleAPITester)
+	// // dev.GET("/templates", handleTemplatePlayground)
+	// // dev.GET("/services", handleServiceMonitor)
+	// // dev.GET("/migrations", handleMigrationManager)
 	// dev.GET("/websocket", handleWebSocketTest)
 	// dev.GET("/tests", handleTestRunner)
 }

@@ -1,0 +1,35 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: customer-knowledge-base
+  description: Customer knowledge base access
+  namespace: customer
+  enabled: true
+  labels:
+    environment: all
+    security: customer
+
+spec:
+  prefix: "/customer"
+  middleware:
+    - auth
+    - customer
+  
+  routes:
+    - path: /kb
+      method: GET
+      handler: customer_knowledge_base
+      name: Knowledge Base
+      description: Browse knowledge base
+      
+    - path: /kb/search
+      method: GET
+      handler: customer_kb_search
+      name: KB Search
+      description: Search knowledge base
+      
+    - path: /kb/article/:id
+      method: GET
+      handler: customer_kb_article
+      name: KB Article
+      description: View knowledge base article

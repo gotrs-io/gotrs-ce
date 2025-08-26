@@ -1,0 +1,176 @@
+# Ticket Automation Workflows
+
+workflows:
+  # Auto-assign tickets to support team
+  - id: auto_assign_support
+    name: Auto-Assign Support Tickets
+    module: tickets
+    description: Automatically assign new tickets to available support agents
+    enabled: true
+    triggers:
+      - type: event
+        event: create
+    conditions:
+      - type: field_value
+        field: queue_id
+        operator: equals
+        value: 1  # Support queue
+      - type: field_value
+        field: assigned_to
+        operator: equals
+        value: null
+    actions:
+      - type: auto_assign
+        order: 1
+        config:
+          strategy: round_robin  # or least_loaded, random
+          pool: support_agents
+      - type: send_email
+        order: 2
+        config:
+          to: "{{assigned_agent_email}}"
+          subject: "New ticket assigned: {{ticket_number}}"
+          template: ticket_assigned
+
+  # Escalate overdue tickets
+  - id: escalate_overdue
+    name: Escalate Overdue Tickets
+    module: tickets
+    description: Escalate tickets that are overdue by more than 24 hours
+    enabled: true
+    triggers:
+      - type: schedule
+        schedule: "0 */30 * * * *"  # Every 30 minutes
+    conditions:
+      - type: time_based
+        config:
+          field: due_date
+          condition: overdue_by
+          value: 24  # hours
+      - type: field_value
+        field: priority_id
+        operator: less_than
+        value: 3  # Not already high priority
+    actions:
+      - type: update_field
+        order: 1
+        config:
+          field: priority_id
+          value: 3  # High priority
+      - type: update_field
+        order: 2
+        config:
+          field: escalated
+          value: true
+      - type: send_email
+        order: 3
+        config:
+          to: "{{queue_manager_email}}"
+          subject: "ESCALATION: Ticket {{ticket_number}} is overdue"
+          template: ticket_escalated
+
+  # Auto-close resolved tickets
+  - id: auto_close_resolved
+    name: Auto-Close Resolved Tickets
+    module: tickets
+    description: Automatically close tickets that have been resolved for 7 days
+    enabled: true
+    triggers:
+      - type: schedule
+        schedule: "0 0 2 * * *"  # Daily at 2 AM
+    conditions:
+      - type: field_value
+        field: status
+        operator: equals
+        value: resolved
+      - type: time_based
+        config:
+          field: resolved_date
+          condition: older_than
+          value: 7  # days
+    actions:
+      - type: update_field
+        order: 1
+        config:
+          field: status
+          value: closed
+      - type: update_field
+        order: 2
+        config:
+          field: closed_date
+          value: "{{current_timestamp}}"
+      - type: send_email
+        order: 3
+        config:
+          to: "{{customer_email}}"
+          subject: "Ticket {{ticket_number}} has been closed"
+          template: ticket_closed
+
+  # SLA breach warning
+  - id: sla_breach_warning
+    name: SLA Breach Warning
+    module: tickets
+    description: Send warning when ticket is close to SLA breach
+    enabled: true
+    triggers:
+      - type: schedule
+        schedule: "0 */15 * * * *"  # Every 15 minutes
+    conditions:
+      - type: sla_check
+        config:
+          threshold: 0.8  # 80% of SLA time consumed
+          status: open
+    actions:
+      - type: update_field
+        order: 1
+        config:
+          field: sla_warning_sent
+          value: true
+      - type: send_email
+        order: 2
+        config:
+          to: "{{assigned_agent_email}}"
+          cc: "{{queue_manager_email}}"
+          subject: "⚠️ SLA Warning: Ticket {{ticket_number}}"
+          template: sla_warning
+      - type: create_note
+        order: 3
+        config:
+          content: "SLA breach warning sent at {{current_timestamp}}"
+          internal: true
+
+  # Customer feedback request
+  - id: feedback_request
+    name: Customer Feedback Request
+    module: tickets
+    description: Send feedback survey when ticket is resolved
+    enabled: true
+    triggers:
+      - type: event
+        event: update
+    conditions:
+      - type: field_change
+        field: status
+        config:
+          from: open
+          to: resolved
+    actions:
+      - type: wait
+        order: 1
+        config:
+          duration: 1  # hour
+      - type: send_email
+        order: 2
+        config:
+          to: "{{customer_email}}"
+          subject: "How was your support experience?"
+          template: feedback_survey
+      - type: create_record
+        order: 3
+        config:
+          module: feedback_requests
+          fields:
+            ticket_id: "{{ticket_id}}"
+            customer_id: "{{customer_id}}"
+            sent_date: "{{current_timestamp}}"
+            status: pending

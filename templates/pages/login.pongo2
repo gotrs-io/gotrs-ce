@@ -1,18 +1,37 @@
-{% extends "layouts/base.pongo2" %}
+{% extends "layouts/auth.pongo2" %}
 
 {% block title %}{{ t("auth.login") }} - GOTRS{% endblock %}
 
 {% block content %}
 <div class="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+    <!-- Dark mode toggle in top right corner -->
+    <div class="absolute top-4 right-4">
+        <button type="button" onclick="toggleDarkMode()" 
+                class="rounded-lg p-2.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700"
+                title="Toggle dark mode">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+            </svg>
+        </button>
+    </div>
+    
     <div class="sm:mx-auto sm:w-full sm:max-w-sm">
         <img class="mx-auto h-24 w-24" src="/static/favicon.svg" alt="GOTRS Logo">
         <h2 class="mt-6 text-center text-2xl font-bold leading-9 tracking-tight text-gray-900 dark:text-white">
-            {{ t("auth.login") }}
+            GOTRS {{ t("auth.login") }}
         </h2>
     </div>
 
     <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-        <form class="space-y-6" hx-post="/api/auth/login" hx-target="#error-message">
+        {% if error %}
+        <div class="rounded-md bg-red-50 dark:bg-red-900/20 p-4 mb-4">
+            <div class="text-sm text-red-800 dark:text-red-200">
+                {{ error }}
+            </div>
+        </div>
+        {% endif %}
+        
+        <form class="space-y-6" action="/api/auth/login" method="POST">
             <div>
                 <label for="email" class="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300">Username</label>
                 <div class="mt-2">
@@ -24,9 +43,6 @@
             <div>
                 <div class="flex items-center justify-between">
                     <label for="password" class="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300">Password</label>
-                    <div class="text-sm">
-                        <a href="#" class="font-semibold text-gotrs-600 hover:text-gotrs-500 dark:text-gotrs-400 dark:hover:text-gotrs-300">Forgot password?</a>
-                    </div>
                 </div>
                 <div class="mt-2">
                     <input id="password" name="password" type="password" autocomplete="current-password" required 
@@ -35,6 +51,12 @@
             </div>
 
             <div id="error-message"></div>
+            
+            <div id="loading" class="htmx-indicator">
+                <div class="text-center text-sm text-gray-500 dark:text-gray-400">
+                    Signing in...
+                </div>
+            </div>
 
             <div>
                 <button type="submit" 
@@ -43,11 +65,39 @@
                 </button>
             </div>
         </form>
-
         <p class="mt-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            <a href="#" class="font-semibold text-gotrs-600 hover:text-gotrs-500 dark:text-gotrs-400 dark:hover:text-gotrs-300">Forgot password?</a>
             Not a member?
             <a href="/register" class="font-semibold leading-6 text-gotrs-600 hover:text-gotrs-500 dark:text-gotrs-400 dark:hover:text-gotrs-300">Sign up</a>
         </p>
     </div>
 </div>
+
+<script>
+    // Handle HTMX login response
+    document.body.addEventListener('htmx:afterRequest', function(evt) {
+        // Only handle login form responses
+        if (evt.detail.elt && evt.detail.elt.matches('form')) {
+            console.log('Login form response received');
+            if (evt.detail.xhr && evt.detail.xhr.status === 200) {
+                const redirectUrl = evt.detail.xhr.getResponseHeader('HX-Redirect') || 
+                                   evt.detail.xhr.getResponseHeader('hx-redirect');
+                if (redirectUrl) {
+                    console.log('Login successful, forcing redirect to:', redirectUrl);
+                    // Force immediate redirect - multiple methods to ensure it works
+                    try {
+                        window.location.replace(redirectUrl);
+                    } catch(e) {
+                        console.error('Replace failed:', e);
+                        window.location = redirectUrl;
+                    }
+                    // Fallback if neither worked
+                    setTimeout(function() {
+                        document.location.href = redirectUrl;
+                    }, 10);
+                }
+            }
+        }
+    });
+</script>
 {% endblock %}

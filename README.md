@@ -57,7 +57,7 @@ cp .env.example .env        # Then edit ALL values before use
 make up
 
 # Alternative methods:
-./compose.sh up          # Auto-detect wrapper script
+./scripts/compose.sh up          # Auto-detect wrapper script
 docker compose up        # Modern Docker
 docker-compose up        # Legacy Docker
 podman compose up        # Podman plugin

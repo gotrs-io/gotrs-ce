@@ -1,0 +1,20 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: root-redirect
+  description: Root path redirect
+  namespace: core
+  enabled: true
+
+spec:
+  prefix: ""
+  middleware: []
+  
+  routes:
+    - path: /
+      method: GET
+      handler: redirect
+      name: Root Redirect
+      config:
+        redirect_to: /login
+        redirect_code: 302

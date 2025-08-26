@@ -1,0 +1,23 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: admin-priorities
+  description: Priority management interface
+  namespace: admin
+  enabled: true
+
+spec:
+  prefix: ""
+  middleware:
+    - auth
+    - admin
+    - i18n
+  
+  routes:
+    - path: /admin/priorities
+      method: GET
+      handler: admin_priorities
+      name: Admin Priorities
+      config:
+        template: pages/admin/priorities.pongo2
+        repository: priorities

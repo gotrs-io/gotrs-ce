@@ -1,0 +1,53 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: api-v1-search
+  description: REST API v1 search endpoints
+  namespace: api
+  enabled: true
+  labels:
+    environment: all
+    version: v1
+    api: rest
+
+spec:
+  prefix: /api/v1
+  middleware:
+    - cors
+    - auth
+  
+  routes:
+    - path: /search
+      method: GET
+      handler: api_v1_search
+      name: Search
+      description: Global search endpoint
+      params:
+        q:
+          type: string
+          required: true
+          minLength: 2
+          description: Search query
+        type:
+          type: string
+          enum: [all, ticket, user, customer, article]
+          default: all
+          description: Type of resource to search
+        limit:
+          type: int
+          min: 1
+          max: 100
+          default: 20
+          description: Maximum results to return
+        offset:
+          type: int
+          min: 0
+          default: 0
+          description: Offset for pagination
+      openapi:
+        summary: Search across resources
+        tags: [API v1, Search]
+        responses:
+          200: Success
+          400: BadRequest
+          401: Unauthorized

@@ -40,24 +40,47 @@ func SessionMiddleware(jwtManager *auth.JWTManager) gin.HandlerFunc {
 		}
 		
 		// Check for demo token (only in demo mode)
-		if strings.HasPrefix(token, "demo_session_") {
-			// In demo mode, accept demo tokens and extract user ID
-			// Token format: demo_session_{userID}_{timestamp}
-			parts := strings.Split(token, "_")
-			userID := uint(1) // default to admin
-			if len(parts) >= 3 {
-				// Try to parse the user ID from the token
-				if id, err := strconv.Atoi(parts[2]); err == nil {
-					userID = uint(id)
+		if strings.HasPrefix(token, "demo_session_") || strings.HasPrefix(token, "demo_customer_") {
+			// In demo mode, accept demo tokens
+			// Token formats: 
+			//   - demo_session_{userID}_{timestamp} for agents
+			//   - demo_customer_{username} for customers
+			
+			if strings.HasPrefix(token, "demo_customer_") {
+				// Customer demo session
+				parts := strings.Split(token, "_")
+				username := "john.customer" // default customer
+				if len(parts) >= 3 {
+					username = parts[2]
 				}
+				
+				// Set customer context
+				c.Set("is_customer", true)
+				c.Set("username", username)
+				c.Set("userID", 1001) // Demo customer ID
+				c.Set("user_email", "john@acme.com")
+				c.Set("user_role", "Customer")
+				c.Set("user_name", "John Customer")
+				c.Set("is_demo", true)
+			} else {
+				// Agent demo session
+				parts := strings.Split(token, "_")
+				userID := uint(1) // default to admin
+				if len(parts) >= 3 {
+					// Try to parse the user ID from the token
+					if id, err := strconv.Atoi(parts[2]); err == nil {
+						userID = uint(id)
+					}
+				}
+				
+				// Set agent context
+				c.Set("user_id", userID)
+				c.Set("user_email", "demo@example.com")
+				c.Set("user_role", "Admin")
+				c.Set("user_name", "Demo User")
+				c.Set("is_demo", true)
 			}
 			
-			// Set basic user info - getUserMapForTemplate will load full details
-			c.Set("user_id", userID)
-			c.Set("user_email", "demo@example.com")
-			c.Set("user_role", "Admin")
-			c.Set("user_name", "Demo User")
-			c.Set("is_demo", true)
 			c.Next()
 			return
 		}

@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 
 	"github.com/gotrs-io/gotrs-ce/internal/models"
@@ -56,10 +57,15 @@ func (p *DatabaseAuthProvider) Authenticate(ctx context.Context, username, passw
 	}
 	
 	// Verify password
+	fmt.Printf("DatabaseAuthProvider: Verifying password for user %s\n", user.Login)
+	fmt.Printf("DatabaseAuthProvider: Password hash from DB: %s\n", user.Password)
+	fmt.Printf("DatabaseAuthProvider: Password length from user: %d\n", len(password))
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
+		fmt.Printf("DatabaseAuthProvider: Password verification failed: %v\n", err)
 		return nil, ErrInvalidCredentials
 	}
+	fmt.Printf("DatabaseAuthProvider: Password verification successful\n")
 	
 	// Clear password from user object before returning
 	user.Password = ""

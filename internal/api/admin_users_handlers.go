@@ -1,0 +1,491 @@
+package api
+
+import (
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/models"
+	"golang.org/x/crypto/bcrypt"
+)
+
+// HandleAdminUserGet handles GET /admin/users/:id
+func HandleAdminUserGet(c *gin.Context) {
+	userID := c.Param("id")
+	id, err := strconv.Atoi(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid user ID",
+		})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Database connection failed",
+		})
+		return
+	}
+
+	// Get user details
+	var user models.User
+	query := `
+		SELECT id, login, title, first_name, last_name, valid_id
+		FROM users
+		WHERE id = $1`
+	
+	err = db.QueryRow(query, id).Scan(
+		&user.ID,
+		&user.Login,
+		&user.Title,
+		&user.FirstName,
+		&user.LastName,
+		&user.ValidID,
+	)
+	
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "User not found",
+		})
+		return
+	}
+
+	// Get user's groups
+	groupQuery := `
+		SELECT g.id, g.name
+		FROM groups g
+		JOIN group_user gu ON g.id = gu.group_id
+		WHERE gu.user_id = $1 AND g.valid_id = 1`
+	
+	rows, err := db.Query(groupQuery, id)
+	if err == nil {
+		defer rows.Close()
+		var groupIDs []int
+		var groupNames []string
+		for rows.Next() {
+			var gid int
+			var gname string
+			if err := rows.Scan(&gid, &gname); err == nil {
+				groupIDs = append(groupIDs, gid)
+				groupNames = append(groupNames, gname)
+			}
+		}
+		user.Groups = groupNames
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"id":         user.ID,
+			"login":      user.Login,
+			"title":      user.Title,
+			"first_name": user.FirstName,
+			"last_name":  user.LastName,
+			"email":      user.Login, // OTRS uses login as email
+			"valid_id":   user.ValidID,
+			"groups":     user.Groups,
+		},
+	})
+}
+
+// HandleAdminUserCreate handles POST /admin/users
+func HandleAdminUserCreate(c *gin.Context) {
+	var req struct {
+		Login     string   `json:"login" form:"login"`
+		FirstName string   `json:"first_name" form:"first_name"`
+		LastName  string   `json:"last_name" form:"last_name"`
+		Email     string   `json:"email" form:"email"`
+		Password  string   `json:"password" form:"password"`
+		ValidID   int      `json:"valid_id" form:"valid_id"`
+		Groups    []string `json:"groups" form:"groups"`
+	}
+	
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid request data",
+		})
+		return
+	}
+
+	// Validate required fields
+	if req.Login == "" || req.FirstName == "" || req.LastName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Login, first name, and last name are required",
+		})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Database connection failed",
+		})
+		return
+	}
+
+	// Check if user already exists
+	var exists bool
+	err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE login = $1)", req.Login).Scan(&exists)
+	if err == nil && exists {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "User with this login already exists",
+		})
+		return
+	}
+
+	// Hash password if provided
+	var hashedPassword string
+	if req.Password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Failed to hash password",
+			})
+			return
+		}
+		hashedPassword = string(hash)
+	}
+
+	// Create user
+	var userID int
+	err = db.QueryRow(`
+		INSERT INTO users (login, pw, first_name, last_name, valid_id, create_time, create_by, change_time, change_by)
+		VALUES ($1, $2, $3, $4, $5, NOW(), 1, NOW(), 1)
+		RETURNING id`,
+		req.Login, hashedPassword, req.FirstName, req.LastName, req.ValidID,
+	).Scan(&userID)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Failed to create user: %v", err),
+		})
+		return
+	}
+
+	// Add user to groups
+	for _, groupName := range req.Groups {
+		var groupID int
+		err = db.QueryRow("SELECT id FROM groups WHERE name = $1 AND valid_id = 1", groupName).Scan(&groupID)
+		if err == nil {
+			db.Exec(`
+				INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_time, create_by, change_time, change_by)
+				VALUES ($1, $2, 'rw', 1, NOW(), 1, NOW(), 1)
+				ON CONFLICT (user_id, group_id, permission_key) DO NOTHING`,
+				userID, groupID,
+			)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "User created successfully",
+		"user_id": userID,
+	})
+}
+
+// HandleAdminUserUpdate handles PUT /admin/users/:id
+func HandleAdminUserUpdate(c *gin.Context) {
+	userID := c.Param("id")
+	id, err := strconv.Atoi(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid user ID",
+		})
+		return
+	}
+
+	var req struct {
+		Login     string   `json:"login" form:"login"`
+		FirstName string   `json:"first_name" form:"first_name"`
+		LastName  string   `json:"last_name" form:"last_name"`
+		Email     string   `json:"email" form:"email"`
+		Password  string   `json:"password" form:"password"`
+		ValidID   int      `json:"valid_id" form:"valid_id"`
+		Groups    []string `json:"groups" form:"groups"`
+	}
+	
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid request data",
+		})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Database connection failed",
+		})
+		return
+	}
+
+	// Update user basic info
+	if req.Password != "" {
+		// Update with new password
+		hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Failed to hash password",
+			})
+			return
+		}
+		
+		_, err = db.Exec(`
+			UPDATE users 
+			SET login = $1, pw = $2, first_name = $3, last_name = $4, 
+			    valid_id = $5, change_time = NOW(), change_by = 1
+			WHERE id = $6`,
+			req.Login, string(hash), req.FirstName, req.LastName, req.ValidID, id,
+		)
+	} else {
+		// Update without changing password
+		_, err = db.Exec(`
+			UPDATE users 
+			SET login = $1, first_name = $2, last_name = $3, 
+			    valid_id = $4, change_time = NOW(), change_by = 1
+			WHERE id = $5`,
+			req.Login, req.FirstName, req.LastName, req.ValidID, id,
+		)
+	}
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Failed to update user: %v", err),
+		})
+		return
+	}
+
+	// Update group memberships
+	// First, remove all existing group memberships
+	_, err = db.Exec("DELETE FROM group_user WHERE user_id = $1", id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to update group memberships",
+		})
+		return
+	}
+
+	// Then add new group memberships
+	for _, groupName := range req.Groups {
+		groupName = strings.TrimSpace(groupName)
+		if groupName == "" {
+			continue
+		}
+		
+		var groupID int
+		err = db.QueryRow("SELECT id FROM groups WHERE name = $1 AND valid_id = 1", groupName).Scan(&groupID)
+		if err == nil {
+			_, err = db.Exec(`
+				INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_time, create_by, change_time, change_by)
+				VALUES ($1, $2, 'rw', 1, NOW(), 1, NOW(), 1)`,
+				id, groupID,
+			)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "User updated successfully",
+	})
+}
+
+// HandleAdminUserDelete handles DELETE /admin/users/:id
+func HandleAdminUserDelete(c *gin.Context) {
+	userID := c.Param("id")
+	id, err := strconv.Atoi(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid user ID",
+		})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Database connection failed",
+		})
+		return
+	}
+
+	// Soft delete - set valid_id = 2
+	_, err = db.Exec("UPDATE users SET valid_id = 2, change_time = NOW() WHERE id = $1", id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to delete user",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "User deleted successfully",
+	})
+}
+
+// HandleAdminUserGroups handles GET /admin/users/:id/groups
+func HandleAdminUserGroups(c *gin.Context) {
+	userID := c.Param("id")
+	id, err := strconv.Atoi(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid user ID",
+		})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Database connection failed",
+		})
+		return
+	}
+
+	// Get user's groups
+	query := `
+		SELECT g.id, g.name
+		FROM groups g
+		JOIN group_user gu ON g.id = gu.group_id
+		WHERE gu.user_id = $1 AND g.valid_id = 1
+		ORDER BY g.name`
+	
+	rows, err := db.Query(query, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to fetch user groups",
+		})
+		return
+	}
+	defer rows.Close()
+
+	var groups []gin.H
+	for rows.Next() {
+		var gid int
+		var gname string
+		if err := rows.Scan(&gid, &gname); err == nil {
+			groups = append(groups, gin.H{
+				"id":   gid,
+				"name": gname,
+			})
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"groups":  groups,
+	})
+}
+
+// HandleAdminUsersStatus handles PUT /admin/users/:id/status to toggle user valid status
+func HandleAdminUsersStatus(c *gin.Context) {
+	userID := c.Param("id")
+	id, err := strconv.Atoi(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid user ID",
+		})
+		return
+	}
+
+	var req struct {
+		ValidID int `json:"valid_id" form:"valid_id"`
+	}
+	
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid request data",
+		})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Database connection failed",
+		})
+		return
+	}
+
+	// Toggle between valid (1) and invalid (2)
+	if req.ValidID == 0 {
+		// Get current status to toggle
+		var currentValid int
+		err = db.QueryRow("SELECT valid_id FROM users WHERE id = $1", id).Scan(&currentValid)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{
+				"success": false,
+				"error":   "User not found",
+			})
+			return
+		}
+		
+		if currentValid == 1 {
+			req.ValidID = 2
+		} else {
+			req.ValidID = 1
+		}
+	}
+
+	// Update user status
+	_, err = db.Exec("UPDATE users SET valid_id = $1, change_time = NOW() WHERE id = $2", req.ValidID, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to update user status",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "User status updated successfully",
+		"valid_id": req.ValidID,
+	})
+}
+
+// HandlePasswordPolicy returns the current password policy settings
+func HandlePasswordPolicy(c *gin.Context) {
+	// TODO: In the future, read these from the actual config system
+	// For now, return the defaults from Config.yaml
+	policy := gin.H{
+		"minLength":        8,     // PasswordMinLength default
+		"requireUppercase": true,  // PasswordRequireUppercase default
+		"requireLowercase": true,  // PasswordRequireLowercase default
+		"requireDigit":     true,  // PasswordRequireDigit default
+		"requireSpecial":   false, // PasswordRequireSpecial default
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"policy":  policy,
+	})
+}

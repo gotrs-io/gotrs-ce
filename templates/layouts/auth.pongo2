@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ getLang() }}" dir="{{ getDirection() }}" class="h-full bg-white">
+<html lang="{{ getLang() }}" dir="{{ getDirection() }}" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +12,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
@@ -34,12 +35,32 @@
         }
     </script>
     
+    <!-- Dark mode script -->
+    <script>
+        // Check for saved theme or default to light
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+        
+        function toggleDarkMode() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark')
+                localStorage.theme = 'light'
+            } else {
+                document.documentElement.classList.add('dark')
+                localStorage.theme = 'dark'
+            }
+        }
+    </script>
+    
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     
     {% block head %}{% endblock %}
 </head>
-<body class="h-full">
+<body class="h-full bg-gray-50 dark:bg-gray-900">
     {% block content %}{% endblock %}
     
     {% block scripts %}{% endblock %}

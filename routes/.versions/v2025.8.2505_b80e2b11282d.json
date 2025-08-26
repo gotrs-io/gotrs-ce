@@ -1,0 +1,1758 @@
+{
+  "version": "v2025.8.2505",
+  "timestamp": "2025-08-25T05:29:42.763455328Z",
+  "hash": "b80e2b11282d",
+  "author": "system",
+  "message": "Demo version for showcase",
+  "routes": {
+    "auth": {
+      "APIVersion": "routes/v1",
+      "Kind": "RouteGroup",
+      "Metadata": {
+        "Name": "authentication",
+        "Description": "Authentication and authorization endpoints",
+        "Namespace": "core",
+        "Enabled": true,
+        "Version": "",
+        "Labels": {
+          "environment": "all",
+          "security": "public"
+        },
+        "Tenants": null
+      },
+      "Spec": {
+        "Prefix": "",
+        "Middleware": [],
+        "Routes": [
+          {
+            "Path": "/login",
+            "Method": [
+              "GET",
+              "POST"
+            ],
+            "Handler": "",
+            "Handlers": {
+              "GET": "handleLoginForm",
+              "POST": "handleLogin"
+            },
+            "Name": "User Login",
+            "Description": "Login endpoint for agents and customers",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": {
+              "Requests": 10,
+              "Period": 60000000000,
+              "Key": "ip"
+            },
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Authenticate user",
+              "Description": "",
+              "Tags": [
+                "Authentication"
+              ],
+              "Parameters": null,
+              "RequestBody": null,
+              "Responses": {
+                "200": "LoginSuccess",
+                "401": "Unauthorized",
+                "429": "TooManyRequests"
+              },
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/logout",
+            "Method": "POST",
+            "Handler": "handleLogout",
+            "Handlers": null,
+            "Name": "User Logout",
+            "Description": "Logout and invalidate session",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": [
+              "auth"
+            ],
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Logout user",
+              "Description": "",
+              "Tags": [
+                "Authentication"
+              ],
+              "Parameters": null,
+              "RequestBody": null,
+              "Responses": {
+                "200": "LogoutSuccess"
+              },
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/auth/refresh",
+            "Method": "POST",
+            "Handler": "handleTokenRefresh",
+            "Handlers": null,
+            "Name": "Refresh Token",
+            "Description": "Refresh authentication token",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": [
+              "auth"
+            ],
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Refresh authentication token",
+              "Description": "",
+              "Tags": [
+                "Authentication"
+              ],
+              "Parameters": null,
+              "RequestBody": null,
+              "Responses": {
+                "200": "TokenResponse",
+                "401": "Unauthorized"
+              },
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/auth/verify",
+            "Method": "GET",
+            "Handler": "handleVerifyAuth",
+            "Handlers": null,
+            "Name": "Verify Authentication",
+            "Description": "Verify if current session is valid",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": [
+              "auth"
+            ],
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Verify authentication status",
+              "Description": "",
+              "Tags": [
+                "Authentication"
+              ],
+              "Parameters": null,
+              "RequestBody": null,
+              "Responses": {
+                "200": "AuthStatus",
+                "401": "Unauthorized"
+              },
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/auth/password/reset",
+            "Method": [
+              "GET",
+              "POST"
+            ],
+            "Handler": "",
+            "Handlers": {
+              "GET": "handlePasswordResetForm",
+              "POST": "handlePasswordReset"
+            },
+            "Name": "Password Reset",
+            "Description": "Request password reset",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": {
+              "Requests": 3,
+              "Period": 3600000000000,
+              "Key": "ip"
+            },
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Request password reset",
+              "Description": "",
+              "Tags": [
+                "Authentication"
+              ],
+              "Parameters": null,
+              "RequestBody": null,
+              "Responses": {
+                "200": "PasswordResetSent",
+                "429": "TooManyRequests"
+              },
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/auth/password/change",
+            "Method": "POST",
+            "Handler": "handlePasswordChange",
+            "Handlers": null,
+            "Name": "Change Password",
+            "Description": "Change user password",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": [
+              "auth"
+            ],
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Change password",
+              "Description": "",
+              "Tags": [
+                "Authentication"
+              ],
+              "Parameters": null,
+              "RequestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "properties": {
+                        "current_password": {
+                          "type": "string"
+                        },
+                        "new_password": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  }
+                },
+                "required": true
+              },
+              "Responses": {
+                "200": "PasswordChanged",
+                "400": "BadRequest",
+                "401": "Unauthorized"
+              },
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          }
+        ],
+        "RateLimit": null
+      }
+    },
+    "customer-companies": {
+      "APIVersion": "routes/v1",
+      "Kind": "RouteGroup",
+      "Metadata": {
+        "Name": "admin-customer-companies",
+        "Description": "Customer company management endpoints",
+        "Namespace": "admin",
+        "Enabled": true,
+        "Version": "",
+        "Labels": {
+          "environment": "all",
+          "module": "customer-management"
+        },
+        "Tenants": null
+      },
+      "Spec": {
+        "Prefix": "/admin",
+        "Middleware": [
+          "auth",
+          "admin",
+          "audit"
+        ],
+        "Routes": [
+          {
+            "Path": "/customer-companies",
+            "Method": "GET",
+            "Handler": "handleAdminCustomerCompanies",
+            "Handlers": null,
+            "Name": "List Customer Companies",
+            "Description": "Get list of all customer companies",
+            "Permissions": [
+              "customer:read"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": {
+              "limit": {
+                "Type": "int",
+                "Required": false,
+                "Default": "20",
+                "Pattern": "",
+                "Min": 10,
+                "Max": 100,
+                "Enum": null,
+                "Transform": "",
+                "Description": ""
+              },
+              "page": {
+                "Type": "int",
+                "Required": false,
+                "Default": "1",
+                "Pattern": "",
+                "Min": 1,
+                "Max": 0,
+                "Enum": null,
+                "Transform": "",
+                "Description": ""
+              },
+              "search": {
+                "Type": "string",
+                "Required": false,
+                "Default": "",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": null,
+                "Transform": "",
+                "Description": "Search term for company name or ID"
+              },
+              "valid": {
+                "Type": "string",
+                "Required": false,
+                "Default": "all",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": [
+                  "all",
+                  "valid",
+                  "invalid"
+                ],
+                "Transform": "",
+                "Description": "Filter by validity status"
+              }
+            }
+          },
+          {
+            "Path": "/customer-companies/new",
+            "Method": [
+              "GET",
+              "POST"
+            ],
+            "Handler": "",
+            "Handlers": {
+              "GET": "handleAdminNewCustomerCompany",
+              "POST": "handleAdminCreateCustomerCompany"
+            },
+            "Name": "Create Customer Company",
+            "Description": "Create a new customer company",
+            "Permissions": [
+              "customer:write"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": [
+              {
+                "Name": "Create valid company",
+                "Input": {
+                  "city": "New York",
+                  "customer_id": "TEST001",
+                  "name": "Test Company"
+                },
+                "Headers": null,
+                "Expect": null,
+                "StatusCode": 201,
+                "Description": ""
+              }
+            ],
+            "Params": null
+          },
+          {
+            "Path": "/customer-companies/:id/edit",
+            "Method": [
+              "GET",
+              "POST"
+            ],
+            "Handler": "",
+            "Handlers": {
+              "GET": "handleAdminEditCustomerCompany",
+              "POST": "handleAdminUpdateCustomerCompany"
+            },
+            "Name": "Edit Customer Company",
+            "Description": "Edit customer company details",
+            "Permissions": [
+              "customer:write"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": {
+              "id": {
+                "Type": "string",
+                "Required": true,
+                "Default": "",
+                "Pattern": "^[A-Z0-9_-]+$",
+                "Min": 0,
+                "Max": 0,
+                "Enum": null,
+                "Transform": "",
+                "Description": "Customer company ID"
+              },
+              "tab": {
+                "Type": "string",
+                "Required": false,
+                "Default": "general",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": [
+                  "general",
+                  "portal",
+                  "services",
+                  "users"
+                ],
+                "Transform": "",
+                "Description": ""
+              }
+            }
+          },
+          {
+            "Path": "/customer-companies/:id/delete",
+            "Method": "POST",
+            "Handler": "handleAdminDeleteCustomerCompany",
+            "Handlers": null,
+            "Name": "Delete Customer Company",
+            "Description": "Soft delete (deactivate) a customer company",
+            "Permissions": [
+              "customer:delete"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/customer-companies/:id/users",
+            "Method": "GET",
+            "Handler": "handleAdminCustomerCompanyUsers",
+            "Handlers": null,
+            "Name": "List Company Users",
+            "Description": "Get all users belonging to a company",
+            "Permissions": [
+              "customer:read"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/customer-companies/:id/tickets",
+            "Method": "GET",
+            "Handler": "handleAdminCustomerCompanyTickets",
+            "Handlers": null,
+            "Name": "List Company Tickets",
+            "Description": "Get all tickets for a company",
+            "Permissions": [
+              "customer:read",
+              "ticket:read"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/customer-companies/:id/services",
+            "Method": [
+              "GET",
+              "POST"
+            ],
+            "Handler": "",
+            "Handlers": {
+              "GET": "handleAdminCustomerCompanyServices",
+              "POST": "handleAdminUpdateCustomerCompanyServices"
+            },
+            "Name": "Manage Company Services",
+            "Description": "Manage services available to a company",
+            "Permissions": [
+              "customer:write",
+              "service:assign"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/customer-companies/:id/portal",
+            "Method": [
+              "GET",
+              "POST"
+            ],
+            "Handler": "",
+            "Handlers": {
+              "GET": "handleAdminCustomerPortalSettings",
+              "POST": "handleAdminUpdateCustomerPortalSettings"
+            },
+            "Name": "Portal Customization",
+            "Description": "Customize the customer portal for a company",
+            "Permissions": [
+              "portal:admin"
+            ],
+            "Features": [
+              "white-label"
+            ],
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Configure white-label portal settings",
+              "Description": "",
+              "Tags": [
+                "Customer Portal",
+                "White Label"
+              ],
+              "Parameters": null,
+              "RequestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "properties": {
+                        "custom_css": {
+                          "type": "string"
+                        },
+                        "custom_domain": {
+                          "type": "string"
+                        },
+                        "enable_kb": {
+                          "type": "boolean"
+                        },
+                        "logo_url": {
+                          "type": "string"
+                        },
+                        "primary_color": {
+                          "pattern": "^#[0-9A-Fa-f]{6}$",
+                          "type": "string"
+                        },
+                        "secondary_color": {
+                          "pattern": "^#[0-9A-Fa-f]{6}$",
+                          "type": "string"
+                        },
+                        "welcome_message": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  }
+                }
+              },
+              "Responses": null,
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/customer-companies/:id/portal/logo",
+            "Method": "POST",
+            "Handler": "handleAdminUploadCustomerPortalLogo",
+            "Handlers": null,
+            "Name": "Upload Portal Logo",
+            "Description": "Upload a custom logo for the customer portal",
+            "Permissions": [
+              "portal:admin"
+            ],
+            "Features": [
+              "white-label"
+            ],
+            "Middleware": null,
+            "RateLimit": {
+              "Requests": 10,
+              "Period": 3600000000000,
+              "Key": "user"
+            },
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Upload customer portal logo",
+              "Description": "",
+              "Tags": [
+                "Customer Portal",
+                "White Label"
+              ],
+              "Parameters": null,
+              "RequestBody": {
+                "content": {
+                  "multipart/form-data": {
+                    "schema": {
+                      "properties": {
+                        "logo": {
+                          "format": "binary",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  }
+                }
+              },
+              "Responses": {
+                "200": "LogoUploadSuccess",
+                "400": "BadRequest",
+                "413": "PayloadTooLarge"
+              },
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          }
+        ],
+        "RateLimit": null
+      }
+    },
+    "dashboard": {
+      "APIVersion": "routes/v1",
+      "Kind": "RouteGroup",
+      "Metadata": {
+        "Name": "agent-dashboard",
+        "Description": "Agent dashboard and ticket management",
+        "Namespace": "agent",
+        "Enabled": true,
+        "Version": "",
+        "Labels": {
+          "environment": "all",
+          "interface": "agent"
+        },
+        "Tenants": null
+      },
+      "Spec": {
+        "Prefix": "/agent",
+        "Middleware": [
+          "auth",
+          "agent"
+        ],
+        "Routes": [
+          {
+            "Path": "/dashboard",
+            "Method": "GET",
+            "Handler": "handleAgentDashboard",
+            "Handlers": null,
+            "Name": "Agent Dashboard",
+            "Description": "Main dashboard for agents with ticket statistics",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Get agent dashboard",
+              "Description": "",
+              "Tags": [
+                "Agent Interface"
+              ],
+              "Parameters": null,
+              "RequestBody": null,
+              "Responses": {
+                "200": "AgentDashboard"
+              },
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/tickets",
+            "Method": "GET",
+            "Handler": "handleAgentTickets",
+            "Handlers": null,
+            "Name": "List Tickets",
+            "Description": "List tickets with advanced filtering",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": {
+              "assigned_to": {
+                "Type": "string",
+                "Required": false,
+                "Default": "",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": null,
+                "Transform": "",
+                "Description": "Filter by assigned agent"
+              },
+              "limit": {
+                "Type": "int",
+                "Required": false,
+                "Default": "50",
+                "Pattern": "",
+                "Min": 10,
+                "Max": 100,
+                "Enum": null,
+                "Transform": "",
+                "Description": ""
+              },
+              "page": {
+                "Type": "int",
+                "Required": false,
+                "Default": "1",
+                "Pattern": "",
+                "Min": 1,
+                "Max": 0,
+                "Enum": null,
+                "Transform": "",
+                "Description": ""
+              },
+              "priority": {
+                "Type": "int",
+                "Required": false,
+                "Default": "",
+                "Pattern": "",
+                "Min": 1,
+                "Max": 5,
+                "Enum": null,
+                "Transform": "",
+                "Description": ""
+              },
+              "queue": {
+                "Type": "int",
+                "Required": false,
+                "Default": "",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": null,
+                "Transform": "",
+                "Description": "Filter by queue ID"
+              },
+              "search": {
+                "Type": "string",
+                "Required": false,
+                "Default": "",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": null,
+                "Transform": "",
+                "Description": "Search in ticket content"
+              },
+              "state": {
+                "Type": "string",
+                "Required": false,
+                "Default": "open",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": [
+                  "all",
+                  "new",
+                  "open",
+                  "pending",
+                  "closed"
+                ],
+                "Transform": "",
+                "Description": ""
+              }
+            }
+          },
+          {
+            "Path": "/tickets/:id",
+            "Method": "GET",
+            "Handler": "handleAgentTicketView",
+            "Handlers": null,
+            "Name": "View Ticket",
+            "Description": "View detailed ticket information",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": {
+              "id": {
+                "Type": "int",
+                "Required": true,
+                "Default": "",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": null,
+                "Transform": "",
+                "Description": ""
+              }
+            }
+          },
+          {
+            "Path": "/tickets/:id",
+            "Method": "PUT",
+            "Handler": "handleAgentTicketUpdate",
+            "Handlers": null,
+            "Name": "Update Ticket",
+            "Description": "Update ticket properties",
+            "Permissions": [
+              "ticket:write"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Update ticket",
+              "Description": "",
+              "Tags": [
+                "Agent Interface",
+                "Tickets"
+              ],
+              "Parameters": null,
+              "RequestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "properties": {
+                        "priority_id": {
+                          "type": "integer"
+                        },
+                        "queue_id": {
+                          "type": "integer"
+                        },
+                        "state_id": {
+                          "type": "integer"
+                        },
+                        "title": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  }
+                }
+              },
+              "Responses": null,
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/tickets/:id/note",
+            "Method": "POST",
+            "Handler": "handleAgentAddNote",
+            "Handlers": null,
+            "Name": "Add Note",
+            "Description": "Add an internal note to a ticket",
+            "Permissions": [
+              "ticket:note"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/tickets/:id/reply",
+            "Method": "POST",
+            "Handler": "handleAgentTicketReply",
+            "Handlers": null,
+            "Name": "Reply to Ticket",
+            "Description": "Send a reply to the customer",
+            "Permissions": [
+              "ticket:reply"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/tickets/:id/assign",
+            "Method": "POST",
+            "Handler": "handleAgentAssignTicket",
+            "Handlers": null,
+            "Name": "Assign Ticket",
+            "Description": "Assign ticket to an agent",
+            "Permissions": [
+              "ticket:assign"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Assign ticket to agent",
+              "Description": "",
+              "Tags": [
+                "Agent Interface",
+                "Tickets"
+              ],
+              "Parameters": null,
+              "RequestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "properties": {
+                        "agent_id": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "agent_id"
+                      ],
+                      "type": "object"
+                    }
+                  }
+                },
+                "required": true
+              },
+              "Responses": null,
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/tickets/:id/merge",
+            "Method": "POST",
+            "Handler": "handleAgentMergeTickets",
+            "Handlers": null,
+            "Name": "Merge Tickets",
+            "Description": "Merge multiple tickets into one",
+            "Permissions": [
+              "ticket:merge"
+            ],
+            "Features": [
+              "ticket-merge"
+            ],
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/tickets/:id/split",
+            "Method": "POST",
+            "Handler": "handleAgentSplitTicket",
+            "Handlers": null,
+            "Name": "Split Ticket",
+            "Description": "Split a ticket into multiple tickets",
+            "Permissions": [
+              "ticket:split"
+            ],
+            "Features": [
+              "ticket-split"
+            ],
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/customers",
+            "Method": "GET",
+            "Handler": "handleAgentCustomers",
+            "Handlers": null,
+            "Name": "List Customers",
+            "Description": "List and search customers",
+            "Permissions": [
+              "customer:read"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/customers/:id",
+            "Method": "GET",
+            "Handler": "handleAgentCustomerView",
+            "Handlers": null,
+            "Name": "View Customer",
+            "Description": "View customer details and ticket history",
+            "Permissions": [
+              "customer:read"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/customers/:id/tickets",
+            "Method": "GET",
+            "Handler": "handleAgentCustomerTickets",
+            "Handlers": null,
+            "Name": "Customer Tickets",
+            "Description": "Get all tickets for a specific customer",
+            "Permissions": [
+              "customer:read",
+              "ticket:read"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/queues",
+            "Method": "GET",
+            "Handler": "handleAgentQueues",
+            "Handlers": null,
+            "Name": "List Queues",
+            "Description": "List available queues for the agent",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/queues/:id/tickets",
+            "Method": "GET",
+            "Handler": "handleAgentQueueTickets",
+            "Handlers": null,
+            "Name": "Queue Tickets",
+            "Description": "Get all tickets in a specific queue",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": {
+              "id": {
+                "Type": "int",
+                "Required": true,
+                "Default": "",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": null,
+                "Transform": "",
+                "Description": ""
+              }
+            }
+          },
+          {
+            "Path": "/stats",
+            "Method": "GET",
+            "Handler": "handleAgentStatistics",
+            "Handlers": null,
+            "Name": "Agent Statistics",
+            "Description": "Get agent performance statistics",
+            "Permissions": null,
+            "Features": [
+              "statistics"
+            ],
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/stats/tickets",
+            "Method": "GET",
+            "Handler": "handleAgentTicketStats",
+            "Handlers": null,
+            "Name": "Ticket Statistics",
+            "Description": "Get ticket statistics for the agent",
+            "Permissions": null,
+            "Features": [
+              "statistics"
+            ],
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": {
+              "period": {
+                "Type": "string",
+                "Required": false,
+                "Default": "month",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": [
+                  "today",
+                  "week",
+                  "month",
+                  "year"
+                ],
+                "Transform": "",
+                "Description": ""
+              }
+            }
+          },
+          {
+            "Path": "/search",
+            "Method": "GET",
+            "Handler": "handleAgentSearch",
+            "Handlers": null,
+            "Name": "Global Search",
+            "Description": "Search across tickets, customers, and articles",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": {
+              "limit": {
+                "Type": "int",
+                "Required": false,
+                "Default": "20",
+                "Pattern": "",
+                "Min": 10,
+                "Max": 100,
+                "Enum": null,
+                "Transform": "",
+                "Description": ""
+              },
+              "q": {
+                "Type": "string",
+                "Required": true,
+                "Default": "",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": null,
+                "Transform": "",
+                "Description": ""
+              },
+              "type": {
+                "Type": "string",
+                "Required": false,
+                "Default": "all",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": [
+                  "all",
+                  "ticket",
+                  "customer",
+                  "article"
+                ],
+                "Transform": "",
+                "Description": ""
+              }
+            }
+          }
+        ],
+        "RateLimit": null
+      }
+    },
+    "health": {
+      "APIVersion": "routes/v1",
+      "Kind": "RouteGroup",
+      "Metadata": {
+        "Name": "health-checks",
+        "Description": "Health check and monitoring endpoints",
+        "Namespace": "core",
+        "Enabled": true,
+        "Version": "",
+        "Labels": {
+          "environment": "all",
+          "priority": "critical"
+        },
+        "Tenants": null
+      },
+      "Spec": {
+        "Prefix": "",
+        "Middleware": [],
+        "Routes": [
+          {
+            "Path": "/health",
+            "Method": "GET",
+            "Handler": "handleHealthCheck",
+            "Handlers": null,
+            "Name": "Health Check",
+            "Description": "Basic health check endpoint",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Check system health",
+              "Description": "",
+              "Tags": [
+                "Monitoring"
+              ],
+              "Parameters": null,
+              "RequestBody": null,
+              "Responses": {
+                "200": "HealthResponse",
+                "503": "ServiceUnavailable"
+              },
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/health/detailed",
+            "Method": "GET",
+            "Handler": "handleDetailedHealthCheck",
+            "Handlers": null,
+            "Name": "Detailed Health Check",
+            "Description": "Detailed health check with component status",
+            "Permissions": [
+              "monitoring:read"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Get detailed health status",
+              "Description": "",
+              "Tags": [
+                "Monitoring"
+              ],
+              "Parameters": null,
+              "RequestBody": null,
+              "Responses": {
+                "200": "DetailedHealthResponse"
+              },
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/metrics",
+            "Method": "GET",
+            "Handler": "handleMetrics",
+            "Handlers": null,
+            "Name": "Prometheus Metrics",
+            "Description": "Expose metrics for Prometheus scraping",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "${METRICS_ENABLED}",
+            "OpenAPI": {
+              "Summary": "Get Prometheus metrics",
+              "Description": "",
+              "Tags": [
+                "Monitoring"
+              ],
+              "Parameters": null,
+              "RequestBody": null,
+              "Responses": {
+                "200": "PrometheusMetrics# Updated at Sun 24 Aug 21:09:50 BST 2025"
+              },
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          }
+        ],
+        "RateLimit": null
+      }
+    },
+    "portal": {
+      "APIVersion": "routes/v1",
+      "Kind": "RouteGroup",
+      "Metadata": {
+        "Name": "customer-portal",
+        "Description": "Customer portal endpoints",
+        "Namespace": "customer",
+        "Enabled": true,
+        "Version": "",
+        "Labels": {
+          "environment": "all",
+          "interface": "customer"
+        },
+        "Tenants": null
+      },
+      "Spec": {
+        "Prefix": "/customer",
+        "Middleware": [
+          "auth",
+          "customer"
+        ],
+        "Routes": [
+          {
+            "Path": "/dashboard",
+            "Method": "GET",
+            "Handler": "handleCustomerDashboard",
+            "Handlers": null,
+            "Name": "Customer Dashboard",
+            "Description": "Customer portal main dashboard",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Get customer dashboard",
+              "Description": "",
+              "Tags": [
+                "Customer Portal"
+              ],
+              "Parameters": null,
+              "RequestBody": null,
+              "Responses": {
+                "200": "CustomerDashboard"
+              },
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/tickets",
+            "Method": "GET",
+            "Handler": "handleCustomerTickets",
+            "Handlers": null,
+            "Name": "List Customer Tickets",
+            "Description": "List all tickets for the customer",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": {
+              "order": {
+                "Type": "string",
+                "Required": false,
+                "Default": "desc",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": [
+                  "asc",
+                  "desc"
+                ],
+                "Transform": "",
+                "Description": ""
+              },
+              "search": {
+                "Type": "string",
+                "Required": false,
+                "Default": "",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": null,
+                "Transform": "",
+                "Description": "Search in ticket number or title"
+              },
+              "sort": {
+                "Type": "string",
+                "Required": false,
+                "Default": "create_time",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": [
+                  "create_time",
+                  "title",
+                  "tn",
+                  "priority"
+                ],
+                "Transform": "",
+                "Description": ""
+              },
+              "status": {
+                "Type": "string",
+                "Required": false,
+                "Default": "all",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": [
+                  "all",
+                  "open",
+                  "closed",
+                  "pending"
+                ],
+                "Transform": "",
+                "Description": ""
+              }
+            }
+          },
+          {
+            "Path": "/tickets/new",
+            "Method": [
+              "GET",
+              "POST"
+            ],
+            "Handler": "",
+            "Handlers": {
+              "GET": "handleCustomerNewTicket",
+              "POST": "handleCustomerCreateTicket"
+            },
+            "Name": "Create Ticket",
+            "Description": "Create a new support ticket",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": {
+              "Requests": 10,
+              "Period": 3600000000000,
+              "Key": "user"
+            },
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": [
+              {
+                "Name": "Create valid ticket",
+                "Input": {
+                  "message": "Description of the problem",
+                  "priority_id": 3,
+                  "title": "Test Issue"
+                },
+                "Headers": null,
+                "Expect": null,
+                "StatusCode": 201,
+                "Description": ""
+              }
+            ],
+            "Params": null
+          },
+          {
+            "Path": "/tickets/:id",
+            "Method": "GET",
+            "Handler": "handleCustomerTicketView",
+            "Handlers": null,
+            "Name": "View Ticket",
+            "Description": "View ticket details and conversation",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": {
+              "id": {
+                "Type": "int",
+                "Required": true,
+                "Default": "",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": null,
+                "Transform": "",
+                "Description": "Ticket ID"
+              }
+            }
+          },
+          {
+            "Path": "/tickets/:id/reply",
+            "Method": "POST",
+            "Handler": "handleCustomerTicketReply",
+            "Handlers": null,
+            "Name": "Reply to Ticket",
+            "Description": "Add a reply to an existing ticket",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": {
+              "Requests": 20,
+              "Period": 3600000000000,
+              "Key": "user"
+            },
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Add reply to ticket",
+              "Description": "",
+              "Tags": [
+                "Customer Portal",
+                "Tickets"
+              ],
+              "Parameters": null,
+              "RequestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "properties": {
+                        "message": {
+                          "minLength": 10,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "message"
+                      ],
+                      "type": "object"
+                    }
+                  }
+                },
+                "required": true
+              },
+              "Responses": {
+                "200": "TicketReplySuccess",
+                "400": "BadRequest",
+                "403": "Forbidden"
+              },
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/tickets/:id/close",
+            "Method": "POST",
+            "Handler": "handleCustomerCloseTicket",
+            "Handlers": null,
+            "Name": "Close Ticket",
+            "Description": "Close a ticket",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Close ticket",
+              "Description": "",
+              "Tags": [
+                "Customer Portal",
+                "Tickets"
+              ],
+              "Parameters": null,
+              "RequestBody": null,
+              "Responses": {
+                "200": "TicketClosed",
+                "403": "Forbidden"
+              },
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/profile",
+            "Method": [
+              "GET",
+              "POST"
+            ],
+            "Handler": "",
+            "Handlers": {
+              "GET": "handleCustomerProfile",
+              "POST": "handleCustomerUpdateProfile"
+            },
+            "Name": "Customer Profile",
+            "Description": "View and update customer profile",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": {
+              "Summary": "Manage customer profile",
+              "Description": "",
+              "Tags": [
+                "Customer Portal",
+                "Profile"
+              ],
+              "Parameters": null,
+              "RequestBody": null,
+              "Responses": null,
+              "Security": null
+            },
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/profile/password",
+            "Method": [
+              "GET",
+              "POST"
+            ],
+            "Handler": "",
+            "Handlers": {
+              "GET": "handleCustomerPasswordForm",
+              "POST": "handleCustomerChangePassword"
+            },
+            "Name": "Change Password",
+            "Description": "Change customer password",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": {
+              "Requests": 5,
+              "Period": 3600000000000,
+              "Key": "user"
+            },
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/kb",
+            "Method": "GET",
+            "Handler": "handleCustomerKnowledgeBase",
+            "Handlers": null,
+            "Name": "Knowledge Base",
+            "Description": "Browse knowledge base articles",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "${KB_ENABLED}",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/kb/search",
+            "Method": "GET",
+            "Handler": "handleCustomerKBSearch",
+            "Handlers": null,
+            "Name": "Search Knowledge Base",
+            "Description": "Search knowledge base articles",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "${KB_ENABLED}",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": {
+              "q": {
+                "Type": "string",
+                "Required": true,
+                "Default": "",
+                "Pattern": "",
+                "Min": 0,
+                "Max": 0,
+                "Enum": null,
+                "Transform": "",
+                "Description": "Search query"
+              }
+            }
+          },
+          {
+            "Path": "/kb/article/:id",
+            "Method": "GET",
+            "Handler": "handleCustomerKBArticle",
+            "Handlers": null,
+            "Name": "View KB Article",
+            "Description": "View a knowledge base article",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "${KB_ENABLED}",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/company",
+            "Method": "GET",
+            "Handler": "handleCustomerCompanyInfo",
+            "Handlers": null,
+            "Name": "Company Information",
+            "Description": "View company information",
+            "Permissions": null,
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          },
+          {
+            "Path": "/company/users",
+            "Method": "GET",
+            "Handler": "handleCustomerCompanyUsers",
+            "Handlers": null,
+            "Name": "Company Users",
+            "Description": "View other users in the same company",
+            "Permissions": [
+              "company:users:read"
+            ],
+            "Features": null,
+            "Middleware": null,
+            "RateLimit": null,
+            "Condition": "",
+            "OpenAPI": null,
+            "TestCases": null,
+            "Params": null
+          }
+        ],
+        "RateLimit": null
+      }
+    }
+  },
+  "stats": {
+    "total_routes": 5,
+    "total_endpoints": 48,
+    "method_breakdown": {
+      "GET": 35,
+      "POST": 21,
+      "PUT": 1
+    },
+    "namespace_count": {
+      "admin": 1,
+      "agent": 1,
+      "core": 2,
+      "customer": 1
+    },
+    "enabled_routes": 5,
+    "disabled_routes": 0
+  }
+}

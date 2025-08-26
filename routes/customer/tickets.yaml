@@ -1,0 +1,53 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: customer-tickets
+  description: Customer ticket management
+  namespace: customer
+  enabled: true
+  labels:
+    environment: all
+    security: customer
+
+spec:
+  prefix: "/customer"
+  middleware:
+    - auth
+    - customer
+  
+  routes:
+    - path: /tickets
+      method: GET
+      handler: customer_tickets
+      name: Customer Tickets
+      description: List customer's tickets
+      
+    - path: /tickets/new
+      method: GET
+      handler: customer_new_ticket
+      name: New Ticket Form
+      description: Show new ticket form
+      
+    - path: /tickets/new
+      method: POST
+      handler: customer_create_ticket
+      name: Create Ticket
+      description: Create new ticket
+      
+    - path: /tickets/:id
+      method: GET
+      handler: customer_ticket_view
+      name: View Ticket
+      description: View ticket details
+      
+    - path: /tickets/:id/reply
+      method: POST
+      handler: customer_ticket_reply
+      name: Reply to Ticket
+      description: Add reply to ticket
+      
+    - path: /tickets/:id/close
+      method: POST
+      handler: customer_close_ticket
+      name: Close Ticket
+      description: Close customer ticket

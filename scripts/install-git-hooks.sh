@@ -86,6 +86,17 @@ if [ "$LARGE_FILES" -gt 0 ]; then
     echo -e "   Consider using Git LFS for large files"
 fi
 
+# OTRS Legal Compliance: Block local/ directory
+LOCAL_FILES=$(git diff --cached --name-only | grep "^local/" | wc -l)
+if [ "$LOCAL_FILES" -gt 0 ]; then
+    echo -e "${RED}❌ BLOCKED: Files from local/ directory detected!${NC}"
+    echo -e "${YELLOW}📋 The following files are blocked for legal compliance:${NC}"
+    git diff --cached --name-only | grep "^local/" | sed 's/^/   - /'
+    echo -e "${YELLOW}💡 Keep all OTRS analysis materials in local/ directory${NC}"
+    echo -e "${YELLOW}   This directory is gitignored for legal compliance${NC}"
+    exit 1
+fi
+
 # Optional: Check for common sensitive file patterns
 SENSITIVE_PATTERNS=".env .pem .key .p12 .pfx id_rsa id_dsa"
 for pattern in $SENSITIVE_PATTERNS; do

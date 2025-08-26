@@ -1,0 +1,90 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: api-v1-queues
+  description: REST API v1 queue endpoints
+  namespace: api
+  enabled: true
+  labels:
+    environment: all
+    version: v1
+    api: rest
+
+spec:
+  prefix: /api/v1
+  middleware:
+    - cors
+  
+  routes:
+    - path: /queues
+      method: GET
+      handler: api_v1_queues_list
+      name: List Queues
+      description: Get list of queues
+      openapi:
+        summary: List queues
+        tags: [API v1, Queues]
+        responses:
+          200: Success
+          500: InternalServerError
+          
+    - path: /queues/:id
+      method: GET
+      handler: api_v1_queue_get
+      name: Get Queue
+      description: Get queue by ID
+      params:
+        id:
+          type: int
+          required: true
+      openapi:
+        summary: Get queue details
+        tags: [API v1, Queues]
+        responses:
+          200: Success
+          404: NotFound
+          
+    - path: /queues
+      method: POST
+      handler: api_v1_queue_create
+      name: Create Queue
+      description: Create new queue
+      middleware:
+        - admin
+      openapi:
+        summary: Create queue
+        tags: [API v1, Queues]
+        responses:
+          201: Created
+          400: BadRequest
+          403: Forbidden
+          
+    - path: /queues/:id
+      method: PUT
+      handler: api_v1_queue_update
+      name: Update Queue
+      description: Update existing queue
+      middleware:
+        - admin
+      openapi:
+        summary: Update queue
+        tags: [API v1, Queues]
+        responses:
+          200: Success
+          404: NotFound
+          403: Forbidden
+          
+    - path: /queues/:id
+      method: DELETE
+      handler: api_v1_queue_delete
+      name: Delete Queue
+      description: Delete queue
+      middleware:
+        - admin
+      openapi:
+        summary: Delete queue
+        tags: [API v1, Queues]
+        responses:
+          204: NoContent
+          404: NotFound
+          403: Forbidden

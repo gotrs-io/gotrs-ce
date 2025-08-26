@@ -1,11 +1,14 @@
 package api
 
 import (
+	"context"
+	"log"
 	"os"
 	
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 	"github.com/gotrs-io/gotrs-ce/internal/config"
+	"github.com/gotrs-io/gotrs-ce/internal/routing"
 )
 
 // Simplified router for HTMX demo
@@ -24,8 +27,53 @@ func NewSimpleRouter() *gin.Engine {
 	// Initialize dashboard manager
 	config.InitializeDashboardManager("./config")
 	
-	// Setup HTMX routes with dynamic template loading
-	SetupHTMXRoutes(r)
+	// Initialize pongo2 renderer for templates
+	templateDir := "./templates"
+	pongo2Renderer = NewPongo2Renderer(templateDir)
+	log.Println("Pongo2 template renderer initialized")
+	
+	// Serve static files
+	r.Static("/static", "./static")
+	r.StaticFile("/favicon.ico", "./static/favicon.ico")
+	r.StaticFile("/favicon.svg", "./static/favicon.svg")
+	
+	// Always use YAML routing by default
+	log.Println("Initializing YAML routing system...")
+	
+	// Initialize route analytics
+	metrics := routing.InitRouteMetrics()
+	log.Println("Route analytics system initialized")
+	
+	// Setup metrics endpoints (containerized monitoring)
+	metrics.SetupMetricsEndpoints(r)
+	log.Println("Analytics endpoints available: /metrics/stats, /metrics/dashboard")
+	
+	// Create handler registry and register existing handlers
+	registry := routing.NewHandlerRegistry()
+	if err := routing.RegisterExistingHandlers(registry); err != nil {
+		log.Printf("Warning: Failed to register existing handlers: %v", err)
+	}
+	// Register API handlers
+	if err := RegisterWithRouting(registry); err != nil {
+		log.Printf("Warning: Failed to register API handlers: %v", err)
+	}
+	
+	// Create file-based route manager
+	routesDir := os.Getenv("ROUTES_DIR")
+	if routesDir == "" {
+		routesDir = "./routes"
+	}
+	
+	routeManager := routing.NewSimpleRouteManager(routesDir, r, registry)
+	
+	// Start the route manager
+	if err := routeManager.Start(context.Background()); err != nil {
+		log.Printf("Error: Failed to start YAML routing: %v", err)
+		log.Println("Fatal: Cannot continue without routing")
+		panic("Failed to initialize routing system")
+	}
+	
+	log.Println("YAML routing successfully started")
 	
 	// Setup LDAP API routes
 	SetupLDAPRoutes(r)
@@ -35,107 +83,16 @@ func NewSimpleRouter() *gin.Engine {
 	apiV1 := r.Group("/api/v1")
 	i18nHandlers.RegisterRoutes(apiV1)
 	
-	// Add v1 API stub endpoints (under construction)
-	// These are expected by the SDK but not yet implemented
-	apiV1.GET("/tickets", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"success": true,
-			"message": "Endpoint /api/v1/tickets is under construction",
-			"data":    []interface{}{},
-		})
-	})
-	apiV1.GET("/users/me", func(c *gin.Context) {
-		demoEmail := os.Getenv("DEMO_USER_EMAIL")
-		if demoEmail == "" {
-			demoEmail = "test-user@example.com"
-		}
-		c.JSON(200, gin.H{
-			"success": true,
-			"message": "Endpoint /api/v1/users/me is under construction", 
-			"data": gin.H{
-				"id":    1,
-				"email": demoEmail,
-				"name":  "Demo User",
-				"role":  "Admin",
-			},
-		})
-	})
-	apiV1.GET("/queues", func(c *gin.Context) {
-		queueRepo := GetQueueRepository()
-		if queueRepo == nil {
-			c.JSON(500, gin.H{
-				"success": false,
-				"error":   "Queue repository not initialized",
-			})
-			return
-		}
-		
-		queues, err := queueRepo.List()
-		if err != nil {
-			c.JSON(500, gin.H{
-				"success": false,
-				"error":   err.Error(),
-			})
-			return
-		}
-		
-		// Convert to simpler format for API response
-		queueList := make([]gin.H, 0, len(queues))
-		for _, q := range queues {
-			queueList = append(queueList, gin.H{
-				"id":   q.ID,
-				"name": q.Name,
-			})
-		}
-		
-		c.JSON(200, gin.H{
-			"success": true,
-			"data":    queueList,
-		})
-	})
-	apiV1.GET("/priorities", func(c *gin.Context) {
-		priorityRepo := GetPriorityRepository()
-		if priorityRepo == nil {
-			c.JSON(500, gin.H{
-				"success": false,
-				"error":   "Priority repository not initialized",
-			})
-			return
-		}
-		
-		priorities, err := priorityRepo.List()
-		if err != nil {
-			c.JSON(500, gin.H{
-				"success": false,
-				"error":   err.Error(),
-			})
-			return
-		}
-		
-		// Convert to simpler format for API response
-		priorityList := make([]gin.H, 0, len(priorities))
-		for _, p := range priorities {
-			priorityList = append(priorityList, gin.H{
-				"id":   p.ID,
-				"name": p.Name,
-			})
-		}
-		
-		c.JSON(200, gin.H{
-			"success": true,
-			"data":    priorityList,
-		})
-	})
-	apiV1.GET("/search", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"success": true,
-			"message": "Endpoint /api/v1/search is under construction",
-			"data": gin.H{
-				"results": []interface{}{},
-				"total":   0,
-			},
-		})
-	})
+	// API v1 endpoints are now handled via YAML routes
+	// See routes/api/v1/*.yaml for API endpoint definitions
+	// The following hardcoded routes have been migrated to YAML:
+	
+	// Commented out - now handled by YAML routes
+	// apiV1.GET("/tickets", ...)     -> routes/api/v1/tickets.yaml
+	// apiV1.GET("/users/me", ...)    -> routes/api/v1/users.yaml
+	// apiV1.GET("/queues", ...)      -> routes/api/v1/queues.yaml
+	// apiV1.GET("/priorities", ...)  -> routes/api/v1/priorities.yaml
+	// apiV1.GET("/search", ...)      -> routes/api/v1/search.yaml
 	
 	return r
 }

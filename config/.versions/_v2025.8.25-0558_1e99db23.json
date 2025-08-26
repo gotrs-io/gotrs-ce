@@ -1,0 +1,27 @@
+{
+  "id": "1756101521797588388-tyurnupm",
+  "number": "v2025.8.25-0558",
+  "kind": "",
+  "name": "",
+  "hash": "1e99db235803",
+  "timestamp": "2025-08-25T05:58:41.797594249Z",
+  "author": "system",
+  "message": "Imported from Config.yaml",
+  "document": {
+    "apiVersion": "",
+    "kind": "",
+    "metadata": {
+      "name": "",
+      "description": "GoTRS System Configuration Definition",
+      "created": "0001-01-01T00:00:00Z",
+      "modified": "2025-08-25T05:58:41.79750401Z"
+    },
+    "spec": null
+  },
+  "stats": {
+    "total_fields": 0,
+    "changed_fields": 0,
+    "added_fields": 0,
+    "deleted_fields": 0
+  }
+}

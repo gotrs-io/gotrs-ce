@@ -2,6 +2,57 @@
 
 {% block title %}{{ module.Plural }} Management{% endblock %}
 
+{% block styles %}
+<style>
+    /* Inline Edit Styles */
+    .inline-edit-display {
+        cursor: text;
+        padding: 2px 4px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+    
+    .inline-edit-display:hover {
+        background-color: rgba(59, 130, 246, 0.1);
+    }
+    
+    .inline-edit-display::after {
+        content: '✎';
+        margin-left: 4px;
+        font-size: 10px;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    
+    .inline-edit-display:hover::after {
+        opacity: 0.5;
+    }
+    
+    .inline-edit-saving {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+    
+    .inline-edit-success {
+        animation: flashGreen 0.5s;
+    }
+    
+    .inline-edit-error {
+        animation: flashRed 0.5s;
+    }
+    
+    @keyframes flashGreen {
+        0%, 100% { background-color: transparent; }
+        50% { background-color: rgba(34, 197, 94, 0.2); }
+    }
+    
+    @keyframes flashRed {
+        0%, 100% { background-color: transparent; }
+        50% { background-color: rgba(239, 68, 68, 0.2); }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-4 py-6">
     <div class="mb-6">
@@ -17,6 +68,32 @@
                 <i class="fas fa-plus icon-sm mr-2"></i>
                 New {{ module.Singular }}
             </button>
+            
+            <!-- Bulk Actions (hidden by default) -->
+            <div id="bulkActions" class="hidden flex gap-2">
+                <span class="self-center text-sm text-gray-600 dark:text-gray-400">
+                    <span id="selectedCount">0</span> selected
+                </span>
+                {% if features.StatusToggle %}
+                <button onclick="bulkToggleStatus()" 
+                        class="px-3 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors text-sm">
+                    <i class="fas fa-toggle-on icon-sm mr-1"></i>
+                    Toggle Status
+                </button>
+                {% endif %}
+                {% if features.ExportCSV %}
+                <button onclick="exportSelected()" 
+                        class="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm">
+                    <i class="fas fa-file-export icon-sm mr-1"></i>
+                    Export Selected
+                </button>
+                {% endif %}
+                <button onclick="bulkDelete()" 
+                        class="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm">
+                    <i class="fas fa-trash icon-sm mr-1"></i>
+                    Delete Selected
+                </button>
+            </div>
             {% if features.ImportCSV %}
             <button onclick="openImportModal()" 
                     class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
@@ -47,6 +124,7 @@
                     <input type="text" 
                            id="searchInput"
                            placeholder="Search by name, login, email, group..."
+                           value="{{ currentFilters.search|default:'' }}"
                            onkeyup="filterTable()"
                            class="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm">
                     <!-- Clear button (X icon) -->
@@ -57,15 +135,239 @@
                         <i class="fas fa-times icon-sm"></i>
                     </button>
                 </div>
-                <div class="flex gap-2">
-                    {% if module.Name == "users" %}
-                    <!-- Status Filter -->
+                <div class="flex gap-2 flex-wrap">
+                    {% if module.Name == "state" or module.Name == "users" or module.Name == "queue" %}
+                    <!-- Quick filter presets -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" 
+                                class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 text-sm flex items-center gap-1">
+                            <i class="fas fa-filter icon-sm"></i>
+                            Quick Filters
+                            <i class="fas fa-chevron-down icon-xs"></i>
+                        </button>
+                        <div x-show="open" @click.away="open = false" 
+                             class="absolute z-10 mt-1 bg-white dark:bg-gray-800 rounded-md shadow-lg min-w-[150px]">
+                            {% if module.Name == "state" %}
+                            <button onclick="applyQuickFilter('active')" 
+                                    class="block w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                Active States
+                            </button>
+                            <button onclick="applyQuickFilter('open')" 
+                                    class="block w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                Open States
+                            </button>
+                            <button onclick="applyQuickFilter('closed')" 
+                                    class="block w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                Closed States
+                            </button>
+                            <button onclick="applyQuickFilter('pending')" 
+                                    class="block w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                Pending States
+                            </button>
+                            {% elif module.Name == "users" %}
+                            <button onclick="applyQuickFilter('active_users')" 
+                                    class="block w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                Active Users
+                            </button>
+                            <button onclick="applyQuickFilter('inactive_users')" 
+                                    class="block w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                Inactive Users
+                            </button>
+                            <button onclick="applyQuickFilter('agents')" 
+                                    class="block w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                Agents Only
+                            </button>
+                            {% elif module.Name == "queue" %}
+                            <button onclick="applyQuickFilter('active_queues')" 
+                                    class="block w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                Active Queues
+                            </button>
+                            <button onclick="applyQuickFilter('email_queues')" 
+                                    class="block w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                Email Queues
+                            </button>
+                            {% endif %}
+                            <hr class="my-1 border-gray-200 dark:border-gray-700">
+                            <button onclick="clearAllFilters()" 
+                                    class="block w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Saved Filter Sets -->
+                    <div class="relative">
+                        <button onclick="toggleSavedFiltersMenu()" 
+                                class="flex items-center gap-2 px-3 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-md hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                            </svg>
+                            Saved Filters
+                        </button>
+                        <div id="savedFiltersMenu" class="hidden absolute left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-md shadow-lg z-10 border border-gray-200 dark:border-gray-700">
+                            <div class="p-3">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Saved Filter Sets</h3>
+                                    <button onclick="saveCurrentFilters()" 
+                                            class="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                        Save Current
+                                    </button>
+                                </div>
+                                
+                                <!-- Saved filters list -->
+                                <div id="savedFiltersList" class="space-y-2 max-h-64 overflow-y-auto mb-3">
+                                    <!-- Saved filters will be populated here -->
+                                </div>
+                                
+                                <!-- Save new filter form -->
+                                <div id="saveFilterForm" class="hidden border-t border-gray-200 dark:border-gray-700 pt-3">
+                                    <input type="text" 
+                                           id="filterSetName"
+                                           placeholder="Enter filter set name..." 
+                                           class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white mb-2">
+                                    <div class="flex gap-2">
+                                        <button onclick="confirmSaveFilters()" 
+                                                class="flex-1 px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">
+                                            Save
+                                        </button>
+                                        <button onclick="cancelSaveFilters()" 
+                                                class="flex-1 px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="pt-3 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+                                    <div class="flex items-center justify-between">
+                                        <span id="filterSetCount">0 saved filter sets</span>
+                                        <button onclick="clearAllFilterSets()" 
+                                                class="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300">
+                                            Clear All
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Column Visibility Toggle -->
+                    <div class="relative">
+                        <button onclick="toggleColumnMenu()" 
+                                class="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                            Columns
+                        </button>
+                        <div id="columnMenu" class="hidden absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-md shadow-lg z-10 border border-gray-200 dark:border-gray-700">
+                            <div class="p-3">
+                                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Show/Hide Columns</h3>
+                                <div class="space-y-2 max-h-64 overflow-y-auto">
+                                    {% for field in fields %}
+                                    {% if field.ShowInList %}
+                                    <label class="flex items-center">
+                                        <input type="checkbox" 
+                                               class="column-toggle rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                                               data-column="{{ field.Name }}"
+                                               checked
+                                               onchange="toggleColumn('{{ field.Name }}')">
+                                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">{{ field.Label }}</span>
+                                    </label>
+                                    {% endif %}
+                                    {% endfor %}
+                                    {% for field in computedFields %}
+                                    {% if field.ShowInList %}
+                                    <label class="flex items-center">
+                                        <input type="checkbox" 
+                                               class="column-toggle rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                                               data-column="{{ field.Name }}"
+                                               checked
+                                               onchange="toggleColumn('{{ field.Name }}')">
+                                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">{{ field.Label }}</span>
+                                    </label>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex gap-2">
+                                    <button onclick="showAllColumns()" 
+                                            class="flex-1 px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">
+                                        Show All
+                                    </button>
+                                    <button onclick="hideAllColumns()" 
+                                            class="flex-1 px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600">
+                                        Hide All
+                                    </button>
+                                    <button onclick="resetColumns()" 
+                                            class="flex-1 px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600">
+                                        Reset
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if filters %}
+                        {% for filter in filters %}
+                        {% if filter.Type == "date_range" %}
+                            <!-- Date range filter -->
+                            <div class="flex gap-1 items-center">
+                                <label class="text-xs text-gray-600 dark:text-gray-400">{{ filter.Label }}:</label>
+                                {% set from_key = "filter_" + filter.Field + "_from" %}
+                                {% set to_key = "filter_" + filter.Field + "_to" %}
+                                <input type="date" 
+                                       id="{{ filter.Field }}FilterFrom"
+                                       value="{{ currentFilters[from_key]|default:'' }}"
+                                       onchange="filterTable()"
+                                       class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm">
+                                <span class="text-xs text-gray-600 dark:text-gray-400">to</span>
+                                <input type="date" 
+                                       id="{{ filter.Field }}FilterTo"
+                                       value="{{ currentFilters[to_key]|default:'' }}"
+                                       onchange="filterTable()"
+                                       class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm">
+                            </div>
+                        {% elif filter.Type == "multi_select" %}
+                            <!-- Multi-select filter -->
+                            {% set filter_key = "filter_" + filter.Field %}
+                            {% set current_value = currentFilters[filter_key]|default:"" %}
+                            <select id="{{ filter.Field|lower }}Filter" 
+                                    multiple
+                                    onchange="filterTable()" 
+                                    class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm min-w-[150px]">
+                                {% if filter.Options %}
+                                    {% for option in filter.Options %}
+                                    <option value="{{ option.Value }}" {% if option.Value in current_value %}selected{% endif %}>{{ option.Label }}</option>
+                                    {% endfor %}
+                                {% else %}
+                                    <!-- Options will be populated from database if source is 'database' -->
+                                {% endif %}
+                            </select>
+                        {% else %}
+                            <!-- Regular select filter -->
+                            {% set filter_key = "filter_" + filter.Field %}
+                            {% set current_value = currentFilters[filter_key]|default:"" %}
+                            <select id="{{ filter.Field|lower }}Filter" 
+                                    onchange="filterTable()" 
+                                    class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm">
+                                {% if filter.Options %}
+                                    {% for option in filter.Options %}
+                                    <option value="{{ option.Value }}" {% if option.Value == current_value or (option.Value == "" and current_value == "") %}selected{% endif %}>{{ option.Label }}</option>
+                                    {% endfor %}
+                                {% else %}
+                                    <option value="">All {{ filter.Label }}</option>
+                                    <!-- Options will be populated from database if source is 'database' -->
+                                {% endif %}
+                            </select>
+                        {% endif %}
+                        {% endfor %}
+                    {% elif module.Name == "users" %}
+                    <!-- Fallback for users module if no filters defined -->
                     <select id="statusFilter" onchange="filterTable()" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm">
                         <option value="">All Status</option>
                         <option value="1">Active</option>
                         <option value="2">Inactive</option>
                     </select>
-                    <!-- Group Filter -->
                     <select id="groupFilter" onchange="filterTable()" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm">
                         <option value="">All Groups</option>
                         <!-- Groups will be populated dynamically -->
@@ -83,6 +385,10 @@
             <table id="dataTable" class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-700">
                     <tr>
+                        <th class="px-3 py-3 text-left">
+                            <input type="checkbox" id="selectAll" onclick="toggleSelectAll()" 
+                                   class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500">
+                        </th>
                         {% if allFields %}
                             {% for field in allFields %}
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -92,13 +398,20 @@
                         {% else %}
                             {% for field in fields %}
                             {% if field.ShowInList %}
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            <th data-column="{{ field.Name }}" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider column-header">
+                                {{ field.Label }}
+                            </th>
+                            {% endif %}
+                            {% endfor %}
+                            {% for field in computedFields %}
+                            {% if field.ShowInList %}
+                            <th data-column="{{ field.Name }}" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider column-header">
                                 {{ field.Label }}
                             </th>
                             {% endif %}
                             {% endfor %}
                             {% if module.Name == "users" %}
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            <th data-column="groups" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider column-header">
                                 Groups
                             </th>
                             {% endif %}
@@ -110,11 +423,42 @@
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {% for item in items %}
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" data-id="{{ item.id }}" data-status="{{ item.valid_id|default:1 }}">
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" 
+                        data-id="{{ item.id }}" 
+                        data-valid_id="{{ item.valid_id|default:'1' }}"
+                        data-group_id="{{ item.group_id|default:'' }}">
+                        <td class="px-3 py-4">
+                            <input type="checkbox" class="item-checkbox rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500" 
+                                   value="{{ item.id }}" onchange="updateBulkActions()">
+                        </td>
                         {% if allFields %}
                             {% for field in allFields %}
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                {% if field.Name == "valid_id" %}
+                                {% set chip_key = field.Name + "_chip" %}
+                                {% set display_key = field.Name + "_display" %}
+                                {% set chip_type = field.Name + "_chip_type" %}
+                                {% if item[chip_key] %}
+                                    <!-- Display as chip if configured -->
+                                    {% if field.Name == "group_id" %}
+                                    <span class="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100">
+                                        {{ item[display_key]|default:item[field.Name] }}
+                                    </span>
+                                    {% elif field.Name == "valid_id" %}
+                                    {% if item[field.Name] == 1 %}
+                                    <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                        {{ item[display_key]|default:"Valid" }}
+                                    </span>
+                                    {% else %}
+                                    <span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                                        {{ item[display_key]|default:"Invalid" }}
+                                    </span>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                        {{ item[display_key]|default:item[field.Name] }}
+                                    </span>
+                                    {% endif %}
+                                {% elif field.Name == "valid_id" %}
                                     {% if item[field.Name] == 1 %}
                                     <span class="status-badge px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Active</span>
                                     {% else %}
@@ -142,15 +486,56 @@
                                 {% elif field.Lambda %}
                                     {{ item[field.Name]|default:"-"|safe }}
                                 {% else %}
+                                    {% if field.Type == "string" and field.Name != "id" and field.Name != "login" %}
+                                    <div class="inline-edit-container">
+                                        <span class="inline-edit-display" 
+                                              data-field="{{ field.Name }}" 
+                                              data-item-id="{{ item.id }}"
+                                              data-value="{{ item[field.Name]|default:'' }}"
+                                              ondblclick="startInlineEdit(this)">
+                                            {{ item[field.Name]|default:"-" }}
+                                        </span>
+                                        <input type="text" 
+                                               class="inline-edit-input hidden px-2 py-1 border border-blue-400 rounded text-sm dark:bg-gray-700 dark:text-white"
+                                               value="{{ item[field.Name]|default:'' }}"
+                                               onblur="saveInlineEdit(this)"
+                                               onkeydown="handleInlineEditKey(event, this)">
+                                    </div>
+                                    {% else %}
                                     {{ item[field.Name]|default:"-" }}
+                                    {% endif %}
                                 {% endif %}
                             </td>
                             {% endfor %}
                         {% else %}
                             {% for field in fields %}
                             {% if field.ShowInList %}
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                {% if field.Name == "valid_id" %}
+                            <td data-column="{{ field.Name }}" class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 column-cell">
+                                {% set chip_key = field.Name + "_chip" %}
+                                {% set display_key = field.Name + "_display" %}
+                                {% set chip_type = field.Name + "_chip_type" %}
+                                {% if item[chip_key] %}
+                                    <!-- Display as chip if configured -->
+                                    {% if field.Name == "group_id" %}
+                                    <span class="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100">
+                                        {{ item[display_key]|default:item[field.Name] }}
+                                    </span>
+                                    {% elif field.Name == "valid_id" %}
+                                    {% if item[field.Name] == 1 %}
+                                    <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                        {{ item[display_key]|default:"Valid" }}
+                                    </span>
+                                    {% else %}
+                                    <span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                                        {{ item[display_key]|default:"Invalid" }}
+                                    </span>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                        {{ item[display_key]|default:item[field.Name] }}
+                                    </span>
+                                    {% endif %}
+                                {% elif field.Name == "valid_id" %}
                                     {% if item[field.Name] == 1 %}
                                     <span class="status-badge px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Active</span>
                                     {% else %}
@@ -168,13 +553,37 @@
                                 {% elif field.Lambda %}
                                     {{ item[field.Name]|default:"-"|safe }}
                                 {% else %}
+                                    {% if field.Type == "string" and field.Name != "id" and field.Name != "login" %}
+                                    <div class="inline-edit-container">
+                                        <span class="inline-edit-display" 
+                                              data-field="{{ field.Name }}" 
+                                              data-item-id="{{ item.id }}"
+                                              data-value="{{ item[field.Name]|default:'' }}"
+                                              ondblclick="startInlineEdit(this)">
+                                            {{ item[field.Name]|default:"-" }}
+                                        </span>
+                                        <input type="text" 
+                                               class="inline-edit-input hidden px-2 py-1 border border-blue-400 rounded text-sm dark:bg-gray-700 dark:text-white"
+                                               value="{{ item[field.Name]|default:'' }}"
+                                               onblur="saveInlineEdit(this)"
+                                               onkeydown="handleInlineEditKey(event, this)">
+                                    </div>
+                                    {% else %}
                                     {{ item[field.Name]|default:"-" }}
+                                    {% endif %}
                                 {% endif %}
                             </td>
                             {% endif %}
                             {% endfor %}
+                            {% for field in computedFields %}
+                            {% if field.ShowInList %}
+                            <td data-column="{{ field.Name }}" class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 column-cell">
+                                {{ item[field.Name]|default:"-"|safe }}
+                            </td>
+                            {% endif %}
+                            {% endfor %}
                             {% if module.Name == "users" %}
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                            <td data-column="groups" class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 column-cell">
                                 {% if item.Groups %}
                                 <div class="flex flex-wrap gap-1">
                                     {% for group in item.Groups %}
@@ -188,27 +597,27 @@
                             {% endif %}
                         {% endif %}
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button onclick="editItem({{ item.id }})" 
+                            <button onclick="editItem('{{ item.id }}')" 
                                     title="Edit"
                                     class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-2">
                                 <i class="fas fa-edit icon-sm"></i>
                             </button>
                             {% if features.SoftDelete %}
                                 {% if item.valid_id == 1 %}
-                                <button onclick="toggleStatus({{ item.id }}, {{ item.valid_id }})" 
+                                <button onclick="toggleStatus('{{ item.id }}', '{{ item.valid_id }}')" 
                                         title="Disable"
                                         class="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300">
                                     <i class="fas fa-times-circle icon-sm"></i>
                                 </button>
                                 {% else %}
-                                <button onclick="toggleStatus({{ item.id }}, {{ item.valid_id }})" 
+                                <button onclick="toggleStatus('{{ item.id }}', '{{ item.valid_id }}')" 
                                         title="Enable"
                                         class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300">
                                     <i class="fas fa-check-circle icon-sm"></i>
                                 </button>
                                 {% endif %}
                             {% else %}
-                                <button onclick="deleteItem({{ item.id }})" 
+                                <button onclick="deleteItem('{{ item.id }}')" 
                                         title="Delete"
                                         class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
                                     <i class="fas fa-trash icon-sm"></i>
@@ -226,6 +635,78 @@
                 </tbody>
             </table>
         </div>
+        
+        <!-- Pagination -->
+        {% if pagination and pagination.totalPages > 1 %}
+        <div class="mt-4 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                    Showing 
+                    <span class="font-medium">{{ (pagination.page - 1) * pagination.pageSize + 1 }}</span>
+                    to 
+                    <span class="font-medium">{{ (pagination.page - 1) * pagination.pageSize + items|length }}</span>
+                    of 
+                    <span class="font-medium">{{ pagination.totalCount }}</span>
+                    results
+                </div>
+                
+                <!-- Page size selector -->
+                <div class="flex items-center gap-2">
+                    <label for="pageSize" class="text-sm text-gray-700 dark:text-gray-300">{{ t("admin.common.pagination.show") }}</label>
+                    <select id="pageSize" onchange="changePageSize(this.value)" 
+                            class="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                        <option value="10" {% if pagination.pageSize == 10 %}selected{% endif %}>10</option>
+                        <option value="25" {% if pagination.pageSize == 25 %}selected{% endif %}>25</option>
+                        <option value="50" {% if pagination.pageSize == 50 %}selected{% endif %}>50</option>
+                        <option value="100" {% if pagination.pageSize == 100 %}selected{% endif %}>100</option>
+                    </select>
+                    <span class="text-sm text-gray-700 dark:text-gray-300">{{ t("admin.common.pagination.per_page") }}</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-1">
+                <!-- Previous button -->
+                {% if pagination.hasPrev %}
+                <button onclick="goToPage({{ pagination.page - 1 }})" 
+                        class="px-3 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-l-md hover:bg-gray-50 dark:hover:bg-gray-600">
+                    {{ t("admin.common.pagination.previous") }}
+                </button>
+                {% else %}
+                <button disabled 
+                        class="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-300 dark:border-gray-600 rounded-l-md cursor-not-allowed">
+                    {{ t("admin.common.pagination.previous") }}
+                </button>
+                {% endif %}
+                
+                <!-- Page numbers -->
+                {% for pageNum in pagination.pageRange %}
+                    {% if pageNum == pagination.page %}
+                    <button class="px-3 py-1 text-sm bg-blue-500 text-white border border-blue-500">
+                        {{ pageNum }}
+                    </button>
+                    {% else %}
+                    <button onclick="goToPage({{ pageNum }})" 
+                            class="px-3 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
+                        {{ pageNum }}
+                    </button>
+                    {% endif %}
+                {% endfor %}
+                
+                <!-- Next button -->
+                {% if pagination.hasNext %}
+                <button onclick="goToPage({{ pagination.page + 1 }})" 
+                        class="px-3 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-r-md hover:bg-gray-50 dark:hover:bg-gray-600">
+                    {{ t("admin.common.pagination.next") }}
+                </button>
+                {% else %}
+                <button disabled 
+                        class="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-300 dark:border-gray-600 rounded-r-md cursor-not-allowed">
+                    {{ t("admin.common.pagination.next") }}
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -423,12 +904,23 @@
 
 <script>
 // Dynamic module configuration passed from server  
-const moduleConfig = JSON.parse('{{ config_json|escapejs }}');
-const moduleName = '{{ module.Name }}';
+var moduleConfig;
+try {
+    moduleConfig = JSON.parse('{{ config_json|escapejs }}');
+} catch (e) {
+    console.error('Failed to parse module config:', e);
+    moduleConfig = {};
+}
+var moduleName = '{{ module.Name }}';
 // Support both /admin/users and /admin/dynamic/users paths
-const currentPath = window.location.pathname;
-const API_BASE = currentPath.includes('/dynamic/') ? '/admin/dynamic/' + moduleName : '/admin/' + moduleName;
-let currentEditId = null;
+var currentPath = window.location.pathname;
+var API_BASE = currentPath.includes('/dynamic/') ? '/admin/dynamic/' + moduleName : '/admin/' + moduleName;
+var currentEditId = null;
+
+// Debug logging
+console.log('Module Name:', moduleName);
+console.log('Current Path:', currentPath);
+console.log('API_BASE:', API_BASE);
 
 function openCreateModal() {
     currentEditId = null;
@@ -459,27 +951,27 @@ function editItem(id) {
             document.getElementById('{{ field.Name }}').placeholder = 'Leave blank to keep existing';
             {% elif field.Type == "radio" %}
             // Handle radio buttons
-            if (data.data.{{ field.Name }} !== undefined) {
-                const radio = document.getElementById('{{ field.Name }}_' + data.data.{{ field.Name }});
+            if (data.data['{{ field.Name }}'] !== undefined) {
+                const radio = document.getElementById('{{ field.Name }}_' + data.data['{{ field.Name }}']);
                 if (radio) radio.checked = true;
             }
             {% elif field.Type == "checkbox" or field.Type == "bool" or field.Type == "boolean" %}
             // Handle checkboxes
-            if (data.data.{{ field.Name }} !== undefined) {
-                document.getElementById('{{ field.Name }}').checked = !!data.data.{{ field.Name }};
+            if (data.data['{{ field.Name }}'] !== undefined) {
+                document.getElementById('{{ field.Name }}').checked = !!data.data['{{ field.Name }}'];
             }
             {% elif field.Type == "file" or field.Type == "files" or field.Type == "filelist" %}
             // File fields cannot be pre-populated for security reasons
             {% elif field.Type == "range" %}
             // Handle range inputs
-            if (data.data.{{ field.Name }} !== undefined) {
-                document.getElementById('{{ field.Name }}').value = data.data.{{ field.Name }};
-                document.getElementById('{{ field.Name }}_value').textContent = data.data.{{ field.Name }};
+            if (data.data['{{ field.Name }}'] !== undefined) {
+                document.getElementById('{{ field.Name }}').value = data.data['{{ field.Name }}'];
+                document.getElementById('{{ field.Name }}_value').textContent = data.data['{{ field.Name }}'];
             }
             {% else %}
             // Handle all other input types
-            if (data.data.{{ field.Name }} !== undefined) {
-                document.getElementById('{{ field.Name }}').value = data.data.{{ field.Name }};
+            if (data.data['{{ field.Name }}'] !== undefined) {
+                document.getElementById('{{ field.Name }}').value = data.data['{{ field.Name }}'];
             }
             {% endif %}
             {% endif %}
@@ -685,84 +1177,95 @@ function updateClearButton() {
 }
 
 function filterTable() {
+    // For server-side filtering, collect all filter values and reload page with parameters
+    const url = new URL(window.location);
+    
+    // Clear existing filter parameters but preserve other URL params
+    const params = new URLSearchParams(url.search);
+    // Remove old filter parameters
+    for (const key of [...params.keys()]) {
+        if (key.startsWith('filter_') || key === 'search') {
+            params.delete(key);
+        }
+    }
+    
+    // Add search parameter if present
     const searchInput = document.getElementById('searchInput');
-    const searchFilter = searchInput ? searchInput.value.toUpperCase() : '';
-    const groupFilter = document.getElementById('groupFilter');
-    const groupValue = groupFilter ? groupFilter.value : '';
-    const statusFilter = document.getElementById('statusFilter');
-    const statusValue = statusFilter ? statusFilter.value : '';
+    if (searchInput && searchInput.value.trim() !== '') {
+        params.set('search', searchInput.value.trim());
+    }
     
-    // Update clear button visibility
-    updateClearButton();
-    
-    const table = document.getElementById('dataTable');
-    const tbody = table.querySelector('tbody');
-    const rows = tbody.getElementsByTagName('tr');
-    
-    let visibleCount = 0;
-    
-    for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const cells = row.getElementsByTagName('td');
-        
-        // Skip empty row
-        if (cells.length === 1 && cells[0].getAttribute('colspan')) {
-            continue;
-        }
-        
-        let matchSearch = searchFilter === '';
-        let matchGroup = groupValue === '';
-        let matchStatus = statusValue === '';
-        
-        // Search filter
-        if (searchFilter !== '') {
-            for (let j = 0; j < cells.length - 1; j++) {
-                const cell = cells[j];
-                if (cell) {
-                    const text = cell.textContent || cell.innerText;
-                    if (text.toUpperCase().indexOf(searchFilter) > -1) {
-                        matchSearch = true;
-                        break;
+    // Add filter parameters from dynamic configuration
+    if (moduleConfig.filters) {
+        for (const filter of moduleConfig.filters) {
+            if (filter.type === 'date_range') {
+                // Handle date range filters
+                const fromElement = document.getElementById(filter.field + 'FilterFrom');
+                const toElement = document.getElementById(filter.field + 'FilterTo');
+                if (fromElement && fromElement.value !== '') {
+                    params.set('filter_' + filter.field + '_from', fromElement.value);
+                }
+                if (toElement && toElement.value !== '') {
+                    params.set('filter_' + filter.field + '_to', toElement.value);
+                }
+            } else if (filter.type === 'multi_select') {
+                // Handle multi-select filters
+                const filterId = filter.field.toLowerCase() + 'Filter';
+                const filterElement = document.getElementById(filterId);
+                if (filterElement && filterElement.selectedOptions.length > 0) {
+                    const values = Array.from(filterElement.selectedOptions).map(opt => opt.value);
+                    if (values.length > 0 && values[0] !== '') {
+                        params.set('filter_' + filter.field, values.join(','));
                     }
+                }
+            } else {
+                // Handle regular filters
+                const filterId = filter.field + 'Filter';
+                const filterElement = document.getElementById(filterId);
+                if (filterElement && filterElement.value !== '') {
+                    params.set('filter_' + filter.field, filterElement.value);
                 }
             }
         }
-        
-        // Status filter (for users module)
-        if (statusValue !== '' && moduleName === 'users') {
-            // Check the row's data-status attribute
-            const rowStatus = row.getAttribute('data-status');
-            if (rowStatus) {
-                matchStatus = (rowStatus === statusValue);
-            }
-        }
-        
-        // Group filter (for users module)
-        if (groupValue !== '' && moduleName === 'users') {
-            // Find the groups cell
-            for (let j = 0; j < cells.length; j++) {
-                const cell = cells[j];
-                if (cell && cell.querySelector && cell.querySelector('.px-2.py-1.text-xs.rounded')) {
-                    const groupText = cell.textContent || cell.innerText;
-                    if (groupText.toLowerCase().includes(groupValue.toLowerCase())) {
-                        matchGroup = true;
-                    }
-                    break;
-                }
-            }
-        }
-        
-        // Show/hide row based on all filters
-        const shouldShow = matchSearch && matchGroup && matchStatus;
-        row.style.display = shouldShow ? '' : 'none';
-        if (shouldShow) visibleCount++;
     }
     
-    // Update count
-    const countElement = document.getElementById('filteredCount');
-    if (countElement) {
-        countElement.textContent = visibleCount;
+    // Legacy support for users module
+    if (moduleName === 'users') {
+        const statusFilter = document.getElementById('statusFilter');
+        if (statusFilter && statusFilter.value !== '') {
+            params.set('filter_valid_id', statusFilter.value);
+        }
+        
+        const groupFilter = document.getElementById('groupFilter');
+        if (groupFilter && groupFilter.value !== '') {
+            params.set('filter_group', groupFilter.value);
+        }
     }
+    
+    // Reset to page 1 when filtering
+    params.set('page', '1');
+    
+    // Update URL and reload page with filter parameters
+    url.search = params.toString();
+    window.location.href = url.toString();
+}
+
+// Pagination functions
+function goToPage(pageNum) {
+    const url = new URL(window.location);
+    const params = new URLSearchParams(url.search);
+    params.set('page', pageNum);
+    url.search = params.toString();
+    window.location.href = url.toString();
+}
+
+function changePageSize(size) {
+    const url = new URL(window.location);
+    const params = new URLSearchParams(url.search);
+    params.set('page_size', size);
+    params.set('page', '1'); // Reset to first page when changing page size
+    url.search = params.toString();
+    window.location.href = url.toString();
 }
 
 function openModal() {
@@ -923,7 +1426,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // Don't restore filter values from URL - they're already set server-side
+    // restoreFiltersFromURL();
 });
+
+// Filter restoration is now handled server-side through template context
+// The selected values are set directly in the HTML when the page renders
 
 // Populate group filter on page load for users module
 if (moduleName === 'users') {
@@ -968,10 +1477,807 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// ESC key to close modal
+// View configuration details function for sysconfig module  
+function viewConfigDetails(configName) {
+    // Show detailed information about a configuration setting
+    fetch(`${API_BASE}/${encodeURIComponent(configName)}/details`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const details = data.data;
+            const html = `
+                <div class="space-y-4">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white">${details.name}</h3>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div><strong>Category:</strong> ${details.navigation || 'N/A'}</div>
+                        <div><strong>Type:</strong> ${details.type || 'string'}</div>
+                        <div><strong>Current Value:</strong> <code class="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">${details.effective_value || ''}</code></div>
+                        <div><strong>Default Value:</strong> <code class="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">${details.default_value || details.effective_value || ''}</code></div>
+                        <div class="col-span-2"><strong>Description:</strong> ${details.description || 'No description available'}</div>
+                        ${details.validation ? `<div class="col-span-2"><strong>Validation:</strong> <code class="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">${details.validation}</code></div>` : ''}
+                        <div><strong>User Modifiable:</strong> ${details.user_modification_possible ? 'Yes' : 'No'}</div>
+                        <div><strong>Read Only:</strong> ${details.is_readonly ? 'Yes' : 'No'}</div>
+                    </div>
+                </div>
+            `;
+            
+            showConfirmModal('Configuration Details', html, null);
+        } else {
+            showToast('Error loading configuration details: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error loading configuration details', 'error');
+    });
+}
+
+// Reset configuration to default function for sysconfig module
+function resetToDefault(configName) {
+    showConfirmModal(
+        'Reset Configuration', 
+        `Are you sure you want to reset "${configName}" to its default value? This action cannot be undone.`,
+        function() {
+            fetch(`${API_BASE}/${encodeURIComponent(configName)}/reset`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Configuration reset to default successfully', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('Error resetting configuration: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error resetting configuration', 'error');
+            });
+        }
+    );
+}
+
+// Export to CSV with current filters
+function exportToCSV() {
+    // Build URL with current filters
+    const url = new URL(window.location);
+    const params = new URLSearchParams(url.search);
+    
+    // Add export format parameter
+    params.set('format', 'csv');
+    
+    // Create download URL
+    const exportUrl = `${window.location.pathname}/export?${params.toString()}`;
+    
+    // Trigger download
+    window.location.href = exportUrl;
+}
+
+// Apply quick filter presets
+function applyQuickFilter(preset) {
+    const url = new URL(window.location);
+    const params = new URLSearchParams(url.search);
+    
+    // Clear existing filters
+    for (const key of [...params.keys()]) {
+        if (key.startsWith('filter_')) {
+            params.delete(key);
+        }
+    }
+    
+    // Apply preset filters based on the selected preset
+    switch(preset) {
+        // State presets
+        case 'active':
+            params.set('filter_valid_id', '1');
+            break;
+        case 'open':
+            params.set('filter_type_id', '2');
+            params.set('filter_valid_id', '1');
+            break;
+        case 'closed':
+            params.set('filter_type_id', '3,4'); // Both closed successful and unsuccessful
+            params.set('filter_valid_id', '1');
+            break;
+        case 'pending':
+            params.set('filter_type_id', '3');
+            params.set('filter_valid_id', '1');
+            break;
+            
+        // User presets
+        case 'active_users':
+            params.set('filter_valid_id', '1');
+            break;
+        case 'inactive_users':
+            params.set('filter_valid_id', '2');
+            break;
+        case 'agents':
+            params.set('filter_group_id', '1,2'); // Assuming groups 1 and 2 are agent groups
+            params.set('filter_valid_id', '1');
+            break;
+            
+        // Queue presets
+        case 'active_queues':
+            params.set('filter_valid_id', '1');
+            break;
+        case 'email_queues':
+            params.set('search', 'email');
+            params.set('filter_valid_id', '1');
+            break;
+    }
+    
+    // Apply the filters
+    url.search = params.toString();
+    window.location.href = url.toString();
+}
+
+// Clear all filters
+function clearAllFilters() {
+    const url = new URL(window.location);
+    const params = new URLSearchParams(url.search);
+    
+    // Remove all filter parameters and search
+    for (const key of [...params.keys()]) {
+        if (key.startsWith('filter_') || key === 'search') {
+            params.delete(key);
+        }
+    }
+    
+    url.search = params.toString();
+    window.location.href = url.toString();
+}
+
+// Bulk actions functions
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.item-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const selected = document.querySelectorAll('.item-checkbox:checked');
+    const bulkActions = document.getElementById('bulkActions');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    if (selected.length > 0) {
+        bulkActions.classList.remove('hidden');
+        selectedCount.textContent = selected.length;
+    } else {
+        bulkActions.classList.add('hidden');
+    }
+    
+    // Update select all checkbox state
+    const selectAll = document.getElementById('selectAll');
+    const allCheckboxes = document.querySelectorAll('.item-checkbox');
+    selectAll.checked = allCheckboxes.length > 0 && selected.length === allCheckboxes.length;
+    selectAll.indeterminate = selected.length > 0 && selected.length < allCheckboxes.length;
+}
+
+function getSelectedIds() {
+    const selected = document.querySelectorAll('.item-checkbox:checked');
+    return Array.from(selected).map(cb => cb.value);
+}
+
+function bulkToggleStatus() {
+    const ids = getSelectedIds();
+    if (ids.length === 0) return;
+    
+    showConfirmModal(
+        'Toggle Status',
+        `Are you sure you want to toggle the status of ${ids.length} item(s)?`,
+        function() {
+            // Process each selected item
+            Promise.all(ids.map(id => {
+                return fetch(`${API_BASE}/${id}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        const newStatus = data.data.valid_id == 1 ? 2 : 1;
+                        return fetch(`${API_BASE}/${id}`, {
+                            method: 'PUT',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ valid_id: newStatus })
+                        });
+                    }
+                });
+            })).then(() => {
+                showToast(`Status toggled for ${ids.length} item(s)`, 'success');
+                setTimeout(() => location.reload(), 1000);
+            }).catch(error => {
+                showToast('Error toggling status', 'error');
+            });
+        }
+    );
+}
+
+function bulkDelete() {
+    const ids = getSelectedIds();
+    if (ids.length === 0) return;
+    
+    showConfirmModal(
+        'Delete Items',
+        `Are you sure you want to delete ${ids.length} item(s)? This action cannot be undone.`,
+        function() {
+            Promise.all(ids.map(id => {
+                return fetch(`${API_BASE}/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+            })).then(() => {
+                showToast(`Deleted ${ids.length} item(s)`, 'success');
+                setTimeout(() => location.reload(), 1000);
+            }).catch(error => {
+                showToast('Error deleting items', 'error');
+            });
+        }
+    );
+}
+
+function exportSelected() {
+    const ids = getSelectedIds();
+    if (ids.length === 0) return;
+    
+    // Build URL with selected IDs
+    const url = new URL(window.location);
+    const params = new URLSearchParams(url.search);
+    params.set('format', 'csv');
+    params.set('ids', ids.join(','));
+    
+    const exportUrl = `${window.location.pathname}/export?${params.toString()}`;
+    window.location.href = exportUrl;
+}
+
+// Column Visibility Functions
+let columnVisibility = {};
+
+// Initialize column visibility from localStorage
+function initColumnVisibility() {
+    const savedVisibility = localStorage.getItem('columnVisibility_' + moduleConfig.name);
+    if (savedVisibility) {
+        columnVisibility = JSON.parse(savedVisibility);
+        applyColumnVisibility();
+    } else {
+        // Initialize all columns as visible
+        document.querySelectorAll('.column-toggle').forEach(cb => {
+            columnVisibility[cb.dataset.column] = true;
+        });
+    }
+}
+
+function toggleColumnMenu() {
+    const menu = document.getElementById('columnMenu');
+    if (menu) {
+        menu.classList.toggle('hidden');
+        // Close dropdown when clicking outside
+        if (!menu.classList.contains('hidden')) {
+            setTimeout(() => {
+                document.addEventListener('click', closeColumnMenu);
+            }, 100);
+        }
+    }
+}
+
+function closeColumnMenu(e) {
+    const menu = document.getElementById('columnMenu');
+    const button = e.target.closest('button');
+    if (menu && !menu.contains(e.target) && (!button || !button.onclick || !button.onclick.toString().includes('toggleColumnMenu'))) {
+        menu.classList.add('hidden');
+        document.removeEventListener('click', closeColumnMenu);
+    }
+}
+
+function toggleColumn(columnName) {
+    columnVisibility[columnName] = !columnVisibility[columnName];
+    applyColumnVisibility();
+    saveColumnVisibility();
+}
+
+function applyColumnVisibility() {
+    Object.keys(columnVisibility).forEach(columnName => {
+        const isVisible = columnVisibility[columnName];
+        
+        // Toggle header visibility
+        const headers = document.querySelectorAll(`th[data-column="${columnName}"]`);
+        headers.forEach(header => {
+            header.style.display = isVisible ? '' : 'none';
+        });
+        
+        // Toggle cell visibility
+        const cells = document.querySelectorAll(`td[data-column="${columnName}"]`);
+        cells.forEach(cell => {
+            cell.style.display = isVisible ? '' : 'none';
+        });
+        
+        // Update checkbox state
+        const checkbox = document.querySelector(`.column-toggle[data-column="${columnName}"]`);
+        if (checkbox) {
+            checkbox.checked = isVisible;
+        }
+    });
+}
+
+function saveColumnVisibility() {
+    localStorage.setItem('columnVisibility_' + moduleConfig.name, JSON.stringify(columnVisibility));
+}
+
+function showAllColumns() {
+    document.querySelectorAll('.column-toggle').forEach(cb => {
+        columnVisibility[cb.dataset.column] = true;
+        cb.checked = true;
+    });
+    applyColumnVisibility();
+    saveColumnVisibility();
+}
+
+function hideAllColumns() {
+    // Keep at least one column visible (first one)
+    let first = true;
+    document.querySelectorAll('.column-toggle').forEach(cb => {
+        columnVisibility[cb.dataset.column] = first;
+        cb.checked = first;
+        first = false;
+    });
+    applyColumnVisibility();
+    saveColumnVisibility();
+}
+
+function resetColumns() {
+    // Reset to default visibility (all visible)
+    document.querySelectorAll('.column-toggle').forEach(cb => {
+        columnVisibility[cb.dataset.column] = true;
+        cb.checked = true;
+    });
+    applyColumnVisibility();
+    localStorage.removeItem('columnVisibility_' + moduleConfig.name);
+}
+
+// Initialize column visibility on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initColumnVisibility();
+    initSavedFilters();
+});
+
+// Saved Filter Sets Functions
+let savedFilterSets = [];
+let currentFilterState = {};
+
+function initSavedFilters() {
+    // Load saved filter sets from localStorage
+    const saved = localStorage.getItem('savedFilterSets_' + moduleConfig.name);
+    if (saved) {
+        savedFilterSets = JSON.parse(saved);
+    }
+    updateSavedFiltersList();
+}
+
+function toggleSavedFiltersMenu() {
+    const menu = document.getElementById('savedFiltersMenu');
+    if (menu) {
+        menu.classList.toggle('hidden');
+        if (!menu.classList.contains('hidden')) {
+            setTimeout(() => {
+                document.addEventListener('click', closeSavedFiltersMenu);
+            }, 100);
+        }
+    }
+}
+
+function closeSavedFiltersMenu(e) {
+    const menu = document.getElementById('savedFiltersMenu');
+    const button = e.target.closest('button');
+    if (menu && !menu.contains(e.target) && (!button || !button.onclick || !button.onclick.toString().includes('toggleSavedFiltersMenu'))) {
+        menu.classList.add('hidden');
+        document.removeEventListener('click', closeSavedFiltersMenu);
+    }
+}
+
+function getCurrentFilterState() {
+    const state = {
+        search: document.getElementById('searchInput')?.value || '',
+        filters: {}
+    };
+    
+    // Collect all filter values
+    if (moduleConfig.filters) {
+        moduleConfig.filters.forEach(filter => {
+            if (filter.type === 'date_range') {
+                const fromValue = document.getElementById(filter.field + 'FilterFrom')?.value;
+                const toValue = document.getElementById(filter.field + 'FilterTo')?.value;
+                if (fromValue || toValue) {
+                    state.filters[filter.field] = { from: fromValue, to: toValue };
+                }
+            } else if (filter.type === 'multi_select') {
+                const select = document.getElementById(filter.field.toLowerCase() + 'Filter');
+                if (select) {
+                    const selected = Array.from(select.selectedOptions).map(o => o.value);
+                    if (selected.length > 0) {
+                        state.filters[filter.field] = selected;
+                    }
+                }
+            } else {
+                const value = document.getElementById(filter.field.toLowerCase() + 'Filter')?.value;
+                if (value && value !== '') {
+                    state.filters[filter.field] = value;
+                }
+            }
+        });
+    }
+    
+    // Add any legacy filter values (for users module fallback)
+    const statusFilter = document.getElementById('statusFilter');
+    const groupFilter = document.getElementById('groupFilter');
+    if (statusFilter && statusFilter.value) {
+        state.filters.status = statusFilter.value;
+    }
+    if (groupFilter && groupFilter.value) {
+        state.filters.group = groupFilter.value;
+    }
+    
+    return state;
+}
+
+function saveCurrentFilters() {
+    const form = document.getElementById('saveFilterForm');
+    const nameInput = document.getElementById('filterSetName');
+    if (form && nameInput) {
+        form.classList.remove('hidden');
+        nameInput.value = '';
+        nameInput.focus();
+    }
+}
+
+function confirmSaveFilters() {
+    const nameInput = document.getElementById('filterSetName');
+    const name = nameInput?.value.trim();
+    
+    if (!name) {
+        alert('{{ t("admin.common.filters.name_required") }}');
+        return;
+    }
+    
+    // Check if name already exists
+    if (savedFilterSets.some(set => set.name === name)) {
+        if (!confirm(`Filter set "${name}" already exists. Replace it?`)) {
+            return;
+        }
+        // Remove existing
+        savedFilterSets = savedFilterSets.filter(set => set.name !== name);
+    }
+    
+    // Save current filter state
+    const filterSet = {
+        name: name,
+        state: getCurrentFilterState(),
+        created: new Date().toISOString()
+    };
+    
+    savedFilterSets.push(filterSet);
+    saveFilterSetsToStorage();
+    updateSavedFiltersList();
+    
+    // Hide form
+    const form = document.getElementById('saveFilterForm');
+    if (form) {
+        form.classList.add('hidden');
+    }
+    
+    showToast('Filter set saved successfully', 'success');
+}
+
+function cancelSaveFilters() {
+    const form = document.getElementById('saveFilterForm');
+    if (form) {
+        form.classList.add('hidden');
+    }
+}
+
+function applyFilterSet(name) {
+    const filterSet = savedFilterSets.find(set => set.name === name);
+    if (!filterSet) return;
+    
+    const state = filterSet.state;
+    
+    // Apply search
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.value = state.search || '';
+    }
+    
+    // Apply filters
+    Object.keys(state.filters).forEach(field => {
+        const value = state.filters[field];
+        
+        if (typeof value === 'object' && value.from !== undefined) {
+            // Date range
+            const fromInput = document.getElementById(field + 'FilterFrom');
+            const toInput = document.getElementById(field + 'FilterTo');
+            if (fromInput) fromInput.value = value.from || '';
+            if (toInput) toInput.value = value.to || '';
+        } else if (Array.isArray(value)) {
+            // Multi-select
+            const select = document.getElementById(field.toLowerCase() + 'Filter');
+            if (select) {
+                Array.from(select.options).forEach(option => {
+                    option.selected = value.includes(option.value);
+                });
+            }
+        } else {
+            // Regular select
+            const element = document.getElementById(field.toLowerCase() + 'Filter') || 
+                          document.getElementById(field + 'Filter');
+            if (element) {
+                element.value = value;
+            }
+        }
+    });
+    
+    // Apply legacy filters
+    if (state.filters.status) {
+        const statusFilter = document.getElementById('statusFilter');
+        if (statusFilter) statusFilter.value = state.filters.status;
+    }
+    if (state.filters.group) {
+        const groupFilter = document.getElementById('groupFilter');
+        if (groupFilter) groupFilter.value = state.filters.group;
+    }
+    
+    // Trigger filter update
+    filterTable();
+    
+    // Close menu
+    const menu = document.getElementById('savedFiltersMenu');
+    if (menu) {
+        menu.classList.add('hidden');
+    }
+}
+
+function deleteFilterSet(name) {
+    if (confirm(`Delete filter set "${name}"?`)) {
+        savedFilterSets = savedFilterSets.filter(set => set.name !== name);
+        saveFilterSetsToStorage();
+        updateSavedFiltersList();
+        showToast('Filter set deleted', 'info');
+    }
+}
+
+function clearAllFilterSets() {
+    if (confirm('Delete all saved filter sets?')) {
+        savedFilterSets = [];
+        saveFilterSetsToStorage();
+        updateSavedFiltersList();
+        showToast('All filter sets cleared', 'info');
+    }
+}
+
+function saveFilterSetsToStorage() {
+    localStorage.setItem('savedFilterSets_' + moduleConfig.name, JSON.stringify(savedFilterSets));
+}
+
+function updateSavedFiltersList() {
+    const listContainer = document.getElementById('savedFiltersList');
+    const countSpan = document.getElementById('filterSetCount');
+    
+    if (!listContainer) return;
+    
+    if (savedFilterSets.length === 0) {
+        listContainer.innerHTML = '<div class="text-sm text-gray-500 dark:text-gray-400 text-center py-2">No saved filter sets</div>';
+    } else {
+        listContainer.innerHTML = savedFilterSets.map(set => `
+            <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600 group">
+                <button onclick="applyFilterSet('${set.name.replace(/'/g, "\\'")}')" 
+                        class="flex-1 text-left text-sm text-gray-700 dark:text-gray-300">
+                    <div class="font-medium">${set.name}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                        ${new Date(set.created).toLocaleDateString()}
+                    </div>
+                </button>
+                <button onclick="deleteFilterSet('${set.name.replace(/'/g, "\\'")}')" 
+                        class="ml-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </button>
+            </div>
+        `).join('');
+    }
+    
+    if (countSpan) {
+        countSpan.textContent = `${savedFilterSets.length} saved filter set${savedFilterSets.length !== 1 ? 's' : ''}`;
+    }
+}
+
+function showToast(message, type = 'info') {
+    // Simple toast notification - you can enhance this
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-md text-white z-50 ${
+        type === 'success' ? 'bg-green-500' : 
+        type === 'error' ? 'bg-red-500' : 
+        'bg-blue-500'
+    }`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+// Inline Editing Functions
+let currentEditingElement = null;
+
+function initInlineEdit() {
+    // Add tooltips for editable fields
+    document.querySelectorAll('.inline-edit-display').forEach(el => {
+        el.title = 'Double-click to edit';
+    });
+}
+
+function startInlineEdit(displayElement) {
+    // Don't allow multiple edits at once
+    if (currentEditingElement) {
+        saveInlineEdit(currentEditingElement.nextElementSibling);
+    }
+    
+    const container = displayElement.parentElement;
+    const inputElement = container.querySelector('.inline-edit-input');
+    
+    // Hide display, show input
+    displayElement.classList.add('hidden');
+    inputElement.classList.remove('hidden');
+    inputElement.focus();
+    inputElement.select();
+    
+    currentEditingElement = displayElement;
+}
+
+function saveInlineEdit(inputElement) {
+    const container = inputElement.parentElement;
+    const displayElement = container.querySelector('.inline-edit-display');
+    const field = displayElement.dataset.field;
+    const itemId = displayElement.dataset.itemId;
+    const oldValue = displayElement.dataset.value;
+    const newValue = inputElement.value.trim();
+    
+    // If value hasn't changed, just cancel
+    if (newValue === oldValue) {
+        cancelInlineEdit(inputElement);
+        return;
+    }
+    
+    // Show saving state
+    displayElement.classList.add('inline-edit-saving');
+    displayElement.textContent = 'Saving...';
+    displayElement.classList.remove('hidden');
+    inputElement.classList.add('hidden');
+    
+    // Make API call to save
+    const url = `${window.location.pathname}/${itemId}`;
+    const data = {};
+    data[field] = newValue;
+    
+    fetch(url, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to save');
+        }
+        return response.json();
+    })
+    .then(result => {
+        // Success - update display
+        displayElement.textContent = newValue || '-';
+        displayElement.dataset.value = newValue;
+        inputElement.value = newValue;
+        displayElement.classList.remove('inline-edit-saving');
+        displayElement.classList.add('inline-edit-success');
+        
+        // Remove success animation after delay
+        setTimeout(() => {
+            displayElement.classList.remove('inline-edit-success');
+        }, 500);
+        
+        showToast('Field updated successfully', 'success');
+    })
+    .catch(error => {
+        // Error - revert to old value
+        displayElement.textContent = oldValue || '-';
+        inputElement.value = oldValue;
+        displayElement.classList.remove('inline-edit-saving');
+        displayElement.classList.add('inline-edit-error');
+        
+        // Remove error animation after delay
+        setTimeout(() => {
+            displayElement.classList.remove('inline-edit-error');
+        }, 500);
+        
+        showToast('Failed to save changes', 'error');
+    })
+    .finally(() => {
+        currentEditingElement = null;
+    });
+}
+
+function cancelInlineEdit(inputElement) {
+    const container = inputElement.parentElement;
+    const displayElement = container.querySelector('.inline-edit-display');
+    const oldValue = displayElement.dataset.value;
+    
+    // Revert input value and hide
+    inputElement.value = oldValue;
+    inputElement.classList.add('hidden');
+    displayElement.classList.remove('hidden');
+    
+    currentEditingElement = null;
+}
+
+function handleInlineEditKey(event, inputElement) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        saveInlineEdit(inputElement);
+    } else if (event.key === 'Escape') {
+        event.preventDefault();
+        cancelInlineEdit(inputElement);
+    }
+}
+
+// Click outside to save inline edit
+document.addEventListener('click', function(e) {
+    if (currentEditingElement) {
+        const container = currentEditingElement.parentElement;
+        if (!container.contains(e.target)) {
+            saveInlineEdit(currentEditingElement.nextElementSibling);
+        }
+    }
+});
+
+// Initialize everything on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initColumnVisibility();
+    initSavedFilters();
+    initInlineEdit();
+});
+
+// ESC key to close modals and menus
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeModal();
+        const columnMenu = document.getElementById('columnMenu');
+        if (columnMenu && !columnMenu.classList.contains('hidden')) {
+            columnMenu.classList.add('hidden');
+        }
+        const savedFiltersMenu = document.getElementById('savedFiltersMenu');
+        if (savedFiltersMenu && !savedFiltersMenu.classList.contains('hidden')) {
+            savedFiltersMenu.classList.add('hidden');
+        }
+        const saveFilterForm = document.getElementById('saveFilterForm');
+        if (saveFilterForm && !saveFilterForm.classList.contains('hidden')) {
+            saveFilterForm.classList.add('hidden');
+        }
     }
 });
 </script>

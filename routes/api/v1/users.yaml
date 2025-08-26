@@ -1,0 +1,110 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: api-v1-users
+  description: REST API v1 user endpoints
+  namespace: api
+  enabled: true
+  labels:
+    environment: all
+    version: v1
+    api: rest
+
+spec:
+  prefix: /api/v1
+  middleware:
+    - cors
+    - auth
+  
+  routes:
+    - path: /users/me
+      method: GET
+      handler: api_v1_user_me
+      name: Get Current User
+      description: Get current authenticated user info
+      openapi:
+        summary: Get current user
+        tags: [API v1, Users]
+        security:
+          - bearerAuth: []
+        responses:
+          200: Success
+          401: Unauthorized
+          
+    - path: /users
+      method: GET
+      handler: api_v1_users_list
+      name: List Users
+      description: Get list of users
+      middleware:
+        - admin
+      openapi:
+        summary: List users
+        tags: [API v1, Users]
+        responses:
+          200: UserList
+          403: Forbidden
+          
+    - path: /users/:id
+      method: GET
+      handler: api_v1_user_get
+      name: Get User
+      description: Get user by ID
+      params:
+        id:
+          type: int
+          required: true
+      middleware:
+        - admin
+      openapi:
+        summary: Get user details
+        tags: [API v1, Users]
+        responses:
+          200: Success
+          404: NotFound
+          403: Forbidden
+          
+    - path: /users
+      method: POST
+      handler: api_v1_user_create
+      name: Create User
+      description: Create new user
+      middleware:
+        - admin
+      openapi:
+        summary: Create user
+        tags: [API v1, Users]
+        responses:
+          201: Created
+          400: BadRequest
+          403: Forbidden
+          
+    - path: /users/:id
+      method: PUT
+      handler: api_v1_user_update
+      name: Update User
+      description: Update existing user
+      middleware:
+        - admin
+      openapi:
+        summary: Update user
+        tags: [API v1, Users]
+        responses:
+          200: Success
+          404: NotFound
+          403: Forbidden
+          
+    - path: /users/:id
+      method: DELETE
+      handler: api_v1_user_delete
+      name: Delete User
+      description: Delete user
+      middleware:
+        - admin
+      openapi:
+        summary: Delete user
+        tags: [API v1, Users]
+        responses:
+          204: NoContent
+          404: NotFound
+          403: Forbidden

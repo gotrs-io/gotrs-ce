@@ -1,15 +1,15 @@
 module:
     name: salutation
-    singular: Salutation
-    plural: Salutations
+    singular: "@admin.modules.salutation.singular"
+    plural: "@admin.modules.salutation.plural"
     table: salutation
-    description: Manage Salutations
+    description: "@admin.modules.salutation.description"
     route_prefix: /admin/dynamic/salutation
 fields:
     - name: id
       type: integer
       db_column: id
-      label: Id
+      label: "@admin.modules.salutation.fields.id.label"
       required: false
       searchable: false
       sortable: true
@@ -22,7 +22,7 @@ fields:
     - name: name
       type: string
       db_column: name
-      label: Name
+      label: "@admin.modules.salutation.fields.name.label"
       required: true
       searchable: true
       sortable: true
@@ -35,7 +35,7 @@ fields:
     - name: text
       type: textarea
       db_column: text
-      label: Text
+      label: "@admin.modules.salutation.fields.text.label"
       required: true
       searchable: true
       sortable: false
@@ -48,7 +48,7 @@ fields:
     - name: content_type
       type: string
       db_column: content_type
-      label: Content Type
+      label: "@admin.modules.salutation.fields.content_type.label"
       required: false
       searchable: true
       sortable: true
@@ -141,8 +141,21 @@ features:
     search: true
     import_csv: false
     export_csv: true
-    status_toggle: false
+    status_toggle: true
     color_picker: false
+    filters: true
+
+filters:
+    - field: valid_id
+      type: select
+      label: Status
+      options:
+        - value: ""
+          label: "All Salutations"
+        - value: "1"
+          label: "Valid"
+        - value: "2"
+          label: "Invalid"
 permissions: []
 validation:
     unique_fields:

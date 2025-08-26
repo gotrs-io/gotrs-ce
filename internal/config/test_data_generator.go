@@ -221,7 +221,7 @@ func (g *TestDataGenerator) generateSQL() error {
 
 	// Add remaining test data (groups, tickets, etc.)
 	fmt.Fprintf(file, `-- Add agents to users group
-INSERT INTO user_groups (user_id, group_id, permission_key, permission_value, create_by, change_by) 
+INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_by, change_by) 
 SELECT id, 2, 'rw', 1, 1, 1 FROM users WHERE login IN ('admin', 'agent.smith', 'agent.jones')
 ON CONFLICT DO NOTHING;
 

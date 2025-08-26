@@ -54,28 +54,69 @@ func getUserIDFromContext(c *gin.Context) int {
 func getUserFromContext(c *gin.Context) *models.User {
 	userInterface, exists := c.Get("user")
 	if !exists {
-		return &models.User{
+		// Create user from context values
+		userID, _ := c.Get("user_id")
+		userEmail, _ := c.Get("user_email")
+		userRole, _ := c.Get("user_role")
+		
+		user := &models.User{
 			ID:    1,
 			Login: "admin",
 			Email: "admin@localhost",
+			Role:  "Admin", // Default role
 		}
+		
+		// Set values from context if available
+		if id, ok := userID.(int); ok {
+			user.ID = uint(id)
+		}
+		if email, ok := userEmail.(string); ok {
+			user.Email = email
+			if user.Login == "admin" && email != "" {
+				user.Login = email
+			}
+		}
+		if role, ok := userRole.(string); ok {
+			user.Role = role
+		}
+		
+		return user
 	}
 	
 	// Try to cast to *models.User
 	if user, ok := userInterface.(*models.User); ok {
+		// Also check for role in context
+		if userRole, exists := c.Get("user_role"); exists {
+			if role, ok := userRole.(string); ok {
+				user.Role = role
+			}
+		}
 		return user
 	}
 	
 	// Try to cast to models.User
 	if user, ok := userInterface.(models.User); ok {
+		// Also check for role in context
+		if userRole, exists := c.Get("user_role"); exists {
+			if role, ok := userRole.(string); ok {
+				user.Role = role
+			}
+		}
 		return &user
 	}
 	
-	// Return default user
+	// Return default user with role from context
+	userRole, _ := c.Get("user_role")
+	role := "Admin"
+	if r, ok := userRole.(string); ok {
+		role = r
+	}
+	
 	return &models.User{
 		ID:    1,
 		Login: "admin",
 		Email: "admin@localhost",
+		Role:  role,
 	}
 }
 

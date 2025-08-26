@@ -1,0 +1,20 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: admin-tickets
+  description: Admin ticket management routes
+  namespace: admin
+  enabled: true
+
+spec:
+  prefix: /admin
+  middleware:
+    - auth
+    - admin
+  
+  routes:
+    - path: /tickets
+      method: GET
+      handler: admin_tickets
+      name: Admin Tickets
+      description: View and manage all tickets in the system

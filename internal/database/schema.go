@@ -136,7 +136,7 @@ func (c *SchemaConverter) getTableList() ([]string, error) {
 	// This is a simplified version - in practice, we'd query the database
 	// for actual table names from information_schema
 	return []string{
-		"users", "groups", "user_groups",
+		"users", "groups", "group_user",
 		"customer_company", "customer_user", 
 		"queue", "ticket_priority", "ticket_state", "ticket_type",
 		"ticket", "article", "article_data_mime",

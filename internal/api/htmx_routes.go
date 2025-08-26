@@ -48,7 +48,14 @@ func generateSalt() string {
 
 // verifyPassword checks if a password matches a hashed password (with or without salt)
 func verifyPassword(password, hashedPassword string) bool {
-	// Check if it's a salted hash (format: sha256$salt$hash)
+	// Check if it's a bcrypt hash (starts with $2a$, $2b$, or $2y$)
+	if strings.HasPrefix(hashedPassword, "$2a$") || strings.HasPrefix(hashedPassword, "$2b$") || strings.HasPrefix(hashedPassword, "$2y$") {
+		// Use bcrypt to compare
+		err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+		return err == nil
+	}
+	
+	// Check if it's a salted SHA256 hash (format: sha256$salt$hash)
 	parts := strings.Split(hashedPassword, "$")
 	if len(parts) == 3 && parts[0] == "sha256" {
 		// Extract salt and hash
@@ -354,7 +361,7 @@ func getUserMapForTemplate(c *gin.Context) gin.H {
 				var count int
 				err = db.QueryRow(`
 					SELECT COUNT(*) 
-					FROM user_groups ug 
+					FROM group_user ug 
 					JOIN groups g ON ug.group_id = g.id 
 					WHERE ug.user_id = $1 AND g.name = 'admin'`,
 					userIDVal).Scan(&count)
@@ -448,7 +455,7 @@ func checkAdmin() gin.HandlerFunc {
 				var count int
 				err = db.QueryRow(`
 					SELECT COUNT(*) 
-					FROM user_groups ug 
+					FROM group_user ug 
 					JOIN groups g ON ug.group_id = g.id 
 					WHERE ug.user_id = $1 AND g.name = 'admin'`,
 					userID).Scan(&count)
@@ -609,10 +616,11 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 	})
 
 	// Public routes (no auth required)
-	r.GET("/login", handleLoginPage)
-	r.POST("/login", handleLogin(jwtManager))
-	r.GET("/logout", handleLogout)
-	r.POST("/logout", handleLogout)
+	// Commented out - now handled by YAML routes
+	// r.GET("/login", handleLoginPage)
+	// r.POST("/login", handleLogin(jwtManager))
+	// r.GET("/logout", handleLogout)
+	// r.POST("/logout", handleLogout)
 
 	// Protected routes - require authentication
 	protected := r.Group("")
@@ -625,14 +633,15 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 	}
 
 	// Dashboard and main pages
-	protected.GET("/dashboard", handleDashboard)
+	// Commented out - now handled by YAML routes
+	// protected.GET("/dashboard", handleDashboard)
 	protected.GET("/tickets", handleTickets)
 	protected.GET("/ticket/new", handleNewTicket)
 	protected.GET("/tickets/new", handleNewTicket)  // Plural URL pattern
 	protected.GET("/claude-chat-demo", handleClaudeChatDemo)  // Claude chat demo page
 	
 	// WebSocket for real-time chat
-	protected.GET("/ws/chat", handleWebSocketChat)
+	protected.GET("/ws/chat", HandleWebSocketChat)
 	protected.GET("/ticket/:id", handleTicketDetail)
 	protected.GET("/queues", handleQueues)
 	protected.GET("/queues/:id", handleQueueDetail)
@@ -890,6 +899,31 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		protectedAPI.GET("/dashboard/performance", handlePerformance)
 	}
 	
+	// Queue management endpoints
+	{
+		protectedAPI.GET("/queues/:id", HandleAPIQueueGet)
+		protectedAPI.GET("/queues/:id/details", HandleAPIQueueDetails)
+		protectedAPI.PUT("/queues/:id/status", HandleAPIQueueStatus)
+	}
+	
+	// Agent Interface Routes
+	agentRoutes := protected.Group("/agent")
+	{
+		// Get database connection for agent routes
+		if db, err := database.GetDB(); err == nil {
+			RegisterAgentRoutes(agentRoutes, db)
+		}
+	}
+	
+	// Customer Portal Routes
+	customerRoutes := protected.Group("/customer")
+	{
+		// Get database connection for customer routes
+		if db, err := database.GetDB(); err == nil {
+			RegisterCustomerRoutes(customerRoutes, db)
+		}
+	}
+	
 	// Ticket endpoints
 	{
 		protectedAPI.GET("/tickets", handleAPITickets)
@@ -1090,8 +1124,12 @@ func handleLoginPage(c *gin.Context) {
 		return
 	}
 	
+	// Check for error in query parameter
+	errorMsg := c.Query("error")
+	
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/login.pongo2", pongo2.Context{
 		"Title": "Login - GOTRS",
+		"error": errorMsg,
 	})
 }
 
@@ -2303,11 +2341,11 @@ func handleGetAvailableAgents(c *gin.Context) {
 	}
 	
 	// Query to get agents who have permissions for the ticket's queue
-	// This joins ticket -> queue -> groups -> user_groups -> users
+	// This joins ticket -> queue -> groups -> group_user -> users
 	query := `
 		SELECT DISTINCT u.id, u.login, u.first_name, u.last_name
 		FROM users u
-		INNER JOIN user_groups ug ON u.id = ug.user_id
+		INNER JOIN group_user ug ON u.id = ug.user_id
 		INNER JOIN queue q ON q.group_id = ug.group_id
 		INNER JOIN ticket t ON t.queue_id = q.id
 		WHERE t.id = $1
@@ -3070,19 +3108,24 @@ func handleSchemaMonitoring(c *gin.Context) {
 
 // handleAdminUsers shows the admin users page
 func handleAdminUsers(c *gin.Context) {
+	fmt.Println("DEBUG: handleAdminUsers - Starting")
 	db, err := database.GetDB()
 	if err != nil {
+		fmt.Printf("DEBUG: handleAdminUsers - Database connection failed: %v\n", err)
 		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
 		return
 	}
 	
+	fmt.Println("DEBUG: handleAdminUsers - Database connected, fetching users")
 	// Get users from database with their groups
 	userRepo := repository.NewUserRepository(db)
 	users, err := userRepo.ListWithGroups()
 	if err != nil {
-		sendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch users")
+		fmt.Printf("DEBUG: handleAdminUsers - Failed to fetch users: %v\n", err)
+		sendErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to fetch users: %v", err))
 		return
 	}
+	fmt.Printf("DEBUG: handleAdminUsers - Fetched %d users\n", len(users))
 	
 	// Get groups for filter
 	groupRepo := repository.NewGroupRepository(db)
@@ -3138,6 +3181,19 @@ func handleAdminUsers(c *gin.Context) {
 		"GroupFilter":  groupFilter,
 		"User":         getUserMapForTemplate(c),
 		"ActivePage":   "admin",
+		"t": func(key string) string {
+			// Simple translation fallback - just return the key for now
+			translations := map[string]string{
+				"admin.users": "Users",
+				"app.name": "GOTRS",
+				"admin.users_description": "Manage system users and their permissions",
+				"admin.add_user_tooltip": "Add new user",
+			}
+			if val, ok := translations[key]; ok {
+				return val
+			}
+			return key
+		},
 	})
 }
 
@@ -4958,6 +5014,9 @@ func handleClaudeFeedback(c *gin.Context) {
 		Context struct {
 			Page             string `json:"page"`
 			URL              string `json:"url"`
+			CurrentURL       string `json:"currentUrl"`      // Added field
+			CurrentPath      string `json:"currentPath"`     // Added field
+			PageTitle        string `json:"pageTitle"`       // Added field
 			Timestamp        string `json:"timestamp"`
 			UserAgent        string `json:"userAgent"`
 			ScreenResolution string `json:"screenResolution"`
@@ -5056,8 +5115,24 @@ func handleClaudeFeedback(c *gin.Context) {
 	// Build detailed description with context
 	var description strings.Builder
 	description.WriteString(fmt.Sprintf("Message: %s\n\n", feedback.Message))
-	description.WriteString(fmt.Sprintf("Page: %s\n", feedback.Context.Page))
-	description.WriteString(fmt.Sprintf("URL: %s\n", feedback.Context.URL))
+	
+	// Use CurrentURL/CurrentPath if available, fallback to URL/Page
+	if feedback.Context.CurrentURL != "" {
+		description.WriteString(fmt.Sprintf("Current URL: %s\n", feedback.Context.CurrentURL))
+	} else if feedback.Context.URL != "" {
+		description.WriteString(fmt.Sprintf("URL: %s\n", feedback.Context.URL))
+	}
+	
+	if feedback.Context.CurrentPath != "" {
+		description.WriteString(fmt.Sprintf("Current Path: %s\n", feedback.Context.CurrentPath))
+	} else if feedback.Context.Page != "" {
+		description.WriteString(fmt.Sprintf("Page: %s\n", feedback.Context.Page))
+	}
+	
+	if feedback.Context.PageTitle != "" {
+		description.WriteString(fmt.Sprintf("Page Title: %s\n", feedback.Context.PageTitle))
+	}
+	
 	description.WriteString(fmt.Sprintf("Timestamp: %s\n", feedback.Timestamp))
 	description.WriteString(fmt.Sprintf("User Agent: %s\n", feedback.Context.UserAgent))
 	description.WriteString(fmt.Sprintf("Screen: %s, Viewport: %s\n", 
@@ -5124,23 +5199,43 @@ func handleClaudeFeedback(c *gin.Context) {
 		return
 	}
 
-	// Create article (ticket body) with the detailed description
-	_, err = db.Exec(`
+	// Create article first (without content - that goes in article_data_mime)
+	var articleID int64
+	err = db.QueryRow(`
 		INSERT INTO article (
 			ticket_id, article_type_id, article_sender_type_id,
-			a_from, a_to, a_subject, a_body,
-			a_content_type, incoming_time,
+			communication_channel_id, is_visible_for_customer,
 			create_time, create_by, change_time, change_by
 		) VALUES (
 			$1, 1, 3,
-			$2, 'Claude Code Queue', $3, $4,
-			'text/plain', 0,
-			CURRENT_TIMESTAMP, $5, CURRENT_TIMESTAMP, $5
-		)`,
-		ticketID, feedback.Context.User, title, description.String(), userID)
+			1, 1,
+			CURRENT_TIMESTAMP, $2, CURRENT_TIMESTAMP, $2
+		) RETURNING id`,
+		ticketID, userID).Scan(&articleID)
 	
 	if err != nil {
 		log.Printf("Failed to create article: %v", err)
+	} else {
+		// Now create the article_data_mime entry with the actual content and context
+		_, err = db.Exec(`
+			INSERT INTO article_data_mime (
+				article_id, a_from, a_to, a_subject, a_body,
+				a_content_type, incoming_time,
+				create_time, create_by, change_time, change_by
+			) VALUES (
+				$1, $2, 'Claude Code Queue', $3, $4,
+				'text/plain; charset=utf-8', 0,
+				CURRENT_TIMESTAMP, $5, CURRENT_TIMESTAMP, $5
+			)`,
+			articleID, 
+			feedback.Context.User, 
+			title, 
+			[]byte(description.String()), // a_body is bytea type
+			userID)
+		
+		if err != nil {
+			log.Printf("Failed to create article_data_mime: %v", err)
+		}
 	}
 
 	log.Printf("Created ticket #%s (ID: %d) in Claude Code queue", ticketNumber, ticketID)

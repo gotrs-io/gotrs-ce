@@ -1,0 +1,219 @@
+# System Configuration module
+module:
+  name: sysconfig
+  singular: System Configuration
+  plural: System Configuration
+  table: sysconfig_default
+  description: Manage system configuration settings
+  route_prefix: /admin/sysconfig
+
+fields:
+  - name: id
+    type: int
+    db_column: id
+    label: ID
+    show_in_list: false
+    show_in_form: false
+    sortable: false
+
+  - name: name
+    type: string
+    db_column: name
+    label: Setting Name
+    required: true
+    searchable: true
+    sortable: true
+    show_in_list: true
+    show_in_form: false
+    readonly: true
+    list_class: "font-mono text-sm"
+    list_position: 1
+
+  - name: navigation
+    type: string
+    db_column: navigation
+    label: Category
+    show_in_list: true
+    show_in_form: false
+    filterable: true
+    sortable: true
+    list_position: 2
+    display_as: chip
+
+  - name: description
+    type: text
+    db_column: description
+    label: Description
+    show_in_list: true
+    show_in_form: true
+    list_position: 3
+    list_class: "text-sm text-gray-600"
+
+  - name: effective_value
+    type: string
+    db_column: effective_value
+    label: Current Value
+    show_in_list: true
+    show_in_form: true
+    list_position: 4
+    list_class: "font-mono text-sm"
+    help: "Current effective value of this setting"
+
+  - name: is_readonly
+    type: boolean
+    db_column: is_readonly
+    label: Read Only
+    show_in_list: true
+    show_in_form: false
+    list_position: 5
+    display_as: chip
+
+  - name: has_configlevel
+    type: int
+    db_column: has_configlevel
+    label: Config Level
+    show_in_list: false
+    show_in_form: false
+
+  - name: user_modification_possible
+    type: boolean
+    db_column: user_modification_possible
+    label: User Modifiable
+    show_in_list: true
+    show_in_form: false
+    list_position: 6
+    display_as: chip
+
+  - name: xml_content_parsed
+    type: text
+    db_column: xml_content_parsed
+    label: Configuration Data
+    show_in_list: false
+    show_in_form: false
+
+  - name: create_time
+    type: datetime
+    db_column: create_time
+    label: Created
+    show_in_list: false
+    show_in_form: false
+    sortable: true
+
+  - name: change_time
+    type: datetime
+    db_column: change_time
+    label: Modified
+    show_in_list: false
+    show_in_form: false
+    sortable: true
+
+computed_fields:
+  - name: actions
+    label: Actions
+    show_in_list: true
+    list_position: 7
+    lambda: |
+      var html = '<div class="flex items-center space-x-2">';
+      
+      // Show edit button only if modification is possible
+      if (item.user_modification_possible && !item.is_readonly) {
+        html += '<button onclick="editConfig(\'' + item.name + '\')" ';
+        html += 'class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300" ';
+        html += 'title="Edit Configuration">';
+        html += '<i class="fas fa-edit"></i>';
+        html += '</button>';
+      }
+      
+      // View details button
+      html += '<button onclick="viewConfigDetails(\'' + item.name + '\')" ';
+      html += 'class="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300" ';
+      html += 'title="View Details">';
+      html += '<i class="fas fa-info-circle"></i>';
+      html += '</button>';
+      
+      // Reset to default button (if modified)
+      if (item.user_modification_possible && !item.is_readonly) {
+        html += '<button onclick="resetToDefault(\'' + item.name + '\')" ';
+        html += 'class="text-orange-600 hover:text-orange-800 dark:text-orange-400 dark:hover:text-orange-300" ';
+        html += 'title="Reset to Default">';
+        html += '<i class="fas fa-undo"></i>';
+        html += '</button>';
+      }
+      
+      html += '</div>';
+      return html;
+
+  - name: modified_status
+    label: Status
+    show_in_list: true
+    list_position: 8
+    lambda: |
+      var html = '';
+      
+      // Check if this setting has been modified
+      // This would need to be joined with sysconfig_modified table in a real implementation
+      
+      if (item.user_modification_possible) {
+        if (item.is_readonly) {
+          html += '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">';
+          html += '<i class="fas fa-lock mr-1"></i>Read Only';
+          html += '</span>';
+        } else {
+          html += '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-200">';
+          html += '<i class="fas fa-edit mr-1"></i>Editable';
+          html += '</span>';
+        }
+      } else {
+        html += '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-200">';
+        html += '<i class="fas fa-cog mr-1"></i>System';
+        html += '</span>';
+      }
+      
+      return html;
+
+features:
+  soft_delete: false
+  search: true
+  import_csv: false
+  export_csv: true
+  status_toggle: false
+  color_picker: false
+  filters: true
+
+filters:
+  - field: navigation
+    type: select
+    label: Category
+    source: database
+    query: "SELECT DISTINCT navigation, navigation FROM sysconfig_default ORDER BY navigation"
+  
+  - field: user_modification_possible
+    type: select
+    label: Modifiable
+    options:
+      - value: ""
+        label: "All Settings"
+      - value: "1"
+        label: "User Modifiable"
+      - value: "0"
+        label: "System Only"
+  
+  - field: is_readonly
+    type: select
+    label: Access
+    options:
+      - value: ""
+        label: "All Access Levels"
+      - value: "0"
+        label: "Editable"
+      - value: "1"
+        label: "Read Only"
+
+permissions:
+  - view
+  - update
+
+validation:
+  required_fields:
+    - name
+    - effective_value

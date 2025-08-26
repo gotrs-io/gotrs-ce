@@ -1,0 +1,47 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: agent-customers
+  description: Agent customer management
+  namespace: agent
+  enabled: true
+  labels:
+    environment: all
+    security: agent
+
+spec:
+  prefix: "/agent"
+  middleware:
+    - auth
+    - agent
+  
+  routes:
+    - path: /customers
+      method: GET
+      handler: agent_customers
+      name: Agent Customers
+      description: List customers
+      
+    - path: /customers/:id
+      method: GET
+      handler: agent_customer_view
+      name: View Customer
+      description: View customer details
+      
+    - path: /customers/:id/tickets
+      method: GET
+      handler: agent_customer_tickets
+      name: Customer Tickets
+      description: List customer's tickets
+      
+    - path: /search
+      method: GET
+      handler: agent_search
+      name: Agent Search
+      description: Search interface
+      
+    - path: /search
+      method: POST
+      handler: agent_search_results
+      name: Search Results
+      description: Execute search and show results

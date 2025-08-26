@@ -193,8 +193,21 @@ features:
     search: true
     import_csv: false
     export_csv: true
-    status_toggle: false
+    status_toggle: true
     color_picker: false
+    filters: true
+
+filters:
+    - field: valid_id
+      type: select
+      label: Status
+      options:
+        - value: ""
+          label: "All Mail Accounts"
+        - value: "1"
+          label: "Valid"
+        - value: "2"
+          label: "Invalid"
 permissions: []
 validation:
     unique_fields: []

@@ -1,0 +1,79 @@
+# GoatKit - Container for GOTRS Configuration Management
+FROM golang:1.23-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates
+
+WORKDIR /app
+
+# Copy go modules
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build GoatKit CLI
+RUN CGO_ENABLED=0 go build -o /usr/local/bin/gk ./cmd/gk
+
+# Production image
+FROM alpine:3.18
+
+RUN apk add --no-cache ca-certificates bash git
+
+# Create non-root user (uid 1000 for podman compatibility)
+RUN adduser -D -s /bin/sh -u 1000 goat
+
+# Copy GoatKit binary
+COPY --from=builder /usr/local/bin/gk /usr/local/bin/
+
+# Create config directories with proper ownership
+RUN mkdir -p /app/config /app/routes /app/dashboards /app/.versions && \
+    chown -R goat:goat /app
+
+# Create the GoatKit wrapper with ASCII art
+RUN cat > /usr/local/bin/goatkit << 'EOF'
+#!/bin/bash
+
+# GoatKit - YAML Configuration Management for GOTRS
+set -e
+
+# Show banner on first run or help
+if [ $# -eq 0 ] || [ "$1" = "help" ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    cat << 'BANNER'
+
+   ___________  ___  _________ __ __ ______ 
+  / ____/ __ \/   |/_  __/ __ \/ //_//  _/ /_
+ / / __/ / / / /| | / / / /_/ / ,<   / // __/
+/ /_/ / /_/ / ___ |/ / / _, _/ /| |_/ // /_  
+\____/\____/_/  |_/_/ /_/ |_/_/ |_/___/\__/  
+                                              
+  🐐 YAML Configuration Management for GOTRS
+
+BANNER
+fi
+
+# Set environment
+export GOATKIT_CONFIG_DIR=${GOATKIT_CONFIG_DIR:-/app/config}
+
+# Run gk with all arguments
+exec gk "$@"
+EOF
+
+RUN chmod +x /usr/local/bin/goatkit
+
+# Create a symlink for convenience
+RUN ln -s /usr/local/bin/goatkit /usr/local/bin/goat
+
+# Set up working directory
+WORKDIR /app
+
+# Switch to non-root user
+USER goat
+
+# Set environment
+ENV GOATKIT_CONFIG_DIR=/app/config
+
+# Default entrypoint
+ENTRYPOINT ["/usr/local/bin/goatkit"]
+CMD ["help"]

@@ -1,0 +1,43 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: agent-dashboard
+  description: Agent dashboard and statistics endpoints
+  namespace: agent
+  enabled: true
+  labels:
+    environment: all
+    interface: agent
+    
+spec:
+  prefix: /agent
+  middleware:
+    - auth
+    - agent
+    
+  routes:
+    # Main dashboard
+    - path: /dashboard
+      method: GET
+      handler: handleAgentDashboard
+      name: Agent Dashboard
+      description: Main agent dashboard with statistics and quick actions
+      openapi:
+        summary: Get agent dashboard
+        tags: [Agent Interface]
+        responses:
+          200: AgentDashboard
+          
+    # Statistics and reports
+    - path: /stats
+      method: GET
+      handler: handleAgentStatistics
+      name: Agent Statistics
+      description: Get agent performance statistics
+      features:
+        - statistics
+      params:
+        period:
+          type: string
+          enum: [today, week, month, year]
+          default: month

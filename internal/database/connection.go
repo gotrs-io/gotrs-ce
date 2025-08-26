@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	_ "github.com/lib/pq"
+	"github.com/gotrs-io/gotrs-ce/internal/services/adapter"
 )
 
 var (
@@ -15,8 +16,17 @@ var (
 )
 
 // GetDB returns the database connection singleton
+// Now uses service registry by default
 func GetDB() (*sql.DB, error) {
-	var err error
+	// Try to get from service registry first (now default)
+	db, err := adapter.GetDB()
+	if err == nil {
+		return db, nil
+	}
+	
+	// If service registry fails, fall back to direct connection
+	// This ensures the system still works during transition
+	var fallbackErr error
 	once.Do(func() {
 		// Get database configuration from environment
 		host := os.Getenv("DB_HOST")
@@ -64,8 +74,12 @@ func GetDB() (*sql.DB, error) {
 		db.SetMaxIdleConns(5)
 		
 		// Test the connection
-		err = db.Ping()
+		fallbackErr = db.Ping()
 	})
 	
-	return db, err
+	if fallbackErr != nil {
+		return nil, fmt.Errorf("service registry: %v, fallback: %v", err, fallbackErr)
+	}
+	
+	return db, fallbackErr
 }

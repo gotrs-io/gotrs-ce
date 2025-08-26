@@ -1,0 +1,71 @@
+# Container for GOTRS Unified Configuration Manager
+FROM golang:1.23-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates
+
+WORKDIR /app
+
+# Copy go modules
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the config manager
+RUN CGO_ENABLED=0 go build -o /usr/local/bin/gotrs-config ./cmd/gotrs-config
+
+# Production image
+FROM alpine:3.18
+
+RUN apk add --no-cache ca-certificates bash git
+
+# Create non-root user
+RUN adduser -D -s /bin/sh -u 1000 configmgr
+
+# Copy binary
+COPY --from=builder /usr/local/bin/gotrs-config /usr/local/bin/
+
+# Create config directories
+RUN mkdir -p /app/config /app/routes /app/dashboards /app/.versions && \
+    chown -R configmgr:configmgr /app
+
+# Create wrapper script for better UX
+RUN cat > /usr/local/bin/config-manager << 'EOF'
+#!/bin/bash
+
+# GOTRS Unified Configuration Manager
+set -e
+
+export GOTRS_CONFIG_DIR=${GOTRS_CONFIG_DIR:-/app/config}
+
+# Show banner
+echo "🔧 GOTRS Unified Configuration Manager"
+echo "======================================"
+echo ""
+
+# If no arguments, show help
+if [ $# -eq 0 ]; then
+    gotrs-config help
+    exit 0
+fi
+
+# Run gotrs-config with all arguments
+exec gotrs-config "$@"
+EOF
+
+RUN chmod +x /usr/local/bin/config-manager
+
+# Set up working directory
+WORKDIR /app
+
+# Switch to non-root user
+USER configmgr
+
+# Set environment
+ENV GOTRS_CONFIG_DIR=/app/config
+
+# Default command
+ENTRYPOINT ["/usr/local/bin/config-manager"]
+CMD ["help"]

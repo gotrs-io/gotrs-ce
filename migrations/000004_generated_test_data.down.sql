@@ -16,7 +16,7 @@ DELETE FROM article WHERE ticket_id IN (
 DELETE FROM ticket WHERE tn LIKE '202501%';
 
 -- Remove test user groups
-DELETE FROM user_groups WHERE user_id IN (
+DELETE FROM group_user WHERE user_id IN (
     SELECT id FROM users WHERE login IN ('admin', 'agent.smith', 'agent.jones')
 );
 

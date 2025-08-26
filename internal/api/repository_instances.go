@@ -7,6 +7,7 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	"github.com/gotrs-io/gotrs-ce/internal/service"
+	"github.com/gotrs-io/gotrs-ce/internal/shared"
 )
 
 var (
@@ -54,7 +55,9 @@ func InitializeServices() {
 		
 		// Initialize auth service if database is available
 		if db != nil {
-			authService = service.NewAuthService(db)
+			// Use the shared JWT manager for auth service
+			jwtManager := shared.GetJWTManager()
+			authService = service.NewAuthService(db, jwtManager)
 		}
 	})
 }

@@ -1,0 +1,270 @@
+{% extends "layouts/base.pongo2" %}
+
+{% block title %}Ticket Management{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Ticket Management</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-2">Manage all tickets in the system</p>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow mb-6 p-4">
+        <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <!-- Search -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
+                <input type="text" name="search" value="{{ searchQuery }}" 
+                       placeholder="Ticket # or title..."
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-gotrs-500 dark:bg-gray-700 dark:text-white">
+            </div>
+
+            <!-- Status Filter -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                <select name="status" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-gotrs-500 dark:bg-gray-700 dark:text-white">
+                    <option value="all">All States</option>
+                    {% for state in states %}
+                    <option value="{{ state }}" {% if statusFilter == state %}selected{% endif %}>{{ state }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Queue Filter -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Queue</label>
+                <select name="queue" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-gotrs-500 dark:bg-gray-700 dark:text-white">
+                    <option value="all">All Queues</option>
+                    {% for queue in queues %}
+                    <option value="{{ queue }}" {% if queueFilter == queue %}selected{% endif %}>{{ queue }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filter Buttons -->
+            <div class="flex items-end space-x-2">
+                <button type="submit" class="px-4 py-2 bg-gotrs-600 text-white rounded-md hover:bg-gotrs-700 transition-colors">
+                    Filter
+                </button>
+                <a href="/admin/tickets" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                    Clear
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tickets Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-700 dark:text-gray-300">
+                    Showing {{ tickets|length }} of {{ totalCount }} tickets
+                </span>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Ticket #
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Title
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            State
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Priority
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Queue
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Customer
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Assigned To
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Created
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for ticket in tickets %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gotrs-600 dark:text-gotrs-400">
+                            {{ ticket.number }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                            <div class="max-w-xs truncate" title="{{ ticket.title }}">
+                                {{ ticket.title }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if ticket.state == "new" %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                {{ ticket.state }}
+                            </span>
+                            {% elif ticket.state == "open" %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                {{ ticket.state }}
+                            </span>
+                            {% elif ticket.state == "closed successful" or ticket.state == "closed unsuccessful" %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+                                {{ ticket.state }}
+                            </span>
+                            {% elif ticket.state == "pending reminder" or ticket.state == "pending auto close+" or ticket.state == "pending auto close-" %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                {{ ticket.state }}
+                            </span>
+                            {% else %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                {{ ticket.state }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                            {% if ticket.priority == "1 very low" %}
+                            <span class="text-gray-600 dark:text-gray-400">{{ ticket.priority }}</span>
+                            {% elif ticket.priority == "2 low" %}
+                            <span class="text-blue-600 dark:text-blue-400">{{ ticket.priority }}</span>
+                            {% elif ticket.priority == "3 normal" %}
+                            <span class="text-green-600 dark:text-green-400">{{ ticket.priority }}</span>
+                            {% elif ticket.priority == "4 high" %}
+                            <span class="text-orange-600 dark:text-orange-400">{{ ticket.priority }}</span>
+                            {% elif ticket.priority == "5 very high" %}
+                            <span class="text-red-600 dark:text-red-400 font-semibold">{{ ticket.priority }}</span>
+                            {% else %}
+                            {{ ticket.priority }}
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                            {{ ticket.queue }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                            {{ ticket.customer|default:"-" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                            {{ ticket.assigned_to }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {{ ticket.create_time|slice:":10" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="/agent/tickets/{{ ticket.id }}" class="text-gotrs-600 hover:text-gotrs-900 dark:text-gotrs-400 dark:hover:text-gotrs-300 mr-3">
+                                View
+                            </a>
+                            <button onclick="deleteTicket({{ ticket.id }})" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                            No tickets found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if totalPages > 1 %}
+        <div class="bg-white dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
+            <div class="flex items-center justify-between">
+                <div class="flex-1 flex justify-between sm:hidden">
+                    {% if currentPage > 1 %}
+                    <a href="?page={{ currentPage - 1 }}&status={{ statusFilter }}&queue={{ queueFilter }}&search={{ searchQuery }}" 
+                       class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Previous
+                    </a>
+                    {% endif %}
+                    {% if currentPage < totalPages %}
+                    <a href="?page={{ currentPage + 1 }}&status={{ statusFilter }}&queue={{ queueFilter }}&search={{ searchQuery }}" 
+                       class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Next
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-gray-700 dark:text-gray-300">
+                            Page <span class="font-medium">{{ currentPage }}</span> of <span class="font-medium">{{ totalPages }}</span>
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            {% if currentPage > 1 %}
+                            <a href="?page={{ currentPage - 1 }}&status={{ statusFilter }}&queue={{ queueFilter }}&search={{ searchQuery }}" 
+                               class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                Previous
+                            </a>
+                            {% endif %}
+                            
+                            {% for page_num in range(1, totalPages + 1) %}
+                                {% if page_num == currentPage %}
+                                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-gotrs-50 dark:bg-gotrs-900 text-sm font-medium text-gotrs-600 dark:text-gotrs-400">
+                                    {{ page_num }}
+                                </span>
+                                {% elif page_num <= 3 or page_num > totalPages - 3 or (page_num >= currentPage - 1 and page_num <= currentPage + 1) %}
+                                <a href="?page={{ page_num }}&status={{ statusFilter }}&queue={{ queueFilter }}&search={{ searchQuery }}" 
+                                   class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                    {{ page_num }}
+                                </a>
+                                {% elif page_num == 4 or page_num == totalPages - 3 %}
+                                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    ...
+                                </span>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if currentPage < totalPages %}
+                            <a href="?page={{ currentPage + 1 }}&status={{ statusFilter }}&queue={{ queueFilter }}&search={{ searchQuery }}" 
+                               class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                Next
+                            </a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function deleteTicket(id) {
+    if (confirm('Are you sure you want to delete this ticket? This action cannot be undone.')) {
+        fetch(`/api/v1/tickets/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Failed to delete ticket');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to delete ticket');
+        });
+    }
+}
+</script>
+{% endblock %}

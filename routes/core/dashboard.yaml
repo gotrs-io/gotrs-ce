@@ -1,0 +1,29 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: core-dashboard
+  description: Core dashboard routes
+  namespace: core
+  enabled: true
+
+spec:
+  prefix: ""
+  middleware:
+    - auth
+    - i18n
+  
+  routes:
+    - path: /dashboard
+      method: GET
+      handler: dashboard
+      name: Dashboard
+      config:
+        template: pages/dashboard.pongo2
+    
+    - path: /home
+      method: GET
+      handler: redirect
+      name: Home Redirect
+      config:
+        redirect_to: /dashboard
+        redirect_code: 301

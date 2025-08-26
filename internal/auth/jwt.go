@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -82,7 +83,7 @@ func (m *JWTManager) GenerateRefreshToken(userID uint, email string) (string, er
 		NotBefore: jwt.NewNumericDate(time.Now()),
 		Issuer:    "gotrs",
 		Subject:   email,
-		ID:        string(rune(userID)), // Store user ID in JWT ID field
+		ID:        fmt.Sprintf("%d", userID), // Store user ID in JWT ID field
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

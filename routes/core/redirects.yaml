@@ -1,0 +1,43 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: core-redirects
+  description: Redirects for common routes to their appropriate role-based paths
+  namespace: core
+  enabled: true
+
+spec:
+  prefix: ""
+  middleware:
+    - auth
+  
+  routes:
+    - path: /tickets
+      method: GET
+      handler: redirect_tickets
+      name: Tickets Redirect
+      description: Redirect to appropriate tickets page based on role
+      
+    - path: /tickets/new
+      method: GET
+      handler: redirect_tickets_new
+      name: New Ticket Redirect
+      description: Redirect to appropriate new ticket page based on role
+      
+    - path: /queues
+      method: GET
+      handler: redirect_queues
+      name: Queues Redirect
+      description: Redirect to appropriate queues page based on role
+      
+    - path: /profile
+      method: GET
+      handler: redirect_profile
+      name: Profile Redirect
+      description: Redirect to appropriate profile page based on role
+      
+    - path: /settings
+      method: GET
+      handler: redirect_settings
+      name: Settings Redirect
+      description: Redirect to appropriate settings page based on role

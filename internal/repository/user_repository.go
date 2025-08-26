@@ -27,10 +27,11 @@ func (r *UserRepository) GetByID(id uint) (*models.User, error) {
 
 	var user models.User
 	var title sql.NullString
+	var password sql.NullString
 	err := r.db.QueryRow(query, id).Scan(
 		&user.ID,
 		&user.Login,
-		&user.Password,
+		&password,
 		&title,
 		&user.FirstName,
 		&user.LastName,
@@ -44,6 +45,12 @@ func (r *UserRepository) GetByID(id uint) (*models.User, error) {
 	if title.Valid {
 		user.Title = title.String
 	}
+	if password.Valid {
+		user.Password = password.String
+	}
+	
+	// Set derived fields
+	user.Email = user.Login // In OTRS, login can be email
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("user not found")
@@ -68,6 +75,7 @@ func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 
 // GetByLogin retrieves a user by login username
 func (r *UserRepository) GetByLogin(login string) (*models.User, error) {
+	fmt.Printf("UserRepository.GetByLogin: Looking for user '%s'\n", login)
 	query := `
 		SELECT id, login, pw, title, first_name, last_name,
 		       valid_id, create_time, create_by, change_time, change_by
@@ -76,10 +84,11 @@ func (r *UserRepository) GetByLogin(login string) (*models.User, error) {
 
 	var user models.User
 	var title sql.NullString
+	var password sql.NullString
 	err := r.db.QueryRow(query, login).Scan(
 		&user.ID,
 		&user.Login,
-		&user.Password,
+		&password,
 		&title,
 		&user.FirstName,
 		&user.LastName,
@@ -93,18 +102,60 @@ func (r *UserRepository) GetByLogin(login string) (*models.User, error) {
 	if title.Valid {
 		user.Title = title.String
 	}
+	if password.Valid {
+		user.Password = password.String
+	}
 
 	if err == sql.ErrNoRows {
+		fmt.Printf("UserRepository.GetByLogin: No rows found for '%s'\n", login)
 		return nil, fmt.Errorf("user not found")
 	}
+	
+	if err != nil {
+		fmt.Printf("UserRepository.GetByLogin: Error: %v\n", err)
+		return nil, err
+	}
+
+	fmt.Printf("UserRepository.GetByLogin: Found user ID=%d, login='%s', pw starts with='%.20s'\n", user.ID, user.Login, user.Password)
 
 	// Set derived fields
 	user.IsActive = user.ValidID == 1
+	user.Email = user.Login // In OTRS, login can be email
 	
-	// TODO: Load role from role_users table
-	user.Role = "Agent" // Default to Agent
+	// Load role based on group membership
+	roleQuery := `
+		SELECT g.name 
+		FROM group_user gu
+		JOIN groups g ON gu.group_id = g.id
+		WHERE gu.user_id = $1 AND g.valid_id = 1
+		ORDER BY 
+			CASE g.name 
+				WHEN 'admin' THEN 1
+				WHEN 'users' THEN 2
+				ELSE 3
+			END
+		LIMIT 1`
 	
-	return &user, err
+	var groupName string
+	err = r.db.QueryRow(roleQuery, user.ID).Scan(&groupName)
+	if err == nil {
+		// Map group name to role
+		switch groupName {
+		case "admin":
+			user.Role = "Admin"
+		case "users":
+			user.Role = "Agent"
+		default:
+			user.Role = "Agent"
+		}
+	} else {
+		// Default to Agent if no group found
+		user.Role = "Agent"
+	}
+	
+	fmt.Printf("UserRepository.GetByLogin: User %s has role %s\n", user.Login, user.Role)
+	
+	return &user, nil
 }
 
 // Create creates a new user
@@ -203,8 +254,8 @@ func (r *UserRepository) GetUserGroups(userID uint) ([]string, error) {
 	query := `
 		SELECT g.name 
 		FROM groups g
-		INNER JOIN user_groups ug ON g.id = ug.group_id
-		WHERE ug.user_id = $1 AND g.valid_id = 1
+		INNER JOIN group_user gu ON g.id = gu.group_id
+		WHERE gu.user_id = $1 AND g.valid_id = 1
 		ORDER BY g.name`
 
 	rows, err := r.db.Query(query, userID)
@@ -244,10 +295,11 @@ func (r *UserRepository) List() ([]*models.User, error) {
 	for rows.Next() {
 		var user models.User
 		var title sql.NullString
+		var password sql.NullString
 		err := rows.Scan(
 			&user.ID,
 			&user.Login,
-			&user.Password,
+			&password,
 			&title,
 			&user.FirstName,
 			&user.LastName,
@@ -265,10 +317,14 @@ func (r *UserRepository) List() ([]*models.User, error) {
 		if title.Valid {
 			user.Title = title.String
 		}
+		if password.Valid {
+			user.Password = password.String
+		}
 		
 		// Set derived fields
 		user.IsActive = user.ValidID == 1
 		user.Role = "Agent" // Default to Agent
+		user.Email = user.Login // In OTRS, login can be email
 		
 		users = append(users, &user)
 	}

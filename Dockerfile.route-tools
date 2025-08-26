@@ -1,0 +1,183 @@
+# Container for GOTRS route management tools
+FROM golang:1.23-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates
+
+WORKDIR /app
+
+# Copy go modules
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build all route tools
+RUN CGO_ENABLED=0 go build -o /usr/local/bin/route-test ./cmd/route-test
+RUN CGO_ENABLED=0 go build -o /usr/local/bin/route-docs ./cmd/route-docs
+RUN CGO_ENABLED=0 go build -o /usr/local/bin/route-version ./cmd/route-version
+RUN CGO_ENABLED=0 go build -o /usr/local/bin/route-lint ./cmd/route-lint
+
+# Production image
+FROM alpine:3.18
+
+RUN apk add --no-cache ca-certificates curl jq bash git
+
+# Create non-root user
+RUN adduser -D -s /bin/sh -u 1000 routemanager
+
+# Copy built tools
+COPY --from=builder /usr/local/bin/route-* /usr/local/bin/
+
+# Create route tools wrapper script
+RUN cat > /usr/local/bin/route-manager << 'EOF'
+#!/bin/bash
+
+# GOTRS Route Management Suite
+set -e
+
+ROUTES_DIR=${ROUTES_DIR:-/app/routes}
+GOTRS_HOST=${GOTRS_HOST:-http://gotrs-backend:8080}
+
+show_help() {
+    echo "🚀 GOTRS Route Management Suite"
+    echo "================================"
+    echo ""
+    echo "Commands:"
+    echo "  test       Run route tests against live system"
+    echo "  docs       Generate API documentation"
+    echo "  lint       Check routes for issues and best practices"
+    echo "  version    Manage route versions"
+    echo "  profile    Analyze route performance"
+    echo "  validate   Validate all route files"
+    echo "  report     Generate comprehensive route report"
+    echo ""
+    echo "Usage:"
+    echo "  route-manager test [--verbose]"
+    echo "  route-manager docs [output-dir]"
+    echo "  route-manager lint [routes-dir]"
+    echo "  route-manager version <list|commit|rollback>"
+    echo "  route-manager profile"
+    echo "  route-manager validate"
+    echo "  route-manager report"
+    echo ""
+    echo "Environment Variables:"
+    echo "  ROUTES_DIR    Directory containing route files (default: /app/routes)"
+    echo "  GOTRS_HOST    GOTRS backend URL (default: http://gotrs-backend:8080)"
+}
+
+case "$1" in
+    test)
+        shift
+        echo "🧪 Running Route Tests"
+        echo "====================="
+        route-test "$ROUTES_DIR" "$GOTRS_HOST" "$@"
+        ;;
+        
+    docs)
+        OUTPUT_DIR=${2:-/app/docs}
+        echo "📚 Generating Documentation"
+        echo "=========================="
+        route-docs "$ROUTES_DIR" "$OUTPUT_DIR"
+        echo ""
+        echo "Documentation generated in $OUTPUT_DIR"
+        ;;
+        
+    lint)
+        DIR=${2:-$ROUTES_DIR}
+        echo "🔍 Linting Route Files"
+        echo "====================="
+        route-lint "$DIR"
+        ;;
+        
+    version)
+        shift
+        route-version "$@"
+        ;;
+        
+    profile)
+        echo "📊 Route Performance Profile"
+        echo "==========================="
+        
+        # Get performance data from analytics endpoint
+        curl -s "$GOTRS_HOST/metrics/stats" | jq '.route_stats' | \
+        jq -r 'to_entries | sort_by(-.value.avg_duration) | 
+               .[] | "\(.key): \(.value.avg_duration)ms (count: \(.value.count))"' | 
+        head -20
+        
+        echo ""
+        echo "Top 20 slowest routes shown (by average duration)"
+        ;;
+        
+    validate)
+        echo "✅ Validating All Routes"
+        echo "======================="
+        
+        # Run linter in validation mode
+        route-lint "$ROUTES_DIR"
+        
+        # Test that routes can be loaded
+        echo ""
+        echo "Testing route loading..."
+        route-version validate
+        ;;
+        
+    report)
+        echo "📋 Comprehensive Route Report"
+        echo "============================"
+        echo ""
+        
+        # Count routes
+        TOTAL_ROUTES=$(find "$ROUTES_DIR" -name "*.yaml" -o -name "*.yml" | wc -l)
+        echo "📁 Total route files: $TOTAL_ROUTES"
+        echo ""
+        
+        # Run linter summary
+        echo "🔍 Linting Summary:"
+        route-lint "$ROUTES_DIR" | tail -5
+        echo ""
+        
+        # Show version info
+        echo "📚 Version Information:"
+        route-version list | head -10
+        echo ""
+        
+        # Test summary
+        echo "🧪 Test Summary:"
+        route-test "$ROUTES_DIR" "$GOTRS_HOST" | tail -10
+        echo ""
+        
+        # Performance summary if available
+        if curl -s "$GOTRS_HOST/health" > /dev/null 2>&1; then
+            echo "📊 Performance Summary:"
+            curl -s "$GOTRS_HOST/metrics/stats" | jq '.summary'
+        fi
+        
+        echo ""
+        echo "Report complete!"
+        ;;
+        
+    help|--help|-h|"")
+        show_help
+        ;;
+        
+    *)
+        echo "Unknown command: $1"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac
+EOF
+
+RUN chmod +x /usr/local/bin/route-manager
+
+# Set up working directory
+WORKDIR /app
+
+# Switch to non-root user
+USER routemanager
+
+# Default command
+CMD ["/usr/local/bin/route-manager", "help"]

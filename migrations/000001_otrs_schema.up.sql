@@ -31,17 +31,20 @@ CREATE TABLE groups (
     change_by INTEGER NOT NULL
 );
 
-CREATE TABLE user_groups (
+CREATE TABLE group_user (
     user_id INTEGER NOT NULL REFERENCES users(id),
     group_id INTEGER NOT NULL REFERENCES groups(id),
     permission_key VARCHAR(20) NOT NULL,
-    permission_value SMALLINT NOT NULL,
+    permission_value INTEGER NOT NULL,
     create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     create_by INTEGER NOT NULL,
     change_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     change_by INTEGER NOT NULL,
     PRIMARY KEY(user_id, group_id, permission_key)
 );
+
+CREATE INDEX group_user_group_id ON group_user(group_id);
+CREATE INDEX group_user_user_id ON group_user(user_id);
 
 -- ============================================
 -- Customer Tables
@@ -388,7 +391,7 @@ INSERT INTO groups (id, name, comments, valid_id, create_by, change_by) VALUES
 (2, 'users', 'Users Group', 1, 1, 1);
 
 -- Give admin all permissions
-INSERT INTO user_groups (user_id, group_id, permission_key, permission_value, create_by, change_by) VALUES
+INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_by, change_by) VALUES
 (1, 1, 'rw', 1, 1, 1);
 
 SELECT setval('users_id_seq', 1, true);

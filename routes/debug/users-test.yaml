@@ -1,0 +1,19 @@
+apiVersion: routes/v1
+kind: RouteGroup
+metadata:
+  name: debug-users-test
+  description: Debug route for testing user update without auth
+  namespace: debug
+  enabled: true
+
+spec:
+  prefix: ""
+  middleware: []  # No authentication for testing
+  
+  routes:
+    - path: /debug/users/:id
+      method: PUT
+      handler: admin_users_update
+      name: Debug User Update
+      config:
+        skip_auth: true

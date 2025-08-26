@@ -5,9 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"time"
 
-	"github.com/golang-jwt/jwt/v4"
 	"github.com/gotrs-io/gotrs-ce/internal/auth"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 )
@@ -15,17 +13,11 @@ import (
 // AuthService handles authentication and authorization
 type AuthService struct {
 	authenticator *auth.Authenticator
-	jwtSecret     []byte
+	jwtManager    *auth.JWTManager
 }
 
-// NewAuthService creates a new authentication service
-func NewAuthService(db *sql.DB) *AuthService {
-	// Get JWT secret from environment or use default for development
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		jwtSecret = "development-secret-change-in-production"
-	}
-	
+// NewAuthService creates a new authentication service with a JWT manager
+func NewAuthService(db *sql.DB, jwtManager *auth.JWTManager) *AuthService {
 	// Create authenticator with database provider by default
 	authenticator := auth.NewAuthenticator(
 		auth.NewDatabaseAuthProvider(db),
@@ -47,7 +39,7 @@ func NewAuthService(db *sql.DB) *AuthService {
 	
 	return &AuthService{
 		authenticator: authenticator,
-		jwtSecret:     []byte(jwtSecret),
+		jwtManager:    jwtManager,
 	}
 }
 
@@ -59,13 +51,13 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*mo
 		return nil, "", "", err
 	}
 	
-	// Generate tokens
-	accessToken, err := s.generateAccessToken(user)
+	// Generate tokens using the JWT manager
+	accessToken, err := s.jwtManager.GenerateToken(user.ID, user.Email, user.Role, 0)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate access token: %w", err)
 	}
 	
-	refreshToken, err := s.generateRefreshToken(user)
+	refreshToken, err := s.jwtManager.GenerateRefreshToken(user.ID, user.Email)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate refresh token: %w", err)
 	}
@@ -75,44 +67,18 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*mo
 
 // ValidateToken validates a JWT token and returns the user
 func (s *AuthService) ValidateToken(tokenString string) (*models.User, error) {
-	// Parse token
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return s.jwtSecret, nil
-	})
-	
+	// Validate token using JWT manager
+	claims, err := s.jwtManager.ValidateToken(tokenString)
 	if err != nil {
 		return nil, fmt.Errorf("invalid token: %w", err)
 	}
 	
-	// Extract claims
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok || !token.Valid {
-		return nil, fmt.Errorf("invalid token claims")
-	}
-	
-	// Extract user information from claims
-	userID, ok := claims["user_id"].(float64)
-	if !ok {
-		return nil, fmt.Errorf("invalid user_id in token")
-	}
-	
-	username, ok := claims["username"].(string)
-	if !ok {
-		return nil, fmt.Errorf("invalid username in token")
-	}
-	
-	email, _ := claims["email"].(string)
-	role, _ := claims["role"].(string)
-	
 	// Create user object from token claims
 	user := &models.User{
-		ID:    uint(userID),
-		Login: username,
-		Email: email,
-		Role:  role,
+		ID:    claims.UserID,
+		Login: claims.Email, // Use email as login for now
+		Email: claims.Email,
+		Role:  claims.Role,
 	}
 	
 	return user, nil
@@ -120,45 +86,18 @@ func (s *AuthService) ValidateToken(tokenString string) (*models.User, error) {
 
 // RefreshToken generates a new access token from a refresh token
 func (s *AuthService) RefreshToken(refreshToken string) (string, error) {
-	// Validate refresh token
-	user, err := s.ValidateToken(refreshToken)
+	// Validate refresh token using JWT manager
+	claims, err := s.jwtManager.ValidateRefreshToken(refreshToken)
 	if err != nil {
 		return "", err
 	}
 	
 	// Generate new access token
-	return s.generateAccessToken(user)
+	// Note: We need to get the full user details, for now using basic info from claims
+	return s.jwtManager.GenerateToken(0, claims.Subject, "User", 0) // TODO: Get actual user ID and role
 }
 
-// generateAccessToken creates a JWT access token for the user
-func (s *AuthService) generateAccessToken(user *models.User) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id":  user.ID,
-		"username": user.Login,
-		"email":    user.Email,
-		"role":     user.Role,
-		"exp":      time.Now().Add(time.Hour * 24).Unix(), // 24 hour expiry
-		"iat":      time.Now().Unix(),
-		"type":     "access",
-	}
-	
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(s.jwtSecret)
-}
-
-// generateRefreshToken creates a JWT refresh token for the user
-func (s *AuthService) generateRefreshToken(user *models.User) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id":  user.ID,
-		"username": user.Login,
-		"exp":      time.Now().Add(time.Hour * 24 * 30).Unix(), // 30 day expiry
-		"iat":      time.Now().Unix(),
-		"type":     "refresh",
-	}
-	
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(s.jwtSecret)
-}
+// Token generation methods removed - now using JWTManager
 
 // GetUser retrieves user information by identifier
 func (s *AuthService) GetUser(ctx context.Context, identifier string) (*models.User, error) {

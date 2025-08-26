@@ -98,7 +98,7 @@ InferFieldType(name, dataType string) string
 | `/admin/dynamic/_schema?action=generate&table=X` | GET | Generate module config |
 | `/admin/dynamic/_schema?action=save&table=X` | GET | Save module to file |
 
-### 5. CLI Tool (`schema-discovery-cli.sh`)
+### 5. CLI Tool (`scripts/tools/schema-discovery-cli.sh`)
 
 **Interactive Features:**
 - Table listing with module status

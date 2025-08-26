@@ -1,0 +1,614 @@
+# GoTRS Master Configuration Definition
+# This file defines all available configuration settings for the system
+# Similar to OTRS's XML configuration files but in YAML format
+# DO NOT EDIT deployed/config.yaml - it will be overwritten!
+
+---
+version: "1.0"
+metadata:
+  description: "GoTRS System Configuration Definition"
+  last_updated: "2025-08-24"
+
+settings:
+  # ============================================
+  # Core System Settings
+  # ============================================
+  
+  - name: "SystemID"
+    navigation: "Core::System"
+    description: "The system ID used for ticket number generation (1-99)"
+    group: "Framework"
+    type: "integer"
+    default: 10
+    min: 1
+    max: 99
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: false
+    validation: "^[1-9][0-9]?$"
+
+  - name: "FQDN"
+    navigation: "Core::System"
+    description: "Fully Qualified Domain Name of the system"
+    group: "Framework"
+    type: "string"
+    default: "gotrs.local"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: true
+    validation: "^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])*$"
+
+  - name: "Organization"
+    navigation: "Core::System"
+    description: "Organization name for email signatures and UI"
+    group: "Framework"
+    type: "string"
+    default: "Your Organization"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: true
+
+  - name: "AdminEmail"
+    navigation: "Core::System"
+    description: "Email address of the system administrator"
+    group: "Framework"
+    type: "email"
+    default: "admin@gotrs.local"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: true
+    validation: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+
+  # ============================================
+  # Ticket Settings
+  # ============================================
+  
+  - name: "Ticket::NumberGenerator"
+    navigation: "Core::Ticket"
+    description: "Ticket number generator module"
+    group: "Ticket"
+    type: "select"
+    default: "Date"
+    options:
+      - value: "Date"
+        label: "Date-based (YYYYMMDDhhmmss)"
+      - value: "DateChecksum"
+        label: "Date with checksum"
+      - value: "Random"
+        label: "Random number"
+      - value: "Increment"
+        label: "Incremental"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 200
+    user_modification_possible: false
+
+  - name: "Ticket::DefaultPriority"
+    navigation: "Core::Ticket"
+    description: "Default priority for new tickets"
+    group: "Ticket"
+    type: "select"
+    default: "3 normal"
+    options:
+      - value: "1 very low"
+        label: "1 very low"
+      - value: "2 low"
+        label: "2 low"
+      - value: "3 normal"
+        label: "3 normal"
+      - value: "4 high"
+        label: "4 high"
+      - value: "5 very high"
+        label: "5 very high"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 200
+    user_modification_possible: true
+
+  - name: "Ticket::DefaultQueue"
+    navigation: "Core::Ticket"
+    description: "Default queue for new tickets"
+    group: "Ticket"
+    type: "string"
+    default: "Raw"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 200
+    user_modification_possible: true
+
+  - name: "Ticket::ViewableStateType"
+    navigation: "Core::Ticket"
+    description: "State types that are viewable in customer interface"
+    group: "Ticket"
+    type: "array"
+    default:
+      - "new"
+      - "open"
+      - "pending reminder"
+      - "pending auto"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 200
+    user_modification_possible: false
+
+  # ============================================
+  # Email Settings
+  # ============================================
+  
+  - name: "SendmailModule"
+    navigation: "Core::Email"
+    description: "Email sending backend module"
+    group: "Framework"
+    type: "select"
+    default: "SMTP"
+    options:
+      - value: "SMTP"
+        label: "SMTP"
+      - value: "Sendmail"
+        label: "Sendmail binary"
+      - value: "Test"
+        label: "Test (don't send)"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 200
+    user_modification_possible: false
+
+  - name: "SendmailModule::Host"
+    navigation: "Core::Email::SMTP"
+    description: "SMTP server hostname"
+    group: "Framework"
+    type: "string"
+    default: "localhost"
+    required: false
+    readonly: false
+    invisible: false
+    has_config_level: 200
+    user_modification_possible: true
+    depends_on: "SendmailModule"
+    depends_value: "SMTP"
+
+  - name: "SendmailModule::Port"
+    navigation: "Core::Email::SMTP"
+    description: "SMTP server port"
+    group: "Framework"
+    type: "integer"
+    default: 25
+    min: 1
+    max: 65535
+    required: false
+    readonly: false
+    invisible: false
+    has_config_level: 200
+    user_modification_possible: true
+    depends_on: "SendmailModule"
+    depends_value: "SMTP"
+
+  - name: "NotificationSenderName"
+    navigation: "Core::Email"
+    description: "Name used for system notification emails"
+    group: "Framework"
+    type: "string"
+    default: "GoTRS Notification System"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: true
+
+  - name: "NotificationSenderEmail"
+    navigation: "Core::Email"
+    description: "Email address used for system notifications"
+    group: "Framework"
+    type: "email"
+    default: "noreply@gotrs.local"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: true
+
+  # ============================================
+  # Session Settings
+  # ============================================
+  
+  - name: "SessionMaxTime"
+    navigation: "Core::Session"
+    description: "Max session time in seconds (default 4 hours)"
+    group: "Framework"
+    type: "integer"
+    default: 14400
+    min: 600
+    max: 172800
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: true
+
+  - name: "SessionMaxIdleTime"
+    navigation: "Core::Session"
+    description: "Max idle time in seconds (default 2 hours)"
+    group: "Framework"
+    type: "integer"
+    default: 7200
+    min: 300
+    max: 86400
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: true
+
+  - name: "SessionUseCookie"
+    navigation: "Core::Session"
+    description: "Use cookies for session management"
+    group: "Framework"
+    type: "boolean"
+    default: true
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: false
+
+  # ============================================
+  # Frontend Settings
+  # ============================================
+  
+  - name: "Frontend::WebPath"
+    navigation: "Frontend::Base"
+    description: "Web path for static assets"
+    group: "Framework"
+    type: "string"
+    default: "/"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: false
+
+  - name: "Frontend::DefaultTheme"
+    navigation: "Frontend::Base"
+    description: "Default UI theme"
+    group: "Framework"
+    type: "select"
+    default: "Standard"
+    options:
+      - value: "Standard"
+        label: "Standard Theme"
+      - value: "Dark"
+        label: "Dark Theme"
+      - value: "High Contrast"
+        label: "High Contrast"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 200
+    user_modification_possible: true
+
+  - name: "Frontend::RichText"
+    navigation: "Frontend::Base"
+    description: "Enable rich text editor"
+    group: "Framework"
+    type: "boolean"
+    default: true
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 200
+    user_modification_possible: true
+
+  - name: "Frontend::AvatarEngine"
+    navigation: "Frontend::Base"
+    description: "Avatar generation service"
+    group: "Framework"
+    type: "select"
+    default: "Gravatar"
+    options:
+      - value: "None"
+        label: "No avatars"
+      - value: "Gravatar"
+        label: "Gravatar"
+      - value: "Local"
+        label: "Local storage"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 300
+    user_modification_possible: true
+
+  # ============================================
+  # Agent Interface Settings
+  # ============================================
+  
+  - name: "Agent::DefaultTicketView"
+    navigation: "Frontend::Agent"
+    description: "Default ticket view for agents"
+    group: "Frontend"
+    type: "select"
+    default: "Small"
+    options:
+      - value: "Small"
+        label: "Small (25 per page)"
+      - value: "Medium"
+        label: "Medium (50 per page)"
+      - value: "Large"
+        label: "Large (100 per page)"
+      - value: "Preview"
+        label: "Preview mode"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 300
+    user_modification_possible: true
+
+  - name: "Agent::TicketViewRefreshTime"
+    navigation: "Frontend::Agent"
+    description: "Auto-refresh interval for ticket views (seconds, 0 = disabled)"
+    group: "Frontend"
+    type: "integer"
+    default: 0
+    min: 0
+    max: 86400
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 300
+    user_modification_possible: true
+
+  # ============================================
+  # Customer Interface Settings
+  # ============================================
+  
+  - name: "Customer::DefaultTicketView"
+    navigation: "Frontend::Customer"
+    description: "Default ticket view for customers"
+    group: "Frontend"
+    type: "select"
+    default: "Small"
+    options:
+      - value: "Small"
+        label: "Small (10 per page)"
+      - value: "Medium"
+        label: "Medium (20 per page)"
+      - value: "Large"
+        label: "Large (50 per page)"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 300
+    user_modification_possible: true
+
+  - name: "Customer::TicketViewableStatus"
+    navigation: "Frontend::Customer"
+    description: "Ticket statuses visible to customers"
+    group: "Frontend"
+    type: "array"
+    default:
+      - "new"
+      - "open"
+      - "closed successful"
+      - "closed unsuccessful"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 200
+    user_modification_possible: false
+
+  # ============================================
+  # Performance Settings
+  # ============================================
+  
+  - name: "Cache::Module"
+    navigation: "Core::Cache"
+    description: "Cache backend module"
+    group: "Framework"
+    type: "select"
+    default: "Redis"
+    options:
+      - value: "Memory"
+        label: "In-memory (not for production)"
+      - value: "Redis"
+        label: "Redis/Valkey"
+      - value: "File"
+        label: "File-based"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: false
+
+  - name: "Cache::TTL"
+    navigation: "Core::Cache"
+    description: "Default cache TTL in seconds"
+    group: "Framework"
+    type: "integer"
+    default: 3600
+    min: 60
+    max: 86400
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 200
+    user_modification_possible: false
+
+  # ============================================
+  # Database Settings (readonly - set via env)
+  # ============================================
+  
+  - name: "DatabaseHost"
+    navigation: "Core::Database"
+    description: "Database server hostname"
+    group: "Framework"
+    type: "string"
+    default: "localhost"
+    required: true
+    readonly: true
+    invisible: false
+    has_config_level: 50
+    user_modification_possible: false
+
+  - name: "DatabaseName"
+    navigation: "Core::Database"
+    description: "Database name"
+    group: "Framework"
+    type: "string"
+    default: "gotrs"
+    required: true
+    readonly: true
+    invisible: false
+    has_config_level: 50
+    user_modification_possible: false
+
+  # ============================================
+  # Log Settings
+  # ============================================
+  
+  - name: "LogModule"
+    navigation: "Core::Log"
+    description: "Logging backend module"
+    group: "Framework"
+    type: "select"
+    default: "File"
+    options:
+      - value: "File"
+        label: "Log to file"
+      - value: "Syslog"
+        label: "System logger"
+      - value: "Console"
+        label: "Console output"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: false
+
+  - name: "LogLevel"
+    navigation: "Core::Log"
+    description: "Minimum log level"
+    group: "Framework"
+    type: "select"
+    default: "info"
+    options:
+      - value: "debug"
+        label: "Debug"
+      - value: "info"
+        label: "Info"
+      - value: "warn"
+        label: "Warning"
+      - value: "error"
+        label: "Error"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: true
+
+  # ============================================
+  # Security Settings
+  # ============================================
+  
+  - name: "SecureMode"
+    navigation: "Core::Security"
+    description: "Enable secure mode (HTTPS only)"
+    group: "Framework"
+    type: "boolean"
+    default: false
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: false
+
+  - name: "PasswordMinLength"
+    navigation: "Core::Security"
+    description: "Minimum password length"
+    group: "Framework"
+    type: "integer"
+    default: 8
+    min: 6
+    max: 128
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: false
+
+  - name: "PasswordRequireUppercase"
+    navigation: "Core::Security"
+    description: "Require uppercase letters in passwords"
+    group: "Framework"
+    type: "boolean"
+    default: true
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: false
+
+  - name: "PasswordRequireLowercase"
+    navigation: "Core::Security"
+    description: "Require lowercase letters in passwords"
+    group: "Framework"
+    type: "boolean"
+    default: true
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: false
+
+  - name: "PasswordRequireDigit"
+    navigation: "Core::Security"
+    description: "Require digits in passwords"
+    group: "Framework"
+    type: "boolean"
+    default: true
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: false
+
+  - name: "PasswordRequireSpecial"
+    navigation: "Core::Security"
+    description: "Require special characters in passwords"
+    group: "Framework"
+    type: "boolean"
+    default: false
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 100
+    user_modification_possible: false
+
+# Configuration groups for UI organization
+groups:
+  - name: "Framework"
+    description: "Core framework settings"
+    priority: 100
+  
+  - name: "Ticket"
+    description: "Ticket system settings"
+    priority: 200
+  
+  - name: "Frontend"
+    description: "User interface settings"
+    priority: 300
+  
+  - name: "Backend"
+    description: "Backend service settings"
+    priority: 400

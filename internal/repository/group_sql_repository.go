@@ -61,7 +61,7 @@ func (r *GroupSQLRepository) GetUserGroups(userID uint) ([]string, error) {
 	query := `
 		SELECT g.name 
 		FROM groups g
-		JOIN user_groups ug ON g.id = ug.group_id
+		JOIN group_user ug ON g.id = ug.group_id
 		WHERE ug.user_id = $1 AND g.valid_id = 1
 		ORDER BY g.name`
 
@@ -118,7 +118,7 @@ func (r *GroupSQLRepository) GetByID(id uint) (*models.Group, error) {
 func (r *GroupSQLRepository) AddUserToGroup(userID uint, groupID uint) error {
 	// Check if the relationship already exists
 	var exists bool
-	checkQuery := `SELECT EXISTS(SELECT 1 FROM user_groups WHERE user_id = $1 AND group_id = $2 AND permission_key = 'rw')`
+	checkQuery := `SELECT EXISTS(SELECT 1 FROM group_user WHERE user_id = $1 AND group_id = $2 AND permission_key = 'rw')`
 	err := r.db.QueryRow(checkQuery, userID, groupID).Scan(&exists)
 	if err != nil {
 		return fmt.Errorf("failed to check user-group relationship: %w", err)
@@ -130,7 +130,7 @@ func (r *GroupSQLRepository) AddUserToGroup(userID uint, groupID uint) error {
 	
 	// Insert the relationship with required OTRS fields
 	insertQuery := `
-		INSERT INTO user_groups (user_id, group_id, permission_key, permission_value, create_time, create_by, change_time, change_by) 
+		INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_time, create_by, change_time, change_by) 
 		VALUES ($1, $2, 'rw', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)`
 	_, err = r.db.Exec(insertQuery, userID, groupID)
 	if err != nil {
@@ -142,7 +142,7 @@ func (r *GroupSQLRepository) AddUserToGroup(userID uint, groupID uint) error {
 
 // RemoveUserFromGroup removes a user from a group
 func (r *GroupSQLRepository) RemoveUserFromGroup(userID uint, groupID uint) error {
-	query := `DELETE FROM user_groups WHERE user_id = $1 AND group_id = $2`
+	query := `DELETE FROM group_user WHERE user_id = $1 AND group_id = $2`
 	result, err := r.db.Exec(query, userID, groupID)
 	if err != nil {
 		return fmt.Errorf("failed to remove user from group: %w", err)
@@ -218,7 +218,7 @@ func (r *GroupSQLRepository) Update(group *models.Group) error {
 // Delete permanently deletes a group and removes all member associations
 func (r *GroupSQLRepository) Delete(id uint) error {
 	// First, remove all group members
-	_, err := r.db.Exec(`DELETE FROM user_groups WHERE group_id = $1`, id)
+	_, err := r.db.Exec(`DELETE FROM group_user WHERE group_id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("failed to remove group members: %w", err)
 	}
@@ -279,7 +279,7 @@ func (r *GroupSQLRepository) GetGroupMembers(groupID uint) ([]*models.User, erro
 	query := `
 		SELECT u.id, u.login, u.first_name, u.last_name, u.valid_id
 		FROM users u
-		JOIN user_groups ug ON u.id = ug.user_id
+		JOIN group_user ug ON u.id = ug.user_id
 		WHERE ug.group_id = $1 AND u.valid_id = 1
 		ORDER BY u.login`
 

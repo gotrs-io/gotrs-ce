@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -145,12 +146,15 @@ func (h *ChatHub) processUserMessage(msg ChatMessage) {
 	}
 	
 	// Simple response logic (in production, use Claude API)
+	// Note: Error reports are handled via HTTP API to create tickets, not via WebSocket
 	switch {
 	case contains(msg.Message, "hello", "hi", "hey"):
 		response.Message = "Hello! I'm Claude Code, here to help in real-time. What can I assist you with?"
 	
-	case contains(msg.Message, "broken", "error", "bug", "issue"):
-		response.Message = "I see you're reporting an issue. Can you click 'Select Element' and point to the specific problem? I'll analyze it immediately."
+	case contains(msg.Message, "broken", "error", "bug", "issue", "500", "404", "fail"):
+		// Don't respond via WebSocket for error reports - let the HTTP API handle ticket creation
+		// The fallbackToHTTP function in claude-chat.js will handle this properly
+		return
 	
 	case contains(msg.Message, "dropdown", "select", "option"):
 		response.Message = "Dropdown issues are common! If it's showing IDs instead of names, that usually means we need to add a lookup table join. I can fix that for you."
@@ -219,7 +223,13 @@ func (c *ChatClient) readPump() {
 		msg.SessionID = c.sessionID
 		msg.UserID = c.userID
 		
-		log.Printf("Received message from %s: %s", c.sessionID, msg.Message)
+		// Log message with context
+		if msg.Context != nil {
+			contextJSON, _ := json.Marshal(msg.Context)
+			log.Printf("Received message from %s: %s (Context: %s)", c.sessionID, msg.Message, string(contextJSON))
+		} else {
+			log.Printf("Received message from %s: %s (No context)", c.sessionID, msg.Message)
+		}
 		
 		// Broadcast the message
 		chatHub.broadcast <- msg
@@ -256,8 +266,8 @@ func (c *ChatClient) writePump() {
 	}
 }
 
-// handleWebSocketChat handles WebSocket connections for real-time chat
-func handleWebSocketChat(c *gin.Context) {
+// HandleWebSocketChat handles WebSocket connections for real-time chat
+var HandleWebSocketChat = func(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade failed: %v", err)

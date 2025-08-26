@@ -238,6 +238,8 @@ cache/
 logs/
 *.log
 *.log.*
+server.log
+cookies.txt
 
 # Sessions
 sessions/
@@ -358,6 +360,13 @@ CLAUDE.local.md
 internal/api/storage/
 
 # ============================================
+# OTRS Legal Compliance
+# ============================================
+
+# Local development materials - NEVER commit
+local/
+
+# ============================================
 # Development artifacts and temporary files
 # ============================================
 
@@ -378,6 +387,16 @@ LOOKUP_FIXES.md
 *.disabled
 *.bak.go
 *.backup.go
+
+# Debug and temporary test files
+debug_*.go
+test_*.py
+test_*.js
+test_*.html
+test-results*.html
+*_debug.go
+*_test_*.go
+browser_test.py
 
 # Internal test storage
 internal/api/storage/

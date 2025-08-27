@@ -2,71 +2,113 @@
 
 ## Overview
 
-GOTRS employs a modular, microservices-based architecture designed for scalability, maintainability, and security. The system evolves from an initial modular monolith (MVP) to a full microservices architecture as scaling needs arise.
+GOTRS is built on the GoatKit platform, employing a modular monolith architecture with server-side rendering and hypermedia-driven design. The system uses container-first development with optimized Docker images and YAML-based configuration for maximum flexibility and minimal complexity.
 
-## Architecture Evolution
+## GoatKit Platform
 
-### Phase 1: Modular Monolith (MVP)
+GoatKit is the underlying platform that powers GOTRS, providing:
+
+- **YAML-First Configuration**: All routing and configuration in YAML files
+- **Dynamic Route Loading**: Hot-reload capable route system
+- **Unified Binary**: Single `goats` binary (44.7MB) runs everything
+- **Template Flexibility**: Support for multiple template engines
+- **Container Optimization**: Multi-stage builds with caching
+- **Development Tooling**: Comprehensive toolbox containers
+
+The main application binary is called `goats` (GOatkit Application Ticketing System), emphasizing the platform nature of the architecture.
+
+## Current Architecture (Modular Monolith)
+
+### System Architecture
 ```
 ┌─────────────────────────────────────────────┐
-│             Load Balancer                    │
+│             Nginx (Port 80)                  │
 └─────────────────┬───────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────┐
-│           GOTRS Application                  │
+│      GOTRS Application (goats binary)        │
 │  ┌────────────────────────────────────┐    │
-│  │         Web Server (Gin)           │    │
+│  │    Web Server (Gin Framework)      │    │
+│  │    - HTMX endpoints (HTML)         │    │
+│  │    - REST API (JSON)               │    │
+│  │    - SSE for real-time updates     │    │
+│  └────────────────┬───────────────────┘    │
+│  ┌────────────────▼───────────────────┐    │
+│  │    YAML Route Configuration        │    │
+│  │    - Dynamic route loading         │    │
+│  │    - Hot reload capability         │    │
+│  └────────────────┬───────────────────┘    │
+│  ┌────────────────▼───────────────────┐    │
+│  │    Template Engine (Pongo2)        │    │
+│  │    - Server-side rendering         │    │
+│  │    - Django-like syntax            │    │
 │  └────────────────┬───────────────────┘    │
 │  ┌────────────────▼───────────────────┐    │
 │  │         Service Layer              │    │
 │  │  ┌──────┐ ┌──────┐ ┌──────┐      │    │
-│  │  │Auth  │ │Ticket│ │User  │ ...  │    │
+│  │  │Auth  │ │Ticket│ │Admin │ ...   │    │
 │  │  └──────┘ └──────┘ └──────┘      │    │
 │  └────────────────┬───────────────────┘    │
 │  ┌────────────────▼───────────────────┐    │
-│  │      Data Access Layer             │    │
+│  │      Repository Layer              │    │
 │  └────────────────────────────────────┘    │
 └─────────────────────────────────────────────┘
            │              │
     ┌──────▼──────┐ ┌─────▼─────┐
     │ PostgreSQL  │ │   Valkey   │
+    │   (Port     │ │  (Port     │
+    │    5432)    │ │   6388)    │
     └─────────────┘ └───────────┘
 ```
 
-### Phase 2: Microservices Architecture (Production)
+### Container Architecture
 ```
-┌─────────────────────────────────────────────┐
-│            API Gateway (Kong/Traefik)        │
-└───────┬─────────┬──────────┬────────────────┘
-        │         │          │
-┌───────▼──┐ ┌───▼───┐ ┌────▼────┐
-│   Auth   │ │Ticket │ │  User   │
-│ Service  │ │Service│ │ Service │
-└───────┬──┘ └───┬───┘ └────┬────┘
-        │         │          │
-┌───────▼─────────▼──────────▼────┐
-│       Message Bus (NATS)        │
-└───────┬─────────┬────────────────┘
-        │         │
-┌───────▼──┐ ┌───▼────────┐
-│Workflow  │ │Notification│
-│ Engine   │ │  Service   │
-└──────────┘ └────────────┘
+┌─────────────────────────────────────────────────────┐
+│                 Docker/Podman Host                   │
+├─────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐                │
+│  │ gotrs:latest │  │gotrs-toolbox │                │
+│  │   (44.7MB)   │  │   (136MB)    │                │
+│  │  Production  │  │ Development  │                │
+│  │    Binary    │  │    Tools     │                │
+│  └──────────────┘  └──────────────┘                │
+│                                                      │
+│  ┌──────────────┐  ┌──────────────┐                │
+│  │ gotrs-tests  │  │gotrs-route-  │                │
+│  │   (29MB)     │  │tools (47MB)  │                │
+│  │ Test Runner  │  │Route Manager │                │
+│  └──────────────┘  └──────────────┘                │
+│                                                      │
+│  ┌──────────────┐  ┌──────────────┐                │
+│  │gotrs-config- │  │gotrs-goatkit │                │
+│  │manager (32MB)│  │  Config UI   │                │
+│  └──────────────┘  └──────────────┘                │
+└─────────────────────────────────────────────────────┘
 ```
 
 ## Core Components
 
-### 1. API Gateway
-- **Technology**: Kong or Traefik
+### 1. Web Server (Nginx)
+- **Technology**: Nginx Alpine
 - **Responsibilities**:
-  - Request routing
-  - Authentication/authorization
-  - Rate limiting
-  - SSL termination
-  - Request/response transformation
-  - API versioning
+  - Reverse proxy to backend (port 8080)
+  - Static file serving
+  - SSL termination (production)
+  - Request buffering
+  - Gzip compression
 
-### 2. Core Services
+### 2. Application Server (goats binary)
+- **Technology**: Go 1.23 binary (44.7MB)
+- **Framework**: Gin web framework
+- **Template Engine**: Pongo2 (Django-like syntax)
+- **Responsibilities**:
+  - HTMX endpoint handling
+  - REST API serving
+  - Session management
+  - YAML route loading
+  - Server-side rendering
+
+### 3. Core Services
 
 #### Auth Service
 ```go
@@ -105,7 +147,23 @@ type UserService interface {
 }
 ```
 
-### 3. Data Layer
+### 4. YAML-Based Routing System
+```yaml
+# Example route configuration (routes/admin/admin-users.yaml)
+route_group:
+  prefix: /admin
+  name: admin-users
+  middleware:
+    - auth
+    - admin
+  routes:
+    - path: /users
+      method: GET
+      handler: handleAdminUsers
+      template: pages/admin/users.pongo2
+```
+
+### 5. Data Layer
 
 #### Primary Database (PostgreSQL)
 ```sql
@@ -163,7 +221,7 @@ Workflow Patterns:
 - Approval chains
 ```
 
-### 4. Communication Patterns
+### 6. Communication Patterns
 
 #### Synchronous Communication
 - REST API for JSON data exchange
@@ -175,7 +233,7 @@ Workflow Patterns:
 - Server-Sent Events (SSE) for real-time updates
 - Background job processing via Temporal activities
 
-### 5. Security Architecture
+### 7. Security Architecture
 
 ```yaml
 Security Layers:
@@ -201,6 +259,41 @@ Security Layers:
     - Session management
 ```
 
+## Docker Build Architecture
+
+### Multi-Stage Build Strategy
+```dockerfile
+# Optimized Dockerfile with BuildKit
+# syntax=docker/dockerfile:1
+
+# Stage 1: Dependencies (cached)
+FROM golang:1.23-alpine AS deps
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download && go mod verify
+
+# Stage 2: Build tools (parallel)
+FROM deps AS tools
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go install -tags 'postgres' migrate@latest
+
+# Stage 3: Application build
+FROM deps AS builder
+RUN --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=1 go build -ldflags="-w -s" -o goats
+
+# Stage 4: Minimal runtime (Alpine 3.19)
+FROM alpine:3.19 AS runtime
+# Final image: 44.7MB
+```
+
+### Container Images
+- **gotrs:latest** (44.7MB) - Main application
+- **gotrs-toolbox** (136MB) - Development tools
+- **gotrs-tests** (29MB) - Test runner
+- **gotrs-route-tools** (47MB) - Route management
+- **gotrs-config-manager** (32MB) - Configuration UI
+- **gotrs-goatkit** - GoatKit platform tools
+
 ## Deployment Architecture
 
 ### Development Environment
@@ -208,39 +301,52 @@ Security Layers:
 # docker-compose.yml (Podman-compatible, no version specified)
 services:
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gotrs-backend
     ports:
       - "8080:8080"
     environment:
-      - ENV=development
-    volumes:
-      - ./:/app
+      ENABLE_YAML_ROUTING: true
+      ROUTES_DIR: /app/routes
+    depends_on:
+      postgres:
+        condition: service_healthy
       
   postgres:
     image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=gotrs
+    container_name: gotrs-postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
       
   valkey:
     image: valkey/valkey:7-alpine
-    
-  temporal:
-    image: temporalio/auto-setup:1.22.4
+    container_name: gotrs-valkey
     ports:
-      - "7233:7233"
+      - "6388:6379"
+    volumes:
+      - valkey_data:/data
       
-  zinc:
-    image: public.ecr.aws/zinclabs/zinc:0.4.9
+  nginx:
+    image: nginx:alpine
+    container_name: gotrs-nginx
     ports:
-      - "4080:4080"
-    environment:
-      - ZINC_FIRST_ADMIN_USER=admin
-      - ZINC_FIRST_ADMIN_PASSWORD=admin
+      - "80:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro,Z
+      - ./static:/var/www/static:ro,Z
       
   mailhog:
     image: mailhog/mailhog:latest
+    container_name: gotrs-mailhog
     ports:
       - "8025:8025"
+      
+  # Future services (currently disabled):
+  # temporal, zinc, ldap - commented out until needed
 ```
 
 ### Production Kubernetes
@@ -323,46 +429,57 @@ var (
 ## Technology Stack
 
 ### Backend
-- **Language**: Go 1.21+
-- **Web Framework**: Gin or Fiber
+- **Language**: Go 1.23
+- **Web Framework**: Gin
+- **Template Engine**: Pongo2 (Django-like syntax)
 - **ORM**: GORM with raw SQL for complex queries
 - **Authentication**: JWT with refresh tokens
 - **Validation**: go-playground/validator
+- **Binary Name**: goats (GoatKit platform)
 
 ### Frontend
+- **Architecture**: Server-side rendering (SSR)
 - **Framework**: HTMX for hypermedia-driven architecture
 - **JavaScript**: Alpine.js for lightweight interactivity
-- **CSS**: Tailwind CSS with standalone CLI
-- **Templates**: Go HTML templates with layouts
+- **CSS**: Tailwind CSS with Makefile build targets
+- **Templates**: Pongo2 templates with base layouts
 - **Real-time**: Server-Sent Events (SSE)
-- **Build Tool**: Tailwind CLI (no JavaScript bundler needed)
-- **Testing**: Go template tests + E2E tests
+- **Build**: `make css-build` for production CSS
 
 ### Infrastructure
 - **Container Runtime**: Docker or Podman (auto-detected)
-- **Orchestration**: Kubernetes/OpenShift
-- **CI/CD**: GitHub Actions
-- **Monitoring**: Prometheus + Grafana
-- **Logging**: ELK Stack
+- **Build System**: Multi-stage Dockerfile with BuildKit
+- **Orchestration**: Kubernetes/OpenShift ready
+- **Development**: Container-first with Makefile
+- **Security**: Non-root containers (UID 1000)
 
 ## Development Principles
 
-1. **Domain-Driven Design**: Clear bounded contexts
-2. **Clean Architecture**: Separation of concerns
-3. **12-Factor App**: Cloud-native best practices
-4. **API-First**: Design APIs before implementation
+1. **Container-First**: All development in containers, no host dependencies
+2. **Production-Like Always**: Single Dockerfile, no separate dev environment
+3. **YAML-Driven Configuration**: Routes defined in YAML for flexibility
+4. **Server-Side Rendering**: HTMX + Pongo2 for simplicity
 5. **Test-Driven Development**: Comprehensive test coverage
-6. **Security by Design**: Security at every layer
+6. **Security by Design**: Non-root containers, security scanning
+7. **DRY Principle**: Shared base images, reusable components
+8. **Makefile as Entry Point**: All operations through make targets
 
-## Performance Targets
+## Performance Characteristics
 
+### Current Performance (MVP)
 - **API Response Time**: < 200ms (p95)
 - **Page Load Time**: < 2 seconds
-- **Concurrent Users**: 10,000+
-- **Tickets/Second**: 100+ creates
-- **Uptime**: 99.9% SLA
-- **RPO**: < 1 hour
-- **RTO**: < 4 hours
+- **Docker Image Size**: 44.7MB (main application)
+- **Build Time**: 20 seconds (cached), 44 seconds (clean)
+- **Container Startup**: < 5 seconds
+- **Memory Usage**: ~50MB idle, ~200MB under load
+- **Concurrent Users**: 100+ (MVP target)
+
+### Build Performance (with BuildKit)
+- **Cached Rebuild**: 20 seconds (70% faster)
+- **Clean Build**: 44 seconds
+- **Parallel Stages**: Tools and app build concurrently
+- **Cache Hit Rate**: >90% for unchanged dependencies
 
 ## Extension Architecture
 
@@ -386,11 +503,29 @@ type Plugin interface {
 - Authentication providers
 - Storage backends
 
-## Future Considerations
+## Current State and Roadmap
 
-1. **Multi-tenancy**: Isolated customer environments
-2. **Edge Computing**: Regional deployments
-3. **AI Integration**: ML models for ticket classification
-4. **Blockchain**: Audit trail integrity
-5. **IoT Support**: Device monitoring integration
-6. **Voice Integration**: Phone support channel
+### Implemented Features
+- ✅ HTMX-driven UI with server-side rendering
+- ✅ Complete admin interface (users, groups, queues, tickets)
+- ✅ YAML-based dynamic routing system
+- ✅ Optimized Docker build system (44.7MB images)
+- ✅ Container-first development workflow
+- ✅ PostgreSQL with OTRS-compatible schema
+- ✅ Pongo2 template engine with dark mode
+- ✅ Session-based authentication
+- ✅ Makefile-driven operations
+
+### In Progress
+- 🚧 JWT authentication implementation
+- 🚧 Customer portal interface
+- 🚧 Email integration with Mailhog
+- 🚧 Advanced search capabilities
+
+### Future Considerations
+- **Temporal Workflows**: Workflow engine integration (currently disabled)
+- **Zinc Search**: Full-text search engine (currently disabled)
+- **LDAP Integration**: Enterprise authentication (scaffold exists)
+- **Multi-tenancy**: Isolated customer environments
+- **Microservices Split**: When scaling requires it
+- **AI Integration**: Ticket classification and routing

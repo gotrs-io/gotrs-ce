@@ -1064,9 +1064,8 @@ curl -v http://localhost:8080/admin/states
 **Build Process Evolution**:
 ```bash
 # Before (fragmented):
-docker build -f Dockerfile.dev  # Development
-docker build -f Dockerfile     # Production (didn't exist)
-ad-hoc docker commands
+Multiple dockerfiles for dev/prod separation
+Ad-hoc docker commands without standardization
 
 # After (consolidated):
 make build    # Single command builds all needed images

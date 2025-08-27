@@ -109,25 +109,28 @@ type UserService interface {
 
 #### Primary Database (PostgreSQL)
 ```sql
--- Core tables structure
-tickets
-├── id (UUID)
-├── number (BIGINT, unique)
-├── title (VARCHAR)
-├── status (ENUM)
-├── priority (ENUM)
-├── queue_id (FK)
-├── customer_id (FK)
-├── agent_id (FK)
-├── created_at
-├── updated_at
-└── metadata (JSONB)
+-- OTRS-Compatible Schema (100% compatibility maintained)
+-- Uses INTEGER primary keys, NOT UUIDs
+ticket
+├── id (BIGSERIAL)           -- BIGINT auto-increment
+├── tn (VARCHAR(50))         -- Ticket number, unique
+├── title (VARCHAR(255))
+├── ticket_state_id (SMALLINT, FK)
+├── ticket_priority_id (SMALLINT, FK)
+├── queue_id (INTEGER, FK)
+├── customer_id (VARCHAR(150))      -- Company ID
+├── customer_user_id (VARCHAR(250)) -- Customer email/login
+├── user_id (INTEGER, FK)           -- Owner
+├── responsible_user_id (INTEGER)   -- Assigned agent
+├── create_time (TIMESTAMP)
+├── change_time (TIMESTAMP)
+└── (116 total OTRS tables)
 
 -- Indexes for performance
-CREATE INDEX idx_tickets_status ON tickets(status);
-CREATE INDEX idx_tickets_queue ON tickets(queue_id);
-CREATE INDEX idx_tickets_customer ON tickets(customer_id);
-CREATE INDEX idx_tickets_created ON tickets(created_at DESC);
+CREATE INDEX idx_ticket_state_id ON ticket(ticket_state_id);
+CREATE INDEX idx_ticket_queue_id ON ticket(queue_id);
+CREATE INDEX idx_ticket_customer_id ON ticket(customer_id);
+CREATE INDEX idx_ticket_create_time ON ticket(create_time DESC);
 ```
 
 #### Cache Layer (Valkey)
@@ -202,8 +205,7 @@ Security Layers:
 
 ### Development Environment
 ```yaml
-# docker-compose.yml
-version: '3.8'
+# docker-compose.yml (Podman-compatible, no version specified)
 services:
   backend:
     build: .
@@ -337,8 +339,8 @@ var (
 - **Testing**: Go template tests + E2E tests
 
 ### Infrastructure
-- **Container**: Docker
-- **Orchestration**: Kubernetes
+- **Container Runtime**: Docker or Podman (auto-detected)
+- **Orchestration**: Kubernetes/OpenShift
 - **CI/CD**: GitHub Actions
 - **Monitoring**: Prometheus + Grafana
 - **Logging**: ELK Stack

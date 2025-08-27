@@ -49,8 +49,8 @@ func TestGroupAssignmentNotPersisting(t *testing.T) {
 			currentGroups = append(currentGroups, groupName)
 		}
 		
-		// ARRANGE: Prepare update request with OBC group added (if not already present)
-		targetGroups := append(currentGroups, "OBC")
+		// ARRANGE: Prepare update request with testgroup group added (if not already present)
+		targetGroups := append(currentGroups, "testgroup")
 		// Remove duplicates
 		uniqueGroups := make([]string, 0)
 		seen := make(map[string]bool)
@@ -62,7 +62,7 @@ func TestGroupAssignmentNotPersisting(t *testing.T) {
 		}
 		
 		updateRequest := map[string]interface{}{
-			"login":      "robbie",
+			"login":      "testuser",
 			"first_name": "Robbie", 
 			"last_name":  "Nadden",
 			"valid_id":   1,
@@ -102,7 +102,7 @@ func TestGroupAssignmentNotPersisting(t *testing.T) {
 		}
 		
 		// THIS IS WHERE THE BUG MANIFESTS: Groups are not actually saved
-		assert.Contains(t, actualGroups, "OBC", "FAILING: OBC group should be persisted in database but isn't")
+		assert.Contains(t, actualGroups, "testgroup", "FAILING: testgroup group should be persisted in database but isn't")
 		
 		// Additional verification: All requested groups should be present
 		for _, expectedGroup := range uniqueGroups {
@@ -179,7 +179,7 @@ func TestNoWayToRemoveUserFromAllGroups(t *testing.T) {
 		
 		// ACT: Send update with empty groups array to remove all groups
 		updateRequest := map[string]interface{}{
-			"login":      "robbie",
+			"login":      "testuser",
 			"first_name": "Robbie",
 			"last_name":  "Nadden", 
 			"valid_id":   1,
@@ -248,8 +248,8 @@ func TestUserWorkflowEndToEnd(t *testing.T) {
 			currentGroupNames[i] = group.(string)
 		}
 		
-		// ARRANGE: Add OBC to groups if not already present (simulates user clicking OBC checkbox)
-		updatedGroups := append(currentGroupNames, "OBC")
+		// ARRANGE: Add testgroup to groups if not already present (simulates user clicking testgroup checkbox)
+		updatedGroups := append(currentGroupNames, "testgroup")
 		uniqueGroups := make([]string, 0)
 		seen := make(map[string]bool)
 		for _, group := range updatedGroups {
@@ -300,13 +300,13 @@ func TestUserWorkflowEndToEnd(t *testing.T) {
 			dbGroups = append(dbGroups, groupName)
 		}
 		
-		// THIS IS THE MAIN BUG: User clicked OBC and saved, but it's not in database
-		assert.Contains(t, dbGroups, "OBC", "FAILING: OBC group should be saved to database after user workflow")
+		// THIS IS THE MAIN BUG: User clicked testgroup and saved, but it's not in database
+		assert.Contains(t, dbGroups, "testgroup", "FAILING: testgroup group should be saved to database after user workflow")
 		
 		// ARRANGE: Now test removing the group (simulates unchecking checkbox)
 		finalGroups := make([]string, 0)
 		for _, group := range uniqueGroups {
-			if group != "OBC" {
+			if group != "testgroup" {
 				finalGroups = append(finalGroups, group)
 			}
 		}
@@ -330,7 +330,7 @@ func TestUserWorkflowEndToEnd(t *testing.T) {
 		
 		assert.Equal(t, http.StatusOK, w3.Code)
 		
-		// ASSERT: OBC group should now be removed
+		// ASSERT: testgroup group should now be removed
 		var dbGroupsAfterRemoval []string
 		rows2, err := db.Query(groupQuery)
 		require.NoError(t, err)
@@ -343,7 +343,7 @@ func TestUserWorkflowEndToEnd(t *testing.T) {
 			dbGroupsAfterRemoval = append(dbGroupsAfterRemoval, groupName)
 		}
 		
-		assert.NotContains(t, dbGroupsAfterRemoval, "OBC", "OBC group should be removed when unchecked")
+		assert.NotContains(t, dbGroupsAfterRemoval, "testgroup", "testgroup group should be removed when unchecked")
 	})
 }
 
@@ -356,7 +356,7 @@ func TestFormDataBindingIssues(t *testing.T) {
 
 	t.Run("Should handle form-encoded group data", func(t *testing.T) {
 		// Test with form data (how HTMX might send it)
-		formData := "login=robbie&first_name=Robbie&last_name=Nadden&valid_id=1&groups=admin&groups=OBC"
+		formData := "login=testuser&first_name=Robbie&last_name=Nadden&valid_id=1&groups=admin&groups=testgroup"
 		
 		req, _ := http.NewRequest("PUT", "/admin/users/15", strings.NewReader(formData))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")

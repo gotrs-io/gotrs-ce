@@ -140,7 +140,7 @@ GOTRS maintains high code quality and security standards through comprehensive a
 - **SAST**: GitHub CodeQL for comprehensive static application security testing
 
 ### 🧪 Testing Pipeline  
-- **Unit Tests**: Go backend with race detection, React frontend
+- **Unit Tests**: Go backend with race detection, HTMX frontend
 - **Integration Tests**: End-to-end API testing with test database
 - **Coverage**: Automated coverage reporting via Codecov
 - **Database**: Full PostgreSQL schema validation

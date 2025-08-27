@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -16,34 +17,39 @@ import (
 )
 
 // This test focuses on the EXACT scenario the user reported:
-// 1. User has groups in database (we confirmed robbie has admin, OBC)
+// 1. User has groups in database (confirmed via testing)
 // 2. But UI/API might not be displaying or updating them correctly
 func TestRealGroupAssignmentIssue(t *testing.T) {
+	config := GetTestConfig()
+	
 	// Manual database check first - this should pass based on our earlier query
-	t.Run("Database verification: Robbie should have groups", func(t *testing.T) {
+	t.Run("Database verification: Test user should have groups", func(t *testing.T) {
 		db, err := database.GetDB()
 		if err != nil {
 			t.Skip("Database not available")
 		}
 
-		// This is the EXACT query we ran earlier that showed admin, OBC
+		// Query to verify user groups
 		var groups string
 		err = db.QueryRow(`
 			SELECT string_agg(g.name, ', ') as groups 
 			FROM users u 
 			LEFT JOIN group_user gu ON u.id = gu.user_id 
 			LEFT JOIN groups g ON gu.group_id = g.id 
-			WHERE u.login = 'robbie' 
-			GROUP BY u.id, u.login, u.first_name, u.last_name`).Scan(&groups)
+			WHERE u.login = $1 
+			GROUP BY u.id, u.login, u.first_name, u.last_name`, config.UserLogin).Scan(&groups)
 
 		if err != nil {
-			t.Logf("Could not find robbie user or query failed: %v", err)
-			t.Skip("Robbie user not found - create him first through UI")
+			t.Logf("Could not find test user or query failed: %v", err)
+			t.Skip("Test user not found - create him first through UI")
 		}
 
-		assert.NotEmpty(t, groups, "Robbie should have groups in database")
-		assert.Contains(t, groups, "admin", "Robbie should have admin group")
-		t.Logf("SUCCESS: Database shows Robbie has groups: %s", groups)
+		assert.NotEmpty(t, groups, "Test user should have groups in database")
+		// Check for expected groups from config
+		for _, expectedGroup := range config.UserGroups {
+			assert.Contains(t, groups, expectedGroup, "Test user should have %s group", expectedGroup)
+		}
+		t.Logf("SUCCESS: Database shows test user has groups: %s", groups)
 	})
 
 	t.Run("API GET verification: Does HandleAdminUserGet return the groups?", func(t *testing.T) {
@@ -52,11 +58,15 @@ func TestRealGroupAssignmentIssue(t *testing.T) {
 			t.Skip("Database not available")
 		}
 
-		// Get Robbie's user ID
-		var robbieID int
-		err = db.QueryRow("SELECT id FROM users WHERE login = 'robbie'").Scan(&robbieID)
+		// Get test user's ID
+		var testUserID int
+		testUsername := os.Getenv("TEST_USERNAME")
+		if testUsername == "" {
+			testUsername = "testuser"
+		}
+		err = db.QueryRow("SELECT id FROM users WHERE login = $1", testUsername).Scan(&testUserID)
 		if err != nil {
-			t.Skip("Robbie user not found")
+			t.Skip("Test user not found")
 		}
 
 		// Test the HandleAdminUserGet function directly
@@ -65,7 +75,7 @@ func TestRealGroupAssignmentIssue(t *testing.T) {
 		router.GET("/admin/users/:id", HandleAdminUserGet)
 
 		// Make request
-		req, _ := http.NewRequest("GET", "/admin/users/"+strconv.Itoa(robbieID), nil)
+		req, _ := http.NewRequest("GET", "/admin/users/"+strconv.Itoa(testUserID), nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
@@ -88,18 +98,18 @@ func TestRealGroupAssignmentIssue(t *testing.T) {
 		}
 	})
 
-	t.Run("Form submission test: Can we update Robbie's groups via HandleAdminUserUpdate?", func(t *testing.T) {
+	t.Run("Form submission test: Can we update Test user's groups via HandleAdminUserUpdate?", func(t *testing.T) {
 		db, err := database.GetDB()
 		if err != nil {
 			t.Skip("Database not available")
 		}
 
-		// Get Robbie's user ID and current data
-		var robbieID int
+		// Get test user's ID and current data
+		var testUserID int
 		var firstName, lastName, login string
-		err = db.QueryRow("SELECT id, login, first_name, last_name FROM users WHERE login = 'robbie'").Scan(&robbieID, &login, &firstName, &lastName)
+		err = db.QueryRow("SELECT id, login, first_name, last_name FROM users WHERE login = $1", testUsername).Scan(&testUserID, &login, &firstName, &lastName)
 		if err != nil {
-			t.Skip("Robbie user not found")
+			t.Skip("Test user not found")
 		}
 
 		// Test the HandleAdminUserUpdate function
@@ -107,18 +117,19 @@ func TestRealGroupAssignmentIssue(t *testing.T) {
 		router := gin.New()
 		router.PUT("/admin/users/:id", HandleAdminUserUpdate)
 
-		// Create form data that adds a test group
+		// Create form data that adds test groups
 		formData := url.Values{}
 		formData.Set("login", login)
 		formData.Set("first_name", firstName)
 		formData.Set("last_name", lastName)
 		formData.Set("valid_id", "1")
-		formData.Add("groups", "admin")    // Keep existing group
-		formData.Add("groups", "OBC")      // Keep existing group
-		formData.Add("groups", "users")    // Add another group if it exists
+		// Add groups from config
+		for _, group := range config.UserGroups {
+			formData.Add("groups", group)
+		}
 
 		// Make request
-		req, _ := http.NewRequest("PUT", "/admin/users/"+strconv.Itoa(robbieID),
+		req, _ := http.NewRequest("PUT", "/admin/users/"+strconv.Itoa(testUserID),
 			strings.NewReader(formData.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		
@@ -136,7 +147,7 @@ func TestRealGroupAssignmentIssue(t *testing.T) {
 			FROM users u 
 			LEFT JOIN group_user gu ON u.id = gu.user_id 
 			LEFT JOIN groups g ON gu.group_id = g.id 
-			WHERE u.login = 'robbie' 
+			WHERE u.login = $1 
 			GROUP BY u.id, u.login, u.first_name, u.last_name`).Scan(&newGroups)
 
 		if err == nil {

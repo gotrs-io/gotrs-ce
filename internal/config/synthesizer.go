@@ -157,8 +157,8 @@ func (s *Synthesizer) SynthesizeTestData() error {
 		return fmt.Errorf("failed to generate test data: %w", err)
 	}
 	
-	fmt.Printf("✅ Generated test data SQL: migrations/000004_generated_test_data.up.sql\n")
-	fmt.Printf("📝 Generated credentials CSV: test_credentials.csv\n")
+	fmt.Fprintf(os.Stderr, "✅ Generated test data SQL: migrations/000004_generated_test_data.up.sql\n")
+	fmt.Fprintf(os.Stderr, "📝 Credentials CSV written to stdout (redirect to save: make synthesize > credentials.csv)\n")
 	
 	return nil
 }
@@ -280,7 +280,7 @@ func (s *Synthesizer) generateVariables(existing map[string]string, rotateOnly b
 		Key: "VALKEY_HOST", Value: s.getOrDefault(existing, "VALKEY_HOST", "localhost"), Type: "static",
 	})
 	s.variables = append(s.variables, EnvVariable{
-		Key: "VALKEY_PORT", Value: s.getOrDefault(existing, "VALKEY_PORT", "6380"), Type: "static",
+		Key: "VALKEY_PORT", Value: s.getOrDefault(existing, "VALKEY_PORT", "6388"), Type: "static",
 	})
 	s.variables = append(s.variables, EnvVariable{
 		Key: "VALKEY_PASSWORD", Value: s.getOrDefault(existing, "VALKEY_PASSWORD", ""), Type: "static",

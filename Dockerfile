@@ -26,6 +26,9 @@ COPY . ./
 # Build the application
 RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o goats ./cmd/goats
 
+# Install migrate tool
+RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
 # Production stage
 FROM alpine:latest
 
@@ -49,6 +52,7 @@ WORKDIR /app
 
 # Copy binary from builder stage
 COPY --from=builder --chown=appuser:appgroup /build/goats ./goats
+COPY --from=builder --chown=appuser:appgroup /go/bin/migrate ./migrate
 
 # Copy necessary files
 COPY --chown=appuser:appgroup templates ./templates/

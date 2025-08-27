@@ -93,10 +93,10 @@ INSERT INTO ticket (tn, title, ...) VALUES ('...', '...', ...);
 ## Migration Results (Real Production Data)
 
 ### Core Data Successfully Imported
-- **8 tickets** including confidential customer data
+- **8 tickets** with complete history
 - **11 articles** with complete content
-- **2 customer users** (robbie, hans)  
-- **1 customer company** (OBC Group)
+- **2 customer users** with profiles  
+- **1 customer company** with configuration
 - **4 queues** with routing configuration
 - **4 groups** with permission matrices
 
@@ -130,7 +130,7 @@ INSERT INTO ticket (tn, title, ...) VALUES ('...', '...', ...);
 
 ### Real-World Validation
 Successfully imported production OTRS data including:
-- **OBC Group customer tickets**: "robbie called to say that a server was down", "sql server slow"
+- **Customer tickets**: Various support requests and incidents
 - **Complete customer database**: All user accounts and permissions
 - **Full system configuration**: Production OTRS settings and customizations
 

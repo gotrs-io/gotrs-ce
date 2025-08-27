@@ -47,7 +47,7 @@ make logs
 
 ### 2. Access GOTRS
 
-- **Frontend (React)**: http://localhost:3000
+- **Frontend**: http://localhost
 - **Backend API**: http://localhost:8080/api/v1/status
 - **API Documentation**: http://localhost:8080/api/docs (coming soon)
 - **Mailhog (Email Testing)**: http://localhost:8025
@@ -75,16 +75,13 @@ make clean && make up
 
 ### Common Issues
 
-#### Permission Denied Errors (Frontend)
+#### Permission Denied Errors
 
-If you see errors like `EACCES: permission denied, open '/app/vite.config.ts.timestamp-*'`:
+If you see permission errors:
 
 ```bash
 # Fix file ownership (rarely needed)
-sudo chown -R $USER:$USER ./web/
-
-# Or for containers specifically:
-sudo chown -R 1000:1000 ./web/
+sudo chown -R $USER:$USER ./
 
 # Then restart containers
 make down && make up
@@ -127,11 +124,13 @@ sudo netstat -tulpn | grep :3000
 #### Frontend Not Loading
 
 ```bash
-# Check frontend container status
-podman logs gotrs-frontend
+# Check nginx container status
+podman logs gotrs-nginx
 
-# Ensure npm dependencies are installed
-cd web && npm install && cd ..
+# Check backend container status
+podman logs gotrs-backend
+
+# Restart services
 make down && make up
 ```
 
@@ -142,7 +141,7 @@ Check if everything is working:
 ```bash
 # Health checks
 curl http://localhost:8080/health          # Backend health
-curl http://localhost:3000                # Frontend app
+curl http://localhost                     # Frontend app
 curl http://localhost:8025                # Mailhog UI
 
 # Database connection

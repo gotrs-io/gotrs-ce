@@ -40,9 +40,12 @@ build/
 bin/           # All compiled binaries should go here!
 
 # Individual binaries (in case they're built in root by mistake)
-gotrs
-gotrs-*
-server
+goats          # Main server binary - should be in container only
+gotrs          # CLI tool - should be in container only
+gotrs-*        # Any gotrs-prefixed binaries
+generator      # Code generator
+migrate        # Database migration tool
+server         # Legacy server name
 *.test
 
 # Go build cache

@@ -20,6 +20,8 @@ func TestGroupAssignmentRobustnessFixes(t *testing.T) {
 		// This test ensures that when we fetch a user, the groups are properly formatted
 		// and match what the UI expects
 		
+		config := GetTestConfig()
+		
 		gin.SetMode(gin.TestMode)
 		router := gin.New()
 		
@@ -30,11 +32,11 @@ func TestGroupAssignmentRobustnessFixes(t *testing.T) {
 				"success": true,
 				"data": gin.H{
 					"id":         15,
-					"login":      "robbie",
-					"first_name": "Robbie",
-					"last_name":  "Nadden",
+					"login":      config.UserLogin,
+					"first_name": config.UserFirstName,
+					"last_name":  config.UserLastName,
 					"valid_id":   1,
-					"groups":     []string{"admin", "OBC"}, // This should match database
+					"groups":     config.UserGroups, // This should match database
 				},
 			})
 		})
@@ -61,8 +63,10 @@ func TestGroupAssignmentRobustnessFixes(t *testing.T) {
 			groupNames = append(groupNames, g.(string))
 		}
 		
-		assert.Contains(t, groupNames, "admin")
-		assert.Contains(t, groupNames, "OBC")
+		// Check that expected groups are present
+		for _, expectedGroup := range config.UserGroups {
+			assert.Contains(t, groupNames, expectedGroup)
+		}
 		
 		t.Logf("SUCCESS: API returns properly formatted groups: %v", groupNames)
 	})
@@ -71,6 +75,7 @@ func TestGroupAssignmentRobustnessFixes(t *testing.T) {
 		// This test adds comprehensive logging to understand what's happening
 		// in the update process
 		
+		config := GetTestConfig()
 		gin.SetMode(gin.TestMode)
 		router := gin.New()
 		
@@ -124,13 +129,13 @@ func TestGroupAssignmentRobustnessFixes(t *testing.T) {
 		
 		// Test form submission with groups
 		formData := url.Values{}
-		formData.Set("login", "robbie")
-		formData.Set("first_name", "Robbie")
-		formData.Set("last_name", "Nadden")
+		formData.Set("login", config.UserLogin)
+		formData.Set("first_name", config.UserFirstName)
+		formData.Set("last_name", config.UserLastName)
 		formData.Set("valid_id", "1")
-		formData.Add("groups", "admin")
-		formData.Add("groups", "OBC")
-		formData.Add("groups", "users")
+		for _, group := range config.UserGroups {
+			formData.Add("groups", group)
+		}
 		
 		req, _ := http.NewRequest("PUT", "/admin/users/15",
 			strings.NewReader(formData.Encode()))
@@ -151,10 +156,10 @@ func TestGroupAssignmentRobustnessFixes(t *testing.T) {
 		debug := response["debug"].(map[string]interface{})
 		groupsReceived := debug["groups_received"].([]interface{})
 		
-		assert.Equal(t, 3, len(groupsReceived), "Should receive 3 groups")
-		assert.Contains(t, groupsReceived, "admin")
-		assert.Contains(t, groupsReceived, "OBC")
-		assert.Contains(t, groupsReceived, "users")
+		assert.Equal(t, len(config.UserGroups), len(groupsReceived), "Should receive correct number of groups")
+		for _, expectedGroup := range config.UserGroups {
+			assert.Contains(t, groupsReceived, expectedGroup)
+		}
 		
 		t.Logf("SUCCESS: Form submission correctly parsed groups: %v", groupsReceived)
 	})

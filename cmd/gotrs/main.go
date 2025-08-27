@@ -95,7 +95,7 @@ func runSynthesize(cmd *cobra.Command, args []string) error {
 	
 	// If only generating test data
 	if testDataOnlyFlag {
-		fmt.Println("🔬 Generating test data...")
+		fmt.Fprintln(os.Stderr, "🔬 Generating test data...")
 		return synth.SynthesizeTestData()
 	}
 	

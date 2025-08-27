@@ -31,7 +31,7 @@ func init() {
 	os.Setenv("DB_NAME", "gotrs")
 	os.Setenv("DB_SSLMODE", "disable")
 	os.Setenv("REDIS_HOST", "localhost")
-	os.Setenv("REDIS_PORT", "6380")
+	os.Setenv("REDIS_PORT", "6388")
 	os.Setenv("STORAGE_PATH", "./internal/api/storage")
 }
 

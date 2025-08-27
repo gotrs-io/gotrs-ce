@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/csv"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -50,13 +49,13 @@ func (g *TestDataGenerator) SetPaths(sqlPath, csvPath string) {
 func (g *TestDataGenerator) Generate() error {
 	// Generate credentials for test users
 	g.credentials = []TestCredential{
-		// Admin user
+		// Admin user (OTRS-compatible root@localhost)
 		{
-			Username:  "admin",
+			Username:  "root@localhost",
 			Password:  g.generatePassword(),
-			Email:     "admin@gotrs.local",
+			Email:     "root@localhost",
 			FirstName: "Admin",
-			LastName:  "User",
+			LastName:  "OTRS",
 			Role:      "admin",
 			Type:      "agent",
 		},
@@ -168,15 +167,20 @@ func (g *TestDataGenerator) generateSQL() error {
 
 	// Write test companies
 	fmt.Fprintf(file, "-- Test customer companies\n")
-	fmt.Fprintf(file, "INSERT INTO customer_company (customer_id, name, street, city, country, valid_id, create_by, change_by) VALUES\n")
-	fmt.Fprintf(file, "('COMP1', 'Acme Corporation', '123 Main St', 'New York', 'USA', 1, 1, 1),\n")
-	fmt.Fprintf(file, "('COMP2', 'TechStart Inc', '456 Tech Ave', 'San Francisco', 'USA', 1, 1, 1),\n")
-	fmt.Fprintf(file, "('COMP3', 'Global Services Ltd', '789 Business Park', 'London', 'UK', 1, 1, 1)\n")
+	fmt.Fprintf(file, "INSERT INTO customer_company (customer_id, name, street, city, country, valid_id, create_time, create_by, change_time, change_by) VALUES\n")
+	fmt.Fprintf(file, "('COMP1', 'Acme Corporation', '123 Main St', 'New York', 'USA', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),\n")
+	fmt.Fprintf(file, "('COMP2', 'TechStart Inc', '456 Tech Ave', 'San Francisco', 'USA', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),\n")
+	fmt.Fprintf(file, "('COMP3', 'Global Services Ltd', '789 Business Park', 'London', 'UK', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)\n")
 	fmt.Fprintf(file, "ON CONFLICT (customer_id) DO NOTHING;\n\n")
 
 	// Write agents
 	fmt.Fprintf(file, "-- Test agents (dynamically generated passwords)\n")
-	fmt.Fprintf(file, "INSERT INTO users (login, pw, first_name, last_name, valid_id, create_by, change_by) VALUES\n")
+	for _, cred := range g.credentials {
+		if cred.Type == "agent" {
+			fmt.Fprintf(file, "-- || %s / %s\n", cred.Username, cred.Password)
+		}
+	}
+	fmt.Fprintf(file, "INSERT INTO users (login, pw, first_name, last_name, valid_id, create_time, create_by, change_time, change_by) VALUES\n")
 	
 	agents := []string{}
 	for _, cred := range g.credentials {
@@ -185,7 +189,7 @@ func (g *TestDataGenerator) generateSQL() error {
 			if err != nil {
 				return fmt.Errorf("failed to hash password for %s: %w", cred.Username, err)
 			}
-			agents = append(agents, fmt.Sprintf("('%s', '%s', '%s', '%s', 1, 1, 1)",
+			agents = append(agents, fmt.Sprintf("('%s', '%s', '%s', '%s', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)",
 				cred.Username, hash, cred.FirstName, cred.LastName))
 		}
 	}
@@ -194,7 +198,12 @@ func (g *TestDataGenerator) generateSQL() error {
 
 	// Write customers
 	fmt.Fprintf(file, "-- Test customers (dynamically generated passwords)\n")
-	fmt.Fprintf(file, "INSERT INTO customer_user (login, email, customer_id, pw, first_name, last_name, phone, valid_id, create_by, change_by) VALUES\n")
+	for _, cred := range g.credentials {
+		if cred.Type == "customer" {
+			fmt.Fprintf(file, "-- || %s / %s\n", cred.Username, cred.Password)
+		}
+	}
+	fmt.Fprintf(file, "INSERT INTO customer_user (login, email, customer_id, pw, first_name, last_name, phone, valid_id, create_time, create_by, change_time, change_by) VALUES\n")
 	
 	customers := []string{}
 	companyMap := map[string]string{
@@ -211,7 +220,7 @@ func (g *TestDataGenerator) generateSQL() error {
 				return fmt.Errorf("failed to hash password for %s: %w", cred.Username, err)
 			}
 			company := companyMap[cred.Email]
-			customers = append(customers, fmt.Sprintf("('%s', '%s', '%s', '%s', '%s', '%s', '555-0%d', 1, 1, 1)",
+			customers = append(customers, fmt.Sprintf("('%s', '%s', '%s', '%s', '%s', '%s', '555-0%d', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)",
 				cred.Username, cred.Email, company, hash, cred.FirstName, cred.LastName, phoneNum))
 			phoneNum++
 		}
@@ -221,8 +230,8 @@ func (g *TestDataGenerator) generateSQL() error {
 
 	// Add remaining test data (groups, tickets, etc.)
 	fmt.Fprintf(file, `-- Add agents to users group
-INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_by, change_by) 
-SELECT id, 2, 'rw', 1, 1, 1 FROM users WHERE login IN ('admin', 'agent.smith', 'agent.jones')
+INSERT INTO group_user (user_id, group_id, permission_key, create_time, create_by, change_time, change_by) 
+SELECT id, 2, 'rw', CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1 FROM users WHERE login IN ('root@localhost', 'agent.smith', 'agent.jones')
 ON CONFLICT DO NOTHING;
 
 -- Sample tickets (use subqueries for user_id references)
@@ -260,34 +269,10 @@ ON CONFLICT DO NOTHING;
 }
 
 // generateCSV creates the CSV file with cleartext credentials
+// DEPRECATED: Use 'make show-dev-creds' to extract from SQL comments instead
 func (g *TestDataGenerator) generateCSV() error {
-	file, err := os.Create(g.csvPath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
-
-	// Write header
-	if err := writer.Write([]string{"username", "password", "email", "role", "type"}); err != nil {
-		return err
-	}
-
-	// Write credentials
-	for _, cred := range g.credentials {
-		if err := writer.Write([]string{
-			cred.Username,
-			cred.Password,
-			cred.Email,
-			cred.Role,
-			cred.Type,
-		}); err != nil {
-			return err
-		}
-	}
-
+	// No longer output CSV since credentials are in SQL comments
+	// Use: grep "^-- ||" migrations/000004_generated_test_data.up.sql
 	return nil
 }
 

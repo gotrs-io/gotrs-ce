@@ -113,8 +113,8 @@ func TestValkeyConfig(t *testing.T) {
 			},
 			{
 				name:     "custom port",
-				config:   ValkeyConfig{Host: "valkey.example.com", Port: 6380},
-				expected: "valkey.example.com:6380",
+				config:   ValkeyConfig{Host: "valkey.example.com", Port: 6388},
+				expected: "valkey.example.com:6388",
 			},
 			{
 				name:     "IPv6 address",

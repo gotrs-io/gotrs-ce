@@ -1,5 +1,5 @@
 -- Auto-generated test data - DO NOT COMMIT TO GIT
--- Generated: 2025-08-19T11:26:23Z
+-- Generated: 2025-08-27T13:32:03Z
 -- This file is gitignored and should never be committed
 
 DO $$
@@ -10,29 +10,35 @@ BEGIN
 END $$;
 
 -- Test customer companies
-INSERT INTO customer_company (customer_id, name, street, city, country, valid_id, create_by, change_by) VALUES
-('COMP1', 'Acme Corporation', '123 Main St', 'New York', 'USA', 1, 1, 1),
-('COMP2', 'TechStart Inc', '456 Tech Ave', 'San Francisco', 'USA', 1, 1, 1),
-('COMP3', 'Global Services Ltd', '789 Business Park', 'London', 'UK', 1, 1, 1)
+INSERT INTO customer_company (customer_id, name, street, city, country, valid_id, create_time, create_by, change_time, change_by) VALUES
+('COMP1', 'Acme Corporation', '123 Main St', 'New York', 'USA', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+('COMP2', 'TechStart Inc', '456 Tech Ave', 'San Francisco', 'USA', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+('COMP3', 'Global Services Ltd', '789 Business Park', 'London', 'UK', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)
 ON CONFLICT (customer_id) DO NOTHING;
 
 -- Test agents (dynamically generated passwords)
-INSERT INTO users (login, pw, first_name, last_name, valid_id, create_by, change_by) VALUES
-('admin', '$2a$12$Xt4vBgG2aAmBKE37mzAKr.bX3bXNKxtCwA8nT4oztCf5iuPTSzmYC', 'Admin', 'User', 1, 1, 1),
-('agent.smith', '$2a$12$Z1ZvZKLw8hIsW9QnpREI5uhBYXQQNmo2/tvhwFoAONmfXzGEktR56', 'Agent', 'Smith', 1, 1, 1),
-('agent.jones', '$2a$12$Mvmv3gE7s5OY9nYY4jiLJOpdPuC3Dy8u4f9VWnbNhngz07ie0uVFe', 'Agent', 'Jones', 1, 1, 1)
+-- || root@localhost / X2xSOca5gGy3-1Lq!1
+-- || agent.smith / TRCzvGXJyGZJUf9s!1
+-- || agent.jones / TS7GvNVOVmS9A7fF!1
+INSERT INTO users (login, pw, first_name, last_name, valid_id, create_time, create_by, change_time, change_by) VALUES
+('root@localhost', '$2a$12$iiVLeCJ5iIBHSGQP5KezReA83QYcF2F9sMylXirZNYsbMAheqVrVK', 'Admin', 'OTRS', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+('agent.smith', '$2a$12$zipdGEyx4n1NEPmPg1kOxO9f4iXEx047dzBmouAO2L2afHgrjm6fa', 'Agent', 'Smith', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+('agent.jones', '$2a$12$uV98Swzd4eQPpY1dCKUZBO9KDm3tjFvoklXTxFfrJHVRDQseqsJN2', 'Agent', 'Jones', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)
 ON CONFLICT (login) DO NOTHING;
 
 -- Test customers (dynamically generated passwords)
-INSERT INTO customer_user (login, email, customer_id, pw, first_name, last_name, phone, valid_id, create_by, change_by) VALUES
-('john.customer', 'john@acme.com', 'COMP1', '$2a$12$X.FXxRhIAKGyuuVl./HQXusDhdmJBGCOedv3TiUvLp8vyR.4js/IG', 'John', 'Customer', '555-0101', 1, 1, 1),
-('jane.customer', 'jane@techstart.com', 'COMP2', '$2a$12$Bf8.AgvlSC6aENaeeCDSbO01l6pRXVLCsA7JLxL8/NyhASRYbDWLa', 'Jane', 'Customer', '555-0102', 1, 1, 1),
-('bob.customer', 'bob@global.com', 'COMP3', '$2a$12$bgyeBsZZAlyW883BZa1eSuf8mzE82KPiAShGijSg5eWitlxjgPf/i', 'Bob', 'Customer', '555-0103', 1, 1, 1)
+-- || john.customer / Yq2PuMbRjW4JLQQK!1
+-- || jane.customer / xUKsHdIZQdPrX9BP!1
+-- || bob.customer / -QJ_XSXPl5Mrm1-5!1
+INSERT INTO customer_user (login, email, customer_id, pw, first_name, last_name, phone, valid_id, create_time, create_by, change_time, change_by) VALUES
+('john.customer', 'john@acme.com', 'COMP1', '$2a$12$GOnBz1NZApuDpBSIQ.veJ.38SUqrFhdTFPLBjA.ai3b8Qef8LEgDm', 'John', 'Customer', '555-0101', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+('jane.customer', 'jane@techstart.com', 'COMP2', '$2a$12$VCx9Xt7LI7agRCthknqAC.0NAEB00TvTG29Ny66gGh.Eb62POXd4G', 'Jane', 'Customer', '555-0102', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+('bob.customer', 'bob@global.com', 'COMP3', '$2a$12$rRx0BpPbyVDwPKsB4yOlUOqKM//KLwCBqySpPEUYCuH8dlWwZOsqS', 'Bob', 'Customer', '555-0103', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)
 ON CONFLICT (login) DO NOTHING;
 
 -- Add agents to users group
-INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_by, change_by) 
-SELECT id, 2, 'rw', 1, 1, 1 FROM users WHERE login IN ('admin', 'agent.smith', 'agent.jones')
+INSERT INTO group_user (user_id, group_id, permission_key, create_time, create_by, change_time, change_by) 
+SELECT id, 2, 'rw', CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1 FROM users WHERE login IN ('root@localhost', 'agent.smith', 'agent.jones')
 ON CONFLICT DO NOTHING;
 
 -- Sample tickets (use subqueries for user_id references)

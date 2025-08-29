@@ -1,82 +1,17 @@
-package middleware
-
-import (
-	"context"
-	"net/http"
-	"time"
-	"github.com/gin-gonic/gin"
-	"github.com/gotrs-io/gotrs-ce/internal/database"
-)
-
-// DatabaseHealthCheck middleware checks database connectivity
-// and returns a friendly error page if the database is down
-func DatabaseHealthCheck() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Skip health check for static assets and health endpoint
-		path := c.Request.URL.Path
-		if path == "/health" || path == "/static" || len(path) > 7 && path[:7] == "/static" {
-			c.Next()
-			return
-		}
-
-		// Check database connection
-		db, err := database.GetDB()
-		if err != nil || db == nil {
-			handleDatabaseError(c, "Unable to connect to the database", 
-				"The database server appears to be offline or unreachable. Please ensure the database container is running and try again.",
-				"")
-			return
-		}
-
-		// Create a context with timeout for the ping (2 seconds max)
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		
-		// Test the connection with a simple ping
-		if err := db.PingContext(ctx); err != nil {
-			handleDatabaseError(c, "Database is not responding",
-				"The database connection exists but is not responding to queries. This may be a temporary issue.",
-				"")
-			return
-		}
-
-		c.Next()
-	}
-}
-
-func handleDatabaseError(c *gin.Context, message, details, suggestion string) {
-	// Check if this is an API request
-	if isDatabaseCheckAPIRequest(c) {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"error": "Database connection failed",
-			"message": message,
-			"details": details,
-			"suggestion": suggestion,
-			"status": http.StatusServiceUnavailable,
-		})
-		c.Abort()
-		return
-	}
-
-	// For HTML requests, render a styled error page matching the main UI
-	htmlContent := `
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Database Connection Error - GOTRS</title>
+    <title>Sorry - GOTRS</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     
-    <!-- Dark mode detection script (must be inline to avoid flash) -->
+    <!-- Dark mode detection script -->
     <script>
-        // Set dark mode class before styles load to prevent flash
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark')
-        } else {
-            document.documentElement.classList.remove('dark')
         }
     </script>
     
@@ -87,7 +22,6 @@ func handleDatabaseError(c *gin.Context, message, details, suggestion string) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* Smooth transitions for dark mode */
         * {
             transition: background-color 0.2s, border-color 0.2s;
         }
@@ -114,33 +48,39 @@ func handleDatabaseError(c *gin.Context, message, details, suggestion string) {
                 <div class="flex items-center mb-4">
                     <div class="flex-shrink-0">
                         <div class="flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900">
-                            <i class="fas fa-database text-red-600 dark:text-red-400"></i>
+                            <i class="fas fa-exclamation-circle text-red-600 dark:text-red-400"></i>
                         </div>
                     </div>
                     <div class="ml-4">
-                        <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Database Connection Error</h1>
+                        <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Sorry, something went wrong</h1>
                     </div>
                 </div>
                 
                 <div class="mt-4">
-                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100">` + message + `</p>
-                    <div class="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 dark:border-amber-600">
-                        <p class="text-sm text-gray-700 dark:text-gray-300">` + details + `</p>
+                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100">We're having trouble processing your request</p>
+                    <div class="mt-4 p-4 bg-gray-50 dark:bg-gray-900/50 border-l-4 border-gray-400 dark:border-gray-600">
+                        <p class="text-sm text-gray-700 dark:text-gray-300" id="error-message">
+                            The page you're looking for might have been moved, deleted, or is temporarily unavailable.
+                        </p>
                     </div>
                 </div>
                 
-                <div class="mt-6">
+                <div class="mt-6 space-y-3">
                     <button onclick="location.reload()" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gotrs-600 hover:bg-gotrs-700 dark:bg-gotrs-500 dark:hover:bg-gotrs-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500">
                         <i class="fas fa-sync-alt mr-2"></i>
-                        Retry Connection
+                        Try Again
+                    </button>
+                    <button onclick="window.location.href='/'" class="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500">
+                        <i class="fas fa-home mr-2"></i>
+                        Go to Home
                     </button>
                 </div>
             </div>
             
-            <!-- Status Information -->
+            <!-- Error Details -->
             <div class="mt-6 text-center">
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                    The system will automatically retry when you refresh the page
+                <p class="text-xs text-gray-500 dark:text-gray-400" id="error-code">
+                    <!-- Error code will be injected here by nginx -->
                 </p>
             </div>
         </div>
@@ -157,21 +97,38 @@ func handleDatabaseError(c *gin.Context, message, details, suggestion string) {
                 localStorage.theme = 'dark';
             }
         }
+        
+        // Parse error code from URL if available
+        const urlParams = new URLSearchParams(window.location.search);
+        const errorCode = urlParams.get('code');
+        
+        // Customize message based on error code
+        const errorMessages = {
+            '400': 'The request could not be understood by the server.',
+            '401': 'You need to log in to access this page.',
+            '403': 'You don\'t have permission to access this resource.',
+            '404': 'The page you\'re looking for could not be found.',
+            '405': 'The method used to access this page is not allowed.',
+            '408': 'The request took too long to complete.',
+            '429': 'Too many requests. Please slow down and try again.',
+            '500': 'An internal server error occurred.',
+            '502': 'The service is temporarily unavailable. Please try again.',
+            '503': 'The service is under maintenance or temporarily overloaded.',
+            '504': 'The request took too long to complete. Please try again.'
+        };
+        
+        if (errorCode && errorMessages[errorCode]) {
+            document.getElementById('error-message').textContent = errorMessages[errorCode];
+            document.getElementById('error-code').textContent = `Error Code: ${errorCode}`;
+        }
+        
+        // Only auto-retry for temporary errors (502, 503, 504)
+        if (errorCode && ['502', '503', '504'].includes(errorCode)) {
+            document.getElementById('error-code').textContent += ' | Auto-retry in 10 seconds';
+            setTimeout(function() {
+                location.reload();
+            }, 10000);
+        }
     </script>
 </body>
-</html>`
-	
-	c.Data(http.StatusServiceUnavailable, "text/html; charset=utf-8", []byte(htmlContent))
-	c.Abort()
-}
-
-func isDatabaseCheckAPIRequest(c *gin.Context) bool {
-	// Check if path starts with /api/
-	if len(c.Request.URL.Path) >= 5 && c.Request.URL.Path[:5] == "/api/" {
-		return true
-	}
-	// Check Accept header
-	accept := c.GetHeader("Accept")
-	return accept == "application/json" || 
-	       c.GetHeader("Content-Type") == "application/json"
-}
+</html>

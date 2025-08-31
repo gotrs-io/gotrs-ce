@@ -1,0 +1,17 @@
+# Compatibility Routes Configuration
+apiVersion: v1
+kind: RouteGroup
+metadata:
+  name: compatibility
+  description: "Compatibility routes for legacy URLs"
+  namespace: default
+  enabled: true
+spec:
+  prefix: ""
+  middleware: [] # No group-level middleware - auth applied per route if needed
+  routes:
+    # Redirect /ticket/:id to /tickets/:id for compatibility
+    - path: /ticket/:id
+      method: GET
+      handler: handleTicketRedirect
+      description: "Redirect /ticket/:id to /tickets/:id for compatibility"

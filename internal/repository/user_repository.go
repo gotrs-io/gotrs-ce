@@ -42,14 +42,14 @@ func (r *UserRepository) GetByID(id uint) (*models.User, error) {
 		&user.ChangeTime,
 		&user.ChangeBy,
 	)
-	
+
 	if title.Valid {
 		user.Title = title.String
 	}
 	if password.Valid {
 		user.Password = password.String
 	}
-	
+
 	// Set derived fields
 	user.Email = user.Login // In OTRS, login can be email
 
@@ -58,11 +58,11 @@ func (r *UserRepository) GetByID(id uint) (*models.User, error) {
 	}
 
 	// Note: IsActive is now a method based on ValidID
-	
+
 	// TODO: Load role from role_users table
 	// For now, set a default role based on some logic
 	user.Role = "Agent" // Default to Agent
-	
+
 	return &user, err
 }
 
@@ -98,7 +98,7 @@ func (r *UserRepository) GetByLogin(login string) (*models.User, error) {
 		&user.ChangeTime,
 		&user.ChangeBy,
 	)
-	
+
 	if title.Valid {
 		user.Title = title.String
 	}
@@ -110,7 +110,7 @@ func (r *UserRepository) GetByLogin(login string) (*models.User, error) {
 		fmt.Printf("UserRepository.GetByLogin: No rows found for '%s'\n", login)
 		return nil, fmt.Errorf("user not found")
 	}
-	
+
 	if err != nil {
 		fmt.Printf("UserRepository.GetByLogin: Error: %v\n", err)
 		return nil, err
@@ -120,9 +120,9 @@ func (r *UserRepository) GetByLogin(login string) (*models.User, error) {
 
 	// Note: IsActive is now a method based on ValidID
 	user.Email = user.Login // In OTRS, login can be email
-	
+
 	// Load role based on group membership
-	roleQuery := `
+	roleQuery := database.ConvertPlaceholders(`
 		SELECT g.name 
 		FROM group_user gu
 		JOIN groups g ON gu.group_id = g.id
@@ -133,8 +133,8 @@ func (r *UserRepository) GetByLogin(login string) (*models.User, error) {
 				WHEN 'users' THEN 2
 				ELSE 3
 			END
-		LIMIT 1`
-	
+		LIMIT 1`)
+
 	var groupName string
 	err = r.db.QueryRow(roleQuery, user.ID).Scan(&groupName)
 	if err == nil {
@@ -151,9 +151,9 @@ func (r *UserRepository) GetByLogin(login string) (*models.User, error) {
 		// Default to Agent if no group found
 		user.Role = "Agent"
 	}
-	
+
 	fmt.Printf("UserRepository.GetByLogin: User %s has role %s\n", user.Login, user.Role)
-	
+
 	return &user, nil
 }
 
@@ -311,7 +311,7 @@ func (r *UserRepository) List() ([]*models.User, error) {
 		if err != nil {
 			return nil, err
 		}
-		
+
 		// Handle nullable fields
 		if title.Valid {
 			user.Title = title.String
@@ -319,12 +319,12 @@ func (r *UserRepository) List() ([]*models.User, error) {
 		if password.Valid {
 			user.Password = password.String
 		}
-		
+
 		// Set derived fields
 		// IsActive is now a method based on ValidID
-		user.Role = "Agent" // Default to Agent
+		user.Role = "Agent"     // Default to Agent
 		user.Email = user.Login // In OTRS, login can be email
-		
+
 		users = append(users, &user)
 	}
 

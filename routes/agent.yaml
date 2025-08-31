@@ -1,0 +1,106 @@
+# Agent Routes Configuration
+apiVersion: v1
+kind: RouteGroup
+metadata:
+  name: agent
+  description: "Agent-specific routes for ticket management"
+  namespace: default
+  enabled: true
+spec:
+  prefix: /agent
+  middleware:
+    - auth # Require authentication for agent access
+  routes:
+    # Agent tickets list page
+    - path: /tickets
+      method: GET
+      handler: handleAgentTickets
+      template: pages/agent/tickets.pongo2
+      description: "Display agent tickets list with full functionality"
+
+    # Agent ticket zoom view - shows full ticket with S/MIME articles
+    - path: /tickets/:id
+      method: GET
+      handler: handleAgentTicketView
+      template: pages/agent/ticket_view.pongo2
+      description: "Display full ticket details with S/MIME articles and conversation"
+
+    # Agent ticket reply (customer reply)
+    - path: /tickets/:id/reply
+      method: POST
+      handler: handleAgentTicketReply
+      description: "Process customer reply to ticket"
+
+    # Agent internal note
+    - path: /tickets/:id/note
+      method: POST
+      handler: handleAgentTicketNote
+      description: "Add internal note to ticket"
+
+    # Agent phone call record
+    - path: /tickets/:id/phone
+      method: POST
+      handler: handleAgentTicketPhone
+      description: "Record phone call for ticket"
+
+    # Update ticket status
+    - path: /tickets/:id/status
+      method: PUT
+      handler: handleAgentTicketStatus
+      description: "Update ticket status"
+
+    # Assign ticket to agent
+    - path: /tickets/:id/assign
+      method: PUT
+      handler: handleAgentTicketAssign
+      description: "Assign ticket to specific agent"
+
+    # Update ticket priority
+    - path: /tickets/:id/priority
+      method: PUT
+      handler: handleAgentTicketPriority
+      description: "Update ticket priority"
+
+    # Update ticket queue
+    - path: /tickets/:id/queue
+      method: PUT
+      handler: handleAgentTicketQueue
+      description: "Move ticket to different queue"
+
+    # Merge tickets
+    - path: /tickets/:id/merge
+      method: POST
+      handler: handleAgentTicketMerge
+      description: "Merge ticket with another ticket"
+
+    # Split ticket - using existing handler for now
+    - path: /tickets/:id/split
+      method: POST
+      handler: handleAgentTicketNote
+      description: "Split ticket into multiple tickets (using note handler temporarily)"
+
+    # Customer users for ticket
+    - path: /tickets/:id/customer-users
+      method: GET
+      handler: handleTicketCustomerUsers
+      description: "Get customer users associated with ticket"
+
+    # Save draft for ticket
+    - path: /tickets/:id/draft
+      method: POST
+      handler: handleAgentTicketDraft
+      description: "Save draft reply for ticket"
+
+    # Agent queues
+    - path: /queues
+      method: GET
+      handler: handleAgentQueues
+      template: pages/agent/queues.pongo2
+      description: "Display agent queues"
+
+    # Agent dashboard
+    - path: /dashboard
+      method: GET
+      handler: handleAgentDashboard
+      template: pages/agent/dashboard.pongo2
+      description: "Display agent dashboard with assigned tickets"

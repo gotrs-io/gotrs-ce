@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/api"
+	"github.com/gotrs-io/gotrs-ce/internal/routing"
 	"github.com/gotrs-io/gotrs-ce/internal/services/adapter"
 	"github.com/gotrs-io/gotrs-ce/internal/services/k8s"
 )
@@ -23,7 +26,7 @@ func main() {
 		// Detect environment and adapt configuration
 		detector := k8s.NewDetector()
 		log.Printf("Detected environment: %s", detector.Environment())
-		
+
 		// Auto-configure database if environment variables are set
 		if err := adapter.AutoConfigureDatabase(); err != nil {
 			log.Printf("Warning: Failed to auto-configure database: %v", err)
@@ -31,7 +34,7 @@ func main() {
 		} else {
 			log.Println("Database service registered successfully")
 		}
-		
+
 		// Setup cleanup on shutdown
 		defer func() {
 			ctx := context.Background()
@@ -40,7 +43,7 @@ func main() {
 			}
 		}()
 	}
-	
+
 	// Set Gin mode
 	if os.Getenv("APP_ENV") == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -48,8 +51,420 @@ func main() {
 		gin.SetMode(gin.DebugMode)
 	}
 
-	// Create a simple router with HTMX routes (includes health check)
-	r := api.NewSimpleRouter()
+	// Initialize handler registry
+	handlerRegistry := routing.NewHandlerRegistry()
+
+	// Register middleware from routing package
+	routing.RegisterExistingHandlers(handlerRegistry)
+
+	// Register actual API handlers to override placeholders
+	apiHandlers := map[string]gin.HandlerFunc{
+		"handleDashboard":           api.HandleDashboard,
+		"dashboard_stats":           api.HandleDashboardStats,
+		"dashboard_recent_tickets":  api.HandleRecentTickets,
+		"dashboard_activity_stream": api.HandleActivityStream,
+
+		// Agent handlers
+		"handleAgentTickets":         api.HandleAgentTickets,
+		"handleAgentTicketView":      api.HandleAgentTicketView,
+		"handleAgentTicketReply":     api.HandleAgentTicketReply,
+		"handleAgentTicketNote":      api.HandleAgentTicketNote,
+		"handleAgentTicketPhone":     api.HandleAgentTicketPhone,
+		"handleAgentTicketStatus":    api.HandleAgentTicketStatus,
+		"handleAgentTicketAssign":    api.HandleAgentTicketAssign,
+		"handleAgentTicketPriority":  api.HandleAgentTicketPriority,
+		"handleAgentTicketQueue":     api.HandleAgentTicketQueue,
+		"handleAgentTicketMerge":     api.HandleAgentTicketMerge,
+		"handleAgentSearch":          api.HandleAgentSearch,
+		"handleAgentQueues":          api.HandleAgentQueues,
+		"handleAgentQueueView":       api.HandleAgentQueueView,
+		"handleAgentQueueLock":       api.HandleAgentQueueLock,
+		"handleAgentCustomers":       api.HandleAgentCustomers,
+		"handleAgentCustomerView":    api.HandleAgentCustomerView,
+		"handleAgentCustomerTickets": api.HandleAgentCustomerTickets,
+		"handleAgentSearchResults":   api.HandleAgentSearchResults,
+		"handleAgentDashboard": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Agent Dashboard",
+				"user":    "Agent User",
+				"status":  "Agent access working!",
+			})
+		},
+
+		// Customer handlers
+		"handleCustomerNewTicket":      api.HandleCustomerNewTicket,
+		"handleCustomerCreateTicket":   api.HandleCustomerCreateTicket,
+		"handleCustomerTicketView":     api.HandleCustomerTicketView,
+		"handleCustomerTicketReply":    api.HandleCustomerTicketReply,
+		"handleCustomerCloseTicket":    api.HandleCustomerCloseTicket,
+		"handleCustomerProfile":        api.HandleCustomerProfile,
+		"handleCustomerUpdateProfile":  api.HandleCustomerUpdateProfile,
+		"handleCustomerPasswordForm":   api.HandleCustomerPasswordForm,
+		"handleCustomerChangePassword": api.HandleCustomerChangePassword,
+		"handleCustomerKnowledgeBase":  api.HandleCustomerKnowledgeBase,
+		"handleCustomerKBSearch":       api.HandleCustomerKBSearch,
+		"handleCustomerKBArticle":      api.HandleCustomerKBArticle,
+		"handleCustomerCompanyInfo":    api.HandleCustomerCompanyInfo,
+		"handleCustomerCompanyUsers":   api.HandleCustomerCompanyUsers,
+		"handleCustomerDashboard": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Customer Dashboard",
+				"user":    "Customer User",
+				"status":  "Customer access working!",
+			})
+		},
+		"handleCustomerTickets": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Customer Tickets",
+				"tickets": []gin.H{},
+				"status":  "Customer tickets working!",
+			})
+		},
+
+		// Ticket handlers
+		"handleTicketDetail":              api.HandleTicketDetail,
+		"handleTicketCustomerUsers":       api.HandleTicketCustomerUsers,
+		"handleAgentTicketDraft":          api.HandleAgentTicketDraft,
+		"handleArticleAttachmentDownload": api.HandleArticleAttachmentDownload,
+
+		// Auth handlers
+		"handleLoginPage": api.HandleLoginPage,
+		"handleAuthLogin": api.HandleAuthLogin,
+		"handleLogout":    api.HandleLogout,
+
+		// Admin handlers
+		"handleAdminUsers": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Admin Users Management",
+				"users":   []gin.H{},
+				"status":  "Admin users working!",
+			})
+		},
+		"handleAdminGroups": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Admin Groups Management",
+				"groups":  []gin.H{},
+				"status":  "Admin groups working!",
+			})
+		},
+		"handleCreateGroup": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Create Group",
+				"status":  "Create group working!",
+			})
+		},
+		"handleGetGroup": func(c *gin.Context) {
+			groupID := c.Param("id")
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Get Group",
+				"groupID": groupID,
+				"status":  "Get group working!",
+			})
+		},
+		"handleUpdateGroup": func(c *gin.Context) {
+			groupID := c.Param("id")
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Update Group",
+				"groupID": groupID,
+				"status":  "Update group working!",
+			})
+		},
+		"handleDeleteGroup": func(c *gin.Context) {
+			groupID := c.Param("id")
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Delete Group",
+				"groupID": groupID,
+				"status":  "Delete group working!",
+			})
+		},
+		"handleGroupMembers": func(c *gin.Context) {
+			groupID := c.Param("id")
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Group Members",
+				"groupID": groupID,
+				"members": []gin.H{},
+				"status":  "Group members working!",
+			})
+		},
+		"handleAddUserToGroup": func(c *gin.Context) {
+			groupID := c.Param("id")
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Add User to Group",
+				"groupID": groupID,
+				"status":  "Add user to group working!",
+			})
+		},
+		"handleRemoveUserFromGroup": func(c *gin.Context) {
+			groupID := c.Param("id")
+			userID := c.Param("userId")
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Remove User from Group",
+				"groupID": groupID,
+				"userID":  userID,
+				"status":  "Remove user from group working!",
+			})
+		},
+		"handleAdminQueues": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Admin Queues Management",
+				"queues":  []gin.H{},
+				"status":  "Admin queues working!",
+			})
+		},
+		"handleAdminPriorities": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message":    "Admin Priorities Management",
+				"priorities": []gin.H{},
+				"status":     "Admin priorities working!",
+			})
+		},
+		"handleAdminPermissions": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message":     "Admin Permissions Management",
+				"permissions": []gin.H{},
+				"status":      "Admin permissions working!",
+			})
+		},
+		"handleAdminStates": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Admin States Management",
+				"states":  []gin.H{},
+				"status":  "Admin states working!",
+			})
+		},
+		"handleAdminTypes": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Admin Types Management",
+				"types":   []gin.H{},
+				"status":  "Admin types working!",
+			})
+		},
+		"handleAdminServices": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message":  "Admin Services Management",
+				"services": []gin.H{},
+				"status":   "Admin services working!",
+			})
+		},
+		"handleAdminSLA": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Admin SLA Management",
+				"sla":     []gin.H{},
+				"status":  "Admin SLA working!",
+			})
+		},
+		"handleAdminLookups": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Admin Lookups Management",
+				"lookups": []gin.H{},
+				"status":  "Admin lookups working!",
+			})
+		},
+		"handleAdminCustomerCompanies": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message":   "Admin Customer Companies",
+				"companies": []gin.H{},
+				"status":    "Admin customer companies working!",
+			})
+		},
+		"handleAdminNewCustomerCompany": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "New Customer Company",
+				"status":  "New customer company working!",
+			})
+		},
+		"handleAdminCreateCustomerCompany": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Create Customer Company",
+				"status":  "Create customer company working!",
+			})
+		},
+		"handleAdminEditCustomerCompany": func(c *gin.Context) {
+			companyID := c.Param("id")
+			c.JSON(http.StatusOK, gin.H{
+				"message":   "Edit Customer Company",
+				"companyID": companyID,
+				"status":    "Edit customer company working!",
+			})
+		},
+		"handleAdminUpdateCustomerCompany": func(c *gin.Context) {
+			companyID := c.Param("id")
+			c.JSON(http.StatusOK, gin.H{
+				"message":   "Update Customer Company",
+				"companyID": companyID,
+				"status":    "Update customer company working!",
+			})
+		},
+		"handleAdminDeleteCustomerCompany": func(c *gin.Context) {
+			companyID := c.Param("id")
+			c.JSON(http.StatusOK, gin.H{
+				"message":   "Delete Customer Company",
+				"companyID": companyID,
+				"status":    "Delete customer company working!",
+			})
+		},
+		"handleAdminCustomerCompanyUsers": func(c *gin.Context) {
+			companyID := c.Param("id")
+			c.JSON(http.StatusOK, gin.H{
+				"message":   "Customer Company Users",
+				"companyID": companyID,
+				"users":     []gin.H{},
+				"status":    "Customer company users working!",
+			})
+		},
+		"handleAdminCustomerCompanyTickets": func(c *gin.Context) {
+			companyID := c.Param("id")
+			c.JSON(http.StatusOK, gin.H{
+				"message":   "Customer Company Tickets",
+				"companyID": companyID,
+				"tickets":   []gin.H{},
+				"status":    "Customer company tickets working!",
+			})
+		},
+		"handleAdminCustomerCompanyServices": func(c *gin.Context) {
+			companyID := c.Param("id")
+			c.JSON(http.StatusOK, gin.H{
+				"message":   "Customer Company Services",
+				"companyID": companyID,
+				"services":  []gin.H{},
+				"status":    "Customer company services working!",
+			})
+		},
+		"handleAdminUpdateCustomerCompanyServices": func(c *gin.Context) {
+			companyID := c.Param("id")
+			c.JSON(http.StatusOK, gin.H{
+				"message":   "Update Customer Company Services",
+				"companyID": companyID,
+				"status":    "Update customer company services working!",
+			})
+		},
+		"handleAdminCustomerPortalSettings": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message":  "Customer Portal Settings",
+				"settings": gin.H{},
+				"status":   "Customer portal settings working!",
+			})
+		},
+		"handleAdminUpdateCustomerPortalSettings": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Update Customer Portal Settings",
+				"status":  "Update customer portal settings working!",
+			})
+		},
+		"handleAdminUploadCustomerPortalLogo": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Upload Customer Portal Logo",
+				"status":  "Upload customer portal logo working!",
+			})
+		},
+
+		// Basic system handlers
+		"handleRoot": func(c *gin.Context) {
+			c.Redirect(http.StatusFound, "/login")
+		},
+		"handleHealthCheck": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"status":  "healthy",
+				"version": "1.0.0",
+			})
+		},
+		"handleDetailedHealthCheck": func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"status": "healthy",
+				"components": gin.H{
+					"database": "unknown", // Would check actual DB
+					"cache":    "healthy",
+					"queue":    "healthy",
+				},
+			})
+		},
+		"handleMetrics": func(c *gin.Context) {
+			// Basic Prometheus metrics
+			c.String(http.StatusOK, "# HELP gotrs_up GOTRS is up\n# TYPE gotrs_up gauge\ngotrs_up 1\n")
+		},
+		"handleStaticFiles": func(c *gin.Context) {
+			// Get the full path from the request
+			requestPath := c.Request.URL.Path
+
+			// Map the request path to the file system path
+			var filePath string
+
+			if requestPath == "/favicon.ico" {
+				filePath = "./static/favicon.ico"
+			} else if requestPath == "/favicon.svg" {
+				filePath = "./static/favicon.svg"
+			} else if strings.HasPrefix(requestPath, "/static/") {
+				// Extract the static file path
+				filePath = "." + requestPath
+			} else {
+				c.Status(http.StatusNotFound)
+				return
+			}
+
+			// Serve the file
+			c.File(filePath)
+		},
+		"handleLogoutRedirect": func(c *gin.Context) {
+			// Clear any auth cookies/tokens and redirect to login
+			c.SetCookie("auth_token", "", -1, "/", "", false, true)
+			c.Redirect(http.StatusFound, "/login")
+		},
+		"handleTicketRedirect": func(c *gin.Context) {
+			// Redirect /ticket/:id to /tickets/:id for compatibility
+			ticketID := c.Param("id")
+			c.Redirect(http.StatusMovedPermanently, "/tickets/"+ticketID)
+		},
+		"handleAdminDashboard": func(c *gin.Context) {
+			// Simple admin dashboard
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Admin Dashboard",
+				"user":    "Admin User",
+				"status":  "Admin access working!",
+			})
+		},
+		"handleQueuesRedirect": func(c *gin.Context) {
+			// Get user role from context
+			role, exists := c.Get("user_role")
+			if !exists {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "User role not found"})
+				return
+			}
+
+			// Redirect based on role
+			switch role {
+			case "Admin":
+				c.Redirect(http.StatusFound, "/admin/queues")
+			case "Agent":
+				c.Redirect(http.StatusFound, "/agent/queues")
+			default:
+				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+			}
+		},
+	}
+
+	routing.RegisterAPIHandlers(handlerRegistry, apiHandlers)
+
+	// Create router for YAML routes
+	r := gin.New()
+
+	// Initialize pongo2 renderer for template rendering
+	templateDir := "./templates"
+	api.InitPongo2Renderer(templateDir)
+
+	// Load YAML routes
+	routesDir := os.Getenv("ROUTES_DIR")
+	if routesDir == "" {
+		routesDir = "/app/routes"
+	}
+
+	if err := routing.LoadYAMLRoutes(r, routesDir, handlerRegistry); err != nil {
+		log.Printf("❌ Failed to load YAML routes: %v", err)
+		log.Fatalf("🚨 YAML routes failed to load - cannot continue without routing configuration")
+	}
+
+	log.Println("✅ YAML routes loaded successfully")
+
+	log.Println("✅ Backend initialized successfully")
 
 	// Start server
 	port := os.Getenv("APP_PORT")
@@ -60,7 +475,7 @@ func main() {
 	fmt.Printf("Starting GOTRS HTMX server on port %s\n", port)
 	fmt.Println("Available routes:")
 	fmt.Println("  GET  /          -> Redirect to /login")
-	fmt.Println("  GET  /login     -> Login page") 
+	fmt.Println("  GET  /login     -> Login page")
 	fmt.Println("  GET  /dashboard -> Dashboard (demo)")
 	fmt.Println("  GET  /tickets   -> Tickets list (demo)")
 	fmt.Println("  POST /api/auth/login -> HTMX login")
@@ -72,6 +487,6 @@ func main() {
 	fmt.Println("  GET  /api/v1/ldap/users/:username -> Get user info")
 	fmt.Println("  POST /api/v1/ldap/sync/users -> Sync users")
 	fmt.Println("  GET  /api/v1/ldap/config -> Get LDAP config")
-	
+
 	log.Fatal(r.Run(":" + port))
 }

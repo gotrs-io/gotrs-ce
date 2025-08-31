@@ -1,0 +1,46 @@
+# Static File Routes Configuration
+apiVersion: v1
+kind: RouteGroup
+metadata:
+  name: static
+  description: "Static file serving routes for CSS, JS, images, and other assets"
+  namespace: default
+  enabled: true
+spec:
+  prefix: ""
+  middleware: []
+  routes:
+    # Static CSS files
+    - path: /static/css/:filepath
+      method: GET
+      handler: handleStaticFiles
+      description: "Serve CSS files from static/css directory"
+
+    # Static JavaScript files
+    - path: /static/js/:filepath
+      method: GET
+      handler: handleStaticFiles
+      description: "Serve JavaScript files from static/js directory"
+
+    # Static images
+    - path: /static/images/:filepath
+      method: GET
+      handler: handleStaticFiles
+      description: "Serve image files from static/images directory"
+
+    # Favicon files
+    - path: /favicon.ico
+      method: GET
+      handler: handleStaticFiles
+      description: "Serve favicon.ico file"
+
+    - path: /favicon.svg
+      method: GET
+      handler: handleStaticFiles
+      description: "Serve favicon.svg file"
+
+    # Catch-all for other static files
+    - path: /static/:filepath
+      method: GET
+      handler: handleStaticFiles
+      description: "Serve any other static files from static directory"

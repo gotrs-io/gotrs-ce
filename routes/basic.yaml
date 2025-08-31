@@ -1,0 +1,43 @@
+# Basic Routes Configuration
+apiVersion: v1
+kind: RouteGroup
+metadata:
+  name: basic
+  description: "Basic system routes (root, health, metrics, etc.)"
+  namespace: default
+  enabled: true
+spec:
+  prefix: ""
+  middleware: []
+  routes:
+    # Root path - redirect to login
+    - path: /
+      method: GET
+      handler: handleRoot
+      description: "Root path redirects to login"
+
+    # Health check endpoint
+    - path: /health
+      method: GET
+      handler: handleHealthCheck
+      description: "Basic health check endpoint"
+
+    # Detailed health check
+    - path: /health/detailed
+      method: GET
+      handler: handleDetailedHealthCheck
+      description: "Detailed health check with component status"
+
+    # Metrics endpoint
+    - path: /metrics
+      method: GET
+      handler: handleMetrics
+      description: "Prometheus metrics endpoint"
+
+    # Queues redirect - redirects to appropriate queues based on user role
+    - path: /queues
+      method: GET
+      handler: handleQueuesRedirect
+      middleware:
+        - auth # Require authentication to determine role
+      description: "Redirect to appropriate queues page based on user role"

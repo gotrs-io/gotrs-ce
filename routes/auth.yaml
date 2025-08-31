@@ -1,0 +1,38 @@
+# Authentication Routes Configuration
+apiVersion: v1
+kind: RouteGroup
+metadata:
+  name: auth
+  description: "Authentication routes for login/logout"
+  namespace: default
+  enabled: true
+spec:
+  prefix: ""
+  middleware: []
+  routes:
+    # Main login page - shows HTMX login form
+    - path: /login
+      method: GET
+      handler: handleLoginPage
+      template: pages/login.pongo2
+      description: "Display login page with HTMX form"
+
+    # Login API endpoint - handles form submission
+    - path: /api/auth/login
+      method: POST
+      handler: handleAuthLogin
+      description: "Process login form submission via HTMX"
+
+    # Logout endpoint
+    - path: /api/auth/logout
+      method: POST
+      handler: handleLogout
+      middleware:
+        - auth # Require authentication for logout
+      description: "Process logout request"
+
+    # GET logout route for frontend redirects
+    - path: /logout
+      method: GET
+      handler: handleLogoutRedirect
+      description: "GET logout route that redirects to login"

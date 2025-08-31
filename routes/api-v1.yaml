@@ -1,0 +1,96 @@
+# API v1 Routes Configuration
+apiVersion: v1
+kind: RouteGroup
+metadata:
+  name: api-v1
+  description: "REST API v1 endpoints"
+  namespace: default
+  enabled: true
+spec:
+  prefix: /api/v1
+  routes:
+  # Ticket endpoints
+  - path: /tickets
+    method: GET
+    handler: HandleListTicketsAPI
+    description: "List tickets"
+    
+  - path: /tickets
+    method: POST
+    handler: HandleCreateTicketAPI
+    description: "Create ticket"
+    
+  - path: /tickets/:id
+    method: GET
+    handler: HandleGetTicketAPI
+    description: "Get ticket by ID"
+    
+  - path: /tickets/:id
+    method: PUT
+    handler: HandleUpdateTicketAPI
+    description: "Update ticket"
+    
+  - path: /tickets/:id
+    method: DELETE
+    handler: HandleDeleteTicketAPI
+    description: "Delete ticket"
+    
+  # Article endpoints
+  - path: /tickets/:id/articles
+    method: GET
+    handler: HandleListArticlesAPI
+    description: "Get ticket articles"
+    
+  - path: /tickets/:id/articles
+    method: POST
+    handler: HandleCreateArticleAPI
+    description: "Add article to ticket"
+    
+  - path: /tickets/:id/articles/:article_id
+    method: GET
+    handler: HandleGetArticleAPI
+    description: "Get specific article"
+    
+  # User endpoints
+  - path: /users
+    method: GET
+    handler: HandleListUsersAPI
+    description: "List users"
+    
+  - path: /users/:id
+    method: GET
+    handler: HandleGetUserAPI
+    description: "Get user by ID"
+    
+  - path: /users/me
+    method: GET
+    handler: HandleUserMeAPI
+    description: "Get current user"
+    
+  # Queue endpoints
+  - path: /queues
+    method: GET
+    handler: HandleListQueuesAPI
+    description: "List queues"
+    
+  - path: /queues/:id
+    method: GET
+    handler: HandleGetQueueAPI
+    description: "Get queue by ID"
+    
+  # Priority endpoints
+  - path: /priorities
+    method: GET
+    handler: HandleListPrioritiesAPI
+    description: "List priorities"
+    
+  - path: /priorities/:id
+    method: GET
+    handler: HandleGetPriorityAPI
+    description: "Get priority by ID"
+    
+  # Search endpoint
+  - path: /search
+    method: GET
+    handler: HandleSearchAPI
+    description: "Search tickets"

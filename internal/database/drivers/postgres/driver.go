@@ -5,8 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	
+
 	_ "github.com/lib/pq"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 )
 
 // PostgreSQLDriver implements the DatabaseDriver interface for PostgreSQL

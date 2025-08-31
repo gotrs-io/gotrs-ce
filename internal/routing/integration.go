@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/api"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 	"github.com/gotrs-io/gotrs-ce/internal/shared"
 )
@@ -99,7 +100,33 @@ func registerExistingHandlers(registry *HandlerRegistry, db *sql.DB, jwtManager 
 	
 	// Register customer handlers
 	registerCustomerHandlers(handlers, db)
-	
+
+	// Register API v1 handlers
+	handlers["api_v1_webhooks_list"] = api.HandleListWebhooksAPI
+	handlers["api_v1_webhook_register"] = api.HandleRegisterWebhookAPI
+	handlers["api_v1_webhook_get"] = api.HandleGetWebhookAPI
+	handlers["api_v1_webhook_update"] = api.HandleUpdateWebhookAPI
+	handlers["api_v1_webhook_delete"] = api.HandleDeleteWebhookAPI
+	handlers["api_v1_webhook_test"] = api.HandleTestWebhookAPI
+	handlers["api_v1_webhook_deliveries"] = api.HandleWebhookDeliveriesAPI
+	handlers["api_v1_webhook_delivery_retry"] = api.HandleRetryWebhookDeliveryAPI
+
+	handlers["api_v1_states_list"] = api.HandleListTicketStatesAPI
+	handlers["api_v1_state_create"] = api.HandleCreateTicketStateAPI
+	handlers["api_v1_state_get"] = api.HandleGetTicketStateAPI
+	handlers["api_v1_state_update"] = api.HandleUpdateTicketStateAPI
+	handlers["api_v1_state_delete"] = api.HandleDeleteTicketStateAPI
+
+	handlers["api_v1_sla_list"] = api.HandleListSLAsAPI
+	handlers["api_v1_sla_create"] = api.HandleCreateSLAAPI
+	handlers["api_v1_sla_get"] = api.HandleGetSLAAPI
+	handlers["api_v1_sla_update"] = api.HandleUpdateSLAAPI
+	handlers["api_v1_sla_delete"] = api.HandleDeleteSLAAPI
+
+	handlers["api_v1_statistics_dashboard"] = api.HandleDashboardStatisticsAPI
+	handlers["api_v1_statistics_customer"] = api.HandleCustomerStatisticsAPI
+	handlers["api_v1_statistics_export"] = api.HandleExportStatisticsAPI
+
 	// Register all handlers with the registry
 	return registry.RegisterBatch(handlers)
 }

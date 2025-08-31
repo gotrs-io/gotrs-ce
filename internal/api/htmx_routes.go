@@ -55,22 +55,22 @@ func verifyPassword(password, hashedPassword string) bool {
 		err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 		return err == nil
 	}
-	
+
 	// Check if it's a salted SHA256 hash (format: sha256$salt$hash)
 	parts := strings.Split(hashedPassword, "$")
 	if len(parts) == 3 && parts[0] == "sha256" {
 		// Extract salt and hash
 		salt := parts[1]
 		expectedHash := parts[2]
-		
+
 		// Hash the password with the salt
 		combined := password + salt
 		hash := sha256.Sum256([]byte(combined))
 		actualHash := hex.EncodeToString(hash[:])
-		
+
 		return actualHash == expectedHash
 	}
-	
+
 	// Otherwise, treat as unsalted SHA256 hash (legacy)
 	return hashPasswordSHA256(password) == hashedPassword
 }
@@ -136,147 +136,147 @@ func NewPongo2Renderer(templateDir string) *Pongo2Renderer {
 		// For now, just return the key
 		// Later this can be replaced with actual translation
 		translations := map[string]string{
-			"app.name":                    "GOTRS",
-			"app.description":             "GOTRS - Open Ticket Request System",
-			"app.tagline":                 "Open Ticket Request System",
-			"navigation.dashboard":        "Dashboard",
-			"navigation.tickets":          "Tickets",
-			"navigation.profile":          "Profile",
-			"navigation.settings":         "Settings",
-			"nav.dashboard":               "Dashboard",
-			"nav.tickets":                 "Tickets",
-			"nav.queues":                  "Queues",
-			"nav.profile":                 "Profile",
-			"nav.settings":                "Settings",
-			"auth.login":                  "Login",
-			"auth.logout":                 "Logout",
-			"auth.signup":                 "Sign Up",
-			"auth.signin":                 "Sign In",
-			"auth.not_member":             "Not a member?",
-			"auth.forgot_password":        "Forgot your password?",
-			"auth.password":               "Password",
-			"auth.username":               "Username",
-			"auth.username_placeholder":   "Enter your username",
-			"auth.username_tooltip":       "Your login username",
-			"auth.email_placeholder":      "Enter your email address",
-			"auth.email_tooltip":          "Your registered email address",
-			"auth.password_placeholder":   "Enter your password",
-			"auth.password_tooltip":       "Your account password",
-			"auth.or":                     "Or",
-			"user.email":                  "Email Address",
-			"admin.dashboard":             "Admin Dashboard",
-			"admin.dashboard_description": "System administration and configuration",
-			"admin.total_users":           "Total Users",
-			"admin.total_groups":          "Total Groups",
-			"admin.active_tickets":        "Active Tickets",
-			"admin.total_queues":          "Total Queues",
-			"admin.system_health":         "System Health",
-			"admin.healthy":               "Healthy",
-			"admin.user_management":       "User Management",
-			"admin.user_management_desc":  "Manage agents and customer users",
-			"admin.group_management":      "Group Management",
-			"admin.group_management_desc": "Manage user groups and permissions",
-			"admin.system_settings":       "System Settings",
-			"admin.system_settings_desc":  "Configure system preferences",
-			"admin.lookups":               "Lookups",
-			"admin.lookups_desc":          "Manage system lookups and configurations",
-			"admin.email_templates":       "Email Templates",
-			"admin.email_templates_desc":  "Customize email notifications",
-			"admin.reports":               "Reports",
-			"admin.reports_desc":          "View system reports and analytics",
-			"admin.backup_restore":        "Backup & Restore",
-			"admin.backup_restore_desc":   "Manage system backups",
-			"admin.users":                 "Users",
-			"admin.groups":                "Groups",
-			"admin.permissions":           "Permissions",
-			"admin.queues":                "Queues",
-			"admin.priorities":            "Priorities",
-			"admin.states":                "States", 
-			"admin.types":                 "Types",
-			"admin.add_priority":          "Add Priority",
-			"admin.add_state":             "Add State", 
-			"admin.add_type":              "Add Type",
-			"admin.customer_users":        "Customer Users",
-			"admin.customer_users_desc":   "Manage customer accounts and access",
-			"admin.customer_companies":     "Customer Companies",
+			"app.name":                      "GOTRS",
+			"app.description":               "GOTRS - Open Ticket Request System",
+			"app.tagline":                   "Open Ticket Request System",
+			"navigation.dashboard":          "Dashboard",
+			"navigation.tickets":            "Tickets",
+			"navigation.profile":            "Profile",
+			"navigation.settings":           "Settings",
+			"nav.dashboard":                 "Dashboard",
+			"nav.tickets":                   "Tickets",
+			"nav.queues":                    "Queues",
+			"nav.profile":                   "Profile",
+			"nav.settings":                  "Settings",
+			"auth.login":                    "Login",
+			"auth.logout":                   "Logout",
+			"auth.signup":                   "Sign Up",
+			"auth.signin":                   "Sign In",
+			"auth.not_member":               "Not a member?",
+			"auth.forgot_password":          "Forgot your password?",
+			"auth.password":                 "Password",
+			"auth.username":                 "Username",
+			"auth.username_placeholder":     "Enter your username",
+			"auth.username_tooltip":         "Your login username",
+			"auth.email_placeholder":        "Enter your email address",
+			"auth.email_tooltip":            "Your registered email address",
+			"auth.password_placeholder":     "Enter your password",
+			"auth.password_tooltip":         "Your account password",
+			"auth.or":                       "Or",
+			"user.email":                    "Email Address",
+			"admin.dashboard":               "Admin Dashboard",
+			"admin.dashboard_description":   "System administration and configuration",
+			"admin.total_users":             "Total Users",
+			"admin.total_groups":            "Total Groups",
+			"admin.active_tickets":          "Active Tickets",
+			"admin.total_queues":            "Total Queues",
+			"admin.system_health":           "System Health",
+			"admin.healthy":                 "Healthy",
+			"admin.user_management":         "User Management",
+			"admin.user_management_desc":    "Manage agents and customer users",
+			"admin.group_management":        "Group Management",
+			"admin.group_management_desc":   "Manage user groups and permissions",
+			"admin.system_settings":         "System Settings",
+			"admin.system_settings_desc":    "Configure system preferences",
+			"admin.lookups":                 "Lookups",
+			"admin.lookups_desc":            "Manage system lookups and configurations",
+			"admin.email_templates":         "Email Templates",
+			"admin.email_templates_desc":    "Customize email notifications",
+			"admin.reports":                 "Reports",
+			"admin.reports_desc":            "View system reports and analytics",
+			"admin.backup_restore":          "Backup & Restore",
+			"admin.backup_restore_desc":     "Manage system backups",
+			"admin.users":                   "Users",
+			"admin.groups":                  "Groups",
+			"admin.permissions":             "Permissions",
+			"admin.queues":                  "Queues",
+			"admin.priorities":              "Priorities",
+			"admin.states":                  "States",
+			"admin.types":                   "Types",
+			"admin.add_priority":            "Add Priority",
+			"admin.add_state":               "Add State",
+			"admin.add_type":                "Add Type",
+			"admin.customer_users":          "Customer Users",
+			"admin.customer_users_desc":     "Manage customer accounts and access",
+			"admin.customer_companies":      "Customer Companies",
 			"admin.customer_companies_desc": "Manage customer company information",
-			"admin.add_company":           "Add Company",
-			"admin.import":                "Import",
-			"admin.add_user":              "Add User",
-			"admin.add_group":             "Add Group",
-			"admin.add_customer_user":     "Add Customer",
-			"admin.edit_user":             "Edit User",
-			"admin.edit_group":            "Edit Group",
-			"admin.title":                 "Title",
-			"admin.login":                 "Login",
-			"admin.first_name":            "First Name",
-			"admin.last_name":             "Last Name",
-			"admin.password":              "Password",
-			"admin.leave_blank_to_keep":   "leave blank to keep current",
-			"admin.status":                "Status",
-			"admin.active":                "Active",
-			"admin.inactive":              "Inactive",
-			"admin.save":                  "Save",
-			"admin.cancel":                "Cancel",
-			"admin.never":                 "Never",
-			"admin.add_user_tooltip":      "Add a new user to the system",
-			"admin.clear_search":          "Clear search",
-			"admin.edit_user_tooltip":     "Edit user details",
-			"admin.deactivate_user":       "Deactivate user",
-			"admin.activate_user":         "Activate user",
-			"admin.reset_password":        "Reset user password",
-			"admin.delete_user":           "Delete user",
-			"admin.title_mr":              "Mr.",
-			"admin.title_ms":              "Ms.",
-			"admin.title_mrs":             "Mrs.",
-			"admin.title_dr":              "Dr.",
-			"admin.users_description":     "Manage system users and permissions",
-			"admin.groups_description":    "Manage user groups and access control",
-			"admin.lookups.description":   "Manage system lookups and configurations",
-			"dashboard.welcome_back":      "Welcome back",
-			"tickets.new_ticket":          "New Ticket",
-			"tickets.title":               "Tickets",
-			"tickets.overdue":             "Overdue",
-			"dashboard.recent_tickets":    "Recent Tickets",
-			"status.open":                 "Open",
-			"status.new":                  "New",
-			"status.pending":              "Pending",
-			"status.closed":               "Closed",
-			"time.today":                  "Today",
-			"priority.high":               "High",
-			"priority.medium":             "Medium",
-			"priority.low":                "Low",
-			"priority.critical":           "Critical",
-			"queues.queue_status":         "Queue Status",
-			"common.view_all":             "View All",
-			"common.actions":              "Actions",
-			"common.edit":                 "Edit",
-			"common.delete":               "Delete",
-			"common.save":                 "Save",
-			"common.cancel":               "Cancel",
-			"common.search":               "Search",
-			"common.filter":               "Filter",
-			"common.clear":                "Clear",
-			"common.add":                  "Add",
-			"common.new":                  "New",
-			"common.status":               "Status",
-			"common.active":               "Active",
-			"common.inactive":             "Inactive",
-			"common.name":                 "Name",
-			"common.email":                "Email",
-			"common.description":          "Description",
-			"common.created":              "Created",
-			"common.updated":              "Updated",
-			"common.id":                   "ID",
-			"common.type":                 "Type",
-			"common.color":                "Color",
-			"common.comment":              "Comment",
-			"common.street":               "Street",
-			"common.zip":                  "ZIP Code",
-			"common.city":                 "City",
-			"common.country":              "Country",
-			"common.url":                  "Website",
-			"common.comments":             "Comments",
+			"admin.add_company":             "Add Company",
+			"admin.import":                  "Import",
+			"admin.add_user":                "Add User",
+			"admin.add_group":               "Add Group",
+			"admin.add_customer_user":       "Add Customer",
+			"admin.edit_user":               "Edit User",
+			"admin.edit_group":              "Edit Group",
+			"admin.title":                   "Title",
+			"admin.login":                   "Login",
+			"admin.first_name":              "First Name",
+			"admin.last_name":               "Last Name",
+			"admin.password":                "Password",
+			"admin.leave_blank_to_keep":     "leave blank to keep current",
+			"admin.status":                  "Status",
+			"admin.active":                  "Active",
+			"admin.inactive":                "Inactive",
+			"admin.save":                    "Save",
+			"admin.cancel":                  "Cancel",
+			"admin.never":                   "Never",
+			"admin.add_user_tooltip":        "Add a new user to the system",
+			"admin.clear_search":            "Clear search",
+			"admin.edit_user_tooltip":       "Edit user details",
+			"admin.deactivate_user":         "Deactivate user",
+			"admin.activate_user":           "Activate user",
+			"admin.reset_password":          "Reset user password",
+			"admin.delete_user":             "Delete user",
+			"admin.title_mr":                "Mr.",
+			"admin.title_ms":                "Ms.",
+			"admin.title_mrs":               "Mrs.",
+			"admin.title_dr":                "Dr.",
+			"admin.users_description":       "Manage system users and permissions",
+			"admin.groups_description":      "Manage user groups and access control",
+			"admin.lookups.description":     "Manage system lookups and configurations",
+			"dashboard.welcome_back":        "Welcome back",
+			"tickets.new_ticket":            "New Ticket",
+			"tickets.title":                 "Tickets",
+			"tickets.overdue":               "Overdue",
+			"dashboard.recent_tickets":      "Recent Tickets",
+			"status.open":                   "Open",
+			"status.new":                    "New",
+			"status.pending":                "Pending",
+			"status.closed":                 "Closed",
+			"time.today":                    "Today",
+			"priority.high":                 "High",
+			"priority.medium":               "Medium",
+			"priority.low":                  "Low",
+			"priority.critical":             "Critical",
+			"queues.queue_status":           "Queue Status",
+			"common.view_all":               "View All",
+			"common.actions":                "Actions",
+			"common.edit":                   "Edit",
+			"common.delete":                 "Delete",
+			"common.save":                   "Save",
+			"common.cancel":                 "Cancel",
+			"common.search":                 "Search",
+			"common.filter":                 "Filter",
+			"common.clear":                  "Clear",
+			"common.add":                    "Add",
+			"common.new":                    "New",
+			"common.status":                 "Status",
+			"common.active":                 "Active",
+			"common.inactive":               "Inactive",
+			"common.name":                   "Name",
+			"common.email":                  "Email",
+			"common.description":            "Description",
+			"common.created":                "Created",
+			"common.updated":                "Updated",
+			"common.id":                     "ID",
+			"common.type":                   "Type",
+			"common.color":                  "Color",
+			"common.comment":                "Comment",
+			"common.street":                 "Street",
+			"common.zip":                    "ZIP Code",
+			"common.city":                   "City",
+			"common.country":                "Country",
+			"common.url":                    "Website",
+			"common.comments":               "Comments",
 		}
 		if val, ok := translations[key]; ok {
 			return val
@@ -312,23 +312,23 @@ func getUserMapForTemplate(c *gin.Context) gin.H {
 			return userH
 		}
 	}
-	
+
 	// Try to construct from middleware-set values
 	if userID, ok := c.Get("user_id"); ok {
 		userEmail, _ := c.Get("user_email")
 		userRole, _ := c.Get("user_role")
-		
+
 		// Try to load user details from database
 		firstName := ""
 		lastName := ""
 		login := fmt.Sprintf("%v", userEmail)
 		isInAdminGroup := false
-		
+
 		// Get database connection and load user details
 		if db, err := database.GetDB(); err == nil {
 			var dbFirstName, dbLastName, dbLogin sql.NullString
 			userIDVal := uint(0)
-			
+
 			// Convert userID to uint
 			switch v := userID.(type) {
 			case uint:
@@ -338,14 +338,14 @@ func getUserMapForTemplate(c *gin.Context) gin.H {
 			case float64:
 				userIDVal = uint(v)
 			}
-			
+
 			if userIDVal > 0 {
 				err := db.QueryRow(database.ConvertPlaceholders(`
-					SELECT login, first_name, last_name 
-					FROM users 
+					SELECT login, first_name, last_name
+					FROM users
 					WHERE id = $1`),
 					userIDVal).Scan(&dbLogin, &dbFirstName, &dbLastName)
-				
+
 				if err == nil {
 					if dbFirstName.Valid {
 						firstName = dbFirstName.String
@@ -357,13 +357,13 @@ func getUserMapForTemplate(c *gin.Context) gin.H {
 						login = dbLogin.String
 					}
 				}
-				
+
 				// Check if user is in admin group for Dev menu access
 				var count int
 				err = db.QueryRow(database.ConvertPlaceholders(`
-					SELECT COUNT(*) 
-					FROM group_user ug 
-					JOIN groups g ON ug.group_id = g.id 
+					SELECT COUNT(*)
+					FROM group_user ug
+					JOIN groups g ON ug.group_id = g.id
 					WHERE ug.user_id = $1 AND g.name = 'admin'`),
 					userIDVal).Scan(&count)
 				if err == nil && count > 0 {
@@ -371,7 +371,7 @@ func getUserMapForTemplate(c *gin.Context) gin.H {
 				}
 			}
 		}
-		
+
 		// If we still don't have names, try to parse from userName
 		if firstName == "" && lastName == "" {
 			userName, _ := c.Get("user_name")
@@ -383,22 +383,22 @@ func getUserMapForTemplate(c *gin.Context) gin.H {
 				lastName = strings.Join(nameParts[1:], " ")
 			}
 		}
-		
+
 		isAdmin := userRole == "Admin"
-		
+
 		return gin.H{
-			"ID":            userID,
-			"Login":         login,
-			"FirstName":     firstName,
-			"LastName":      lastName,
-			"Email":         fmt.Sprintf("%v", userEmail),
-			"IsActive":      true,
-			"IsAdmin":       isAdmin,
+			"ID":             userID,
+			"Login":          login,
+			"FirstName":      firstName,
+			"LastName":       lastName,
+			"Email":          fmt.Sprintf("%v", userEmail),
+			"IsActive":       true,
+			"IsAdmin":        isAdmin,
 			"IsInAdminGroup": isInAdminGroup,
-			"Role":          fmt.Sprintf("%v", userRole),
+			"Role":           fmt.Sprintf("%v", userRole),
 		}
 	}
-	
+
 	// Return a default/guest user structure
 	return gin.H{
 		"ID":        0,
@@ -442,22 +442,22 @@ func sendErrorResponse(c *gin.Context, statusCode int, message string) {
 func checkAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := getUserMapForTemplate(c)
-		
+
 		// Check if user is admin based on ID or login
 		if userID, ok := user["ID"].(uint); ok {
 			if userID == 1 || userID == 2 { // User ID 1 and 2 are admins
 				c.Next()
 				return
 			}
-			
+
 			// Check if user is in admin group
 			db, err := database.GetDB()
 			if err == nil {
 				var count int
 				err = db.QueryRow(database.ConvertPlaceholders(`
-					SELECT COUNT(*) 
-					FROM group_user ug 
-					JOIN groups g ON ug.group_id = g.id 
+					SELECT COUNT(*)
+					FROM group_user ug
+					JOIN groups g ON ug.group_id = g.id
 					WHERE ug.user_id = $1 AND g.name = 'admin'`),
 					userID).Scan(&count)
 				if err == nil && count > 0 {
@@ -466,14 +466,14 @@ func checkAdmin() gin.HandlerFunc {
 				}
 			}
 		}
-		
+
 		if login, ok := user["Login"].(string); ok {
 			if strings.Contains(strings.ToLower(login), "admin") || login == "root@localhost" {
 				c.Next()
 				return
 			}
 		}
-		
+
 		// Not an admin
 		sendErrorResponse(c, http.StatusForbidden, "Access denied. Admin privileges required.")
 		c.Abort()
@@ -495,20 +495,20 @@ func routeExists(r *gin.Engine, method string, path string) bool {
 func safeRegisterRoute(r *gin.Engine, group *gin.RouterGroup, method string, path string, handlers ...gin.HandlerFunc) bool {
 	// Calculate full path
 	fullPath := group.BasePath() + path
-	
+
 	// Check if route already exists
 	if routeExists(r, method, fullPath) {
 		log.Printf("WARNING: Route already exists: %s %s - skipping registration", method, fullPath)
 		return false
 	}
-	
+
 	// Register the route with panic recovery
 	defer func() {
 		if err := recover(); err != nil {
 			log.Printf("ERROR: Failed to register route %s %s: %v", method, fullPath, err)
 		}
 	}()
-	
+
 	switch method {
 	case "GET":
 		group.GET(path, handlers...)
@@ -524,7 +524,7 @@ func safeRegisterRoute(r *gin.Engine, group *gin.RouterGroup, method string, pat
 		log.Printf("WARNING: Unknown HTTP method: %s", method)
 		return false
 	}
-	
+
 	log.Printf("Successfully registered route: %s %s", method, fullPath)
 	return true
 }
@@ -560,7 +560,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 			"status": "healthy",
 			"checks": gin.H{},
 		}
-		
+
 		// Check template rendering
 		if pongo2Renderer != nil && pongo2Renderer.templateSet != nil {
 			// Try to load a basic template
@@ -582,13 +582,13 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 				"error":  "Template renderer not initialized",
 			}
 		}
-		
+
 		// Return appropriate status code
 		statusCode := http.StatusOK
 		if health["status"] == "unhealthy" {
 			statusCode = http.StatusServiceUnavailable
 		}
-		
+
 		c.JSON(statusCode, health)
 	})
 
@@ -618,10 +618,10 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 
 	// Public routes (no auth required)
 	// Commented out - now handled by YAML routes
-	// r.GET("/login", handleLoginPage)
-	// r.POST("/login", handleLogin(jwtManager))
-	// r.GET("/logout", handleLogout)
-	// r.POST("/logout", handleLogout)
+	r.GET("/login", handleLoginPage)
+	r.POST("/login", handleLogin(jwtManager))
+	r.GET("/logout", handleLogout)
+	r.POST("/logout", handleLogout)
 
 	// Protected routes - require authentication
 	protected := r.Group("")
@@ -634,13 +634,17 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 	}
 
 	// Dashboard and main pages
-	// Commented out - now handled by YAML routes
-	// protected.GET("/dashboard", handleDashboard)
+	// Restored - YAML routes not working properly yet
+	protected.GET("/dashboard", handleDashboard)
 	protected.GET("/tickets", handleTickets)
 	protected.GET("/ticket/new", handleNewTicket)
-	protected.GET("/tickets/new", handleNewTicket)  // Plural URL pattern
-	protected.GET("/claude-chat-demo", handleClaudeChatDemo)  // Claude chat demo page
-	
+	protected.GET("/tickets/new", handleNewTicket)           // Plural URL pattern
+	protected.GET("/claude-chat-demo", handleClaudeChatDemo) // Claude chat demo page
+
+	// Agent ticket routes - for full functionality including S/MIME articles
+	protected.GET("/agent/tickets", HandleAgentTickets)
+	// Note: Individual ticket view now uses /ticket/:id route for consistency
+
 	// WebSocket for real-time chat
 	protected.GET("/ws/chat", HandleWebSocketChat)
 	protected.GET("/ticket/:id", handleTicketDetail)
@@ -649,7 +653,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 	// Disabled - using YAML redirect route instead
 	// protected.GET("/profile", handleProfile)
 	protected.GET("/settings", handleSettings)
-	
+
 	// API routes for user preferences
 	protected.GET("/api/preferences/session-timeout", HandleGetSessionTimeout)
 	protected.POST("/api/preferences/session-timeout", HandleSetSessionTimeout)
@@ -683,7 +687,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		adminRoutes.GET("/roadmap", handleAdminRoadmap)
 		adminRoutes.GET("/schema-discovery", handleSchemaDiscovery)
 		adminRoutes.GET("/schema-monitoring", handleSchemaMonitoring)
-		
+
 		// User management routes - now handled by dynamic module
 		adminRoutes.GET("/users/new", func(c *gin.Context) {
 			c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: "new"}}
@@ -755,19 +759,19 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 				c.JSON(500, gin.H{"error": "Dynamic module system not initialized"})
 			}
 		})
-		
+
 		// Queue management routes (disabled - handlers not implemented)
 		// adminRoutes.GET("/queues/:id", handleGetQueue)
 		// adminRoutes.POST("/queues", handleCreateQueue)
 		// adminRoutes.PUT("/queues/:id", handleUpdateQueue)
 		// adminRoutes.DELETE("/queues/:id", handleDeleteQueue)
-		
+
 		// Priority management routes (disabled - handlers not implemented)
 		// adminRoutes.GET("/priorities/:id", handleGetPriority)
 		// adminRoutes.POST("/priorities", handleCreatePriority)
 		// adminRoutes.PUT("/priorities/:id", handleUpdatePriority)
 		// adminRoutes.DELETE("/priorities/:id", handleDeletePriority)
-		
+
 		// State management routes (disabled - handlers not implemented)
 		// adminRoutes.GET("/states", handleAdminStates)
 		// adminRoutes.POST("/states/create", handleAdminStateCreate)
@@ -780,15 +784,15 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		// adminRoutes.POST("/types/create", handleAdminTypeCreate)
 		// adminRoutes.POST("/types/:id/update", handleAdminTypeUpdate)
 		// adminRoutes.POST("/types/:id/delete", handleAdminTypeDelete)
-		
+
 		// Permission management routes (OTRS Role equivalent)
 		adminRoutes.GET("/permissions", handleAdminPermissions)
 		adminRoutes.GET("/permissions/user/:userId", handleGetUserPermissionMatrix)
 		adminRoutes.PUT("/permissions/user/:userId", handleUpdateUserPermissions)
-		adminRoutes.POST("/permissions/user/:userId", handleUpdateUserPermissions)  // HTML form support
+		adminRoutes.POST("/permissions/user/:userId", handleUpdateUserPermissions) // HTML form support
 		adminRoutes.GET("/permissions/group/:groupId", handleGetGroupPermissionMatrix)
 		adminRoutes.POST("/permissions/clone", handleCloneUserPermissions)
-		
+
 		// Group Management (OTRS AdminGroup)
 		adminRoutes.GET("/groups", handleAdminGroups)
 		adminRoutes.GET("/groups/:id", handleGetGroup)
@@ -798,7 +802,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		adminRoutes.GET("/groups/:id/users", handleGetGroupUsers)
 		adminRoutes.POST("/groups/:id/users", handleAddUserToGroup)
 		adminRoutes.DELETE("/groups/:id/users/:userId", handleRemoveUserFromGroup)
-		
+
 		// Role Management (Higher level than groups)
 		adminRoutes.GET("/roles", handleAdminRoles)
 		adminRoutes.GET("/roles/:id", handleAdminRoleGet)
@@ -810,20 +814,20 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		adminRoutes.DELETE("/roles/:id/users/:userId", handleAdminRoleUserRemove)
 		adminRoutes.GET("/roles/:id/permissions", handleAdminRolePermissions)
 		adminRoutes.PUT("/roles/:id/permissions", handleAdminRolePermissions)
-		
+
 		// Customer management routes
 		adminRoutes.GET("/customer-users", underConstruction("Customer Users"))
 		adminRoutes.GET("/customer-companies", underConstruction("Customer Companies"))
 		adminRoutes.GET("/customer-user-group", underConstruction("Customer User Groups"))
 		adminRoutes.GET("/customers", underConstruction("Customer Management"))
-		
+
 		// Ticket configuration routes
 		adminRoutes.GET("/states", handleAdminStates)
 		adminRoutes.POST("/states/create", handleAdminStateCreate)
 		adminRoutes.PUT("/states/:id/update", handleAdminStateUpdate)
 		adminRoutes.DELETE("/states/:id/delete", handleAdminStateDelete)
 		adminRoutes.GET("/states/types", handleGetStateTypes)
-		
+
 		adminRoutes.GET("/types", handleAdminTypes)
 		adminRoutes.POST("/types/create", handleAdminTypeCreate)
 		adminRoutes.POST("/types/:id/update", handleAdminTypeUpdate)
@@ -836,7 +840,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		adminRoutes.POST("/sla/create", handleAdminSLACreate)
 		adminRoutes.PUT("/sla/:id/update", handleAdminSLAUpdate)
 		adminRoutes.DELETE("/sla/:id/delete", handleAdminSLADelete)
-		
+
 		// Attachment management
 		adminRoutes.GET("/attachments", handleAdminAttachment)
 		adminRoutes.POST("/attachments/create", handleAdminAttachmentCreate)
@@ -844,18 +848,18 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		adminRoutes.DELETE("/attachments/:id/delete", handleAdminAttachmentDelete)
 		adminRoutes.GET("/attachments/:id/download", handleAdminAttachmentDownload)
 		adminRoutes.PUT("/attachments/:id/toggle", handleAdminAttachmentToggle)
-		
+
 		// Communication templates
 		adminRoutes.GET("/signatures", underConstruction("Email Signatures"))
 		adminRoutes.GET("/salutations", underConstruction("Email Salutations"))
 		adminRoutes.GET("/notifications", underConstruction("Notification Templates"))
-		
+
 		// System configuration
 		adminRoutes.GET("/settings", underConstruction("System Settings"))
 		adminRoutes.GET("/templates", underConstruction("Template Management"))
 		adminRoutes.GET("/reports", underConstruction("Reports"))
 		adminRoutes.GET("/backup", underConstruction("Backup & Restore"))
-		
+
 		// Dynamic Module System for side-by-side testing
 		if db, err := database.GetDB(); err == nil {
 			if err := SetupDynamicModules(adminRoutes, db); err != nil {
@@ -867,24 +871,24 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 			log.Printf("WARNING: Cannot setup dynamic modules without database: %v", err)
 		}
 	}
-	
+
 	// HTMX API endpoints (return HTML fragments)
 	api := r.Group("/api")
-	
+
 	// Authentication endpoints (no auth required)
 	{
-		api.GET("/auth/login", handleHTMXLogin)  // Also support GET for the form
+		api.GET("/auth/login", handleHTMXLogin) // Also support GET for the form
 		api.POST("/auth/login", handleLogin(jwtManager))
 		api.POST("/auth/logout", handleHTMXLogout)
-		api.GET("/auth/refresh", underConstructionAPI("/auth/refresh"))  // GET for testing
+		api.GET("/auth/refresh", underConstructionAPI("/auth/refresh")) // GET for testing
 		api.POST("/auth/refresh", underConstructionAPI("/auth/refresh"))
-		api.GET("/auth/register", underConstructionAPI("/auth/register"))  // GET for form
+		api.GET("/auth/register", underConstructionAPI("/auth/register")) // GET for form
 		api.POST("/auth/register", underConstructionAPI("/auth/register"))
 	}
-	
+
 	// Get database connection for handlers that need it
 	// db, _ := database.GetDB()
-	
+
 	// Protected API endpoints - require authentication
 	protectedAPI := api.Group("")
 	if jwtManager != nil {
@@ -894,7 +898,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		// Development mode - use session middleware
 		protectedAPI.Use(middleware.SessionMiddleware(jwtManager))
 	}
-	
+
 	// Dashboard endpoints
 	{
 		protectedAPI.GET("/dashboard/stats", handleDashboardStats)
@@ -904,14 +908,14 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		protectedAPI.GET("/dashboard/activity", handleActivity)
 		protectedAPI.GET("/dashboard/performance", handlePerformance)
 	}
-	
+
 	// Queue management endpoints
 	{
 		protectedAPI.GET("/queues/:id", HandleAPIQueueGet)
 		protectedAPI.GET("/queues/:id/details", HandleAPIQueueDetails)
 		protectedAPI.PUT("/queues/:id/status", HandleAPIQueueStatus)
 	}
-	
+
 	// Agent Interface Routes
 	agentRoutes := protected.Group("/agent")
 	{
@@ -920,7 +924,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 			RegisterAgentRoutes(agentRoutes, db)
 		}
 	}
-	
+
 	// Customer Portal Routes
 	customerRoutes := protected.Group("/customer")
 	{
@@ -929,7 +933,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 			RegisterCustomerRoutes(customerRoutes, db)
 		}
 	}
-	
+
 	// Ticket endpoints
 	{
 		protectedAPI.GET("/tickets", handleAPITickets)
@@ -950,12 +954,12 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		protectedAPI.GET("/tickets/:id/attachments/:attachment_id/thumbnail", handleGetThumbnail)
 		protectedAPI.DELETE("/tickets/:id/attachments/:attachment_id", handleDeleteAttachment)
 		protectedAPI.GET("/files/*path", handleServeFile)
-		
+
 		// Group management API endpoints
 		protectedAPI.GET("/groups", handleGetGroups)
 		protectedAPI.GET("/groups/:id/members", handleGetGroupMembers)
 		protectedAPI.GET("/groups/:id", handleGetGroupAPI)
-		
+
 		// Ticket Advanced Search endpoints
 		protectedAPI.GET("/tickets/advanced-search", handleAdvancedTicketSearch)
 		protectedAPI.GET("/tickets/search/suggestions", handleSearchSuggestions)
@@ -968,7 +972,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		protectedAPI.GET("/tickets/search/saved/:id/execute", handleExecuteSavedSearch)
 		protectedAPI.PUT("/tickets/search/saved/:id", handleUpdateSavedSearch)
 		protectedAPI.DELETE("/tickets/search/saved/:id", handleDeleteSavedSearch)
-		
+
 		// Claude Code feedback endpoint
 		protectedAPI.POST("/claude-feedback", handleClaudeFeedback)
 
@@ -1000,7 +1004,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 			adminAPI.POST("/canned-responses/import", cannedResponseHandlers.ImportResponses)
 		}
 	}
-	
+
 	// Lookup data endpoints (disabled - handlers in lookup_handlers.go.disabled)
 	{
 		// protectedAPI.GET("/lookups/queues", handleGetQueues)
@@ -1011,22 +1015,22 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		// protectedAPI.GET("/lookups/audit", handleGetAuditLogs)
 		// protectedAPI.GET("/lookups/export", handleExportConfiguration)
 		// protectedAPI.POST("/lookups/import", handleImportConfiguration)
-		
+
 		// State CRUD endpoints (disabled - handlers not implemented)
 		// protectedAPI.GET("/states", handleGetStates)
 		// protectedAPI.POST("/states", handleCreateState)
 		// protectedAPI.PUT("/states/:id", handleUpdateState)
 		// protectedAPI.DELETE("/states/:id", handleDeleteState)
-		
+
 		// Type CRUD endpoints (some handlers exist in lookup_crud_handlers.go)
 		// protectedAPI.GET("/types", handleGetTypes)
 		protectedAPI.POST("/types", handleCreateType)
 		protectedAPI.PUT("/types/:id", handleUpdateType)
 		protectedAPI.DELETE("/types/:id", handleDeleteType)
-		
+
 		// Customer search endpoint for autocomplete
 		protectedAPI.GET("/customers/search", handleCustomerSearch)
-		
+
 		// Queue CRUD endpoints (disabled - handlers not implemented)
 		// protectedAPI.GET("/queues", handleGetQueuesAPI)
 		// protectedAPI.POST("/queues", handleCreateQueue)
@@ -1034,13 +1038,13 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		// protectedAPI.PUT("/queues/:id", handleUpdateQueue)
 		// protectedAPI.DELETE("/queues/:id", handleDeleteQueue)
 		// protectedAPI.GET("/queues/:id/details", handleGetQueueDetails)
-		
+
 		// Priority CRUD endpoints are handled by admin routes
 		// protectedAPI.GET("/priorities/:id", handleGetPriority)
 		// protectedAPI.POST("/priorities", handleCreatePriority)
 		// protectedAPI.PUT("/priorities/:id", handleUpdatePriority)
 		// protectedAPI.DELETE("/priorities/:id", handleDeletePriority)
-		
+
 		// Customer User CRUD endpoints (disabled - handlers not implemented)
 		// db, _ := database.GetDB()
 		// if db != nil {
@@ -1052,14 +1056,14 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		//	protectedAPI.DELETE("/customer-users/:id", handleDeleteCustomerUser(db))
 		//	protectedAPI.POST("/customer-users/import", handleImportCustomerUsers(db))
 		//	// protectedAPI.GET("/customer-companies", handleGetAvailableCompanies(db)) // Removed - duplicate with line 733
-		//	
+		//
 		//	// Customer User Group assignments
 		//	protectedAPI.GET("/customer-user-groups/:login", handleGetCustomerUserGroups(db))
 		//	protectedAPI.POST("/customer-user-groups/:login", handleSaveCustomerUserGroups(db))
 		//	protectedAPI.GET("/group-customer-users/:id", handleGetGroupCustomerUsers(db))
 		//	protectedAPI.POST("/group-customer-users/:id", handleSaveGroupCustomerUsers(db))
 		// }
-		
+
 		// Customer Company CRUD endpoints (disabled - handlers not implemented)
 		// protectedAPI.GET("/customer-companies", handleGetCustomerCompaniesAPI)
 		// protectedAPI.POST("/customer-companies", handleCreateCustomerCompanyAPI)
@@ -1067,7 +1071,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		// protectedAPI.PUT("/customer-companies/:id", handleUpdateCustomerCompanyAPI)
 		// protectedAPI.DELETE("/customer-companies/:id", handleDeleteCustomerCompanyAPI)
 	}
-	
+
 	// Template endpoints (disabled - duplicate handlers in ticket_template_handlers.go)
 	{
 		// protectedAPI.GET("/templates", handleGetTemplates)
@@ -1082,7 +1086,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		// protectedAPI.GET("/templates/:id/load", handleLoadTemplateIntoForm)
 		// protectedAPI.GET("/templates/modal", handleTemplateSelectionModal)
 	}
-	
+
 	// SSE endpoints (Server-Sent Events for real-time updates)
 	{
 		protectedAPI.GET("/tickets/stream", handleTicketStream)
@@ -1092,7 +1096,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 	// Setup API v1 routes with existing services
 	// TODO: SetupAPIv1Routes not implemented yet
 	// SetupAPIv1Routes(r, jwtManager, ldapProvider, i18nSvc)
-	
+
 	// Catch-all for undefined routes
 	r.NoRoute(func(c *gin.Context) {
 		sendErrorResponse(c, http.StatusNotFound, "Page not found")
@@ -1129,10 +1133,10 @@ func handleLoginPage(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/dashboard")
 		return
 	}
-	
+
 	// Check for error in query parameter
 	errorMsg := c.Query("error")
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/login.pongo2", pongo2.Context{
 		"Title": "Login - GOTRS",
 		"error": errorMsg,
@@ -1145,11 +1149,11 @@ func handleLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 		// Get credentials from form
 		username := c.PostForm("username")
 		password := c.PostForm("password")
-		
+
 		// Authenticate against database
 		validLogin := false
 		userID := uint(1)
-		
+
 		// Get database connection
 		db, err := database.GetDB()
 		if err != nil {
@@ -1160,17 +1164,17 @@ func handleLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 			})
 			return
 		}
-		
+
 		// Check credentials against database
 		var dbUserID int
 		var dbPassword string
 		var validID int
-		
+
 		// Query user and verify password
 		query := database.ConvertPlaceholders(`
-			SELECT id, pw, valid_id 
-			FROM users 
-			WHERE login = $1 
+			SELECT id, pw, valid_id
+			FROM users
+			WHERE login = $1
 			AND valid_id = 1`)
 		log.Printf("DEBUG: Querying for user '%s' with query: %s", username, query)
 		err = db.QueryRow(query, username).Scan(&dbUserID, &dbPassword, &validID)
@@ -1179,7 +1183,7 @@ func handleLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 		} else {
 			log.Printf("DEBUG: Found user ID %d with password hash starting with: %.20s", dbUserID, dbPassword)
 		}
-		
+
 		if err == nil && validID == 1 {
 			// Verify the password (handles both salted and unsalted)
 			log.Printf("DEBUG: Verifying password for user %d", dbUserID)
@@ -1194,33 +1198,33 @@ func handleLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 			// If database check fails, try legacy plain text (for migration period)
 			// This should be removed once all passwords are migrated
 			query2 := database.ConvertPlaceholders(`
-				SELECT id, pw, valid_id 
-				FROM users 
-				WHERE login = $1 
+				SELECT id, pw, valid_id
+				FROM users
+				WHERE login = $1
 				AND pw = $2
 				AND valid_id = 1`)
 			err = db.QueryRow(query2, username, password).Scan(&dbUserID, &dbPassword, &validID)
-			
+
 			if err == nil && validID == 1 {
 				validLogin = true
 				userID = uint(dbUserID)
-				
+
 				// Update the password to use salted hashing
 				// Generate salt and hash the password
 				salt := generateSalt()
 				combined := password + salt
 				hash := sha256.Sum256([]byte(combined))
 				hashedPassword := fmt.Sprintf("sha256$%s$%s", salt, hex.EncodeToString(hash[:]))
-				
+
 				updateQuery := database.ConvertPlaceholders(`
-					UPDATE users 
+					UPDATE users
 					SET pw = $1,
 					    change_time = CURRENT_TIMESTAMP
 					WHERE id = $2`)
 				_, _ = db.Exec(updateQuery, hashedPassword, dbUserID)
 			}
 		}
-		
+
 		if !validLogin {
 			// For API/HTMX requests, return JSON error
 			if c.GetHeader("HX-Request") == "true" || strings.Contains(c.GetHeader("Accept"), "application/json") {
@@ -1237,7 +1241,7 @@ func handleLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 			})
 			return
 		}
-		
+
 		// Create session token
 		var token string
 		if jwtManager != nil {
@@ -1253,7 +1257,7 @@ func handleLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 			// Use simple session token in demo mode - include user ID in token
 			token = fmt.Sprintf("demo_session_%d_%d", userID, time.Now().Unix())
 		}
-		
+
 		// Get user's preferred session timeout
 		sessionTimeout := constants.DefaultSessionTimeout // Default 24 hours
 		if db != nil {
@@ -1262,20 +1266,20 @@ func handleLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 				sessionTimeout = userTimeout
 			}
 		}
-		
+
 		// Set cookie
 		c.SetCookie("access_token", token, sessionTimeout, "/", "", false, true)
-		
+
 		// For HTMX requests, send redirect header
 		if c.GetHeader("HX-Request") == "true" {
 			c.Header("HX-Redirect", "/dashboard")
 			c.JSON(http.StatusOK, gin.H{
-				"success": true,
+				"success":  true,
 				"redirect": "/dashboard",
 			})
 			return
 		}
-		
+
 		// For regular form submission, redirect
 		c.Redirect(http.StatusFound, "/dashboard")
 	}
@@ -1305,47 +1309,43 @@ func handleLogout(c *gin.Context) {
 
 // handleDashboard shows the main dashboard
 func handleDashboard(c *gin.Context) {
-	// Get real statistics from database
+	// Get database connection through repository pattern
 	db, err := database.GetDB()
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Database connection failed")
 		return
 	}
-	
-	// Get ticket statistics
+
+	// Use repository for database operations
+	ticketRepo := repository.NewTicketRepository(db)
+
+	// Get ticket statistics using repository methods
 	var openTickets, pendingTickets, closedToday int
-	
-	// Count open tickets (state_id = 2)
-	err = db.QueryRow("SELECT COUNT(*) FROM ticket WHERE ticket_state_id = 2").Scan(&openTickets)
+
+	openTickets, err = ticketRepo.CountByStateID(2) // state_id = 2 for open
 	if err != nil {
 		openTickets = 0
 	}
-	
-	// Count pending tickets (state_id = 5)
-	err = db.QueryRow("SELECT COUNT(*) FROM ticket WHERE ticket_state_id = 5").Scan(&pendingTickets)
+
+	pendingTickets, err = ticketRepo.CountByStateID(5) // state_id = 5 for pending
 	if err != nil {
 		pendingTickets = 0
 	}
-	
-	// Count tickets closed today (state_id = 3)
-	err = db.QueryRow(database.ConvertPlaceholders(`
-		SELECT COUNT(*) FROM ticket 
-		WHERE ticket_state_id = 3 
-		AND change_time >= CURRENT_DATE
-	`)).Scan(&closedToday)
+
+	closedToday, err = ticketRepo.CountClosedToday()
 	if err != nil {
 		closedToday = 0
 	}
-	
+
 	stats := gin.H{
 		"openTickets":     openTickets,
 		"pendingTickets":  pendingTickets,
 		"closedToday":     closedToday,
 		"avgResponseTime": "N/A", // Would require more complex calculation
 	}
-	
+
 	// Get recent tickets from database
-	ticketRepo := repository.NewTicketRepository(db)
+	// ticketRepo already created above
 	listReq := &models.TicketListRequest{
 		Page:      1,
 		PerPage:   5,
@@ -1357,7 +1357,7 @@ func handleDashboard(c *gin.Context) {
 	if err == nil && ticketResponse != nil {
 		tickets = ticketResponse.Tickets
 	}
-	
+
 	recentTickets := []gin.H{}
 	if err == nil && tickets != nil {
 		for _, ticket := range tickets {
@@ -1373,10 +1373,10 @@ func handleDashboard(c *gin.Context) {
 			case 5:
 				statusLabel = "pending"
 			}
-			
+
 			// Calculate time ago
 			timeAgo := timeago.English.Format(ticket.ChangeTime)
-			
+
 			recentTickets = append(recentTickets, gin.H{
 				"id":       ticket.TicketNumber,
 				"subject":  ticket.Title,
@@ -1387,7 +1387,7 @@ func handleDashboard(c *gin.Context) {
 			})
 		}
 	}
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/dashboard.pongo2", pongo2.Context{
 		"Title":         "Dashboard - GOTRS",
 		"Stats":         stats,
@@ -1405,7 +1405,7 @@ func handleTickets(c *gin.Context) {
 		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
 		return
 	}
-	
+
 	// Get filter and search parameters
 	status := c.Query("status")
 	priority := c.Query("priority")
@@ -1417,15 +1417,15 @@ func handleTickets(c *gin.Context) {
 		page = 1
 	}
 	limit := 25
-	
+
 	// Build ticket list request
 	req := &models.TicketListRequest{
-		Search:   search,
-		SortBy:   sortBy,
-		Page:     page,
-		PerPage:  limit,
+		Search:  search,
+		SortBy:  sortBy,
+		Page:    page,
+		PerPage: limit,
 	}
-	
+
 	// Apply status filter
 	if status != "" && status != "all" {
 		stateID, _ := strconv.Atoi(status)
@@ -1434,7 +1434,7 @@ func handleTickets(c *gin.Context) {
 			req.StateID = &stateIDPtr
 		}
 	}
-	
+
 	// Apply priority filter
 	if priority != "" && priority != "all" {
 		priorityID, _ := strconv.Atoi(priority)
@@ -1443,7 +1443,7 @@ func handleTickets(c *gin.Context) {
 			req.PriorityID = &priorityIDPtr
 		}
 	}
-	
+
 	// Apply queue filter
 	if queue != "" && queue != "all" {
 		queueID, _ := strconv.Atoi(queue)
@@ -1452,7 +1452,7 @@ func handleTickets(c *gin.Context) {
 			req.QueueID = &queueIDPtr
 		}
 	}
-	
+
 	// Get tickets from repository
 	ticketRepo := repository.NewTicketRepository(db)
 	result, err := ticketRepo.List(req)
@@ -1464,12 +1464,12 @@ func handleTickets(c *gin.Context) {
 			Total:   0,
 		}
 	}
-	
+
 	log.Printf("DEBUG: Found %d tickets from database", len(result.Tickets))
 	if len(result.Tickets) > 0 {
 		log.Printf("DEBUG: First ticket: ID=%d, TN=%s, Title=%s", result.Tickets[0].ID, result.Tickets[0].TicketNumber, result.Tickets[0].Title)
 	}
-	
+
 	// Convert tickets to template format
 	tickets := make([]gin.H, 0, len(result.Tickets))
 	for _, t := range result.Tickets {
@@ -1485,7 +1485,7 @@ func handleTickets(c *gin.Context) {
 		case 4:
 			stateName = "closed"
 		}
-		
+
 		// Get priority name
 		priorityName := "normal"
 		switch t.TicketPriorityID {
@@ -1498,7 +1498,7 @@ func handleTickets(c *gin.Context) {
 		case 4:
 			priorityName = "critical"
 		}
-		
+
 		tickets = append(tickets, gin.H{
 			"id":       t.TicketNumber,
 			"subject":  t.Title,
@@ -1511,9 +1511,9 @@ func handleTickets(c *gin.Context) {
 			"updated":  t.ChangeTime.Format("2006-01-02 15:04"),
 		})
 	}
-	
+
 	log.Printf("DEBUG: Created %d tickets for template", len(tickets))
-	
+
 	// Get available filters
 	states := []gin.H{
 		{"id": 1, "name": "new"},
@@ -1521,14 +1521,14 @@ func handleTickets(c *gin.Context) {
 		{"id": 3, "name": "pending"},
 		{"id": 4, "name": "closed"},
 	}
-	
+
 	priorities := []gin.H{
 		{"id": 1, "name": "low"},
 		{"id": 2, "name": "normal"},
 		{"id": 3, "name": "high"},
 		{"id": 4, "name": "critical"},
 	}
-	
+
 	// Get queues for filter
 	queueRepo := repository.NewQueueRepository(db)
 	queues, _ := queueRepo.List()
@@ -1539,7 +1539,7 @@ func handleTickets(c *gin.Context) {
 			"name": q.Name,
 		})
 	}
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets.pongo2", pongo2.Context{
 		"Title":          "Tickets - GOTRS",
 		"Tickets":        tickets,
@@ -1566,7 +1566,7 @@ func handleQueues(c *gin.Context) {
 		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
 		return
 	}
-	
+
 	// Get queues from database
 	queueRepo := repository.NewQueueRepository(db)
 	queues, err := queueRepo.List()
@@ -1574,7 +1574,7 @@ func handleQueues(c *gin.Context) {
 		sendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch queues")
 		return
 	}
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/queues.pongo2", pongo2.Context{
 		"Title":      "Queues - GOTRS",
 		"Queues":     queues,
@@ -1586,13 +1586,13 @@ func handleQueues(c *gin.Context) {
 // handleQueueDetail shows individual queue details
 func handleQueueDetail(c *gin.Context) {
 	queueID := c.Param("id")
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
 		return
 	}
-	
+
 	// Get queue details from database
 	queueRepo := repository.NewQueueRepository(db)
 	id, err := strconv.ParseUint(queueID, 10, 32)
@@ -1600,13 +1600,13 @@ func handleQueueDetail(c *gin.Context) {
 		sendErrorResponse(c, http.StatusBadRequest, "Invalid queue ID")
 		return
 	}
-	
+
 	queue, err := queueRepo.GetByID(uint(id))
 	if err != nil {
 		sendErrorResponse(c, http.StatusNotFound, "Queue not found")
 		return
 	}
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/queue_detail.pongo2", pongo2.Context{
 		"Title":      "Queue: " + queue.Name + " - GOTRS",
 		"Queue":      queue,
@@ -1622,7 +1622,7 @@ func handleNewTicket(c *gin.Context) {
 		c.String(http.StatusInternalServerError, "Database connection failed")
 		return
 	}
-	
+
 	// Get queues from database
 	queues := []gin.H{}
 	qRows, err := db.Query("SELECT id, name FROM queue WHERE valid_id = 1 ORDER BY name")
@@ -1636,7 +1636,7 @@ func handleNewTicket(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	// Get priorities from database
 	priorities := []gin.H{}
 	pRows, err := db.Query("SELECT id, name FROM ticket_priority WHERE valid_id = 1 ORDER BY id")
@@ -1662,7 +1662,7 @@ func handleNewTicket(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/ticket_new.pongo2", pongo2.Context{
 		"Title":      "New Ticket - GOTRS",
 		"User":       getUserMapForTemplate(c),
@@ -1675,14 +1675,14 @@ func handleNewTicket(c *gin.Context) {
 // handleTicketDetail shows ticket details
 func handleTicketDetail(c *gin.Context) {
 	ticketID := c.Param("id")
-	
+
 	// Get database connection
 	db, err := database.GetDB()
 	if err != nil {
 		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
 		return
 	}
-	
+
 	// Get ticket from repository
 	ticketRepo := repository.NewTicketRepository(db)
 	ticket, err := ticketRepo.GetByTicketNumber(ticketID)
@@ -1694,25 +1694,34 @@ func handleTicketDetail(c *gin.Context) {
 		}
 		return
 	}
-	
-	// Get articles (notes/messages) for the ticket
+
+	// Get articles (notes/messages) for the ticket - include all articles for S/MIME support
 	articleRepo := repository.NewArticleRepository(db)
-	articles, err := articleRepo.GetByTicketID(uint(ticket.ID), false) // false = don't include internal notes
+	articles, err := articleRepo.GetByTicketID(uint(ticket.ID), true) // true = include all articles including S/MIME
 	if err != nil {
 		log.Printf("Error fetching articles: %v", err)
 		articles = []models.Article{}
 	}
-	
-	// Convert to template format
+
+	// Convert to template format - match the template's expected field names
 	notes := make([]gin.H, 0, len(articles))
 	for _, article := range articles {
+		// Determine sender type based on CreateBy (simplified logic)
+		senderType := "system"
+		if article.CreateBy > 0 {
+			senderType = "agent" // Assume any user > 0 is an agent
+		}
+
 		notes = append(notes, gin.H{
-			"author":  fmt.Sprintf("User %d", article.CreateBy),
-			"time":    article.CreateTime.Format("2006-01-02 15:04"),
-			"content": article.Body,
+			"from_name":   fmt.Sprintf("User %d", article.CreateBy),
+			"sender_type": senderType,
+			"create_time": article.CreateTime.Format("2006-01-02 15:04"),
+			"subject":     article.Subject,
+			"body":        article.Body,
+			"attachments": []gin.H{}, // Empty attachments for now
 		})
 	}
-	
+
 	// Get state name (matching OTRS states from database)
 	stateName := "unknown"
 	switch ticket.TicketStateID {
@@ -1723,7 +1732,7 @@ func handleTicketDetail(c *gin.Context) {
 	case 3:
 		stateName = "closed successful"
 	case 4:
-		stateName = "closed unsuccessful" 
+		stateName = "closed unsuccessful"
 	case 5:
 		stateName = "pending reminder"
 	case 6:
@@ -1744,7 +1753,7 @@ func handleTicketDetail(c *gin.Context) {
 			stateName = stateRow.Name
 		}
 	}
-	
+
 	// Get priority name
 	priorityName := "normal"
 	switch ticket.TicketPriorityID {
@@ -1757,13 +1766,13 @@ func handleTicketDetail(c *gin.Context) {
 	case 4:
 		priorityName = "critical"
 	}
-	
+
 	// Check if ticket is closed
 	isClosed := false
 	if ticket.TicketStateID == 3 || ticket.TicketStateID == 4 || strings.Contains(strings.ToLower(stateName), "closed") {
 		isClosed = true
 	}
-	
+
 	ticketData := gin.H{
 		"id":        ticket.TicketNumber,
 		"subject":   ticket.Title,
@@ -1780,15 +1789,16 @@ func handleTicketDetail(c *gin.Context) {
 			"name":  fmt.Sprintf("User %d", ticket.UserID),
 			"email": "agent@gotrs.com",
 		},
-		"created": ticket.CreateTime.Format("2006-01-02 15:04"),
-		"updated": ticket.ChangeTime.Format("2006-01-02 15:04"),
+		"created":     ticket.CreateTime.Format("2006-01-02 15:04"),
+		"updated":     ticket.ChangeTime.Format("2006-01-02 15:04"),
 		"description": "Ticket description", // Need to get from first article
-		"notes": notes,
+		"notes":       notes,
 	}
-	
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/ticket_detail.pongo2", pongo2.Context{
+
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/agent/ticket_view.pongo2", pongo2.Context{
 		"Title":      fmt.Sprintf("Ticket %s - GOTRS", ticketID),
-		"Ticket":     ticketData,
+		"ticket":     ticketData,
+		"articles":   notes, // Pass articles directly for the template loop
 		"User":       getUserMapForTemplate(c),
 		"ActivePage": "tickets",
 	})
@@ -1797,7 +1807,7 @@ func handleTicketDetail(c *gin.Context) {
 // handleProfile shows user profile page
 func handleProfile(c *gin.Context) {
 	user := getUserMapForTemplate(c)
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/profile.pongo2", pongo2.Context{
 		"Title":      "Profile - GOTRS",
 		"User":       user,
@@ -1808,7 +1818,7 @@ func handleProfile(c *gin.Context) {
 // handleSettings shows settings page
 func handleSettings(c *gin.Context) {
 	user := getUserMapForTemplate(c)
-	
+
 	// TODO: Load actual user settings from database
 	// For now, use default settings
 	settings := gin.H{
@@ -1819,7 +1829,7 @@ func handleSettings(c *gin.Context) {
 		"language":           "en",
 		"timezone":           "UTC",
 	}
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/settings.pongo2", pongo2.Context{
 		"Title":      "Settings - GOTRS",
 		"User":       user,
@@ -1837,22 +1847,22 @@ func handleDashboardStats(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	var openTickets, pendingTickets, closedToday int
-	
+
 	// Count open tickets
 	db.QueryRow("SELECT COUNT(*) FROM ticket WHERE ticket_state_id = 2").Scan(&openTickets)
-	
+
 	// Count pending tickets
 	db.QueryRow("SELECT COUNT(*) FROM ticket WHERE ticket_state_id = 5").Scan(&pendingTickets)
-	
+
 	// Count tickets closed today
 	db.QueryRow(database.ConvertPlaceholders(`
-		SELECT COUNT(*) FROM ticket 
-		WHERE ticket_state_id = 3 
+		SELECT COUNT(*) FROM ticket
+		WHERE ticket_state_id = 3
 		AND change_time >= CURRENT_DATE
 	`)).Scan(&closedToday)
-	
+
 	stats := gin.H{
 		"openTickets":     openTickets,
 		"pendingTickets":  pendingTickets,
@@ -1870,7 +1880,7 @@ func handleRecentTickets(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	ticketRepo := repository.NewTicketRepository(db)
 	listReq := &models.TicketListRequest{
 		Page:      1,
@@ -1883,7 +1893,7 @@ func handleRecentTickets(c *gin.Context) {
 	if err == nil && ticketResponse != nil {
 		tickets = ticketResponse.Tickets
 	}
-	
+
 	ticketList := []gin.H{}
 	if err == nil && tickets != nil {
 		for _, ticket := range tickets {
@@ -1899,7 +1909,7 @@ func handleRecentTickets(c *gin.Context) {
 			case 5:
 				statusLabel = "pending"
 			}
-			
+
 			ticketList = append(ticketList, gin.H{
 				"id":       ticket.TicketNumber,
 				"subject":  ticket.Title,
@@ -1910,7 +1920,7 @@ func handleRecentTickets(c *gin.Context) {
 			})
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"tickets": ticketList})
 }
 
@@ -1983,7 +1993,7 @@ func handleAPITickets(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	status := c.Query("status")
-	
+
 	// Mock ticket data
 	tickets := []gin.H{
 		{
@@ -1999,12 +2009,12 @@ func handleAPITickets(c *gin.Context) {
 			"priority": "medium",
 		},
 	}
-	
+
 	// Apply status filter if provided
 	if status != "" {
 		// Filter logic here
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"tickets": tickets,
 		"page":    page,
@@ -2016,27 +2026,27 @@ func handleAPITickets(c *gin.Context) {
 // handleCreateTicket creates a new ticket
 func handleCreateTicket(c *gin.Context) {
 	log.Println("DEBUG: handleCreateTicket called - NEW VERSION WITH DATABASE SAVE")
-	
+
 	// Get database connection
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Database connection failed",
+			"error":   "Database connection failed",
 		})
 		return
 	}
-	
+
 	// Parse the request
 	var req service.CreateTicketRequest
-	
+
 	contentType := c.GetHeader("Content-Type")
 	if strings.Contains(contentType, "application/json") {
 		// Handle JSON request
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error": err.Error(),
+				"error":   err.Error(),
 			})
 			return
 		}
@@ -2048,21 +2058,21 @@ func handleCreateTicket(c *gin.Context) {
 			req.Body = c.PostForm("body")
 		}
 		req.Priority = c.PostForm("priority")
-		
+
 		// Parse queue ID
 		if queueStr := c.PostForm("queue"); queueStr != "" {
 			if queueID, err := strconv.Atoi(queueStr); err == nil {
 				req.QueueID = queueID
 			}
 		}
-		
+
 		// Parse type ID
 		if typeStr := c.PostForm("type"); typeStr != "" {
 			if typeID, err := strconv.Atoi(typeStr); err == nil {
 				req.TypeID = typeID
 			}
 		}
-		
+
 		// Handle customer data
 		if customerEmail := c.PostForm("customer_email"); customerEmail != "" {
 			req.CustomerEmail = customerEmail
@@ -2072,25 +2082,25 @@ func handleCreateTicket(c *gin.Context) {
 			req.CustomerEmail = c.PostForm("new_customer_email")
 			req.CustomerName = c.PostForm("new_customer_name")
 		}
-		
+
 		// Validate required fields
 		if req.Subject == "" || req.Body == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error": "Subject and description are required",
+				"error":   "Subject and description are required",
 			})
 			return
 		}
-		
+
 		if req.CustomerEmail == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error": "Customer email is required",
+				"error":   "Customer email is required",
 			})
 			return
 		}
 	}
-	
+
 	// Get current user ID (use 1 for demo/test)
 	createBy := 1
 	if userCtx, ok := c.Get("user"); ok {
@@ -2098,7 +2108,7 @@ func handleCreateTicket(c *gin.Context) {
 			createBy = int(user.ID)
 		}
 	}
-	
+
 	// Create the ticket using the service
 	ticketService := service.NewTicketService(db)
 	result, err := ticketService.CreateTicket(&req, createBy)
@@ -2118,39 +2128,39 @@ func handleCreateTicket(c *gin.Context) {
 			// Include the actual error for debugging
 			errorMsg = fmt.Sprintf("Failed to create ticket: %v", err)
 		}
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": errorMsg,
+			"error":   errorMsg,
 			"details": err.Error(), // Include full error for debugging
 		})
 		return
 	}
-	
+
 	// Return success with the actual ticket number
 	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"ticket_id": result.TicketNumber,
+		"success":       true,
+		"ticket_id":     result.TicketNumber,
 		"ticket_number": result.TicketNumber,
-		"id": result.ID,
-		"message": "Ticket created successfully",
-	})  
+		"id":            result.ID,
+		"message":       "Ticket created successfully",
+	})
 }
 
 // handleGetTicket returns a specific ticket
 func handleGetTicket(c *gin.Context) {
 	ticketID := c.Param("id")
-	
+
 	// Get database connection
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Database connection failed",
+			"error":   "Database connection failed",
 		})
 		return
 	}
-	
+
 	// Get ticket from repository
 	ticketRepo := repository.NewTicketRepository(db)
 	ticket, err := ticketRepo.GetByTicketNumber(ticketID)
@@ -2158,33 +2168,33 @@ func handleGetTicket(c *gin.Context) {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{
 				"success": false,
-				"error": "Ticket not found",
+				"error":   "Ticket not found",
 			})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"error": "Failed to retrieve ticket",
+				"error":   "Failed to retrieve ticket",
 			})
 		}
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"ticket": ticket,
+		"ticket":  ticket,
 	})
 }
 
 // handleUpdateTicket updates a ticket
 func handleUpdateTicket(c *gin.Context) {
 	ticketID := c.Param("id")
-	
+
 	var updates gin.H
 	if err := c.ShouldBindJSON(&updates); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"ticket": gin.H{
 			"id":      ticketID,
@@ -2196,17 +2206,17 @@ func handleUpdateTicket(c *gin.Context) {
 // handleDeleteTicket deletes a ticket (soft delete)
 func handleDeleteTicket(c *gin.Context) {
 	ticketIDStr := c.Param("id")
-	
+
 	// Get database connection
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Database connection failed",
+			"error":   "Database connection failed",
 		})
 		return
 	}
-	
+
 	// First get the ticket by number to get its ID
 	ticketRepo := repository.NewTicketRepository(db)
 	ticket, err := ticketRepo.GetByTicketNumber(ticketIDStr)
@@ -2214,27 +2224,27 @@ func handleDeleteTicket(c *gin.Context) {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{
 				"success": false,
-				"error": "Ticket not found",
+				"error":   "Ticket not found",
 			})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"error": "Failed to retrieve ticket",
+				"error":   "Failed to retrieve ticket",
 			})
 		}
 		return
 	}
-	
+
 	// Soft delete the ticket
 	err = ticketRepo.Delete(uint(ticket.ID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to delete ticket",
+			"error":   "Failed to delete ticket",
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": fmt.Sprintf("Ticket %s deleted", ticketIDStr),
@@ -2244,25 +2254,25 @@ func handleDeleteTicket(c *gin.Context) {
 // handleAddTicketNote adds a note to a ticket
 func handleAddTicketNote(c *gin.Context) {
 	ticketID := c.Param("id")
-	
+
 	// Parse the note data
 	var noteData struct {
 		Content  string `json:"content" binding:"required"`
 		Internal bool   `json:"internal"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&noteData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Note content is required"})
 		return
 	}
-	
+
 	// Get database connection
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	// Get ticket to verify it exists
 	ticketRepo := repository.NewTicketRepository(db)
 	ticketIDInt, err := strconv.Atoi(ticketID)
@@ -2275,7 +2285,7 @@ func handleAddTicketNote(c *gin.Context) {
 		}
 		ticketIDInt = ticket.ID
 	}
-	
+
 	// Get current user
 	userID := 1 // Default system user
 	if userCtx, ok := c.Get("user"); ok {
@@ -2283,31 +2293,31 @@ func handleAddTicketNote(c *gin.Context) {
 			userID = int(user.ID)
 		}
 	}
-	
+
 	// Create article (note) in database
 	articleRepo := repository.NewArticleRepository(db)
 	article := &models.Article{
-		TicketID:             ticketIDInt,
-		Subject:              "Note",
-		Body:                 noteData.Content,
-		SenderTypeID:         1, // Agent
+		TicketID:               ticketIDInt,
+		Subject:                "Note",
+		Body:                   noteData.Content,
+		SenderTypeID:           1, // Agent
 		CommunicationChannelID: 7, // Note
-		IsVisibleForCustomer: 0,  // Internal note by default
-		CreateBy:            userID,
-		ChangeBy:            userID,
+		IsVisibleForCustomer:   0, // Internal note by default
+		CreateBy:               userID,
+		ChangeBy:               userID,
 	}
-	
+
 	if !noteData.Internal {
 		article.IsVisibleForCustomer = 1
 	}
-	
+
 	err = articleRepo.Create(article)
 	if err != nil {
 		log.Printf("Error creating note: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save note"})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success":  true,
 		"noteId":   article.ID,
@@ -2319,7 +2329,7 @@ func handleAddTicketNote(c *gin.Context) {
 // handleGetTicketHistory returns ticket history
 func handleGetTicketHistory(c *gin.Context) {
 	ticketID := c.Param("id")
-	
+
 	history := []gin.H{
 		{
 			"id":     "1",
@@ -2328,14 +2338,14 @@ func handleGetTicketHistory(c *gin.Context) {
 			"time":   "2024-01-10 09:00",
 		},
 		{
-			"id":     "2",
-			"action": "assigned",
-			"user":   "Admin",
-			"time":   "2024-01-10 09:05",
+			"id":      "2",
+			"action":  "assigned",
+			"user":    "Admin",
+			"time":    "2024-01-10 09:05",
 			"details": "Assigned to Alice Agent",
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"ticketId": ticketID,
 		"history":  history,
@@ -2345,21 +2355,21 @@ func handleGetTicketHistory(c *gin.Context) {
 // handleGetAvailableAgents returns agents who have permissions for the ticket's queue
 func handleGetAvailableAgents(c *gin.Context) {
 	ticketID := c.Param("id")
-	
+
 	// Get database connection
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	// Convert ticket ID to int
 	ticketIDInt, err := strconv.Atoi(ticketID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	// Query to get agents who have permissions for the ticket's queue
 	// This joins ticket -> queue -> groups -> group_user -> users
 	query := `
@@ -2374,14 +2384,14 @@ func handleGetAvailableAgents(c *gin.Context) {
 		  AND ug.permission_value = 1
 		ORDER BY u.id
 	`
-	
+
 	rows, err := db.Query(query, ticketIDInt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch agents"})
 		return
 	}
 	defer rows.Close()
-	
+
 	agents := []gin.H{}
 	for rows.Next() {
 		var id int
@@ -2389,14 +2399,14 @@ func handleGetAvailableAgents(c *gin.Context) {
 		if err := rows.Scan(&id, &login, &firstName, &lastName); err != nil {
 			continue
 		}
-		
+
 		agents = append(agents, gin.H{
-			"id":   id,
-			"name": fmt.Sprintf("%s %s", firstName, lastName),
+			"id":    id,
+			"name":  fmt.Sprintf("%s %s", firstName, lastName),
 			"login": login,
 		})
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"agents":  agents,
@@ -2406,7 +2416,7 @@ func handleGetAvailableAgents(c *gin.Context) {
 // handleAssignTicket assigns a ticket to an agent
 func handleAssignTicket(c *gin.Context) {
 	ticketID := c.Param("id")
-	
+
 	var assignment struct {
 		AgentID int `json:"agentId"`
 	}
@@ -2414,21 +2424,21 @@ func handleAssignTicket(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Get database connection
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	// Convert ticket ID to int
 	ticketIDInt, err := strconv.Atoi(ticketID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	// Get current user for change_by
 	userID := 1 // Default system user
 	if userCtx, ok := c.Get("user"); ok {
@@ -2436,31 +2446,31 @@ func handleAssignTicket(c *gin.Context) {
 			userID = int(user.ID)
 		}
 	}
-	
+
 	// Update the ticket's responsible_user_id
 	_, err = db.Exec(database.ConvertPlaceholders(`
-		UPDATE ticket 
-		SET responsible_user_id = $1, change_time = NOW(), change_by = $2 
+		UPDATE ticket
+		SET responsible_user_id = $1, change_time = NOW(), change_by = $2
 		WHERE id = $3
 	`), assignment.AgentID, userID, ticketIDInt)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign ticket"})
 		return
 	}
-	
+
 	// Get the agent's name for the response
 	var agentName string
 	err = db.QueryRow(database.ConvertPlaceholders(`
-		SELECT first_name || ' ' || last_name 
-		FROM users 
+		SELECT first_name || ' ' || last_name
+		FROM users
 		WHERE id = $1
 	`), assignment.AgentID).Scan(&agentName)
-	
+
 	if err != nil {
 		agentName = fmt.Sprintf("Agent %d", assignment.AgentID)
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"ticketId": ticketID,
 		"assigned": agentName,
@@ -2471,7 +2481,7 @@ func handleAssignTicket(c *gin.Context) {
 // handleCloseTicket closes a ticket
 func handleCloseTicket(c *gin.Context) {
 	ticketID := c.Param("id")
-	
+
 	// Parse request body
 	var closeData struct {
 		StateID        int    `json:"state_id"`
@@ -2480,23 +2490,23 @@ func handleCloseTicket(c *gin.Context) {
 		TimeUnits      int    `json:"time_units"`
 		NotifyCustomer bool   `json:"notify_customer"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&closeData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
 		return
 	}
-	
+
 	// Default to closed successful if not specified
 	if closeData.StateID == 0 {
 		closeData.StateID = 3
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	// Get ticket to verify it exists
 	ticketRepo := repository.NewTicketRepository(db)
 	ticketIDInt, err := strconv.Atoi(ticketID)
@@ -2509,7 +2519,7 @@ func handleCloseTicket(c *gin.Context) {
 		}
 		ticketIDInt = ticket.ID
 	}
-	
+
 	// Get current user
 	userID := 1 // Default system user
 	if userCtx, ok := c.Get("user"); ok {
@@ -2517,7 +2527,7 @@ func handleCloseTicket(c *gin.Context) {
 			userID = int(user.ID)
 		}
 	}
-	
+
 	// Start transaction
 	tx, err := db.Begin()
 	if err != nil {
@@ -2525,31 +2535,31 @@ func handleCloseTicket(c *gin.Context) {
 		return
 	}
 	defer tx.Rollback()
-	
+
 	// Update ticket state
 	_, err = tx.Exec(database.ConvertPlaceholders(`
-		UPDATE ticket 
-		SET ticket_state_id = $1, change_time = NOW(), change_by = $2 
+		UPDATE ticket
+		SET ticket_state_id = $1, change_time = NOW(), change_by = $2
 		WHERE id = $3
 	`), closeData.StateID, userID, ticketIDInt)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to close ticket"})
 		return
 	}
-	
+
 	// Add close note as an article (skip for now - articleRepo doesn't support transactions yet)
 	// We'll just update the ticket state for now
 	// TODO: Add transaction support to article repository
-	
+
 	// TODO: Store time units if time tracking is implemented
-	
+
 	// Commit transaction
 	if err = tx.Commit(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":  true,
 		"ticketId": ticketIDInt,
@@ -2562,7 +2572,7 @@ func handleCloseTicket(c *gin.Context) {
 // handleReopenTicket reopens a ticket
 func handleReopenTicket(c *gin.Context) {
 	ticketID := c.Param("id")
-	
+
 	// Parse the request body for additional reopen data
 	var reopenData struct {
 		StateID        int    `json:"state_id"`
@@ -2570,18 +2580,18 @@ func handleReopenTicket(c *gin.Context) {
 		Notes          string `json:"notes"`
 		NotifyCustomer bool   `json:"notify_customer"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&reopenData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reopen request: " + err.Error()})
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	// Get ticket to verify it exists
 	ticketRepo := repository.NewTicketRepository(db)
 	ticketIDInt, err := strconv.Atoi(ticketID)
@@ -2594,49 +2604,49 @@ func handleReopenTicket(c *gin.Context) {
 		}
 		ticketIDInt = ticket.ID
 	}
-	
+
 	// Default to state 2 (open) if not specified or invalid
 	targetStateID := reopenData.StateID
 	if targetStateID != 1 && targetStateID != 2 {
 		targetStateID = 2 // Default to open
 	}
-	
+
 	// Update ticket state
 	_, err = db.Exec(database.ConvertPlaceholders(`
-		UPDATE ticket 
-		SET ticket_state_id = $1, change_time = NOW(), change_by = $2 
+		UPDATE ticket
+		SET ticket_state_id = $1, change_time = NOW(), change_by = $2
 		WHERE id = $3
 	`), targetStateID, 1, ticketIDInt) // Using system user (1) for now
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reopen ticket"})
 		return
 	}
-	
+
 	// Add a reopen note/history entry
 	reopenNote := fmt.Sprintf("Ticket reopened\nReason: %s", reopenData.Reason)
 	if reopenData.Notes != "" {
 		reopenNote += fmt.Sprintf("\nAdditional notes: %s", reopenData.Notes)
 	}
-	
+
 	// Insert history/note entry
 	_, err = db.Exec(database.ConvertPlaceholders(`
 		INSERT INTO article (ticket_id, article_type_id, subject, body, created_time, created_by, change_time, change_by)
 		VALUES ($1, 1, $2, $3, NOW(), $4, NOW(), $4)
 	`), ticketIDInt, "Ticket Reopened", reopenNote, 1) // Using system user (1) for now
-	
+
 	if err != nil {
 		// Log the error but don't fail the reopen operation
 		fmt.Printf("Warning: Failed to add reopen note: %v\n", err)
 	}
-	
+
 	// TODO: Implement customer notification if reopenData.NotifyCustomer is true
-	
+
 	statusText := "open"
 	if targetStateID == 1 {
 		statusText = "new"
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":    true,
 		"ticketId":   ticketIDInt,
@@ -2649,7 +2659,7 @@ func handleReopenTicket(c *gin.Context) {
 // handleSearchTickets searches tickets
 func handleSearchTickets(c *gin.Context) {
 	query := c.Query("q")
-	
+
 	if query == "" {
 		c.JSON(http.StatusOK, gin.H{
 			"query":   query,
@@ -2658,22 +2668,22 @@ func handleSearchTickets(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	// Search in ticket title and number
 	results := []gin.H{}
 	rows, err := db.Query(database.ConvertPlaceholders(`
-		SELECT id, tn, title 
-		FROM ticket 
+		SELECT id, tn, title
+		FROM ticket
 		WHERE title ILIKE $1 OR tn ILIKE $1
 		LIMIT 20
 	`), "%"+query+"%")
-	
+
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -2681,14 +2691,14 @@ func handleSearchTickets(c *gin.Context) {
 			var tn, title string
 			if err := rows.Scan(&id, &tn, &title); err == nil {
 				results = append(results, gin.H{
-					"id":       tn,
-					"subject":  title,
+					"id":        tn,
+					"subject":   title,
 					"relevance": 1.0,
 				})
 			}
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"query":   query,
 		"results": results,
@@ -2705,18 +2715,18 @@ func handleFilterTickets(c *gin.Context) {
 		"queue":    c.Query("queue"),
 		"agent":    c.Query("agent"),
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	// Build dynamic query based on filters
 	whereClause := "WHERE 1=1"
 	args := []interface{}{}
 	argCount := 0
-	
+
 	if status, ok := filters["status"].(string); ok && status != "" {
 		argCount++
 		whereClause += fmt.Sprintf(" AND ticket_state_id = $%d", argCount)
@@ -2734,32 +2744,32 @@ func handleFilterTickets(c *gin.Context) {
 		}
 		args = append(args, statusID)
 	}
-	
+
 	if priority, ok := filters["priority"].(string); ok && priority != "" {
 		argCount++
 		whereClause += fmt.Sprintf(" AND ticket_priority_id = $%d", argCount)
 		args = append(args, priority)
 	}
-	
+
 	if queue, ok := filters["queue"].(string); ok && queue != "" {
 		argCount++
 		whereClause += fmt.Sprintf(" AND queue_id = $%d", argCount)
 		args = append(args, queue)
 	}
-	
+
 	if agent, ok := filters["agent"].(string); ok && agent != "" {
 		argCount++
 		whereClause += fmt.Sprintf(" AND user_id = $%d", argCount)
 		args = append(args, agent)
 	}
-	
+
 	query := fmt.Sprintf(`
 		SELECT id, tn, title, ticket_state_id, ticket_priority_id
 		FROM ticket
 		%s
 		LIMIT 50
 	`, whereClause)
-	
+
 	tickets := []gin.H{}
 	rows, err := db.Query(query, args...)
 	if err == nil {
@@ -2777,7 +2787,7 @@ func handleFilterTickets(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"filters": filters,
 		"tickets": tickets,
@@ -2790,7 +2800,7 @@ func handleFilterTickets(c *gin.Context) {
 /* Commented out - defined in ticket_attachment_handler.go
 func handleUploadAttachment(c *gin.Context) {
 	ticketID := c.Param("id")
-	
+
 	// Parse multipart form
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
@@ -2798,7 +2808,7 @@ func handleUploadAttachment(c *gin.Context) {
 		return
 	}
 	defer file.Close()
-	
+
 	// Create attachment record
 	attachment := gin.H{
 		"id":       fmt.Sprintf("A-%d", time.Now().Unix()),
@@ -2808,17 +2818,17 @@ func handleUploadAttachment(c *gin.Context) {
 		"mimeType": header.Header.Get("Content-Type"),
 		"uploaded": time.Now().Format("2006-01-02 15:04"),
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{"attachment": attachment})
 }
 
 func handleDownloadAttachment(c *gin.Context) {
 	ticketID := c.Param("id")
 	attachmentID := c.Param("attachment_id")
-	
+
 	// Mock file data
 	data := []byte("This is a mock attachment file content")
-	
+
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"attachment_%s_%s.txt\"", ticketID, attachmentID))
 	c.Data(http.StatusOK, "text/plain", data)
 }
@@ -2835,7 +2845,7 @@ func handleGetThumbnail(c *gin.Context) {
 func handleDeleteAttachment(c *gin.Context) {
 	ticketID := c.Param("id")
 	attachmentID := c.Param("attachment_id")
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": fmt.Sprintf("Attachment %s deleted from ticket %s", attachmentID, ticketID),
 	})
@@ -2849,7 +2859,7 @@ func handleDeleteAttachment(c *gin.Context) {
 // Lookup data handlers are now defined in separate files:
 // - handleGetQueues in lookup_handlers.go or queue_handlers.go
 // - handleGetPriorities in priority_handlers.go
-// - handleGetTypes in type_handlers.go  
+// - handleGetTypes in type_handlers.go
 // - handleGetStatuses in lookup_handlers.go
 // - handleGetFormData in lookup_handlers.go
 
@@ -2877,7 +2887,7 @@ func handleGetTemplates(c *gin.Context) {
 // handleGetTemplate returns a specific template
 func handleGetTemplate(c *gin.Context) {
 	templateID := c.Param("id")
-	
+
 	template := gin.H{
 		"id":          templateID,
 		"name":        "Password Reset",
@@ -2887,7 +2897,7 @@ func handleGetTemplate(c *gin.Context) {
 		"priority":    "medium",
 		"queue":       "Support",
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"template": template})
 }
 
@@ -2898,23 +2908,23 @@ func handleCreateTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	template["id"] = fmt.Sprintf("T-%d", time.Now().Unix())
 	template["created"] = time.Now().Format("2006-01-02 15:04")
-	
+
 	c.JSON(http.StatusCreated, gin.H{"template": template})
 }
 
 // handleUpdateTemplate updates a template
 func handleUpdateTemplate(c *gin.Context) {
 	templateID := c.Param("id")
-	
+
 	var updates gin.H
 	if err := c.ShouldBindJSON(&updates); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"template": gin.H{
 			"id":      templateID,
@@ -2933,7 +2943,7 @@ func handleDeleteTemplate(c *gin.Context) {
 func handleSearchTemplates(c *gin.Context) {
 	query := c.Query("q")
 	category := c.Query("category")
-	
+
 	templates := []gin.H{
 		{
 			"id":       "1",
@@ -2941,7 +2951,7 @@ func handleSearchTemplates(c *gin.Context) {
 			"category": category,
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"query":     query,
 		"templates": templates,
@@ -2978,7 +2988,7 @@ func handleApplyTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"ticketId":   request["ticketId"],
 		"templateId": request["templateId"],
@@ -2989,7 +2999,7 @@ func handleApplyTemplate(c *gin.Context) {
 // handleLoadTemplateIntoForm loads template data for form population
 func handleLoadTemplateIntoForm(c *gin.Context) {
 	templateID := c.Param("id")
-	
+
 	formData := gin.H{
 		"subject":     "Password Reset Request",
 		"description": "User needs password reset for their account",
@@ -2997,7 +3007,7 @@ func handleLoadTemplateIntoForm(c *gin.Context) {
 		"queue":       "Support",
 		"type":        "Request",
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"templateId": templateID,
 		"formData":   formData,
@@ -3027,15 +3037,15 @@ func handleTicketStream(c *gin.Context) {
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
-	
+
 	// Send a ping event every 30 seconds
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	// Send initial connection event
 	fmt.Fprintf(c.Writer, "event: connected\ndata: {\"message\": \"Connected to ticket stream\"}\n\n")
 	c.Writer.Flush()
-	
+
 	// Simulate ticket updates
 	for {
 		select {
@@ -3055,11 +3065,11 @@ func handleActivityStream(c *gin.Context) {
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
-	
+
 	// Send activity updates periodically
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -3084,12 +3094,12 @@ func handleActivityStream(c *gin.Context) {
 func handleAdminDashboard(c *gin.Context) {
 	// Get some stats from the database
 	db, _ := database.GetDB()
-	
+
 	userCount := 0
 	groupCount := 0
 	activeTickets := 0
 	queueCount := 0
-	
+
 	if db != nil {
 		db.QueryRow("SELECT COUNT(*) FROM users WHERE valid_id = 1").Scan(&userCount)
 		db.QueryRow("SELECT COUNT(*) FROM groups WHERE valid_id = 1").Scan(&groupCount)
@@ -3097,7 +3107,7 @@ func handleAdminDashboard(c *gin.Context) {
 		// Note: ticket table might not exist yet
 		db.QueryRow("SELECT COUNT(*) FROM ticket WHERE ticket_state_id IN (1,2,3,4)").Scan(&activeTickets)
 	}
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/dashboard.pongo2", pongo2.Context{
 		"UserCount":     userCount,
 		"GroupCount":    groupCount,
@@ -3135,7 +3145,7 @@ func handleAdminUsers(c *gin.Context) {
 		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
 		return
 	}
-	
+
 	fmt.Println("DEBUG: handleAdminUsers - Database connected, fetching users")
 	// Get users from database with their groups
 	userRepo := repository.NewUserRepository(db)
@@ -3146,7 +3156,7 @@ func handleAdminUsers(c *gin.Context) {
 		return
 	}
 	fmt.Printf("DEBUG: handleAdminUsers - Fetched %d users\n", len(users))
-	
+
 	// Get groups for filter
 	groupRepo := repository.NewGroupRepository(db)
 	groups, err := groupRepo.List()
@@ -3154,12 +3164,12 @@ func handleAdminUsers(c *gin.Context) {
 		// If we can't get groups, just continue with empty list
 		groups = []*models.Group{}
 	}
-	
+
 	// Apply filters if present
 	search := c.Query("search")
 	statusFilter := c.Query("status")
 	groupFilter := c.Query("group")
-	
+
 	// Filter users based on search and filters
 	var filteredUsers []*models.User
 	for _, user := range users {
@@ -3173,7 +3183,7 @@ func handleAdminUsers(c *gin.Context) {
 				continue
 			}
 		}
-		
+
 		// Skip if status doesn't match
 		if statusFilter != "" && statusFilter != "all" {
 			if statusFilter == "active" && user.ValidID != 1 {
@@ -3183,16 +3193,16 @@ func handleAdminUsers(c *gin.Context) {
 				continue
 			}
 		}
-		
+
 		// Skip if group doesn't match
 		if groupFilter != "" && groupFilter != "all" {
 			// TODO: Check if user is in the specified group
 			// For now, just include all users when group filter is set
 		}
-		
+
 		filteredUsers = append(filteredUsers, user)
 	}
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/users.pongo2", pongo2.Context{
 		"Users":        filteredUsers,
 		"Groups":       groups,
@@ -3204,10 +3214,10 @@ func handleAdminUsers(c *gin.Context) {
 		"t": func(key string) string {
 			// Simple translation fallback - just return the key for now
 			translations := map[string]string{
-				"admin.users": "Users",
-				"app.name": "GOTRS",
+				"admin.users":             "Users",
+				"app.name":                "GOTRS",
 				"admin.users_description": "Manage system users and their permissions",
-				"admin.add_user_tooltip": "Add new user",
+				"admin.add_user_tooltip":  "Add new user",
 			}
 			if val, ok := translations[key]; ok {
 				return val
@@ -3224,11 +3234,11 @@ func handleNewUser(c *gin.Context) {
 		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
 		return
 	}
-	
+
 	// Get groups for the form
 	groupRepo := repository.NewGroupRepository(db)
 	groups, _ := groupRepo.List()
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/user_form.pongo2", pongo2.Context{
 		"Title":      "New User",
 		"Groups":     groups,
@@ -3255,20 +3265,20 @@ func handleCreateUser(c *gin.Context) {
 		Groups    []string `form:"groups[]"`
 		IsActive  bool     `form:"is_active"`
 	}
-	
+
 	if err := c.ShouldBind(&userForm); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	userRepo := repository.NewUserRepository(db)
-	
+
 	// Create the user
 	user := &models.User{
 		Login:     userForm.Login,
@@ -3277,20 +3287,20 @@ func handleCreateUser(c *gin.Context) {
 		LastName:  userForm.LastName,
 		ValidID:   1, // Active by default
 	}
-	
+
 	if !userForm.IsActive {
 		user.ValidID = 2 // Inactive
 	}
-	
+
 	// Hash the password
 	// TODO: Implement proper password hashing
 	user.Password = userForm.Password // For now, store as plain text (NOT FOR PRODUCTION!)
-	
+
 	if err := userRepo.Create(user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
-	
+
 	// Add user to groups
 	if len(userForm.Groups) > 0 {
 		groupRepo := repository.NewGroupRepository(db)
@@ -3300,10 +3310,10 @@ func handleCreateUser(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"user":    user,
+		"success":  true,
+		"user":     user,
 		"redirect": "/admin/users",
 	})
 }
@@ -3315,24 +3325,24 @@ func handleGetUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	userRepo := repository.NewUserRepository(db)
 	user, err := userRepo.GetByID(uint(userID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
-	
+
 	// Get user's groups
 	groupRepo := repository.NewGroupRepository(db)
 	groupNames, _ := groupRepo.GetUserGroups(user.ID)
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
@@ -3355,25 +3365,25 @@ func handleEditUser(c *gin.Context) {
 		sendErrorResponse(c, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
 		return
 	}
-	
+
 	userRepo := repository.NewUserRepository(db)
 	user, err := userRepo.GetByID(uint(userID))
 	if err != nil {
 		sendErrorResponse(c, http.StatusNotFound, "User not found")
 		return
 	}
-	
+
 	// Get all groups and user's current groups
 	groupRepo := repository.NewGroupRepository(db)
 	groups, _ := groupRepo.List()
 	userGroups, _ := groupRepo.GetUserGroups(user.ID)
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/user_form.pongo2", pongo2.Context{
 		"Title":      "Edit User",
 		"EditUser":   user,
@@ -3391,7 +3401,7 @@ func handleUpdateUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
-	
+
 	var userForm struct {
 		Login     string   `form:"login" json:"login"`
 		Email     string   `form:"email" json:"email"`
@@ -3401,25 +3411,25 @@ func handleUpdateUser(c *gin.Context) {
 		Groups    []string `form:"groups[]" json:"groups"`
 		IsActive  bool     `form:"is_active" json:"is_active"`
 	}
-	
+
 	if err := c.ShouldBind(&userForm); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	userRepo := repository.NewUserRepository(db)
 	user, err := userRepo.GetByID(uint(userID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
-	
+
 	// Update user fields
 	if userForm.Login != "" {
 		user.Login = userForm.Login
@@ -3437,20 +3447,20 @@ func handleUpdateUser(c *gin.Context) {
 		// TODO: Implement proper password hashing
 		user.Password = userForm.Password
 	}
-	
+
 	user.ValidID = 1
 	if !userForm.IsActive {
 		user.ValidID = 2
 	}
-	
+
 	if err := userRepo.Update(user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
 		return
 	}
-	
+
 	// Update group memberships
 	// TODO: Implement group membership updates
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"user":    user,
@@ -3464,28 +3474,28 @@ func handleDeleteUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	userRepo := repository.NewUserRepository(db)
-	
+
 	// In OTRS style, we don't actually delete users, we mark them as invalid
 	user, err := userRepo.GetByID(uint(userID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
-	
+
 	user.ValidID = 2 // Mark as invalid/inactive
 	if err := userRepo.Update(user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "User deleted successfully",
@@ -3499,38 +3509,38 @@ func handleUpdateUserStatus(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
-	
+
 	var request struct {
 		ValidID int `json:"valid_id"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	userRepo := repository.NewUserRepository(db)
 	user, err := userRepo.GetByID(uint(userID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
-	
+
 	user.ValidID = request.ValidID
 	user.ChangeTime = time.Now()
 	user.ChangeBy = int(getUserFromContext(c).ID)
-	
+
 	if err := userRepo.Update(user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user status"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "User status updated successfully",
@@ -3544,50 +3554,50 @@ func handleResetUserPassword(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
-	
+
 	var request struct {
 		Password string `json:"password"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
-	
+
 	if request.Password == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Password is required"})
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	userRepo := repository.NewUserRepository(db)
 	user, err := userRepo.GetByID(uint(userID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
-	
+
 	// Hash the new password - use bcrypt
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
 		return
 	}
-	
+
 	user.Password = string(hashedPassword)
 	user.ChangeTime = time.Now()
 	user.ChangeBy = int(getUserFromContext(c).ID)
-	
+
 	if err := userRepo.Update(user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reset password"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Password reset successfully",
@@ -3601,14 +3611,14 @@ func handleAdminGroups(c *gin.Context) {
 		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
 		return
 	}
-	
+
 	groupRepo := repository.NewGroupRepository(db)
 	groups, err := groupRepo.List()
 	if err != nil {
 		sendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch groups")
 		return
 	}
-	
+
 	// Convert groups to display format
 	var groupList []gin.H
 	for _, group := range groups {
@@ -3616,7 +3626,7 @@ func handleAdminGroups(c *gin.Context) {
 		groupIDUint, _ := group.ID.(uint)
 		members, _ := groupRepo.GetGroupMembers(groupIDUint)
 		memberCount := len(members)
-		
+
 		groupList = append(groupList, gin.H{
 			"ID":          group.ID,
 			"Name":        group.Name,
@@ -3628,7 +3638,7 @@ func handleAdminGroups(c *gin.Context) {
 			"CreateTime":  group.CreateTime,
 		})
 	}
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/groups.pongo2", pongo2.Context{
 		"Groups":     groupList,
 		"User":       getUserMapForTemplate(c),
@@ -3642,18 +3652,18 @@ func handleCreateGroup(c *gin.Context) {
 		Name        string `form:"name" json:"name" binding:"required"`
 		Description string `form:"description" json:"description"`
 	}
-	
+
 	if err := c.ShouldBind(&groupForm); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	// Get current user for audit fields
 	userID := 1 // Default to system user
 	if userCtx, ok := c.Get("user"); ok {
@@ -3661,7 +3671,7 @@ func handleCreateGroup(c *gin.Context) {
 			userID = int(userData.ID)
 		}
 	}
-	
+
 	groupRepo := repository.NewGroupRepository(db)
 	group := &models.Group{
 		Name:     groupForm.Name,
@@ -3670,12 +3680,12 @@ func handleCreateGroup(c *gin.Context) {
 		CreateBy: userID,
 		ChangeBy: userID,
 	}
-	
+
 	if err := groupRepo.Create(group); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create group: " + err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"group":   group,
@@ -3689,24 +3699,24 @@ func handleGetGroup(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid group ID"})
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	groupRepo := repository.NewGroupRepository(db)
 	group, err := groupRepo.GetByID(uint(groupID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Group not found"})
 		return
 	}
-	
+
 	// Get group members
 	groupIDUint, _ := group.ID.(uint)
 	members, _ := groupRepo.GetGroupMembers(groupIDUint)
-	
+
 	// Format response to match frontend expectations
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -3728,31 +3738,31 @@ func handleUpdateGroup(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid group ID"})
 		return
 	}
-	
+
 	var groupForm struct {
 		Name        string `form:"name" json:"name"`
 		Description string `form:"description" json:"description"`
 		ValidID     int    `form:"valid_id" json:"valid_id"`
 	}
-	
+
 	if err := c.ShouldBind(&groupForm); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	groupRepo := repository.NewGroupRepository(db)
 	group, err := groupRepo.GetByID(uint(groupID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Group not found"})
 		return
 	}
-	
+
 	// Get current user for audit fields
 	userID := 1 // Default to system user
 	if userCtx, ok := c.Get("user"); ok {
@@ -3760,7 +3770,7 @@ func handleUpdateGroup(c *gin.Context) {
 			userID = int(userData.ID)
 		}
 	}
-	
+
 	// Update group fields
 	if groupForm.Name != "" {
 		group.Name = groupForm.Name
@@ -3772,12 +3782,12 @@ func handleUpdateGroup(c *gin.Context) {
 		group.ValidID = groupForm.ValidID
 	}
 	group.ChangeBy = userID
-	
+
 	if err := groupRepo.Update(group); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update group"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"group":   group,
@@ -3791,26 +3801,26 @@ func handleDeleteGroup(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid group ID"})
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	groupRepo := repository.NewGroupRepository(db)
 	group, err := groupRepo.GetByID(uint(groupID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Group not found"})
 		return
 	}
-	
+
 	// Don't delete system groups
 	if group.Name == "admin" || group.Name == "users" || group.Name == "stats" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete system groups"})
 		return
 	}
-	
+
 	// Get current user for audit fields
 	userID := 1 // Default to system user
 	if userCtx, ok := c.Get("user"); ok {
@@ -3818,16 +3828,16 @@ func handleDeleteGroup(c *gin.Context) {
 			userID = int(userData.ID)
 		}
 	}
-	
+
 	// In OTRS style, we mark groups as invalid rather than deleting them
 	group.ValidID = 2 // Mark as invalid
 	group.ChangeBy = userID
-	
+
 	if err := groupRepo.Update(group); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete group"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Group deleted successfully",
@@ -3841,7 +3851,7 @@ func handleAdminQueues(c *gin.Context) {
 		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
 		return
 	}
-	
+
 	// Get queues from database
 	queueRepo := repository.NewQueueRepository(db)
 	queues, err := queueRepo.List()
@@ -3849,7 +3859,7 @@ func handleAdminQueues(c *gin.Context) {
 		sendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch queues")
 		return
 	}
-	
+
 	// Get groups for dropdown
 	var groups []gin.H
 	groupRows, err := db.Query("SELECT id, name FROM groups WHERE valid_id = 1 ORDER BY name")
@@ -3863,13 +3873,13 @@ func handleAdminQueues(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	// For now, we'll use empty arrays for these as they may not exist in OTRS schema
 	// These would typically come from system_address, salutation, and signature tables
 	systemAddresses := []gin.H{}
 	salutations := []gin.H{}
 	signatures := []gin.H{}
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/queues.pongo2", pongo2.Context{
 		"Queues":          queues,
 		"Groups":          groups,
@@ -3888,12 +3898,12 @@ func handleAdminPriorities(c *gin.Context) {
 		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
 		return
 	}
-	
+
 	// Get priorities from database
 	rows, err := db.Query(database.ConvertPlaceholders(`
-		SELECT id, name, color, valid_id 
-		FROM ticket_priority 
-		WHERE valid_id = 1 
+		SELECT id, name, color, valid_id
+		FROM ticket_priority
+		WHERE valid_id = 1
 		ORDER BY id
 	`))
 	if err != nil {
@@ -3901,31 +3911,31 @@ func handleAdminPriorities(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var priorities []gin.H
 	for rows.Next() {
 		var id, validID int
 		var name string
 		var color sql.NullString
-		
+
 		err := rows.Scan(&id, &name, &color, &validID)
 		if err != nil {
 			continue
 		}
-		
+
 		priority := gin.H{
 			"id":       id,
 			"name":     name,
 			"valid_id": validID,
 		}
-		
+
 		if color.Valid {
 			priority["color"] = color.String
 		}
-		
+
 		priorities = append(priorities, priority)
 	}
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/priorities.pongo2", pongo2.Context{
 		"Priorities": priorities,
 		"User":       getUserMapForTemplate(c),
@@ -3940,13 +3950,13 @@ func handleAdminLookups(c *gin.Context) {
 	if currentTab == "" {
 		currentTab = "priorities" // Default to priorities tab
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
 		return
 	}
-	
+
 	// Get various lookup data
 	// Ticket States
 	var ticketStates []gin.H
@@ -3958,16 +3968,16 @@ func handleAdminLookups(c *gin.Context) {
 			var name string
 			var comments sql.NullString
 			rows.Scan(&id, &name, &typeID, &comments)
-			
+
 			state := gin.H{
-				"ID": id,
-				"Name": name,
+				"ID":     id,
+				"Name":   name,
 				"TypeID": typeID,
 			}
 			if comments.Valid {
 				state["Comments"] = comments.String
 			}
-			
+
 			// Add type name for display
 			var typeName string
 			switch typeID {
@@ -3983,11 +3993,11 @@ func handleAdminLookups(c *gin.Context) {
 				typeName = "Unknown"
 			}
 			state["TypeName"] = typeName
-			
+
 			ticketStates = append(ticketStates, state)
 		}
 	}
-	
+
 	// Ticket Priorities
 	var priorities []gin.H
 	rows, err = db.Query("SELECT id, name, color FROM ticket_priority WHERE valid_id = 1 ORDER BY id")
@@ -3998,19 +4008,19 @@ func handleAdminLookups(c *gin.Context) {
 			var name string
 			var color sql.NullString
 			rows.Scan(&id, &name, &color)
-			
+
 			priority := gin.H{
-				"ID": id,
+				"ID":   id,
 				"Name": name,
 			}
 			if color.Valid {
 				priority["Color"] = color.String
 			}
-			
+
 			priorities = append(priorities, priority)
 		}
 	}
-	
+
 	// Ticket Types
 	var types []gin.H
 	rows, err = db.Query("SELECT id, name, comments FROM ticket_type WHERE valid_id = 1 ORDER BY name")
@@ -4021,19 +4031,19 @@ func handleAdminLookups(c *gin.Context) {
 			var name string
 			var comments sql.NullString
 			rows.Scan(&id, &name, &comments)
-			
+
 			ticketType := gin.H{
-				"ID": id,
+				"ID":   id,
 				"Name": name,
 			}
 			if comments.Valid {
 				ticketType["Comments"] = comments.String
 			}
-			
+
 			types = append(types, ticketType)
 		}
 	}
-	
+
 	// Services
 	var services []gin.H
 	rows, err = db.Query("SELECT id, name FROM service WHERE valid_id = 1 ORDER BY name")
@@ -4048,7 +4058,7 @@ func handleAdminLookups(c *gin.Context) {
 			services = append(services, service)
 		}
 	}
-	
+
 	// SLAs
 	var slas []gin.H
 	rows, err = db.Query("SELECT id, name FROM sla WHERE valid_id = 1 ORDER BY name")
@@ -4063,7 +4073,7 @@ func handleAdminLookups(c *gin.Context) {
 			slas = append(slas, sla)
 		}
 	}
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/lookups.pongo2", pongo2.Context{
 		"TicketStates": ticketStates,
 		"Priorities":   priorities,
@@ -4101,7 +4111,7 @@ func handleAdvancedTicketSearch(c *gin.Context) {
 		"updated_from":  c.Query("updated_from"),
 		"updated_to":    c.Query("updated_to"),
 	}
-	
+
 	// Mock search results
 	results := []gin.H{
 		{
@@ -4113,7 +4123,7 @@ func handleAdvancedTicketSearch(c *gin.Context) {
 			"created":  "2024-01-10",
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"params":  searchParams,
 		"results": results,
@@ -4124,9 +4134,9 @@ func handleAdvancedTicketSearch(c *gin.Context) {
 func handleSearchSuggestions(c *gin.Context) {
 	query := c.Query("q")
 	field := c.Query("field")
-	
+
 	suggestions := []string{}
-	
+
 	// Provide suggestions based on field
 	switch field {
 	case "customer":
@@ -4145,7 +4155,7 @@ func handleSearchSuggestions(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"suggestions": suggestions,
 	})
@@ -4153,19 +4163,19 @@ func handleSearchSuggestions(c *gin.Context) {
 
 func handleExportSearchResults(c *gin.Context) {
 	format := c.Query("format") // csv, xlsx, pdf
-	
+
 	// Mock export data
 	data := [][]string{
 		{"Ticket ID", "Subject", "Customer", "Status", "Priority"},
 		{"T-2024-001", "Email issue", "John Doe", "Open", "High"},
 		{"T-2024-002", "Password reset", "Jane Smith", "Closed", "Medium"},
 	}
-	
+
 	switch format {
 	case "csv":
 		c.Header("Content-Disposition", "attachment; filename=\"search-results.csv\"")
 		c.Header("Content-Type", "text/csv")
-		
+
 		// Write CSV data
 		for _, row := range data {
 			c.Writer.WriteString(strings.Join(row, ",") + "\n")
@@ -4184,7 +4194,7 @@ func handleSaveSearchHistory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Save to history (in memory for demo)
 	historyEntry := gin.H{
 		"id":        fmt.Sprintf("SH-%d", time.Now().Unix()),
@@ -4192,7 +4202,7 @@ func handleSaveSearchHistory(c *gin.Context) {
 		"filters":   searchData["filters"],
 		"timestamp": time.Now().Format("2006-01-02 15:04:05"),
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"entry":   historyEntry,
@@ -4215,7 +4225,7 @@ func handleGetSearchHistory(c *gin.Context) {
 			"timestamp": "2024-01-10 13:15",
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"history": history,
 	})
@@ -4223,7 +4233,7 @@ func handleGetSearchHistory(c *gin.Context) {
 
 func handleDeleteSearchHistory(c *gin.Context) {
 	historyID := c.Param("id")
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": fmt.Sprintf("Search history %s deleted", historyID),
@@ -4236,7 +4246,7 @@ func handleCreateSavedSearch(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	savedSearch := gin.H{
 		"id":          fmt.Sprintf("SS-%d", time.Now().Unix()),
 		"name":        searchData["name"],
@@ -4245,7 +4255,7 @@ func handleCreateSavedSearch(c *gin.Context) {
 		"filters":     searchData["filters"],
 		"created":     time.Now().Format("2006-01-02 15:04:05"),
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"search":  savedSearch,
@@ -4272,7 +4282,7 @@ func handleGetSavedSearches(c *gin.Context) {
 			"created":     "2024-01-05",
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"searches": searches,
 	})
@@ -4282,7 +4292,7 @@ func handleGetSavedSearches(c *gin.Context) {
 /* Commented out - defined in ticket_advanced_search_handler.go
 func handleExecuteSavedSearch(c *gin.Context) {
 	searchID := c.Param("id")
-	
+
 	// Mock execution results
 	results := []gin.H{
 		{
@@ -4292,7 +4302,7 @@ func handleExecuteSavedSearch(c *gin.Context) {
 			"priority": "high",
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"searchId": searchID,
 		"results":  results,
@@ -4302,13 +4312,13 @@ func handleExecuteSavedSearch(c *gin.Context) {
 
 func handleUpdateSavedSearch(c *gin.Context) {
 	searchID := c.Param("id")
-	
+
 	var updates gin.H
 	if err := c.ShouldBindJSON(&updates); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"searchId": searchID,
@@ -4318,7 +4328,7 @@ func handleUpdateSavedSearch(c *gin.Context) {
 
 func handleDeleteSavedSearch(c *gin.Context) {
 	searchID := c.Param("id")
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": fmt.Sprintf("Saved search %s deleted", searchID),
@@ -4331,16 +4341,16 @@ func handleDeleteSavedSearch(c *gin.Context) {
 /* Commented out - defined in ticket_merge_handler.go
 func handleMergeTickets(c *gin.Context) {
 	mainTicketID := c.Param("id")
-	
+
 	var mergeRequest struct {
 		TicketIDs []string `json:"ticket_ids"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&mergeRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":      true,
 		"mainTicket":   mainTicketID,
@@ -4351,7 +4361,7 @@ func handleMergeTickets(c *gin.Context) {
 
 func handleUnmergeTicket(c *gin.Context) {
 	ticketID := c.Param("id")
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"ticketId": ticketID,
@@ -4361,7 +4371,7 @@ func handleUnmergeTicket(c *gin.Context) {
 
 func handleGetMergeHistory(c *gin.Context) {
 	ticketID := c.Param("id")
-	
+
 	history := []gin.H{
 		{
 			"id":        "MH-1",
@@ -4371,7 +4381,7 @@ func handleGetMergeHistory(c *gin.Context) {
 			"timestamp": "2024-01-10 10:00",
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"ticketId": ticketID,
 		"history":  history,
@@ -4387,7 +4397,7 @@ func handleAdminPermissions(c *gin.Context) {
 	c.Header("Cache-Control", "no-store, no-cache, must-revalidate, private")
 	c.Header("Pragma", "no-cache")
 	c.Header("Expires", "0")
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
@@ -4433,11 +4443,11 @@ func handleAdminPermissions(c *gin.Context) {
 	}
 
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/permissions.pongo2", pongo2.Context{
-		"Users":           users,
-		"SelectedUserID":  selectedUserID,
+		"Users":            users,
+		"SelectedUserID":   selectedUserID,
 		"PermissionMatrix": permissionMatrix,
-		"User":            getUserMapForTemplate(c),
-		"ActivePage":      "admin",
+		"User":             getUserMapForTemplate(c),
+		"ActivePage":       "admin",
 	})
 }
 
@@ -4480,10 +4490,10 @@ func handleUpdateUserPermissions(c *gin.Context) {
 
 	// Parse permission data from form
 	permissions := make(map[uint]map[string]bool)
-	
+
 	// Parse form data - handle both multipart and urlencoded
 	var formValues map[string][]string
-	
+
 	contentType := c.GetHeader("Content-Type")
 	if strings.Contains(contentType, "multipart/form-data") {
 		// Parse multipart form
@@ -4511,7 +4521,7 @@ func handleUpdateUserPermissions(c *gin.Context) {
 
 	// First, collect all groups that have checkboxes
 	groupsWithCheckboxes := make(map[uint]bool)
-	
+
 	// Process each permission checkbox
 	// Format: perm_<groupID>_<permissionKey>
 	for key, values := range formValues {
@@ -4521,9 +4531,9 @@ func handleUpdateUserPermissions(c *gin.Context) {
 			if len(parts) == 3 {
 				groupID, _ := strconv.ParseUint(parts[1], 10, 32)
 				permKey := parts[2]
-				
+
 				groupsWithCheckboxes[uint(groupID)] = true
-				
+
 				if permissions[uint(groupID)] == nil {
 					permissions[uint(groupID)] = make(map[string]bool)
 				}
@@ -4531,7 +4541,7 @@ func handleUpdateUserPermissions(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	// Ensure all groups with checkboxes have all permission keys
 	for groupID := range groupsWithCheckboxes {
 		if permissions[groupID] == nil {
@@ -4544,7 +4554,7 @@ func handleUpdateUserPermissions(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	// Debug log
 	log.Printf("DEBUG: Updating permissions for user %d, received %d groups with checkboxes", userID, len(groupsWithCheckboxes))
 	for gid, perms := range permissions {
@@ -4643,29 +4653,29 @@ func handleGetGroupUsers(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid group ID"})
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
 		return
 	}
-	
+
 	groupRepo := repository.NewGroupRepository(db)
-	
+
 	// Get the group details
 	group, err := groupRepo.GetByID(uint(groupID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Group not found"})
 		return
 	}
-	
+
 	// Get members of this group
 	members, err := groupRepo.GetGroupMembers(uint(groupID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch group members"})
 		return
 	}
-	
+
 	// Get all users for the "available users" list
 	userRepo := repository.NewUserRepository(db)
 	allUsers, err := userRepo.List()
@@ -4673,28 +4683,28 @@ func handleGetGroupUsers(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch users"})
 		return
 	}
-	
+
 	// Filter out users who are already members
 	memberIDs := make(map[uint]bool)
 	for _, member := range members {
 		memberIDs[member.ID] = true
 	}
-	
+
 	availableUsers := make([]*models.User, 0)
 	for _, user := range allUsers {
 		if !memberIDs[user.ID] && user.ValidID == 1 {
 			availableUsers = append(availableUsers, user)
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"group": gin.H{
-			"id": group.ID,
-			"name": group.Name,
+			"id":          group.ID,
+			"name":        group.Name,
 			"description": group.Comments,
 		},
-		"members": members,
+		"members":         members,
 		"available_users": availableUsers,
 	})
 }
@@ -4707,7 +4717,7 @@ func handleAddUserToGroup(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid group ID"})
 		return
 	}
-	
+
 	var req struct {
 		UserID uint `form:"user_id" json:"user_id" binding:"required"`
 	}
@@ -4722,16 +4732,16 @@ func handleAddUserToGroup(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
 		return
 	}
-	
+
 	groupRepo := repository.NewGroupRepository(db)
-	
+
 	// Add user to group
 	err = groupRepo.AddUserToGroup(req.UserID, uint(groupID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to add user to group"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "User assigned to group successfully",
@@ -4742,34 +4752,34 @@ func handleAddUserToGroup(c *gin.Context) {
 func handleRemoveUserFromGroup(c *gin.Context) {
 	groupIDStr := c.Param("id")
 	userIDStr := c.Param("userId")
-	
+
 	groupID, err := strconv.ParseUint(groupIDStr, 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid group ID"})
 		return
 	}
-	
+
 	userID, err := strconv.ParseUint(userIDStr, 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid user ID"})
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
 		return
 	}
-	
+
 	groupRepo := repository.NewGroupRepository(db)
-	
+
 	// Remove user from group
 	err = groupRepo.RemoveUserFromGroup(uint(userID), uint(groupID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to remove user from group"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "User removed from group successfully",
@@ -4783,38 +4793,38 @@ func handleCustomerSearch(c *gin.Context) {
 		c.JSON(http.StatusOK, []gin.H{})
 		return
 	}
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
-	
+
 	// Search for customers by login, email, first name, or last name
 	// Using ILIKE for case-insensitive search and supporting wildcard *
 	searchTerm := strings.ReplaceAll(query, "*", "%")
 	if !strings.Contains(searchTerm, "%") {
 		searchTerm = "%" + searchTerm + "%"
 	}
-	
+
 	rows, err := db.Query(database.ConvertPlaceholders(`
 		SELECT id, login, email, first_name, last_name, customer_id
 		FROM customer_user
 		WHERE valid_id = 1
-		  AND (login ILIKE $1 
-		       OR email ILIKE $1 
-		       OR first_name ILIKE $1 
+		  AND (login ILIKE $1
+		       OR email ILIKE $1
+		       OR first_name ILIKE $1
 		       OR last_name ILIKE $1
 		       OR CONCAT(first_name, ' ', last_name) ILIKE $1)
 		LIMIT 10`),
 		searchTerm)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search customers"})
 		return
 	}
 	defer rows.Close()
-	
+
 	var customers []gin.H
 	for rows.Next() {
 		var id int
@@ -4823,7 +4833,7 @@ func handleCustomerSearch(c *gin.Context) {
 		if err != nil {
 			continue
 		}
-		
+
 		customers = append(customers, gin.H{
 			"id":          id,
 			"login":       login,
@@ -4835,11 +4845,11 @@ func handleCustomerSearch(c *gin.Context) {
 			"display":     fmt.Sprintf("%s %s (%s)", firstName, lastName, email),
 		})
 	}
-	
+
 	if customers == nil {
 		customers = []gin.H{}
 	}
-	
+
 	c.JSON(http.StatusOK, customers)
 }
 
@@ -4868,28 +4878,28 @@ func handleGetGroups(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Database connection failed",
+			"error":   "Database connection failed",
 		})
 		return
 	}
-	
+
 	// Query for all groups
 	query := `
 		SELECT id, name, valid_id
 		FROM groups
 		WHERE valid_id = 1
 		ORDER BY name`
-	
+
 	rows, err := db.Query(query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to fetch groups",
+			"error":   "Failed to fetch groups",
 		})
 		return
 	}
 	defer rows.Close()
-	
+
 	groups := []map[string]interface{}{}
 	for rows.Next() {
 		var id, validID int
@@ -4898,35 +4908,35 @@ func handleGetGroups(c *gin.Context) {
 		if err != nil {
 			continue
 		}
-		
+
 		group := map[string]interface{}{
-			"id": id,
-			"name": name,
+			"id":       id,
+			"name":     name,
 			"valid_id": validID,
 		}
 		groups = append(groups, group)
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"groups": groups,
+		"groups":  groups,
 	})
 }
 
 // handleGetGroupMembers returns group members as JSON for API requests
 func handleGetGroupMembers(c *gin.Context) {
 	groupID := c.Param("id")
-	
+
 	// Get database connection
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Database connection failed",
+			"error":   "Database connection failed",
 		})
 		return
 	}
-	
+
 	// Query for group members
 	query := `
 		SELECT DISTINCT u.id, u.login, u.first_name, u.last_name
@@ -4934,17 +4944,17 @@ func handleGetGroupMembers(c *gin.Context) {
 		INNER JOIN group_user gu ON u.id = gu.user_id
 		WHERE gu.group_id = $1 AND u.valid_id = 1
 		ORDER BY u.id`
-	
+
 	rows, err := db.Query(query, groupID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to fetch group members",
+			"error":   "Failed to fetch group members",
 		})
 		return
 	}
 	defer rows.Close()
-	
+
 	members := []map[string]interface{}{}
 	for rows.Next() {
 		var id int
@@ -4953,68 +4963,68 @@ func handleGetGroupMembers(c *gin.Context) {
 		if err != nil {
 			continue
 		}
-		
+
 		member := map[string]interface{}{
-			"id": id,
-			"login": login.String,
+			"id":         id,
+			"login":      login.String,
 			"first_name": firstName.String,
-			"last_name": lastName.String,
+			"last_name":  lastName.String,
 		}
 		members = append(members, member)
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": members,
+		"data":    members,
 	})
 }
 
 // handleGetGroupAPI returns group details as JSON for API requests
 func handleGetGroupAPI(c *gin.Context) {
 	groupID := c.Param("id")
-	
+
 	// Get database connection
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Database connection failed",
+			"error":   "Database connection failed",
 		})
 		return
 	}
-	
+
 	// Query for group details
 	var id int
 	var name, comments sql.NullString
 	var validID sql.NullInt32
-	
+
 	query := `SELECT id, name, comments, valid_id FROM groups WHERE id = $1`
 	err = db.QueryRow(query, groupID).Scan(&id, &name, &comments, &validID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{
 				"success": false,
-				"error": "Group not found",
+				"error":   "Group not found",
 			})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"error": "Failed to fetch group",
+				"error":   "Failed to fetch group",
 			})
 		}
 		return
 	}
-	
+
 	group := map[string]interface{}{
-		"id": id,
-		"name": name.String,
+		"id":       id,
+		"name":     name.String,
 		"comments": comments.String,
 		"valid_id": validID.Int32,
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": group,
+		"data":    group,
 	})
 }
 
@@ -5034,9 +5044,9 @@ func handleClaudeFeedback(c *gin.Context) {
 		Context struct {
 			Page             string `json:"page"`
 			URL              string `json:"url"`
-			CurrentURL       string `json:"currentUrl"`      // Added field
-			CurrentPath      string `json:"currentPath"`     // Added field
-			PageTitle        string `json:"pageTitle"`       // Added field
+			CurrentURL       string `json:"currentUrl"`  // Added field
+			CurrentPath      string `json:"currentPath"` // Added field
+			PageTitle        string `json:"pageTitle"`   // Added field
 			Timestamp        string `json:"timestamp"`
 			UserAgent        string `json:"userAgent"`
 			ScreenResolution string `json:"screenResolution"`
@@ -5047,12 +5057,12 @@ func handleClaudeFeedback(c *gin.Context) {
 				Y int `json:"y"`
 			} `json:"mousePosition"`
 			SelectedElement *struct {
-				Selector   string `json:"selector"`
-				TagName    string `json:"tagName"`
-				ID         string `json:"id"`
-				ClassName  string `json:"className"`
-				Text       string `json:"text"`
-				Position   struct {
+				Selector  string `json:"selector"`
+				TagName   string `json:"tagName"`
+				ID        string `json:"id"`
+				ClassName string `json:"className"`
+				Text      string `json:"text"`
+				Position  struct {
 					Top    float64 `json:"top"`
 					Left   float64 `json:"left"`
 					Width  float64 `json:"width"`
@@ -5089,10 +5099,10 @@ func handleClaudeFeedback(c *gin.Context) {
 	log.Printf("URL: %s", feedback.Context.URL)
 	log.Printf("User: %s", feedback.Context.User)
 	log.Printf("Timestamp: %s", feedback.Timestamp)
-	
+
 	if feedback.Context.SelectedElement != nil {
 		log.Printf("Selected Element: %s", feedback.Context.SelectedElement.Selector)
-		log.Printf("  Tag: %s, ID: %s, Class: %s", 
+		log.Printf("  Tag: %s, ID: %s, Class: %s",
 			feedback.Context.SelectedElement.TagName,
 			feedback.Context.SelectedElement.ID,
 			feedback.Context.SelectedElement.ClassName)
@@ -5102,13 +5112,13 @@ func handleClaudeFeedback(c *gin.Context) {
 			feedback.Context.SelectedElement.Position.Width,
 			feedback.Context.SelectedElement.Position.Height)
 	}
-	
+
 	if len(feedback.Context.Errors) > 0 {
 		log.Printf("Page Errors: %v", feedback.Context.Errors)
 	}
-	
-	log.Printf("Mouse Position: x=%d, y=%d", 
-		feedback.Context.MousePosition.X, 
+
+	log.Printf("Mouse Position: x=%d, y=%d",
+		feedback.Context.MousePosition.X,
 		feedback.Context.MousePosition.Y)
 	log.Printf("================================")
 
@@ -5125,39 +5135,39 @@ func handleClaudeFeedback(c *gin.Context) {
 
 	// Generate ticket number (format: YYYYMMDDHHMMSS)
 	ticketNumber := time.Now().Format("20060102150405")
-	
+
 	// Build ticket title
 	title := fmt.Sprintf("Claude Code: %s", feedback.Message)
 	if len(title) > 255 {
 		title = title[:252] + "..."
 	}
-	
+
 	// Build detailed description with context
 	var description strings.Builder
 	description.WriteString(fmt.Sprintf("Message: %s\n\n", feedback.Message))
-	
+
 	// Use CurrentURL/CurrentPath if available, fallback to URL/Page
 	if feedback.Context.CurrentURL != "" {
 		description.WriteString(fmt.Sprintf("Current URL: %s\n", feedback.Context.CurrentURL))
 	} else if feedback.Context.URL != "" {
 		description.WriteString(fmt.Sprintf("URL: %s\n", feedback.Context.URL))
 	}
-	
+
 	if feedback.Context.CurrentPath != "" {
 		description.WriteString(fmt.Sprintf("Current Path: %s\n", feedback.Context.CurrentPath))
 	} else if feedback.Context.Page != "" {
 		description.WriteString(fmt.Sprintf("Page: %s\n", feedback.Context.Page))
 	}
-	
+
 	if feedback.Context.PageTitle != "" {
 		description.WriteString(fmt.Sprintf("Page Title: %s\n", feedback.Context.PageTitle))
 	}
-	
+
 	description.WriteString(fmt.Sprintf("Timestamp: %s\n", feedback.Timestamp))
 	description.WriteString(fmt.Sprintf("User Agent: %s\n", feedback.Context.UserAgent))
-	description.WriteString(fmt.Sprintf("Screen: %s, Viewport: %s\n", 
+	description.WriteString(fmt.Sprintf("Screen: %s, Viewport: %s\n",
 		feedback.Context.ScreenResolution, feedback.Context.ViewportSize))
-	
+
 	if feedback.Context.SelectedElement != nil {
 		description.WriteString("\n=== Selected Element ===\n")
 		description.WriteString(fmt.Sprintf("Selector: %s\n", feedback.Context.SelectedElement.Selector))
@@ -5174,14 +5184,14 @@ func handleClaudeFeedback(c *gin.Context) {
 			description.WriteString(fmt.Sprintf("Text: %s\n", feedback.Context.SelectedElement.Text))
 		}
 	}
-	
+
 	if len(feedback.Context.Errors) > 0 {
 		description.WriteString("\n=== Page Errors ===\n")
 		for _, err := range feedback.Context.Errors {
 			description.WriteString(fmt.Sprintf("- %s\n", err))
 		}
 	}
-	
+
 	description.WriteString(fmt.Sprintf("\nMouse Position: x=%d, y=%d\n",
 		feedback.Context.MousePosition.X,
 		feedback.Context.MousePosition.Y))
@@ -5200,7 +5210,7 @@ func handleClaudeFeedback(c *gin.Context) {
 		INSERT INTO ticket (
 			tn, title, queue_id, ticket_lock_id, type_id,
 			user_id, responsible_user_id, ticket_priority_id, ticket_state_id,
-			customer_id, customer_user_id, 
+			customer_id, customer_user_id,
 			create_time, create_by, change_time, change_by
 		) VALUES (
 			$1, $2, 14, 1, 1,
@@ -5209,7 +5219,7 @@ func handleClaudeFeedback(c *gin.Context) {
 			CURRENT_TIMESTAMP, $3, CURRENT_TIMESTAMP, $3
 		) RETURNING id`),
 		ticketNumber, title, userID, feedback.Context.User).Scan(&ticketID)
-	
+
 	if err != nil {
 		log.Printf("Failed to create ticket: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -5232,7 +5242,7 @@ func handleClaudeFeedback(c *gin.Context) {
 			CURRENT_TIMESTAMP, $2, CURRENT_TIMESTAMP, $2
 		) RETURNING id`),
 		ticketID, userID).Scan(&articleID)
-	
+
 	if err != nil {
 		log.Printf("Failed to create article: %v", err)
 	} else {
@@ -5247,12 +5257,12 @@ func handleClaudeFeedback(c *gin.Context) {
 				'text/plain; charset=utf-8', 0,
 				CURRENT_TIMESTAMP, $5, CURRENT_TIMESTAMP, $5
 			)`),
-			articleID, 
-			feedback.Context.User, 
-			title, 
+			articleID,
+			feedback.Context.User,
+			title,
 			[]byte(description.String()), // a_body is bytea type
 			userID)
-		
+
 		if err != nil {
 			log.Printf("Failed to create article_data_mime: %v", err)
 		}
@@ -5262,18 +5272,18 @@ func handleClaudeFeedback(c *gin.Context) {
 
 	// Return success with ticket number
 	response := fmt.Sprintf("Ticket #%s created! I'll review this issue. ", ticketNumber)
-	
+
 	if feedback.Context.SelectedElement != nil {
-		response += fmt.Sprintf("I can see you're pointing at '%s'. ", 
+		response += fmt.Sprintf("I can see you're pointing at '%s'. ",
 			feedback.Context.SelectedElement.Selector)
 	}
-	
+
 	response += "You can track progress in the Claude Code queue."
 
 	c.JSON(http.StatusOK, gin.H{
-		"success":      true,
-		"response":     response,
+		"success":       true,
+		"response":      response,
 		"ticket_number": ticketNumber,
-		"ticket_id":    ticketID,
+		"ticket_id":     ticketID,
 	})
 }

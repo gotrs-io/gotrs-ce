@@ -127,6 +127,24 @@ func main() {
 		"handleAgentTicketDraft":          api.HandleAgentTicketDraft,
 		"handleArticleAttachmentDownload": api.HandleArticleAttachmentDownload,
 
+		// API v1 handlers (using actual API handlers, not v1 router wrappers)
+		"HandleListTicketsAPI":    api.HandleListTicketsAPI,
+		"HandleCreateTicketAPI":   api.HandleCreateTicketAPI,
+		"HandleGetTicketAPI":      api.HandleGetTicketAPI,
+		"HandleUpdateTicketAPI":   api.HandleUpdateTicketAPI,
+		"HandleDeleteTicketAPI":   api.HandleDeleteTicketAPI,
+		"HandleListArticlesAPI":   api.HandleListArticlesAPI,
+		"HandleCreateArticleAPI":  api.HandleCreateArticleAPI,
+		"HandleGetArticleAPI":     api.HandleGetArticleAPI,
+		"HandleUserMeAPI":         api.HandleUserMeAPI,
+		"HandleListUsersAPI":      api.HandleListUsersAPI,
+		"HandleGetUserAPI":        api.HandleGetUserAPI,
+		"HandleListQueuesAPI":     api.HandleListQueuesAPI,
+		"HandleGetQueueAPI":       api.HandleGetQueueAPI,
+		"HandleListPrioritiesAPI": api.HandleListPrioritiesAPI,
+		"HandleGetPriorityAPI":    api.HandleGetPriorityAPI,
+		"HandleSearchAPI":         api.HandleSearchAPI,
+
 		// Auth handlers
 		"handleLoginPage": api.HandleLoginPage,
 		"handleAuthLogin": api.HandleAuthLogin,

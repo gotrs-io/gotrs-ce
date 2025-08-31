@@ -2,10 +2,10 @@ package api
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"net/http"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 // API v1 handler exports
@@ -23,7 +23,7 @@ var HandleAPIv1TicketGet = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Convert string ID to uint
 	ticketID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
@@ -33,7 +33,7 @@ var HandleAPIv1TicketGet = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	ticket, err := ticketRepo.GetByID(uint(ticketID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -42,7 +42,7 @@ var HandleAPIv1TicketGet = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    ticket,
@@ -51,53 +51,12 @@ var HandleAPIv1TicketGet = func(c *gin.Context) {
 
 var HandleAPIv1TicketCreate = HandleCreateTicketAPI
 
-var HandleAPIv1TicketUpdate = func(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Endpoint /api/v1/tickets/:id (PUT) is under construction",
-		"data":    nil,
-	})
-}
+var HandleAPIv1TicketUpdate = HandleUpdateTicketAPI
 
-var HandleAPIv1TicketDelete = func(c *gin.Context) {
-	c.JSON(http.StatusNoContent, gin.H{})
-}
+var HandleAPIv1TicketDelete = HandleDeleteTicketAPI
 
 // Users API handlers
-var HandleAPIv1UserMe = func(c *gin.Context) {
-	// Get user from context (should be set by auth middleware)
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"error":   "User not authenticated",
-		})
-		return
-	}
-	
-	userRepo := GetUserRepository()
-	if userRepo == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "User repository not initialized",
-		})
-		return
-	}
-	
-	user, err := userRepo.GetByID(userID.(uint))
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "User not found",
-		})
-		return
-	}
-	
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    user,
-	})
-}
+var HandleAPIv1UserMe = HandleUserMeAPI
 
 var HandleAPIv1UsersList = func(c *gin.Context) {
 	userRepo := GetUserRepository()
@@ -108,7 +67,7 @@ var HandleAPIv1UsersList = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	users, err := userRepo.List()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -117,7 +76,7 @@ var HandleAPIv1UsersList = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    users,
@@ -134,7 +93,7 @@ var HandleAPIv1UserGet = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Convert string ID to uint
 	var userID uint
 	if _, err := fmt.Sscanf(id, "%d", &userID); err != nil {
@@ -144,7 +103,7 @@ var HandleAPIv1UserGet = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	user, err := userRepo.GetByID(userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -153,7 +112,7 @@ var HandleAPIv1UserGet = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    user,
@@ -190,7 +149,7 @@ var HandleAPIv1QueuesList = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	queues, err := queueRepo.List()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -199,7 +158,7 @@ var HandleAPIv1QueuesList = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Convert to simpler format for API response
 	queueList := make([]gin.H, 0, len(queues))
 	for _, q := range queues {
@@ -208,7 +167,7 @@ var HandleAPIv1QueuesList = func(c *gin.Context) {
 			"name": q.Name,
 		})
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    queueList,
@@ -225,7 +184,7 @@ var HandleAPIv1QueueGet = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Convert string ID to uint
 	queueID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
@@ -235,7 +194,7 @@ var HandleAPIv1QueueGet = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	queue, err := queueRepo.GetByID(uint(queueID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -244,7 +203,7 @@ var HandleAPIv1QueueGet = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    queue,
@@ -281,7 +240,7 @@ var HandleAPIv1PrioritiesList = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	priorities, err := priorityRepo.List()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -290,7 +249,7 @@ var HandleAPIv1PrioritiesList = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Convert to simpler format for API response
 	priorityList := make([]gin.H, 0, len(priorities))
 	for _, p := range priorities {
@@ -299,7 +258,7 @@ var HandleAPIv1PrioritiesList = func(c *gin.Context) {
 			"name": p.Name,
 		})
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    priorityList,
@@ -316,7 +275,7 @@ var HandleAPIv1PriorityGet = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Convert string ID to uint
 	priorityID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
@@ -326,7 +285,7 @@ var HandleAPIv1PriorityGet = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	priority, err := priorityRepo.GetByID(uint(priorityID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -335,61 +294,44 @@ var HandleAPIv1PriorityGet = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    priority,
 	})
 }
 
-// Search API handler
-var HandleAPIv1Search = func(c *gin.Context) {
-	query := c.Query("q")
-	if query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Search query is required",
-		})
-		return
-	}
-	
-	// For now, search in tickets
-	ticketRepo := GetTicketRepository()
-	if ticketRepo == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Search service not initialized",
-		})
-		return
-	}
-	
-	// Simple search implementation using ticket repository
-	req := &models.TicketListRequest{
-		Page:    1,
-		PerPage: 100,
-		Search:  query,
-	}
-	
-	resp, err := ticketRepo.List(req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   err.Error(),
-		})
-		return
-	}
-	
-	// Convert tickets to search results
-	var results []interface{}
-	for _, ticket := range resp.Tickets {
-		results = append(results, ticket)
-	}
-	
+// Articles API handlers
+var HandleAPIv1AddArticle = HandleCreateArticleAPI
+
+var HandleAPIv1GetTicketArticles = func(c *gin.Context) {
+	ticketID := c.Param("id")
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": gin.H{
-			"results": results,
-			"total":   len(results),
-		},
+		"message": "Get ticket articles endpoint - under construction",
+		"data":    gin.H{"ticket_id": ticketID},
 	})
 }
+
+var HandleAPIv1GetTicketArticle = func(c *gin.Context) {
+	ticketID := c.Param("id")
+	articleID := c.Param("article_id")
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Get ticket article endpoint - under construction",
+		"data":    gin.H{"ticket_id": ticketID, "article_id": articleID},
+	})
+}
+
+// Ticket action handlers
+var HandleAPIv1TicketClose = HandleCloseTicketAPI
+var HandleAPIv1TicketReopen = HandleReopenTicketAPI
+var HandleAPIv1TicketAssign = HandleAssignTicketAPI
+
+// Auth handlers
+var HandleAPIv1AuthLogin = HandleLoginAPI
+var HandleAPIv1AuthRefresh = HandleRefreshTokenAPI
+var HandleAPIv1AuthLogout = HandleLogoutAPI
+var HandleAPIv1AuthRegister = HandleRegisterAPI
+
+// Search API handler (using existing HandleSearchAPI from search_handler.go)

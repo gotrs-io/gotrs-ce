@@ -166,7 +166,7 @@
                 {% for ticket in Tickets %}
                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                        <a href="/ticket/{{ ticket.id }}" class="text-gotrs-600 hover:text-gotrs-500">
+                        							<a href="/ticket/{{ ticket.tn }}" class="text-gotrs-600 hover:text-gotrs-500">
                             {{ ticket.id }}
                         </a>
                     </td>

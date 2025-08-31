@@ -14,10 +14,10 @@ type HandlerFunc gin.HandlerFunc
 type HandlerRegistry struct {
 	mu       sync.RWMutex
 	handlers map[string]gin.HandlerFunc
-	
+
 	// Middleware registry
 	middleware map[string]gin.HandlerFunc
-	
+
 	// Feature flags
 	features map[string]bool
 }
@@ -35,24 +35,32 @@ func NewHandlerRegistry() *HandlerRegistry {
 func (r *HandlerRegistry) Register(name string, handler gin.HandlerFunc) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	if _, exists := r.handlers[name]; exists {
 		return fmt.Errorf("handler %s already registered", name)
 	}
-	
+
 	r.handlers[name] = handler
 	return nil
+}
+
+// Override replaces an existing handler or registers a new one
+func (r *HandlerRegistry) Override(name string, handler gin.HandlerFunc) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.handlers[name] = handler
 }
 
 // RegisterMiddleware adds a middleware to the registry
 func (r *HandlerRegistry) RegisterMiddleware(name string, middleware gin.HandlerFunc) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	if _, exists := r.middleware[name]; exists {
 		return fmt.Errorf("middleware %s already registered", name)
 	}
-	
+
 	r.middleware[name] = middleware
 	return nil
 }
@@ -61,12 +69,12 @@ func (r *HandlerRegistry) RegisterMiddleware(name string, middleware gin.Handler
 func (r *HandlerRegistry) Get(name string) (gin.HandlerFunc, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	handler, exists := r.handlers[name]
 	if !exists {
 		return nil, fmt.Errorf("handler %s not found", name)
 	}
-	
+
 	return handler, nil
 }
 
@@ -74,12 +82,12 @@ func (r *HandlerRegistry) Get(name string) (gin.HandlerFunc, error) {
 func (r *HandlerRegistry) GetMiddleware(name string) (gin.HandlerFunc, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	middleware, exists := r.middleware[name]
 	if !exists {
 		return nil, fmt.Errorf("middleware %s not found", name)
 	}
-	
+
 	return middleware, nil
 }
 
@@ -100,6 +108,13 @@ func (r *HandlerRegistry) RegisterBatch(handlers map[string]gin.HandlerFunc) err
 		}
 	}
 	return nil
+}
+
+// OverrideBatch replaces multiple existing handlers or registers new ones
+func (r *HandlerRegistry) OverrideBatch(handlers map[string]gin.HandlerFunc) {
+	for name, handler := range handlers {
+		r.Override(name, handler)
+	}
 }
 
 // RegisterMiddlewareBatch registers multiple middleware at once
@@ -130,7 +145,7 @@ func (r *HandlerRegistry) IsFeatureEnabled(name string) bool {
 func (r *HandlerRegistry) ListHandlers() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	names := make([]string, 0, len(r.handlers))
 	for name := range r.handlers {
 		names = append(names, name)
@@ -142,7 +157,7 @@ func (r *HandlerRegistry) ListHandlers() []string {
 func (r *HandlerRegistry) ListMiddleware() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	names := make([]string, 0, len(r.middleware))
 	for name := range r.middleware {
 		names = append(names, name)
@@ -154,7 +169,7 @@ func (r *HandlerRegistry) ListMiddleware() []string {
 func (r *HandlerRegistry) Clear() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	r.handlers = make(map[string]gin.HandlerFunc)
 	r.middleware = make(map[string]gin.HandlerFunc)
 	r.features = make(map[string]bool)
@@ -164,7 +179,7 @@ func (r *HandlerRegistry) Clear() {
 func (r *HandlerRegistry) HandlerExists(name string) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	_, exists := r.handlers[name]
 	return exists
 }
@@ -173,7 +188,7 @@ func (r *HandlerRegistry) HandlerExists(name string) bool {
 func (r *HandlerRegistry) MiddlewareExists(name string) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	_, exists := r.middleware[name]
 	return exists
 }
@@ -181,7 +196,7 @@ func (r *HandlerRegistry) MiddlewareExists(name string) bool {
 // GetHandlerChain builds a complete handler chain with middleware
 func (r *HandlerRegistry) GetHandlerChain(middlewareNames []string, handlerName string) ([]gin.HandlerFunc, error) {
 	chain := make([]gin.HandlerFunc, 0, len(middlewareNames)+1)
-	
+
 	// Add middleware
 	for _, name := range middlewareNames {
 		middleware, err := r.GetMiddleware(name)
@@ -190,13 +205,13 @@ func (r *HandlerRegistry) GetHandlerChain(middlewareNames []string, handlerName 
 		}
 		chain = append(chain, middleware)
 	}
-	
+
 	// Add final handler
 	handler, err := r.Get(handlerName)
 	if err != nil {
 		return nil, fmt.Errorf("handler %s: %w", handlerName, err)
 	}
 	chain = append(chain, handler)
-	
+
 	return chain, nil
 }

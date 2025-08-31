@@ -5,7 +5,6 @@
 GOTRS is built on the GoatKit platform, employing a modular monolith architecture with server-side rendering and hypermedia-driven design. The system uses container-first development with optimized Docker images and YAML-based configuration for maximum flexibility and minimal complexity.
 
 ## GoatKit Platform
-
 GoatKit is the underlying platform that powers GOTRS, providing:
 
 - **YAML-First Configuration**: All routing and configuration in YAML files

@@ -114,6 +114,8 @@ kubernetes/
 *.yml
 !config/*.yaml
 !config/*.yml
+!routes/*.yaml
+!routes/*.yml
 
 # ============================================
 # CI/CD

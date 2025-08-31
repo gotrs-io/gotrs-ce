@@ -1,0 +1,212 @@
+# Admin Routes Configuration
+apiVersion: v1
+kind: RouteGroup
+metadata:
+  name: admin
+  description: "Administrative routes for system management"
+  namespace: default
+  enabled: true
+spec:
+  prefix: /admin
+  middleware:
+    - auth # Require authentication
+    - admin # Require admin role
+  routes:
+    # Admin dashboard
+    - path: /
+      method: GET
+      handler: handleAdminDashboard
+      template: pages/admin/dashboard.pongo2
+      description: "Display admin dashboard with system overview"
+
+    # User management
+    - path: /users
+      method: GET
+      handler: handleAdminUsers
+      template: pages/admin/users.pongo2
+      description: "Display user management page"
+
+    # Group management
+    - path: /groups
+      method: GET
+      handler: handleAdminGroups
+      template: pages/admin/groups.pongo2
+      description: "Display group management page"
+
+    - path: /groups/new
+      method: GET
+      handler: handleCreateGroup
+      template: pages/admin/group_form.pongo2
+      description: "Display new group creation form"
+
+    - path: /groups
+      method: POST
+      handler: handleCreateGroup
+      description: "Create new group"
+
+    - path: /groups/:id
+      method: GET
+      handler: handleGetGroup
+      template: pages/admin/group_view.pongo2
+      description: "Display group details"
+
+    - path: /groups/:id/edit
+      method: GET
+      handler: handleGetGroup
+      template: pages/admin/group_form.pongo2
+      description: "Display group edit form"
+
+    - path: /groups/:id
+      method: PUT
+      handler: handleUpdateGroup
+      description: "Update existing group"
+
+    - path: /groups/:id
+      method: DELETE
+      handler: handleDeleteGroup
+      description: "Delete group"
+
+    - path: /groups/:id/members
+      method: GET
+      handler: handleGroupMembers
+      template: pages/admin/group_members.pongo2
+      description: "Display group members"
+
+    - path: /groups/:id/members
+      method: POST
+      handler: handleAddUserToGroup
+      description: "Add user to group"
+
+    - path: /groups/:id/members/:userId
+      method: DELETE
+      handler: handleRemoveUserFromGroup
+      description: "Remove user from group"
+
+    # Queue management
+    - path: /queues
+      method: GET
+      handler: handleAdminQueues
+      template: pages/admin/queues.pongo2
+      description: "Display queue management page"
+
+    # Priority management
+    - path: /priorities
+      method: GET
+      handler: handleAdminPriorities
+      template: pages/admin/priorities.pongo2
+      description: "Display priority management page"
+
+    # Permission management
+    - path: /permissions
+      method: GET
+      handler: handleAdminPermissions
+      template: pages/admin/permissions.pongo2
+      description: "Display permission management page"
+
+    # State management
+    - path: /states
+      method: GET
+      handler: handleAdminStates
+      template: pages/admin/states.pongo2
+      description: "Display state management page"
+
+    # Type management
+    - path: /types
+      method: GET
+      handler: handleAdminTypes
+      template: pages/admin/types.pongo2
+      description: "Display type management page"
+
+    # Service management
+    - path: /services
+      method: GET
+      handler: handleAdminServices
+      template: pages/admin/services.pongo2
+      description: "Display service management page"
+
+    # SLA management
+    - path: /sla
+      method: GET
+      handler: handleAdminSLA
+      template: pages/admin/sla.pongo2
+      description: "Display SLA management page"
+
+    # Lookup management
+    - path: /lookups
+      method: GET
+      handler: handleAdminLookups
+      template: pages/admin/lookups.pongo2
+      description: "Display lookup management page"
+
+    # Customer company management
+    - path: /customer/companies
+      method: GET
+      handler: handleAdminCustomerCompanies
+      template: pages/admin/customer_companies.pongo2
+      description: "Display customer companies management"
+
+    - path: /customer/companies/new
+      method: GET
+      handler: handleAdminNewCustomerCompany
+      template: pages/admin/customer_company_form.pongo2
+      description: "Display new customer company form"
+
+    - path: /customer/companies
+      method: POST
+      handler: handleAdminCreateCustomerCompany
+      description: "Create new customer company"
+
+    - path: /customer/companies/:id/edit
+      method: GET
+      handler: handleAdminEditCustomerCompany
+      template: pages/admin/customer_company_form.pongo2
+      description: "Display customer company edit form"
+
+    - path: /customer/companies/:id
+      method: PUT
+      handler: handleAdminUpdateCustomerCompany
+      description: "Update customer company"
+
+    - path: /customer/companies/:id
+      method: DELETE
+      handler: handleAdminDeleteCustomerCompany
+      description: "Delete customer company"
+
+    - path: /customer/companies/:id/users
+      method: GET
+      handler: handleAdminCustomerCompanyUsers
+      template: pages/admin/customer_company_users.pongo2
+      description: "Display customer company users"
+
+    - path: /customer/companies/:id/tickets
+      method: GET
+      handler: handleAdminCustomerCompanyTickets
+      template: pages/admin/customer_company_tickets.pongo2
+      description: "Display customer company tickets"
+
+    - path: /customer/companies/:id/services
+      method: GET
+      handler: handleAdminCustomerCompanyServices
+      template: pages/admin/customer_company_services.pongo2
+      description: "Display customer company services"
+
+    - path: /customer/companies/:id/services
+      method: PUT
+      handler: handleAdminUpdateCustomerCompanyServices
+      description: "Update customer company services"
+
+    - path: /customer/portal/settings
+      method: GET
+      handler: handleAdminCustomerPortalSettings
+      template: pages/admin/customer_portal_settings.pongo2
+      description: "Display customer portal settings"
+
+    - path: /customer/portal/settings
+      method: PUT
+      handler: handleAdminUpdateCustomerPortalSettings
+      description: "Update customer portal settings"
+
+    - path: /customer/portal/logo/upload
+      method: POST
+      handler: handleAdminUploadCustomerPortalLogo
+      description: "Upload customer portal logo"

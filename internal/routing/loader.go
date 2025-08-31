@@ -22,7 +22,7 @@ type RouteLoader struct {
 	registry   *HandlerRegistry
 	router     *gin.Engine
 	watcher    *fsnotify.Watcher
-	
+
 	// Options
 	hotReload   bool
 	strictMode  bool // Fail on missing handlers in strict mode
@@ -62,12 +62,12 @@ func NewRouteLoader(routesPath string, registry *HandlerRegistry, router *gin.En
 		router:      router,
 		environment: "development",
 	}
-	
+
 	// Apply options
 	for _, opt := range opts {
 		opt(loader)
 	}
-	
+
 	// Set up file watcher if hot reload is enabled
 	if loader.hotReload {
 		watcher, err := fsnotify.NewWatcher()
@@ -75,29 +75,29 @@ func NewRouteLoader(routesPath string, registry *HandlerRegistry, router *gin.En
 			return nil, fmt.Errorf("failed to create watcher: %w", err)
 		}
 		loader.watcher = watcher
-		
+
 		// Start watching
 		go loader.watchFiles()
 	}
-	
+
 	return loader, nil
 }
 
 // LoadRoutes loads all route configurations from the routes directory
 func (l *RouteLoader) LoadRoutes() error {
 	log.Printf("Loading routes from %s", l.routesPath)
-	
+
 	// Walk through all subdirectories
 	err := filepath.Walk(l.routesPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		
+
 		// Skip directories and non-YAML files
 		if info.IsDir() || !strings.HasSuffix(path, ".yaml") {
 			return nil
 		}
-		
+
 		// Load the route configuration
 		if err := l.loadRouteFile(path); err != nil {
 			if l.strictMode {
@@ -105,14 +105,14 @@ func (l *RouteLoader) LoadRoutes() error {
 			}
 			log.Printf("Warning: Failed to load %s: %v", path, err)
 		}
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to walk routes directory: %w", err)
 	}
-	
+
 	// Register all loaded routes
 	return l.registerAllRoutes()
 }
@@ -123,30 +123,30 @@ func (l *RouteLoader) loadRouteFile(path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
-	
+
 	var config RouteConfig
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return fmt.Errorf("failed to parse YAML: %w", err)
 	}
-	
+
 	// Validate configuration
 	if err := l.validateConfig(&config); err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
-	
+
 	// Store configuration
 	l.mu.Lock()
 	configName := filepath.Base(path)
 	l.configs[configName] = &config
 	l.mu.Unlock()
-	
+
 	log.Printf("Loaded route configuration: %s (%s)", config.Metadata.Name, configName)
-	
+
 	// Add to watcher if hot reload is enabled
 	if l.watcher != nil {
 		l.watcher.Add(path)
 	}
-	
+
 	return nil
 }
 
@@ -156,32 +156,32 @@ func (l *RouteLoader) validateConfig(config *RouteConfig) error {
 	if config.APIVersion == "" {
 		return fmt.Errorf("apiVersion is required")
 	}
-	
+
 	if config.Kind == "" {
 		return fmt.Errorf("kind is required")
 	}
-	
+
 	if config.Metadata.Name == "" {
 		return fmt.Errorf("metadata.name is required")
 	}
-	
+
 	// Validate routes
 	for i, route := range config.Spec.Routes {
 		if route.Path == "" {
 			return fmt.Errorf("route[%d]: path is required", i)
 		}
-		
+
 		// Check if handler or handlers is specified
 		if route.Handler == "" && len(route.Handlers) == 0 {
 			return fmt.Errorf("route[%d]: handler or handlers must be specified", i)
 		}
-		
+
 		// Validate handler exists (if strict mode)
 		if l.strictMode {
 			if route.Handler != "" && !l.registry.HandlerExists(route.Handler) {
 				return fmt.Errorf("route[%d]: handler '%s' not found in registry", i, route.Handler)
 			}
-			
+
 			for method, handler := range route.Handlers {
 				if !l.registry.HandlerExists(handler) {
 					return fmt.Errorf("route[%d]: handler '%s' for method %s not found in registry", i, handler, method)
@@ -189,7 +189,7 @@ func (l *RouteLoader) validateConfig(config *RouteConfig) error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -197,26 +197,26 @@ func (l *RouteLoader) validateConfig(config *RouteConfig) error {
 func (l *RouteLoader) registerAllRoutes() error {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
-	
+
 	for name, config := range l.configs {
 		// Skip disabled routes
 		if !config.Metadata.Enabled {
 			log.Printf("Skipping disabled route group: %s", name)
 			continue
 		}
-		
+
 		// Check environment conditions
 		if !l.checkEnvironment(config) {
 			log.Printf("Skipping route group %s (environment mismatch)", name)
 			continue
 		}
-		
+
 		// Register routes for this configuration
 		if err := l.registerRouteConfig(config); err != nil {
 			return fmt.Errorf("failed to register %s: %w", name, err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -230,7 +230,7 @@ func (l *RouteLoader) registerRouteConfig(config *RouteConfig) error {
 		// Use the router itself as the group
 		group = &l.router.RouterGroup
 	}
-	
+
 	// Apply group middleware
 	for _, middlewareName := range config.Spec.Middleware {
 		middleware, err := l.registry.GetMiddleware(middlewareName)
@@ -243,14 +243,14 @@ func (l *RouteLoader) registerRouteConfig(config *RouteConfig) error {
 		}
 		group.Use(middleware)
 	}
-	
+
 	// Register individual routes
 	for _, route := range config.Spec.Routes {
 		if err := l.registerRoute(group, &route, config); err != nil {
 			return fmt.Errorf("failed to register route %s: %w", route.Path, err)
 		}
 	}
-	
+
 	log.Printf("Registered route group: %s with %d routes", config.Metadata.Name, len(config.Spec.Routes))
 	return nil
 }
@@ -264,13 +264,13 @@ func (l *RouteLoader) registerRoute(group *gin.RouterGroup, route *RouteDefiniti
 			return nil
 		}
 	}
-	
+
 	// Check conditions
 	if route.Condition != "" && !l.evaluateCondition(route.Condition) {
 		log.Printf("Skipping route %s (condition '%s' not met)", route.Path, route.Condition)
 		return nil
 	}
-	
+
 	// Build middleware chain for this route
 	middlewareChain := make([]gin.HandlerFunc, 0)
 	for _, middlewareName := range route.Middleware {
@@ -284,7 +284,7 @@ func (l *RouteLoader) registerRoute(group *gin.RouterGroup, route *RouteDefiniti
 		}
 		middlewareChain = append(middlewareChain, middleware)
 	}
-	
+
 	// Register based on method(s)
 	if route.Handler != "" {
 		// Single handler for all methods
@@ -296,7 +296,7 @@ func (l *RouteLoader) registerRoute(group *gin.RouterGroup, route *RouteDefiniti
 			log.Printf("Warning: Handler '%s' not found for route %s", route.Handler, route.Path)
 			return nil
 		}
-		
+
 		// Determine methods
 		methods := l.parseMethods(route.Method)
 		for _, method := range methods {
@@ -313,11 +313,11 @@ func (l *RouteLoader) registerRoute(group *gin.RouterGroup, route *RouteDefiniti
 				log.Printf("Warning: Handler '%s' not found for %s %s", handlerName, method, route.Path)
 				continue
 			}
-			
+
 			l.registerMethodRoute(group, method, route.Path, append(middlewareChain, handler)...)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -350,7 +350,7 @@ func (l *RouteLoader) parseMethods(method interface{}) []string {
 	if method == nil {
 		return []string{"GET"} // Default to GET
 	}
-	
+
 	switch v := method.(type) {
 	case string:
 		return []string{v}
@@ -375,12 +375,12 @@ func (l *RouteLoader) checkEnvironment(config *RouteConfig) bool {
 	if config.Metadata.Labels == nil {
 		return true
 	}
-	
+
 	env, exists := config.Metadata.Labels["environment"]
 	if !exists {
 		return true
 	}
-	
+
 	// Check if current environment matches
 	envs := strings.Split(env, ",")
 	for _, e := range envs {
@@ -388,7 +388,7 @@ func (l *RouteLoader) checkEnvironment(config *RouteConfig) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -398,19 +398,19 @@ func (l *RouteLoader) evaluateCondition(condition string) bool {
 	// Format: ${ENV_VAR_NAME} or ${ENV_VAR_NAME:default}
 	if strings.HasPrefix(condition, "${") && strings.HasSuffix(condition, "}") {
 		envVar := condition[2 : len(condition)-1]
-		
+
 		// Check for default value
 		parts := strings.SplitN(envVar, ":", 2)
 		value := os.Getenv(parts[0])
-		
+
 		if value == "" && len(parts) > 1 {
 			value = parts[1]
 		}
-		
+
 		// Check if value is truthy
 		return value != "" && value != "false" && value != "0"
 	}
-	
+
 	// Default to true for unknown conditions
 	return true
 }
@@ -423,10 +423,10 @@ func (l *RouteLoader) watchFiles() {
 			if !ok {
 				return
 			}
-			
+
 			if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
 				log.Printf("Route file modified: %s", event.Name)
-				
+
 				// Reload the specific file
 				if err := l.loadRouteFile(event.Name); err != nil {
 					log.Printf("Error reloading route file %s: %v", event.Name, err)
@@ -439,7 +439,7 @@ func (l *RouteLoader) watchFiles() {
 					}
 				}
 			}
-			
+
 		case err, ok := <-l.watcher.Errors:
 			if !ok {
 				return
@@ -461,11 +461,21 @@ func (l *RouteLoader) Close() error {
 func (l *RouteLoader) GetLoadedRoutes() map[string]*RouteConfig {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
-	
+
 	// Return a copy to prevent modifications
 	routes := make(map[string]*RouteConfig)
 	for k, v := range l.configs {
 		routes[k] = v
 	}
 	return routes
+}
+
+// LoadYAMLRoutes is a package-level function that creates a RouteLoader and loads all routes
+func LoadYAMLRoutes(router *gin.Engine, routesPath string, registry *HandlerRegistry) error {
+	loader, err := NewRouteLoader(routesPath, registry, router, WithHotReload(false))
+	if err != nil {
+		return fmt.Errorf("failed to create route loader: %w", err)
+	}
+
+	return loader.LoadRoutes()
 }

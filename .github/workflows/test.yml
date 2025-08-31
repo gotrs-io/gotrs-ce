@@ -102,6 +102,12 @@ jobs:
           fi
           go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
+      - name: Run API contract tests
+        run: |
+          echo "Running API contract tests..."
+          go test -v ./internal/testing/contracts/... -tags=contracts
+          echo "✅ Contract tests passed"
+
       - name: Generate coverage report
         run: |
           go tool cover -html=coverage.out -o coverage.html

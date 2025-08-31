@@ -23,7 +23,7 @@ func NewArticleRepository(db *sql.DB) *ArticleRepository {
 func (r *ArticleRepository) Create(article *models.Article) error {
 	now := time.Now()
 	fmt.Printf("DEBUG: Creating article for ticket ID %d\n", article.TicketID)
-	
+
 	// Set defaults
 	if article.SenderTypeID == 0 {
 		article.SenderTypeID = 3 // Customer
@@ -34,14 +34,14 @@ func (r *ArticleRepository) Create(article *models.Article) error {
 	if article.IsVisibleForCustomer == 0 {
 		article.IsVisibleForCustomer = 1 // Visible by default
 	}
-	
+
 	// Begin transaction
 	tx, err := r.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	
+
 	// Insert into article table
 	articleQuery := database.ConvertPlaceholders(`
 		INSERT INTO article (
@@ -51,7 +51,7 @@ func (r *ArticleRepository) Create(article *models.Article) error {
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8
 		) RETURNING id`)
-	
+
 	// Use adapter for database-specific handling
 	adapter := database.GetAdapter()
 	articleID64, err := adapter.InsertWithReturningTx(
@@ -66,13 +66,13 @@ func (r *ArticleRepository) Create(article *models.Article) error {
 		now,
 		article.ChangeBy,
 	)
-	
+
 	if err != nil {
 		return err
 	}
-	
+
 	article.ID = int(articleID64)
-	
+
 	// Insert into article_data_mime table
 	mimeQuery := database.ConvertPlaceholders(`
 		INSERT INTO article_data_mime (
@@ -81,7 +81,7 @@ func (r *ArticleRepository) Create(article *models.Article) error {
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9
 		)`)
-	
+
 	// Convert body to bytea
 	var bodyBytes []byte
 	if str, ok := article.Body.(string); ok {
@@ -91,7 +91,7 @@ func (r *ArticleRepository) Create(article *models.Article) error {
 	} else {
 		bodyBytes = []byte(fmt.Sprintf("%v", article.Body))
 	}
-	
+
 	contentType := "text/plain; charset=utf-8"
 	if article.MimeType != "" {
 		contentType = article.MimeType
@@ -99,7 +99,7 @@ func (r *ArticleRepository) Create(article *models.Article) error {
 			contentType += "; charset=" + article.Charset
 		}
 	}
-	
+
 	_, err = tx.Exec(
 		mimeQuery,
 		articleID64,
@@ -112,22 +112,22 @@ func (r *ArticleRepository) Create(article *models.Article) error {
 		now,
 		article.ChangeBy,
 	)
-	
+
 	if err != nil {
 		return err
 	}
-	
+
 	// Update ticket's change_time when an article is added
 	updateTicketQuery := database.ConvertPlaceholders(`
 		UPDATE ticket 
 		SET change_time = $2, change_by = $3
 		WHERE id = $1`)
-	
+
 	_, err = tx.Exec(updateTicketQuery, article.TicketID, now, article.CreateBy)
 	if err != nil {
 		return err
 	}
-	
+
 	// Commit transaction
 	return tx.Commit()
 }
@@ -143,7 +143,7 @@ func (r *ArticleRepository) GetByID(id uint) (*models.Article, error) {
 			create_time, create_by, change_time, change_by
 		FROM article
 		WHERE id = $1`)
-	
+
 	var article models.Article
 	err := r.db.QueryRow(query, id).Scan(
 		&article.ID,
@@ -164,11 +164,11 @@ func (r *ArticleRepository) GetByID(id uint) (*models.Article, error) {
 		&article.ChangeTime,
 		&article.ChangeBy,
 	)
-	
+
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("article not found")
 	}
-	
+
 	return &article, err
 }
 
@@ -176,43 +176,40 @@ func (r *ArticleRepository) GetByID(id uint) (*models.Article, error) {
 func (r *ArticleRepository) GetByTicketID(ticketID uint, includeInternal bool) ([]models.Article, error) {
 	query := database.ConvertPlaceholders(`
 		SELECT 
-			id, ticket_id, article_type_id, sender_type_id,
-			communication_channel_id, is_visible_for_customer,
-			subject, body, body_type, charset, mime_type,
-			content_path, valid_id,
-			create_time, create_by, change_time, change_by
-		FROM article
-		WHERE ticket_id = $1 AND valid_id = 1`)
-	
+			a.id, a.ticket_id, a.article_sender_type_id,
+			a.communication_channel_id, a.is_visible_for_customer,
+			adm.a_subject, adm.a_body, adm.a_content_type,
+			a.create_time, a.create_by, a.change_time, a.change_by
+		FROM article a
+		LEFT JOIN article_data_mime adm ON a.id = adm.article_id
+		WHERE a.ticket_id = $1`)
+
 	if !includeInternal {
-		query += " AND is_visible_for_customer = 1"
+		query += " AND a.is_visible_for_customer = 1"
 	}
-	
-	query += " ORDER BY create_time ASC"
-	
+
+	query += " ORDER BY a.create_time ASC"
+
 	rows, err := r.db.Query(query, ticketID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var articles []models.Article
 	for rows.Next() {
 		var article models.Article
+		var subject, body, contentType sql.NullString
+
 		err := rows.Scan(
 			&article.ID,
 			&article.TicketID,
-			&article.ArticleTypeID,
 			&article.SenderTypeID,
 			&article.CommunicationChannelID,
 			&article.IsVisibleForCustomer,
-			&article.Subject,
-			&article.Body,
-			&article.BodyType,
-			&article.Charset,
-			&article.MimeType,
-			&article.ContentPath,
-			&article.ValidID,
+			&subject,
+			&body,
+			&contentType,
 			&article.CreateTime,
 			&article.CreateBy,
 			&article.ChangeTime,
@@ -221,16 +218,28 @@ func (r *ArticleRepository) GetByTicketID(ticketID uint, includeInternal bool) (
 		if err != nil {
 			return nil, err
 		}
+
+		// Set the subject and body from the joined data
+		if subject.Valid {
+			article.Subject = subject.String
+		}
+		if body.Valid {
+			article.Body = body.String
+		}
+		if contentType.Valid {
+			article.MimeType = contentType.String
+		}
+
 		articles = append(articles, article)
 	}
-	
+
 	return articles, nil
 }
 
 // Update updates an article in the database
 func (r *ArticleRepository) Update(article *models.Article) error {
 	article.ChangeTime = time.Now()
-	
+
 	query := database.ConvertPlaceholders(`
 		UPDATE article SET
 			article_type_id = $2,
@@ -247,7 +256,7 @@ func (r *ArticleRepository) Update(article *models.Article) error {
 			change_time = $13,
 			change_by = $14
 		WHERE id = $1`)
-	
+
 	result, err := r.db.Exec(
 		query,
 		article.ID,
@@ -265,28 +274,28 @@ func (r *ArticleRepository) Update(article *models.Article) error {
 		article.ChangeTime,
 		article.ChangeBy,
 	)
-	
+
 	if err != nil {
 		return err
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
-	
+
 	if rowsAffected == 0 {
 		return fmt.Errorf("article not found")
 	}
-	
+
 	// Update ticket's change_time when an article is updated
 	updateTicketQuery := database.ConvertPlaceholders(`
 		UPDATE ticket 
 		SET change_time = $2, change_by = $3
 		WHERE id = $1`)
-	
+
 	_, err = r.db.Exec(updateTicketQuery, article.TicketID, time.Now(), article.ChangeBy)
-	
+
 	return err
 }
 
@@ -302,35 +311,35 @@ func (r *ArticleRepository) Delete(id uint, userID uint) error {
 		}
 		return err
 	}
-	
+
 	// Soft delete the article
 	query := database.ConvertPlaceholders(`
 		UPDATE article 
 		SET valid_id = 0, change_time = $2, change_by = $3
 		WHERE id = $1`)
-	
+
 	result, err := r.db.Exec(query, id, time.Now(), userID)
 	if err != nil {
 		return err
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
-	
+
 	if rowsAffected == 0 {
 		return fmt.Errorf("article not found")
 	}
-	
+
 	// Update ticket's change_time
 	updateTicketQuery := database.ConvertPlaceholders(`
 		UPDATE ticket 
 		SET change_time = $2, change_by = $3
 		WHERE id = $1`)
-	
+
 	_, err = r.db.Exec(updateTicketQuery, ticketID, time.Now(), userID)
-	
+
 	return err
 }
 
@@ -352,7 +361,7 @@ func (r *ArticleRepository) GetLatestArticleForTicket(ticketID uint) (*models.Ar
 		WHERE ticket_id = $1 AND valid_id = 1
 		ORDER BY create_time DESC
 		LIMIT 1`)
-	
+
 	var article models.Article
 	err := r.db.QueryRow(query, ticketID).Scan(
 		&article.ID,
@@ -373,11 +382,11 @@ func (r *ArticleRepository) GetLatestArticleForTicket(ticketID uint) (*models.Ar
 		&article.ChangeTime,
 		&article.ChangeBy,
 	)
-	
+
 	if err == sql.ErrNoRows {
 		return nil, nil // No articles yet
 	}
-	
+
 	return &article, err
 }
 
@@ -387,11 +396,11 @@ func (r *ArticleRepository) CountArticlesForTicket(ticketID uint, includeInterna
 		SELECT COUNT(*) 
 		FROM article 
 		WHERE ticket_id = $1 AND valid_id = 1`)
-	
+
 	if !includeInternal {
 		query += " AND is_visible_for_customer = 1"
 	}
-	
+
 	var count int
 	err := r.db.QueryRow(query, ticketID).Scan(&count)
 	return count, err
@@ -401,11 +410,11 @@ func (r *ArticleRepository) CountArticlesForTicket(ticketID uint, includeInterna
 func (r *ArticleRepository) CreateAttachment(attachment *models.Attachment) error {
 	attachment.CreateTime = time.Now()
 	attachment.ChangeTime = time.Now()
-	
+
 	if attachment.Disposition == "" {
 		attachment.Disposition = "attachment"
 	}
-	
+
 	query := database.ConvertPlaceholders(`
 		INSERT INTO article_attachments (
 			article_id, filename, content_type, content_size,
@@ -414,7 +423,7 @@ func (r *ArticleRepository) CreateAttachment(attachment *models.Attachment) erro
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 		) RETURNING id`)
-	
+
 	err := r.db.QueryRow(
 		query,
 		attachment.ArticleID,
@@ -430,7 +439,7 @@ func (r *ArticleRepository) CreateAttachment(attachment *models.Attachment) erro
 		attachment.ChangeTime,
 		attachment.ChangeBy,
 	).Scan(&attachment.ID)
-	
+
 	return err
 }
 
@@ -444,13 +453,13 @@ func (r *ArticleRepository) GetAttachmentsByArticleID(articleID uint) ([]models.
 		FROM article_attachments
 		WHERE article_id = $1
 		ORDER BY create_time ASC`)
-	
+
 	rows, err := r.db.Query(query, articleID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var attachments []models.Attachment
 	for rows.Next() {
 		var attachment models.Attachment
@@ -474,7 +483,7 @@ func (r *ArticleRepository) GetAttachmentsByArticleID(articleID uint) ([]models.
 		}
 		attachments = append(attachments, attachment)
 	}
-	
+
 	return attachments, nil
 }
 
@@ -487,7 +496,7 @@ func (r *ArticleRepository) GetAttachmentByID(id uint) (*models.Attachment, erro
 			create_time, create_by, change_time, change_by
 		FROM article_attachments
 		WHERE id = $1`)
-	
+
 	var attachment models.Attachment
 	err := r.db.QueryRow(query, id).Scan(
 		&attachment.ID,
@@ -504,11 +513,11 @@ func (r *ArticleRepository) GetAttachmentByID(id uint) (*models.Attachment, erro
 		&attachment.ChangeTime,
 		&attachment.ChangeBy,
 	)
-	
+
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("attachment not found")
 	}
-	
+
 	return &attachment, err
 }
 
@@ -519,16 +528,16 @@ func (r *ArticleRepository) DeleteAttachment(id uint) error {
 	if err != nil {
 		return err
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
-	
+
 	if rowsAffected == 0 {
 		return fmt.Errorf("attachment not found")
 	}
-	
+
 	return nil
 }
 
@@ -538,12 +547,12 @@ func (r *ArticleRepository) GetArticleWithAttachments(id uint) (*models.Article,
 	if err != nil {
 		return nil, err
 	}
-	
+
 	attachments, err := r.GetAttachmentsByArticleID(id)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	article.Attachments = attachments
 	return article, nil
 }

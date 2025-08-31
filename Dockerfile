@@ -41,6 +41,7 @@ FROM deps AS builder
 
 # Copy source code
 COPY . ./
+# Force rebuild marker
 
 # Build with optimizations and cache mounts
 # -ldflags="-w -s" strips debug info for smaller binary
@@ -71,7 +72,8 @@ FROM alpine:3.19 AS runtime
 RUN apk add --no-cache \
     ca-certificates \
     postgresql15-client \
-    tzdata
+    tzdata \
+    go
 
 # Create non-root user
 RUN addgroup -g 1000 -S appgroup && \

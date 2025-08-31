@@ -432,3 +432,27 @@ internal/database/schema/
 scripts/fix-*.sql
 scripts/reimport-*.sql
 scripts/*-mapping.sql
+
+# ============================================
+# Temporary Development Files
+# ============================================
+# Temporary documentation and audit files
+*_audit.txt
+*_backup.txt
+*_coverage_status.md
+*_route_coverage*.md
+broken_*.txt
+static-*.txt
+cookies.txt
+
+# Temporary test files
+test_*.go
+debug_*.go
+*_test_init.go
+*_test_db.go
+*_test_mysql.go
+
+# Development notes and temporary docs
+docs/temp/
+*.temp.md
+*.draft.md

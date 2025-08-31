@@ -24,26 +24,26 @@ var (
 func InitializeServiceRegistry() (*registry.ServiceRegistry, error) {
 	once.Do(func() {
 		globalRegistry = registry.NewServiceRegistry()
-		
+
 		// Register database factory
 		dbFactory := database.NewDatabaseFactory()
-		
+
 		// Register PostgreSQL provider
 		dbFactory.RegisterProvider(registry.ProviderPostgres, database.NewPostgresService)
-		
+
 		// Register MySQL provider
 		dbFactory.RegisterProvider(registry.ProviderMySQL, database.NewMySQLService)
-		
+
 		// Register the factory with the registry
 		initErr = globalRegistry.RegisterFactory(registry.ServiceTypeDatabase, dbFactory)
 		if initErr != nil {
 			return
 		}
-		
+
 		// Don't auto-configure here - let the caller do it explicitly
 		// This prevents initialization loops
 	})
-	
+
 	return globalRegistry, initErr
 }
 
@@ -60,29 +60,29 @@ func AutoConfigureDatabase() error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Build configuration from environment
 	config := buildDatabaseConfig()
-	
+
 	// Register the database service
 	if err := reg.RegisterService(config); err != nil {
 		return fmt.Errorf("failed to register database service: %w", err)
 	}
-	
+
 	// Get the registered service
 	service, err := reg.GetService(config.ID)
 	if err != nil {
 		return err
 	}
-	
+
 	// Cast to DatabaseService
 	dbService, ok := service.(database.DatabaseService)
 	if !ok {
 		return fmt.Errorf("service is not a database service")
 	}
-	
+
 	globalDB = dbService
-	
+
 	// Create default binding for the application
 	binding := &registry.ServiceBinding{
 		ID:        "default-db-binding",
@@ -92,7 +92,7 @@ func AutoConfigureDatabase() error {
 		Purpose:   "primary",
 		Priority:  100,
 	}
-	
+
 	return reg.CreateBinding(binding)
 }
 
@@ -104,7 +104,7 @@ func buildDatabaseConfig() *registry.ServiceConfig {
 	if driver == "mysql" || driver == "mariadb" {
 		provider = registry.ProviderMySQL
 	}
-	
+
 	config := &registry.ServiceConfig{
 		ID:       "primary-db",
 		Name:     "Primary Database",
@@ -112,7 +112,7 @@ func buildDatabaseConfig() *registry.ServiceConfig {
 		Provider: provider,
 		Options:  make(map[string]interface{}),
 	}
-	
+
 	// Check for DATABASE_URL first
 	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
 		// Parse DATABASE_URL
@@ -126,17 +126,17 @@ func buildDatabaseConfig() *registry.ServiceConfig {
 		config.Username = getEnvOrDefault("DB_USER", "gotrs_user")
 		config.Password = getEnvOrDefault("DB_PASSWORD", "gotrs_password")
 		config.Database = getEnvOrDefault("DB_NAME", "gotrs")
-		
+
 		// SSL mode
 		if sslMode := os.Getenv("DB_SSLMODE"); sslMode != "" {
 			config.Options["sslmode"] = sslMode
 		}
 	}
-	
+
 	// Connection pool settings
 	config.MaxConns = getEnvAsIntOrDefault("DB_MAX_CONNS", 25)
 	config.MinConns = getEnvAsIntOrDefault("DB_MIN_CONNS", 5)
-	
+
 	return config
 }
 
@@ -148,7 +148,7 @@ func GetDatabase() (database.DatabaseService, error) {
 			return nil, fmt.Errorf("database not initialized: %w", err)
 		}
 	}
-	
+
 	return globalDB, nil
 }
 
@@ -158,17 +158,17 @@ func GetDatabaseForApp(appID string, purpose string) (database.DatabaseService, 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	service, err := reg.GetBoundService(appID, purpose)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	dbService, ok := service.(database.DatabaseService)
 	if !ok {
 		return nil, fmt.Errorf("bound service is not a database service")
 	}
-	
+
 	return dbService, nil
 }
 
@@ -178,13 +178,13 @@ func GetDB() (*sql.DB, error) {
 	if globalDB != nil {
 		return globalDB.GetDB(), nil
 	}
-	
+
 	// Try to get or initialize
 	dbService, err := GetDatabase()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return dbService.GetDB(), nil
 }
 
@@ -194,7 +194,7 @@ func RegisterDatabaseService(config *registry.ServiceConfig) error {
 	if err != nil {
 		return err
 	}
-	
+
 	return reg.RegisterService(config)
 }
 
@@ -204,12 +204,12 @@ func MigrateDatabase(fromServiceID, toServiceID string, strategy registry.Migrat
 	if err != nil {
 		return err
 	}
-	
+
 	migration, err := reg.StartMigration(fromServiceID, toServiceID, strategy)
 	if err != nil {
 		return err
 	}
-	
+
 	// Wait for migration to complete (simplified)
 	ctx := context.Background()
 	for {
@@ -217,15 +217,15 @@ func MigrateDatabase(fromServiceID, toServiceID string, strategy registry.Migrat
 		if err != nil {
 			return err
 		}
-		
+
 		if m.Status == "completed" {
 			return nil
 		}
-		
+
 		if m.Status == "failed" {
 			return fmt.Errorf("migration failed: %s", m.Error)
 		}
-		
+
 		// Wait and check again
 		select {
 		case <-ctx.Done():

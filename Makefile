@@ -652,10 +652,10 @@ export
 #    e.g.   echo "select * from users;"| make db-shell
 #           echo "select * from users;"| make DB_DRIVER=mysql   db-shell
 db-shell:
-	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
+	if [ "$(DB_DRIVER)" = "postgres" ]; then \
 		$(COMPOSE_CMD) exec -T postgres psql -U $(DB_USER) -d $(DB_NAME); \
 	elif [ "$(DB_DRIVER)" = "mysql" ]; then \
-		$(CONTAINER_CMD) run --rm -i \
+		echo $(CONTAINER_CMD) run --rm -i \
 			--network gotrs-ce_default \
 			-v "$$(pwd):/workspace" \
 			-w /workspace \
@@ -993,9 +993,15 @@ test-frontend:
 	@echo "Running frontend tests..."
 	$(COMPOSE_CMD) exec frontend npm test
 
-test-contracts:
-	@echo "Running Pact contract tests..."
-	$(COMPOSE_CMD) exec frontend npm run test:contracts
+test-contracts: toolbox-build
+	@echo "🔍 Running API contract tests..."
+	@$(CONTAINER_CMD) run --rm \
+		-v "$$(pwd):/workspace" \
+		-w /workspace \
+		-u "$$(id -u):$$(id -g)" \
+		--network host \
+		gotrs-toolbox:latest \
+		go test -v ./internal/testing/contracts/...
 
 test-all: test test-frontend test-contracts test-e2e
 	@echo "All tests completed!"
@@ -1371,7 +1377,7 @@ include task-coordination.mk
 # Install CSS build dependencies (in container with user permissions)
 css-deps:
 	@echo "📦 Installing CSS build dependencies..."
-	@$(CONTAINER_CMD) run --rm -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm install
+	@$(CONTAINER_CMD) run --rm --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm install
 	@echo "✅ CSS dependencies installed"
 
 # Build production CSS (in container with user permissions)
@@ -1381,18 +1387,18 @@ css-build:
 		echo "📦 Installing CSS dependencies first..."; \
 		$(MAKE) css-deps; \
 	fi
-	@$(CONTAINER_CMD) run --rm -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm run build-css
+	@$(CONTAINER_CMD) run --rm --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm run build-css
 	@echo "✅ CSS built to static/css/output.css"
 
 # Build JavaScript assets (Tiptap editor bundle)
 js-deps:
 	@echo "📦 Installing JavaScript dependencies..."
-	@$(CONTAINER_CMD) run --rm -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm install
+	@$(CONTAINER_CMD) run --rm --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm install
 	@echo "✅ JavaScript dependencies installed"
 
 js-build: js-deps
 	@echo "🔨 Building JavaScript bundles..."
-	@$(CONTAINER_CMD) run --rm -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm run build-js
+	@$(CONTAINER_CMD) run --rm --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm run build-js
 	@echo "✅ JavaScript built to static/js/tiptap.min.js"
 
 # Build all frontend assets
@@ -1402,15 +1408,7 @@ frontend-build: css-build js-build
 # Watch and rebuild CSS on changes (in container with user permissions)
 css-watch: css-deps
 	@echo "👁️  Watching for CSS changes..."
-	@$(CONTAINER_CMD) run --rm -it -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm run watch-css# Add these lines to the help section around line 40:
-	@echo "Advanced TDD Commands (Zero Tolerance for False Claims):"
-	@echo "  make tdd-comprehensive           - Run ALL quality gates with evidence"
-	@echo "  make anti-gaslighting            - Detect false success claims"
-	@echo "  make tdd-test-first-init FEATURE=name - Initialize test-first TDD cycle"
-	@echo "  make tdd-full-cycle FEATURE=name - Complete guided TDD cycle"
-	@echo "  make tdd-quick                   - Quick verification for development"
-	@echo "  make tdd-dashboard              - Show TDD status and metrics"
-	@echo ""
+	@$(CONTAINER_CMD) run --rm -it --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm run watch-css
 
 # Add these commands after the existing TDD section around line 178:
 

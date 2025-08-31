@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	. "github.com/gotrs-io/gotrs-ce/internal/api"
 )
 
 // Acceptance Test: As an agent, I can create a new ticket
@@ -192,13 +192,12 @@ func setupTestRouter() *gin.Engine {
 	})
 	
 	// Setup routes
-	apiRouter := &APIRouter{}
 	v1 := r.Group("/api/v1")
 	{
-		v1.POST("/tickets", apiRouter.handleCreateTicket)
-		v1.GET("/tickets", apiRouter.handleListTickets)
-		v1.GET("/tickets/:id", apiRouter.handleGetTicket)
-		v1.PUT("/tickets/:id", apiRouter.handleUpdateTicket)
+		v1.POST("/tickets", HandleCreateTicketAPI)
+		v1.GET("/tickets", HandleListTicketsAPI)
+		v1.GET("/tickets/:id", HandleGetTicketAPI)
+		v1.PUT("/tickets/:id", HandleUpdateTicketAPI)
 	}
 	
 	return r

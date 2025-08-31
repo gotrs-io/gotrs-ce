@@ -37,7 +37,7 @@ func TestRealGroupAssignmentIssue(t *testing.T) {
 			LEFT JOIN group_user gu ON u.id = gu.user_id 
 			LEFT JOIN groups g ON gu.group_id = g.id 
 			WHERE u.login = $1 
-			GROUP BY u.id, u.login, u.first_name, u.last_name`, config.UserLogin).Scan(&groups)
+			GROUP BY u.id, u.login, u.first_name, u.last_name`), config.UserLogin).Scan(&groups)
 
 		if err != nil {
 			t.Logf("Could not find test user or query failed: %v", err)
@@ -148,7 +148,7 @@ func TestRealGroupAssignmentIssue(t *testing.T) {
 			LEFT JOIN group_user gu ON u.id = gu.user_id 
 			LEFT JOIN groups g ON gu.group_id = g.id 
 			WHERE u.login = $1 
-			GROUP BY u.id, u.login, u.first_name, u.last_name`).Scan(&newGroups)
+			GROUP BY u.id, u.login, u.first_name, u.last_name`), config.UserLogin).Scan(&newGroups)
 
 		if err == nil {
 			t.Logf("Groups after update: %s", newGroups)

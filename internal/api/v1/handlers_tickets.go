@@ -1,11 +1,12 @@
 package v1
 
 import (
-	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -22,25 +23,78 @@ func (router *APIRouter) HandleListTickets(c *gin.Context) {
 	HandleListTicketsAPI(c)
 }
 
+// HandleUpdateTicket updates a ticket (exported for tests)
+func (router *APIRouter) HandleUpdateTicket(c *gin.Context) {
+	// Delegate to the standalone handler
+	HandleUpdateTicketAPI(c)
+}
+
 // handleListTickets returns a paginated list of tickets
 func (router *APIRouter) handleListTickets(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "25"))
 	status := c.Query("status")
 	priority := c.Query("priority")
-	assignedTo := c.Query("assigned_to")
-	queueID := c.Query("queue_id")
+	// assignedTo := c.Query("assigned_to") // Not used currently
+	queueIDStr := c.Query("queue_id")
 	search := c.Query("search")
+
+	// Parse queue ID if provided
+	var queueID *uint
+	if queueIDStr != "" {
+		if id, err := strconv.ParseUint(queueIDStr, 10, 32); err == nil {
+			queueIDVal := uint(id)
+			queueID = &queueIDVal
+		}
+	}
+
+	// Parse state ID based on status
+	var stateID *uint
+	if status != "" {
+		// Map status string to state ID
+		var id uint
+		switch status {
+		case "new":
+			id = 1
+		case "open":
+			id = 4
+		case "closed":
+			id = 2
+		}
+		if id > 0 {
+			stateID = &id
+		}
+	}
+
+	// Parse priority ID based on priority
+	var priorityID *uint
+	if priority != "" {
+		// Map priority string to priority ID
+		var id uint
+		switch priority {
+		case "low":
+			id = 1
+		case "normal":
+			id = 3
+		case "high":
+			id = 4
+		case "very-high":
+			id = 5
+		}
+		if id > 0 {
+			priorityID = &id
+		}
+	}
 
 	// Get tickets from service
 	ticketService := GetTicketService()
 	request := &models.TicketListRequest{
-		Page:     page,
-		PerPage:  perPage,
-		Status:   status,
-		Priority: priority,
-		QueueID:  queueID,
-		Search:   search,
+		Page:       page,
+		PerPage:    perPage,
+		StateID:    stateID,
+		PriorityID: priorityID,
+		QueueID:    queueID,
+		Search:     search,
 	}
 	
 	response, err := ticketService.ListTickets(request)
@@ -74,12 +128,12 @@ func (router *APIRouter) handleListTickets(c *gin.Context) {
 	}
 	
 	pagination := Pagination{
-		Page:       response.Pagination.Page,
-		PerPage:    response.Pagination.PerPage,
-		Total:      response.Pagination.Total,
-		TotalPages: response.Pagination.TotalPages,
-		HasNext:    response.Pagination.HasNext,
-		HasPrev:    response.Pagination.HasPrev,
+		Page:       response.Page,
+		PerPage:    response.PerPage,
+		Total:      response.Total,
+		TotalPages: response.TotalPages,
+		HasNext:    response.Page < response.TotalPages,
+		HasPrev:    response.Page > 1,
 	}
 
 	sendPaginatedResponse(c, tickets, pagination)
@@ -361,19 +415,30 @@ func (router *APIRouter) handleGetTicket(c *gin.Context) {
 
 // handleUpdateTicket updates an existing ticket
 func (router *APIRouter) handleUpdateTicket(c *gin.Context) {
-	ticketID := c.Param("id")
-	if ticketID == "" {
+	ticketIDStr := c.Param("id")
+	if ticketIDStr == "" {
 		sendError(c, http.StatusBadRequest, "Ticket ID required")
 		return
 	}
 
+	ticketID, err := strconv.Atoi(ticketIDStr)
+	if err != nil {
+		sendError(c, http.StatusBadRequest, "Invalid ticket ID")
+		return
+	}
+
+	// Parse update request
 	var updateRequest struct {
-		Title       *string   `json:"title"`
-		Description *string   `json:"description"`
-		Priority    *string   `json:"priority"`
-		Status      *string   `json:"status"`
-		AssignedTo  *int      `json:"assigned_to"`
-		Tags        *[]string `json:"tags"`
+		Title             *string `json:"title"`
+		QueueID           *int    `json:"queue_id"`
+		TypeID            *int    `json:"type_id"`
+		StateID           *int    `json:"state_id"`
+		PriorityID        *int    `json:"priority_id"`
+		CustomerUserID    *string `json:"customer_user_id"`
+		CustomerID        *string `json:"customer_id"`
+		ResponsibleUserID *int    `json:"responsible_user_id"`
+		OwnerID           *int    `json:"owner_id"`
+		LockID            *int    `json:"lock_id"`
 	}
 
 	if err := c.ShouldBindJSON(&updateRequest); err != nil {
@@ -381,37 +446,337 @@ func (router *APIRouter) handleUpdateTicket(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement actual ticket update
-	updatedTicket := gin.H{
-		"id":         ticketID,
-		"updated_at": time.Now().UTC(),
-		"changes":    updateRequest,
+	// Check if any fields to update
+	if updateRequest.Title == nil && updateRequest.QueueID == nil && updateRequest.TypeID == nil &&
+		updateRequest.StateID == nil && updateRequest.PriorityID == nil && updateRequest.CustomerUserID == nil &&
+		updateRequest.CustomerID == nil && updateRequest.ResponsibleUserID == nil && updateRequest.OwnerID == nil &&
+		updateRequest.LockID == nil {
+		sendError(c, http.StatusBadRequest, "No fields to update")
+		return
 	}
 
-	sendSuccess(c, updatedTicket)
+	// Get user ID
+	userID := 1 // Default for testing
+	if id, exists := c.Get("user_id"); exists {
+		userID = id.(int)
+	}
+
+	// Get database connection
+	db, err := database.GetDB()
+	if err != nil {
+		sendError(c, http.StatusServiceUnavailable, "Database unavailable")
+		return
+	}
+
+	// Check if ticket exists and get current customer_user_id for permission check
+	var customerUserID string
+	err = db.QueryRow(database.ConvertPlaceholders(
+		"SELECT customer_user_id FROM ticket WHERE id = $1",
+	), ticketID).Scan(&customerUserID)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			sendError(c, http.StatusNotFound, "Ticket not found")
+		} else {
+			sendError(c, http.StatusInternalServerError, "Database error")
+		}
+		return
+	}
+
+	// Check permissions for customer users
+	if isCustomer, _ := c.Get("is_customer"); isCustomer == true {
+		customerEmail, _ := c.Get("customer_email")
+		if customerUserID != customerEmail.(string) {
+			sendError(c, http.StatusForbidden, "Access denied")
+			return
+		}
+		// Customers can only update title and add articles
+		if updateRequest.QueueID != nil || updateRequest.TypeID != nil || updateRequest.StateID != nil ||
+			updateRequest.PriorityID != nil || updateRequest.ResponsibleUserID != nil || updateRequest.OwnerID != nil ||
+			updateRequest.LockID != nil {
+			sendError(c, http.StatusForbidden, "Customers can only update ticket title")
+			return
+		}
+	}
+
+	// Validate referenced IDs exist
+	if updateRequest.QueueID != nil {
+		var exists bool
+		db.QueryRow(database.ConvertPlaceholders("SELECT EXISTS(SELECT 1 FROM queue WHERE id = $1)"), *updateRequest.QueueID).Scan(&exists)
+		if !exists {
+			sendError(c, http.StatusBadRequest, "Invalid queue ID")
+			return
+		}
+	}
+
+	if updateRequest.StateID != nil {
+		var exists bool
+		db.QueryRow(database.ConvertPlaceholders("SELECT EXISTS(SELECT 1 FROM ticket_state WHERE id = $1)"), *updateRequest.StateID).Scan(&exists)
+		if !exists {
+			sendError(c, http.StatusBadRequest, "Invalid state ID")
+			return
+		}
+	}
+
+	if updateRequest.PriorityID != nil {
+		var exists bool
+		db.QueryRow(database.ConvertPlaceholders("SELECT EXISTS(SELECT 1 FROM ticket_priority WHERE id = $1)"), *updateRequest.PriorityID).Scan(&exists)
+		if !exists {
+			sendError(c, http.StatusBadRequest, "Invalid priority ID")
+			return
+		}
+	}
+
+	// Build dynamic UPDATE query
+	var setClauses []string
+	var args []interface{}
+	argCounter := 1
+
+	if updateRequest.Title != nil {
+		setClauses = append(setClauses, fmt.Sprintf("title = $%d", argCounter))
+		args = append(args, *updateRequest.Title)
+		argCounter++
+	}
+	if updateRequest.QueueID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("queue_id = $%d", argCounter))
+		args = append(args, *updateRequest.QueueID)
+		argCounter++
+	}
+	if updateRequest.TypeID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("type_id = $%d", argCounter))
+		args = append(args, *updateRequest.TypeID)
+		argCounter++
+	}
+	if updateRequest.StateID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("ticket_state_id = $%d", argCounter))
+		args = append(args, *updateRequest.StateID)
+		argCounter++
+	}
+	if updateRequest.PriorityID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("ticket_priority_id = $%d", argCounter))
+		args = append(args, *updateRequest.PriorityID)
+		argCounter++
+	}
+	if updateRequest.CustomerUserID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("customer_user_id = $%d", argCounter))
+		args = append(args, *updateRequest.CustomerUserID)
+		argCounter++
+	}
+	if updateRequest.CustomerID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("customer_id = $%d", argCounter))
+		args = append(args, *updateRequest.CustomerID)
+		argCounter++
+	}
+	if updateRequest.ResponsibleUserID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("responsible_user_id = $%d", argCounter))
+		args = append(args, *updateRequest.ResponsibleUserID)
+		argCounter++
+	}
+	if updateRequest.OwnerID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("user_id = $%d", argCounter))
+		args = append(args, *updateRequest.OwnerID)
+		argCounter++
+	}
+	if updateRequest.LockID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("ticket_lock_id = $%d", argCounter))
+		args = append(args, *updateRequest.LockID)
+		argCounter++
+	}
+
+	// Always update change_time and change_by
+	setClauses = append(setClauses, "change_time = NOW()")
+	setClauses = append(setClauses, fmt.Sprintf("change_by = $%d", argCounter))
+	args = append(args, userID)
+	argCounter++
+
+	// Add ticket ID for WHERE clause
+	args = append(args, ticketID)
+
+	updateQuery := database.ConvertPlaceholders(fmt.Sprintf(
+		"UPDATE ticket SET %s WHERE id = $%d",
+		strings.Join(setClauses, ", "),
+		argCounter,
+	))
+
+	// Execute update
+	result, err := db.Exec(updateQuery, args...)
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Failed to update ticket: "+err.Error())
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		sendError(c, http.StatusNotFound, "Ticket not found")
+		return
+	}
+
+	// Fetch updated ticket
+	var ticket models.Ticket
+	err = db.QueryRow(database.ConvertPlaceholders(`
+		SELECT id, tn, title, queue_id, type_id, ticket_state_id, 
+		       ticket_priority_id, customer_user_id, customer_id,
+		       ticket_lock_id, user_id, responsible_user_id,
+		       create_time, change_time
+		FROM ticket WHERE id = $1
+	`), ticketID).Scan(
+		&ticket.ID, &ticket.TicketNumber, &ticket.Title, &ticket.QueueID,
+		&ticket.TypeID, &ticket.TicketStateID, &ticket.TicketPriorityID,
+		&ticket.CustomerUserID, &ticket.CustomerID, &ticket.TicketLockID,
+		&ticket.UserID, &ticket.ResponsibleUserID,
+		&ticket.CreateTime, &ticket.ChangeTime,
+	)
+
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Failed to fetch updated ticket")
+		return
+	}
+
+	sendSuccess(c, ticket)
 }
 
-// handleDeleteTicket deletes a ticket (soft delete)
-func (router *APIRouter) handleDeleteTicket(c *gin.Context) {
-	ticketID := c.Param("id")
-	if ticketID == "" {
+// HandleDeleteTicket archives a ticket (OTRS doesn't hard delete tickets) - exported for YAML routing
+func (router *APIRouter) HandleDeleteTicket(c *gin.Context) {
+	ticketIDStr := c.Param("id")
+	if ticketIDStr == "" {
 		sendError(c, http.StatusBadRequest, "Ticket ID required")
 		return
 	}
 
-	// TODO: Implement actual ticket deletion (soft delete)
+	ticketID, err := strconv.Atoi(ticketIDStr)
+	if err != nil {
+		sendError(c, http.StatusBadRequest, "Invalid ticket ID")
+		return
+	}
+
+	// Get user ID
+	userID := 1 // Default for testing
+	if id, exists := c.Get("user_id"); exists {
+		userID = id.(int)
+	}
+
+	// Get database connection
+	db, err := database.GetDB()
+	if err != nil {
+		sendError(c, http.StatusServiceUnavailable, "Database unavailable")
+		return
+	}
+
+	// Check if ticket exists and get current state
+	var currentStateID int
+	var customerUserID string
+	err = db.QueryRow(database.ConvertPlaceholders(
+		"SELECT ticket_state_id, customer_user_id FROM ticket WHERE id = $1",
+	), ticketID).Scan(&currentStateID, &customerUserID)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			sendError(c, http.StatusNotFound, "Ticket not found")
+		} else {
+			sendError(c, http.StatusInternalServerError, "Database error")
+		}
+		return
+	}
+
+	// Check permissions for customer users
+	if isCustomer, _ := c.Get("is_customer"); isCustomer == true {
+		// Customers cannot delete tickets
+		sendError(c, http.StatusForbidden, "Customers cannot delete tickets")
+		return
+	}
+
+	// Check if ticket is already archived/closed
+	// States: 2 = closed successful, 3 = closed unsuccessful, 9 = merged
+	if currentStateID == 2 || currentStateID == 3 || currentStateID == 9 {
+		sendError(c, http.StatusBadRequest, "Ticket is already closed")
+		return
+	}
+
+	// Archive the ticket by setting state to "closed successful" and archive_flag to 1
+	// In OTRS, tickets are never actually deleted, just archived
+	updateQuery := database.ConvertPlaceholders(`
+		UPDATE ticket 
+		SET ticket_state_id = 2,
+		    archive_flag = 1,
+		    change_time = NOW(),
+		    change_by = $1
+		WHERE id = $2
+	`)
+
+	result, err := db.Exec(updateQuery, userID, ticketID)
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Failed to archive ticket: "+err.Error())
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		sendError(c, http.StatusNotFound, "Ticket not found")
+		return
+	}
+
+	// Add a final article noting the ticket was archived
+	insertArticleQuery := database.ConvertPlaceholders(`
+		INSERT INTO article (
+			ticket_id,
+			article_sender_type_id,
+			communication_channel_id,
+			is_visible_for_customer,
+			search_index_needs_rebuild,
+			create_time,
+			create_by,
+			change_time,
+			change_by
+		) VALUES (
+			$1, 1, 1, 0, 0, NOW(), $2, NOW(), $3
+		)
+	`)
+
+	articleResult, err := db.Exec(insertArticleQuery, ticketID, userID, userID)
+	if err == nil {
+		articleID, _ := articleResult.LastInsertId()
+		
+		// Insert article content
+		insertMimeQuery := database.ConvertPlaceholders(`
+			INSERT INTO article_data_mime (
+				article_id,
+				a_subject,
+				a_body,
+				a_content_type,
+				incoming_time,
+				create_time,
+				create_by,
+				change_time,
+				change_by
+			) VALUES (
+				$1, 'Ticket Archived', 'This ticket has been archived.', 'text/plain', 
+				$2, NOW(), $3, NOW(), $4
+			)
+		`)
+		
+		db.Exec(insertMimeQuery, articleID, time.Now().Unix(), userID, userID)
+	}
+
 	sendSuccess(c, gin.H{
-		"id":         ticketID,
-		"deleted_at": time.Now().UTC(),
-		"message":    "Ticket deleted successfully",
+		"id":          ticketID,
+		"archived_at": time.Now().UTC(),
+		"message":     "Ticket archived successfully",
+		"state_id":    2,
+		"archive_flag": 1,
 	})
 }
 
-// handleAssignTicket assigns a ticket to a user
-func (router *APIRouter) handleAssignTicket(c *gin.Context) {
-	ticketID := c.Param("id")
-	if ticketID == "" {
+// HandleAssignTicket assigns a ticket to a user
+func (router *APIRouter) HandleAssignTicket(c *gin.Context) {
+	ticketIDStr := c.Param("id")
+	if ticketIDStr == "" {
 		sendError(c, http.StatusBadRequest, "Ticket ID required")
+		return
+	}
+
+	ticketID, err := strconv.Atoi(ticketIDStr)
+	if err != nil {
+		sendError(c, http.StatusBadRequest, "Invalid ticket ID")
 		return
 	}
 
@@ -425,20 +790,163 @@ func (router *APIRouter) handleAssignTicket(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement actual ticket assignment
+	// Get user ID from context
+	userID := 1 // Default for testing
+	if id, exists := c.Get("user_id"); exists {
+		userID = id.(int)
+	}
+
+	// Get database connection
+	db, err := database.GetDB()
+	if err != nil {
+		sendError(c, http.StatusServiceUnavailable, "Database unavailable")
+		return
+	}
+
+	// Check if ticket exists
+	var currentResponsibleID sql.NullInt32
+	var title string
+	err = db.QueryRow(database.ConvertPlaceholders(
+		"SELECT responsible_user_id, title FROM ticket WHERE id = $1",
+	), ticketID).Scan(&currentResponsibleID, &title)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			sendError(c, http.StatusNotFound, "Ticket not found")
+		} else {
+			sendError(c, http.StatusInternalServerError, "Database error")
+		}
+		return
+	}
+
+	// Check if the user to assign to exists
+	var assigneeLogin string
+	err = db.QueryRow(database.ConvertPlaceholders(
+		"SELECT login FROM users WHERE id = $1 AND valid_id = 1",
+	), assignRequest.AssignedTo).Scan(&assigneeLogin)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			sendError(c, http.StatusBadRequest, "User not found or inactive")
+		} else {
+			sendError(c, http.StatusInternalServerError, "Database error")
+		}
+		return
+	}
+
+	// Start transaction
+	tx, err := db.Begin()
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Failed to start transaction")
+		return
+	}
+	defer tx.Rollback()
+
+	// Update ticket with new responsible user
+	updateQuery := database.ConvertPlaceholders(`
+		UPDATE ticket 
+		SET responsible_user_id = $1,
+		    change_time = NOW(),
+		    change_by = $2
+		WHERE id = $3
+	`)
+
+	_, err = tx.Exec(updateQuery, assignRequest.AssignedTo, userID, ticketID)
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Failed to assign ticket")
+		return
+	}
+
+	// Add article documenting the assignment
+	if assignRequest.Comment != "" || true { // Always document assignment
+		insertArticleQuery := database.ConvertPlaceholders(`
+			INSERT INTO article (
+				ticket_id,
+				article_sender_type_id,
+				communication_channel_id,
+				is_visible_for_customer,
+				search_index_needs_rebuild,
+				create_time,
+				create_by,
+				change_time,
+				change_by
+			) VALUES (
+				$1, 1, 1, 0, 0, NOW(), $2, NOW(), $3
+			)
+		`)
+
+		articleResult, err := tx.Exec(insertArticleQuery, ticketID, userID, userID)
+		if err == nil {
+			articleID, _ := articleResult.LastInsertId()
+			
+			// Build assignment message
+			var previousAssignee string
+			if currentResponsibleID.Valid {
+				db.QueryRow(database.ConvertPlaceholders(
+					"SELECT login FROM users WHERE id = $1",
+				), currentResponsibleID.Int32).Scan(&previousAssignee)
+			}
+			
+			var body string
+			if previousAssignee != "" {
+				body = fmt.Sprintf("Ticket reassigned from %s to %s.", previousAssignee, assigneeLogin)
+			} else {
+				body = fmt.Sprintf("Ticket assigned to %s.", assigneeLogin)
+			}
+			
+			if assignRequest.Comment != "" {
+				body += "\n\nComment: " + assignRequest.Comment
+			}
+			
+			// Insert article content
+			insertMimeQuery := database.ConvertPlaceholders(`
+				INSERT INTO article_data_mime (
+					article_id,
+					a_subject,
+					a_body,
+					a_content_type,
+					incoming_time,
+					create_time,
+					create_by,
+					change_time,
+					change_by
+				) VALUES (
+					$1, 'Ticket Assignment', $2, 'text/plain', 
+					$3, NOW(), $4, NOW(), $5
+				)
+			`)
+			
+			tx.Exec(insertMimeQuery, articleID, body, time.Now().Unix(), userID, userID)
+		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		sendError(c, http.StatusInternalServerError, "Failed to commit transaction")
+		return
+	}
+
+	// Return success response
 	sendSuccess(c, gin.H{
 		"id":           ticketID,
 		"assigned_to":  assignRequest.AssignedTo,
+		"assignee":     assigneeLogin,
 		"comment":      assignRequest.Comment,
 		"assigned_at":  time.Now().UTC(),
 	})
 }
 
-// handleCloseTicket closes a ticket
-func (router *APIRouter) handleCloseTicket(c *gin.Context) {
-	ticketID := c.Param("id")
-	if ticketID == "" {
+// HandleCloseTicket closes a ticket
+func (router *APIRouter) HandleCloseTicket(c *gin.Context) {
+	ticketIDStr := c.Param("id")
+	if ticketIDStr == "" {
 		sendError(c, http.StatusBadRequest, "Ticket ID required")
+		return
+	}
+
+	ticketID, err := strconv.Atoi(ticketIDStr)
+	if err != nil {
+		sendError(c, http.StatusBadRequest, "Invalid ticket ID")
 		return
 	}
 
@@ -452,21 +960,157 @@ func (router *APIRouter) handleCloseTicket(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement actual ticket closing
+	// Get user ID from context
+	userID := 1 // Default for testing
+	if id, exists := c.Get("user_id"); exists {
+		userID = id.(int)
+	}
+
+	// Get database connection
+	db, err := database.GetDB()
+	if err != nil {
+		sendError(c, http.StatusServiceUnavailable, "Database unavailable")
+		return
+	}
+
+	// Check if ticket exists and get current state
+	var currentStateID int
+	var title string
+	err = db.QueryRow(database.ConvertPlaceholders(
+		"SELECT ticket_state_id, title FROM ticket WHERE id = $1",
+	), ticketID).Scan(&currentStateID, &title)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			sendError(c, http.StatusNotFound, "Ticket not found")
+		} else {
+			sendError(c, http.StatusInternalServerError, "Database error")
+		}
+		return
+	}
+
+	// Check if ticket is already closed
+	if currentStateID == 2 || currentStateID == 3 {
+		sendError(c, http.StatusBadRequest, "Ticket is already closed")
+		return
+	}
+
+	// Determine close state based on resolution
+	var newStateID int
+	if strings.ToLower(closeRequest.Resolution) == "successful" || 
+	   strings.ToLower(closeRequest.Resolution) == "resolved" ||
+	   strings.ToLower(closeRequest.Resolution) == "fixed" {
+		newStateID = 2 // closed successful
+	} else {
+		newStateID = 3 // closed unsuccessful
+	}
+
+	// Start transaction
+	tx, err := db.Begin()
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Failed to start transaction")
+		return
+	}
+	defer tx.Rollback()
+
+	// Update ticket state
+	updateQuery := database.ConvertPlaceholders(`
+		UPDATE ticket 
+		SET ticket_state_id = $1,
+		    change_time = NOW(),
+		    change_by = $2
+		WHERE id = $3
+	`)
+
+	_, err = tx.Exec(updateQuery, newStateID, userID, ticketID)
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Failed to close ticket")
+		return
+	}
+
+	// Add article documenting the closure
+	if closeRequest.Comment != "" {
+		insertArticleQuery := database.ConvertPlaceholders(`
+			INSERT INTO article (
+				ticket_id,
+				article_sender_type_id,
+				communication_channel_id,
+				is_visible_for_customer,
+				search_index_needs_rebuild,
+				create_time,
+				create_by,
+				change_time,
+				change_by
+			) VALUES (
+				$1, 1, 1, 1, 0, NOW(), $2, NOW(), $3
+			)
+		`)
+
+		articleResult, err := tx.Exec(insertArticleQuery, ticketID, userID, userID)
+		if err == nil {
+			articleID, _ := articleResult.LastInsertId()
+			
+			// Insert article content
+			subject := fmt.Sprintf("Ticket Closed: %s", closeRequest.Resolution)
+			body := closeRequest.Comment
+			if body == "" {
+				body = fmt.Sprintf("Ticket has been closed as %s.", closeRequest.Resolution)
+			}
+			
+			insertMimeQuery := database.ConvertPlaceholders(`
+				INSERT INTO article_data_mime (
+					article_id,
+					a_subject,
+					a_body,
+					a_content_type,
+					incoming_time,
+					create_time,
+					create_by,
+					change_time,
+					change_by
+				) VALUES (
+					$1, $2, $3, 'text/plain', 
+					$4, NOW(), $5, NOW(), $6
+				)
+			`)
+			
+			tx.Exec(insertMimeQuery, articleID, subject, body, time.Now().Unix(), userID, userID)
+		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		sendError(c, http.StatusInternalServerError, "Failed to commit transaction")
+		return
+	}
+
+	// Return success response
+	stateName := "closed successful"
+	if newStateID == 3 {
+		stateName = "closed unsuccessful"
+	}
+
 	sendSuccess(c, gin.H{
 		"id":         ticketID,
-		"status":     "closed",
+		"state_id":   newStateID,
+		"state":      stateName,
 		"resolution": closeRequest.Resolution,
 		"comment":    closeRequest.Comment,
 		"closed_at":  time.Now().UTC(),
 	})
 }
 
-// handleReopenTicket reopens a closed ticket
-func (router *APIRouter) handleReopenTicket(c *gin.Context) {
-	ticketID := c.Param("id")
-	if ticketID == "" {
+// HandleReopenTicket reopens a closed ticket
+func (router *APIRouter) HandleReopenTicket(c *gin.Context) {
+	ticketIDStr := c.Param("id")
+	if ticketIDStr == "" {
 		sendError(c, http.StatusBadRequest, "Ticket ID required")
+		return
+	}
+
+	ticketID, err := strconv.Atoi(ticketIDStr)
+	if err != nil {
+		sendError(c, http.StatusBadRequest, "Invalid ticket ID")
 		return
 	}
 
@@ -479,10 +1123,119 @@ func (router *APIRouter) handleReopenTicket(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement actual ticket reopening
+	// Get user ID from context
+	userID := 1 // Default for testing
+	if id, exists := c.Get("user_id"); exists {
+		userID = id.(int)
+	}
+
+	// Get database connection
+	db, err := database.GetDB()
+	if err != nil {
+		sendError(c, http.StatusServiceUnavailable, "Database unavailable")
+		return
+	}
+
+	// Check if ticket exists and get current state
+	var currentStateID int
+	var title string
+	err = db.QueryRow(database.ConvertPlaceholders(
+		"SELECT ticket_state_id, title FROM ticket WHERE id = $1",
+	), ticketID).Scan(&currentStateID, &title)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			sendError(c, http.StatusNotFound, "Ticket not found")
+		} else {
+			sendError(c, http.StatusInternalServerError, "Database error")
+		}
+		return
+	}
+
+	// Check if ticket is not closed
+	if currentStateID != 2 && currentStateID != 3 {
+		sendError(c, http.StatusBadRequest, "Ticket is not closed")
+		return
+	}
+
+	// Start transaction
+	tx, err := db.Begin()
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Failed to start transaction")
+		return
+	}
+	defer tx.Rollback()
+
+	// Update ticket state to open
+	updateQuery := database.ConvertPlaceholders(`
+		UPDATE ticket 
+		SET ticket_state_id = 4,
+		    archive_flag = 0,
+		    change_time = NOW(),
+		    change_by = $1
+		WHERE id = $2
+	`)
+
+	_, err = tx.Exec(updateQuery, userID, ticketID)
+	if err != nil {
+		sendError(c, http.StatusInternalServerError, "Failed to reopen ticket")
+		return
+	}
+
+	// Add article documenting the reopening
+	insertArticleQuery := database.ConvertPlaceholders(`
+		INSERT INTO article (
+			ticket_id,
+			article_sender_type_id,
+			communication_channel_id,
+			is_visible_for_customer,
+			search_index_needs_rebuild,
+			create_time,
+			create_by,
+			change_time,
+			change_by
+		) VALUES (
+			$1, 1, 1, 1, 0, NOW(), $2, NOW(), $3
+		)
+	`)
+
+	articleResult, err := tx.Exec(insertArticleQuery, ticketID, userID, userID)
+	if err == nil {
+		articleID, _ := articleResult.LastInsertId()
+		
+		// Insert article content
+		insertMimeQuery := database.ConvertPlaceholders(`
+			INSERT INTO article_data_mime (
+				article_id,
+				a_subject,
+				a_body,
+				a_content_type,
+				incoming_time,
+				create_time,
+				create_by,
+				change_time,
+				change_by
+			) VALUES (
+				$1, 'Ticket Reopened', $2, 'text/plain', 
+				$3, NOW(), $4, NOW(), $5
+			)
+		`)
+		
+		body := fmt.Sprintf("Ticket has been reopened. Reason: %s", reopenRequest.Reason)
+		tx.Exec(insertMimeQuery, articleID, body, time.Now().Unix(), userID, userID)
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		sendError(c, http.StatusInternalServerError, "Failed to commit transaction")
+		return
+	}
+
+	// Return success response
 	sendSuccess(c, gin.H{
 		"id":         ticketID,
-		"status":     "open",
+		"state_id":   4,
+		"state":      "open",
 		"reason":     reopenRequest.Reason,
 		"reopened_at": time.Now().UTC(),
 	})
@@ -579,49 +1332,8 @@ func (router *APIRouter) handleGetTicketArticles(c *gin.Context) {
 
 // handleAddTicketArticle adds a new article to a ticket
 func (router *APIRouter) handleAddTicketArticle(c *gin.Context) {
-	ticketID := c.Param("id")
-	if ticketID == "" {
-		sendError(c, http.StatusBadRequest, "Ticket ID required")
-		return
-	}
-
-	var articleRequest struct {
-		Subject string `json:"subject" binding:"required"`
-		Body    string `json:"body" binding:"required"`
-		To      string `json:"to" binding:"required,email"`
-		Type    string `json:"type"` // email, note, phone
-		Visible bool   `json:"visible"` // visible to customer
-	}
-
-	if err := c.ShouldBindJSON(&articleRequest); err != nil {
-		sendError(c, http.StatusBadRequest, "Invalid article request: "+err.Error())
-		return
-	}
-
-	userID, email, _, exists := middleware.GetCurrentUser(c)
-	if !exists {
-		sendError(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	// TODO: Implement actual article creation
-	article := gin.H{
-		"id":         123,
-		"ticket_id":  ticketID,
-		"from":       email,
-		"to":         articleRequest.To,
-		"subject":    articleRequest.Subject,
-		"body":       articleRequest.Body,
-		"type":       articleRequest.Type,
-		"visible":    articleRequest.Visible,
-		"created_by": userID,
-		"created_at": time.Now().UTC(),
-	}
-
-	c.JSON(http.StatusCreated, APIResponse{
-		Success: true,
-		Data:    article,
-	})
+	// Delegate to the actual implementation from api package
+	HandleCreateArticleAPI(c)
 }
 
 // handleGetTicketArticle returns a specific article

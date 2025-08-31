@@ -12,4 +12,7 @@ type ITicketRepository interface {
 	GetByTicketNumber(ticketNumber string) (*models.Ticket, error)
 	Count() (int, error)
 	CountByStatus(status string) (int, error)
+	// Dashboard statistics methods
+	CountByStateID(stateID int) (int, error)
+	CountClosedToday() (int, error)
 }

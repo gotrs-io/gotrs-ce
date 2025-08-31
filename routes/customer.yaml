@@ -1,0 +1,112 @@
+# Customer Routes Configuration
+apiVersion: v1
+kind: RouteGroup
+metadata:
+  name: customer
+  description: "Customer-specific routes for ticket management and self-service"
+  namespace: default
+  enabled: true
+spec:
+  prefix: /customer
+  middleware:
+    - auth # Require authentication
+    - customer # Require customer access
+  routes:
+    # Customer dashboard
+    - path: /
+      method: GET
+      handler: handleCustomerDashboard
+      template: pages/customer/dashboard.pongo2
+      description: "Display customer dashboard with their tickets"
+
+    # Customer tickets
+    - path: /tickets
+      method: GET
+      handler: handleCustomerTickets
+      template: pages/customer/tickets.pongo2
+      description: "Display customer's ticket list"
+
+    # New ticket creation
+    - path: /ticket/new
+      method: GET
+      handler: handleCustomerNewTicket
+      template: pages/customer/new_ticket.pongo2
+      description: "Display new ticket creation form"
+
+    - path: /ticket/create
+      method: POST
+      handler: handleCustomerCreateTicket
+      description: "Process new ticket creation"
+
+    # Individual ticket management
+    - path: /ticket/:id
+      method: GET
+      handler: handleCustomerTicketView
+      template: pages/customer/ticket_view.pongo2
+      description: "Display customer ticket details and conversation"
+
+    - path: /ticket/:id/reply
+      method: POST
+      handler: handleCustomerTicketReply
+      description: "Process customer reply to ticket"
+
+    - path: /ticket/:id/close
+      method: POST
+      handler: handleCustomerCloseTicket
+      description: "Close customer ticket"
+
+    # Customer profile management
+    - path: /profile
+      method: GET
+      handler: handleCustomerProfile
+      template: pages/customer/profile.pongo2
+      description: "Display customer profile information"
+
+    - path: /profile/update
+      method: PUT
+      handler: handleCustomerUpdateProfile
+      description: "Update customer profile information"
+
+    # Password management
+    - path: /password/form
+      method: GET
+      handler: handleCustomerPasswordForm
+      template: pages/customer/password_form.pongo2
+      description: "Display password change form"
+
+    - path: /password/change
+      method: POST
+      handler: handleCustomerChangePassword
+      description: "Process password change"
+
+    # Knowledge base access
+    - path: /knowledge-base
+      method: GET
+      handler: handleCustomerKnowledgeBase
+      template: pages/customer/knowledge_base.pongo2
+      description: "Display knowledge base articles"
+
+    - path: /kb/search
+      method: GET
+      handler: handleCustomerKBSearch
+      template: pages/customer/kb_search.pongo2
+      description: "Search knowledge base articles"
+
+    - path: /kb/article/:id
+      method: GET
+      handler: handleCustomerKBArticle
+      template: pages/customer/kb_article.pongo2
+      description: "Display knowledge base article"
+
+    # Company information
+    - path: /company/info
+      method: GET
+      handler: handleCustomerCompanyInfo
+      template: pages/customer/company_info.pongo2
+      description: "Display customer company information"
+
+    - path: /company/users
+      method: GET
+      handler: handleCustomerCompanyUsers
+      template: pages/customer/company_users.pongo2
+      description: "Display customer company users"

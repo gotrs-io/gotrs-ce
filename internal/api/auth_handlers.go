@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/flosch/pongo2/v6"
+	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/constants"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/service"
@@ -17,7 +17,7 @@ var HandleAuthLogin = func(c *gin.Context) {
 	// Get form data (not JSON since it's coming from an HTML form)
 	username := c.PostForm("username")
 	password := c.PostForm("password")
-	
+
 	if username == "" || password == "" {
 		// Return error that HTMX can display
 		pongo2Renderer.HTML(c, http.StatusBadRequest, "components/error.pongo2", pongo2.Context{
@@ -25,7 +25,9 @@ var HandleAuthLogin = func(c *gin.Context) {
 		})
 		return
 	}
+
 	
+
 	// Get auth service
 	authService := GetAuthService()
 	if authService == nil {
@@ -34,11 +36,11 @@ var HandleAuthLogin = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Authenticate user
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	// Use the real auth service for production-grade authentication
 	user, accessToken, refreshToken, err := authService.Login(ctx, username, password)
 	if err != nil {
@@ -58,7 +60,7 @@ var HandleAuthLogin = func(c *gin.Context) {
 		}
 		return
 	}
-	
+
 	// Get user's preferred session timeout
 	sessionTimeout := constants.DefaultSessionTimeout // Default 24 hours
 	if db, err := database.GetDB(); err == nil && db != nil {
@@ -67,10 +69,10 @@ var HandleAuthLogin = func(c *gin.Context) {
 			sessionTimeout = userTimeout
 		}
 	}
-	
-	// Set cookies for tokens - use access_token name that SessionMiddleware expects
+
+	// Set cookies for tokens - use auth_token name that AuthMiddleware expects
 	c.SetCookie(
-		"access_token",  // SessionMiddleware looks for this name
+		"auth_token", // AuthMiddleware looks for this name
 		accessToken,
 		sessionTimeout,
 		"/",
@@ -78,9 +80,9 @@ var HandleAuthLogin = func(c *gin.Context) {
 		false, // Not HTTPS in dev
 		true,  // HttpOnly
 	)
-	
+
 	c.SetCookie(
-		"refresh_token", 
+		"refresh_token",
 		refreshToken,
 		constants.RefreshTokenTimeout, // 7 days
 		"/",
@@ -88,11 +90,11 @@ var HandleAuthLogin = func(c *gin.Context) {
 		false,
 		true,
 	)
-	
+
 	// Store user in session (use "user_id" to match middleware)
 	c.Set("user", user)
 	c.Set("user_id", user.ID)
-	
+
 	// Check if this is an HTMX request or regular form submission
 	if c.GetHeader("HX-Request") == "true" {
 		// For HTMX, use HX-Redirect header
@@ -107,9 +109,9 @@ var HandleAuthLogin = func(c *gin.Context) {
 // HandleAuthLogout handles user logout
 var HandleAuthLogout = func(c *gin.Context) {
 	// Clear cookies
-	c.SetCookie("access_token", "", -1, "/", "", false, true)
+	c.SetCookie("auth_token", "", -1, "/", "", false, true)
 	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
-	
+
 	// Redirect to login
 	c.Redirect(http.StatusSeeOther, "/login")
 }
@@ -123,7 +125,7 @@ var HandleAuthCheck = func(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"authenticated": true,
 		"userID":        userID,

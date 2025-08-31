@@ -6,7 +6,7 @@ services:
   mariadb:
     image: mariadb:11
     container_name: gotrs-mariadb
-    user: "999:999"  # Run as mysql user (standard for MariaDB)
+    user: "999:999" # Run as mysql user (standard for MariaDB)
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-changeme}
       MYSQL_DATABASE: ${DB_NAME:-otrs}
@@ -71,15 +71,16 @@ services:
 
   # Go Backend with Hot Reload
   backend:
-    image: gotrs:latest
+    build: .
+    image: gotrs-backend:latest
     container_name: gotrs-backend
     environment:
       # Enable YAML-based routing by default
-      ENABLE_YAML_ROUTING: true
+      ENABLE_YAML_ROUTING: ${ENABLE_YAML_ROUTING:-true}
       ROUTES_DIR: /app/routes
       APP_ENV: ${APP_ENV:-development}
       APP_PORT: ${APP_PORT:-8080}
-      DB_DRIVER: ${DB_DRIVER:-postgres}
+      DB_DRIVER: ${DB_DRIVER:-mariadb}
       DB_HOST: ${DB_HOST:-postgres}
       DB_PORT: ${DB_PORT:-5432}
       DB_NAME: ${DB_NAME}
@@ -97,7 +98,7 @@ services:
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:
-      - ./storage:/app/storage:Z
+       - ./storage:/app/storage:Z
     depends_on:
       # postgres:
       #   condition: service_healthy
@@ -109,19 +110,25 @@ services:
     # For development hot reload, volume mount handles code changes
 
   # Nginx Reverse Proxy (serves static assets and proxies to backend)
-  nginx:
-    image: nginx:alpine
-    container_name: gotrs-nginx
-    ports:
-      - "${NGINX_PORT:-80}:80"
-    volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro,Z
-      - ./docker/nginx/error.html:/etc/nginx/error.html:ro,Z
-      - ./static:/var/www/static:ro,Z
-    depends_on:
-      - backend
-    networks:
-      - gotrs-network
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: gotrs-nginx
+  #   user: "101:101" # Run as nginx user for Podman rootless compatibility
+  #   command: >
+  #     sh -c "
+  #       mkdir -p /tmp/nginx/client_temp /tmp/nginx/proxy_temp /tmp/nginx/fastcgi_temp /tmp/nginx/uwsgi_temp /tmp/nginx/scgi_temp &&
+  #       nginx -g 'daemon off;'
+  #     "
+  #   ports:
+  #     - "${NGINX_PORT:-80}:80"
+  #   volumes:
+  #     - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro,Z
+  #     - ./docker/nginx/error.html:/etc/nginx/error.html:ro,Z
+  #     - ./static:/var/www/static:ro,Z
+  #   depends_on:
+  #     - backend
+  #   networks:
+  #     - gotrs-network
 
   # Mailhog for Email Testing
   #mailhog:

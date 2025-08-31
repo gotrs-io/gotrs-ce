@@ -2,7 +2,6 @@ package v1
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,17 +9,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	. "github.com/gotrs-io/gotrs-ce/internal/api"
 )
 
 func TestListTickets_Pagination(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	apiRouter := NewAPIRouter(nil, nil, nil)
 	
 	router.GET("/api/v1/tickets", func(c *gin.Context) {
 		c.Set("user_id", 1)
 		c.Set("is_authenticated", true)
-		apiRouter.HandleListTickets(c)
+		HandleListTicketsAPI(c)
 	})
 
 	tests := []struct {
@@ -96,12 +95,11 @@ func TestListTickets_Pagination(t *testing.T) {
 func TestListTickets_Filtering(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	apiRouter := NewAPIRouter(nil, nil, nil)
 	
 	router.GET("/api/v1/tickets", func(c *gin.Context) {
 		c.Set("user_id", 1)
 		c.Set("is_authenticated", true)
-		apiRouter.HandleListTickets(c)
+		HandleListTicketsAPI(c)
 	})
 
 	tests := []struct {
@@ -183,12 +181,11 @@ func TestListTickets_Filtering(t *testing.T) {
 func TestListTickets_Search(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	apiRouter := NewAPIRouter(nil, nil, nil)
 	
 	router.GET("/api/v1/tickets", func(c *gin.Context) {
 		c.Set("user_id", 1)
 		c.Set("is_authenticated", true)
-		apiRouter.HandleListTickets(c)
+		HandleListTicketsAPI(c)
 	})
 
 	tests := []struct {
@@ -237,12 +234,11 @@ func TestListTickets_Search(t *testing.T) {
 func TestListTickets_Sorting(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	apiRouter := NewAPIRouter(nil, nil, nil)
 	
 	router.GET("/api/v1/tickets", func(c *gin.Context) {
 		c.Set("user_id", 1)
 		c.Set("is_authenticated", true)
-		apiRouter.HandleListTickets(c)
+		HandleListTicketsAPI(c)
 	})
 
 	tests := []struct {
@@ -301,12 +297,11 @@ func TestListTickets_Sorting(t *testing.T) {
 func TestListTickets_ResponseFormat(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	apiRouter := NewAPIRouter(nil, nil, nil)
 	
 	router.GET("/api/v1/tickets", func(c *gin.Context) {
 		c.Set("user_id", 1)
 		c.Set("is_authenticated", true)
-		apiRouter.HandleListTickets(c)
+		HandleListTicketsAPI(c)
 	})
 
 	req := httptest.NewRequest("GET", "/api/v1/tickets", nil)
@@ -408,12 +403,11 @@ func TestListTickets_Permissions(t *testing.T) {
 func TestListTickets_EdgeCases(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	apiRouter := NewAPIRouter(nil, nil, nil)
 	
 	router.GET("/api/v1/tickets", func(c *gin.Context) {
 		c.Set("user_id", 1)
 		c.Set("is_authenticated", true)
-		apiRouter.HandleListTickets(c)
+		HandleListTicketsAPI(c)
 	})
 
 	tests := []struct {
@@ -477,12 +471,11 @@ func TestListTickets_EdgeCases(t *testing.T) {
 func TestListTickets_IncludeRelations(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	apiRouter := NewAPIRouter(nil, nil, nil)
 	
 	router.GET("/api/v1/tickets", func(c *gin.Context) {
 		c.Set("user_id", 1)
 		c.Set("is_authenticated", true)
-		apiRouter.HandleListTickets(c)
+		HandleListTicketsAPI(c)
 	})
 
 	tests := []struct {

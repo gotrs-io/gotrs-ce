@@ -10,8 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/gotrs-io/gotrs-ce/internal/auth"
-	"github.com/gotrs-io/gotrs-ce/internal/middleware"
+	. "github.com/gotrs-io/gotrs-ce/internal/api"
 )
 
 func TestCreateTicket_Integration(t *testing.T) {
@@ -24,15 +23,7 @@ func TestCreateTicket_Integration(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	
-	// Create mock JWT manager and RBAC
-	jwtManager := &auth.JWTManager{
-		AccessTokenSecret:  []byte("test-secret"),
-		RefreshTokenSecret: []byte("test-refresh-secret"),
-	}
-	rbac := auth.NewRBACService()
-	
-	// Create API router
-	apiRouter := NewAPIRouter(rbac, jwtManager, nil)
+	// Mock authentication setup (no longer needed for direct API handler calls)
 	
 	// Setup routes
 	v1 := router.Group("/api/v1")
@@ -48,7 +39,7 @@ func TestCreateTicket_Integration(t *testing.T) {
 	})
 	
 	tickets := v1.Group("/tickets")
-	tickets.POST("", apiRouter.HandleCreateTicket)
+	tickets.POST("", HandleCreateTicketAPI)
 
 	tests := []struct {
 		name       string
@@ -187,12 +178,11 @@ func TestCreateTicket_Validation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
-			apiRouter := NewAPIRouter(nil, nil, nil)
 			
 			router.POST("/api/v1/tickets", func(c *gin.Context) {
 				c.Set("user_id", 1)
 				c.Set("is_authenticated", true)
-				apiRouter.HandleCreateTicket(c)
+				HandleCreateTicketAPI(c)
 			})
 			
 			var jsonData []byte

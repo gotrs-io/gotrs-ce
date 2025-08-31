@@ -100,6 +100,9 @@ func registerExistingHandlers(registry *HandlerRegistry, db *sql.DB, jwtManager 
 	
 	// Register customer handlers
 	registerCustomerHandlers(handlers, db)
+	
+	// Register dev handlers
+	registerDevHandlers(handlers, db)
 
 	// Register API v1 handlers
 	handlers["api_v1_webhooks_list"] = api.HandleListWebhooksAPI
@@ -129,6 +132,16 @@ func registerExistingHandlers(registry *HandlerRegistry, db *sql.DB, jwtManager 
 
 	// Register all handlers with the registry
 	return registry.RegisterBatch(handlers)
+}
+
+// registerDevHandlers registers dev-specific handlers
+func registerDevHandlers(handlers map[string]gin.HandlerFunc, db *sql.DB) {
+	// Dev dashboard handlers
+	handlers["HandleDevDashboard"] = api.HandleDevDashboard
+	handlers["HandleClaudeTickets"] = api.HandleClaudeTickets
+	handlers["HandleDevAction"] = api.HandleDevAction
+	handlers["HandleDevLogs"] = api.HandleDevLogs
+	handlers["HandleDevDatabase"] = api.HandleDevDatabase
 }
 
 // registerCoreHandlers registers core handlers including redirects

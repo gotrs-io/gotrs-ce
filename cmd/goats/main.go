@@ -146,6 +146,13 @@ func main() {
 		"HandleGetPriorityAPI":    api.HandleGetPriorityAPI,
 		"HandleSearchAPI":         api.HandleSearchAPI,
 
+		// Dev handlers
+		"HandleDevDashboard":  api.HandleDevDashboard,
+		"HandleClaudeTickets": api.HandleClaudeTickets,
+		"HandleDevAction":     api.HandleDevAction,
+		"HandleDevLogs":       api.HandleDevLogs,
+		"HandleDevDatabase":   api.HandleDevDatabase,
+
 		// Auth handlers
 		"handleLoginPage": api.HandleLoginPage,
 		"handleAuthLogin": api.HandleAuthLogin,

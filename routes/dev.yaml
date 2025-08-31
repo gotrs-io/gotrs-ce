@@ -5,6 +5,7 @@ metadata:
   description: "Developer dashboard and tools - admin only"
   version: "1.0.0"
   created: "2025-08-31"
+  enabled: true
 
 spec:
   prefix: /dev
@@ -13,62 +14,56 @@ spec:
     - admin # Require admin role
   routes:
     # Main dashboard
-    - path: ""
+    - path: /
       method: GET
-      handler: handleDevDashboard
+      handler: HandleDevDashboard
       description: "Developer dashboard main page"
-      template: "pages/dev/dashboard.pongo2"
-
-    - path: "/"
-      method: GET
-      handler: handleDevDashboard
-      description: "Developer dashboard main page (root)"
       template: "pages/dev/dashboard.pongo2"
 
     # Claude tickets monitoring
     - path: "/claude-tickets"
       method: GET
-      handler: handleClaudeTickets
+      handler: HandleClaudeTickets
       description: "Monitor Claude Code queue tickets"
       template: "pages/dev/claude_tickets.pongo2"
 
     # Database explorer
     - path: "/database"
       method: GET
-      handler: handleDevDatabase
+      handler: HandleDevDatabase
       description: "Database explorer and query tool"
       template: "pages/dev/database.pongo2"
 
     - path: "/database"
       method: POST
-      handler: handleDevDatabase
+      handler: HandleDevDatabase
       description: "Execute database queries"
       template: "pages/dev/database.pongo2"
 
     # Log viewer
     - path: "/logs"
       method: GET
-      handler: handleDevLogs
+      handler: HandleDevLogs
       description: "View and search application logs"
       template: "pages/dev/logs.pongo2"
 
     # Dynamic dashboard
     - path: "/dashboard-dynamic"
       method: GET
-      handler: handleDevDashboard
+      handler: HandleDevDashboard
       description: "Dynamic developer dashboard"
       template: "pages/dev/dashboard_dynamic.pongo2"
 
     # Server-Sent Events for real-time updates
     - path: "/tickets/events"
       method: GET
-      handler: handleDevAction
+      handler: HandleDevAction
       description: "Real-time ticket events stream"
 
     # Actions
     - path: "/action/:action"
       method: POST
-      handler: handleDevAction
+      handler: HandleDevAction
       description: "Execute developer actions"
 
     # TODO: Add more dev tools as needed

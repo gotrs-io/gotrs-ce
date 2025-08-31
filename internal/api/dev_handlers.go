@@ -8,30 +8,12 @@ import (
 
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
-	"github.com/gotrs-io/gotrs-ce/internal/config"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/services/adapter"
 )
 
 // handleDevDashboard shows the main developer dashboard
 func handleDevDashboard(c *gin.Context) {
-	// Ensure dashboard manager is initialized
-	if config.DefaultDashboardManager == nil {
-		pongo2Renderer.HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
-			"error": "Dashboard manager not initialized",
-		})
-		return
-	}
-
-	// Load dashboard configuration from YAML
-	dashboardConfig, err := config.DefaultDashboardManager.LoadDashboard("dev-dashboard")
-	if err != nil {
-		pongo2Renderer.HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
-			"error": fmt.Sprintf("Failed to load dashboard config: %v", err),
-		})
-		return
-	}
-
 	db, err := adapter.GetDB()
 	if err != nil {
 		pongo2Renderer.HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
@@ -40,90 +22,110 @@ func handleDevDashboard(c *gin.Context) {
 		return
 	}
 
-	// Calculate stats from YAML configuration
+	// Get basic stats
 	stats := make(map[string]interface{})
-	for _, stat := range dashboardConfig.Spec.Dashboard.Stats {
-		var value interface{} = "N/A"
-
-		// Execute SQL query if defined
-		if stat.Query != "" && db != nil {
-			var result int
-			if err := db.QueryRow(stat.Query).Scan(&result); err == nil {
-				if stat.Suffix != "" {
-					value = fmt.Sprintf("%d%s", result, stat.Suffix)
-				} else {
-					value = result
-				}
-			}
-		}
-
-		// Execute command if defined
-		if stat.Command != "" {
-			cmd := exec.Command("sh", "-c", stat.Command)
-			if output, err := cmd.Output(); err == nil {
-				switch stat.Parser {
-				case "build_status":
-					value = "OK"
-				case "test_status":
-					if strings.Contains(string(output), "PASS") {
-						value = "PASS"
-					} else {
-						value = "FAIL"
-					}
-				default:
-					value = strings.TrimSpace(string(output))
-				}
-			} else {
-				switch stat.Parser {
-				case "build_status":
-					value = "Failed"
-				case "test_status":
-					value = "FAIL"
-				}
-			}
-		}
-
-		stats[strings.ToLower(strings.ReplaceAll(stat.Name, " ", "_"))] = value
+	
+	// Get ticket count
+	var ticketCount int
+	if err := db.QueryRow(database.ConvertPlaceholders("SELECT COUNT(*) FROM ticket")).Scan(&ticketCount); err == nil {
+		stats["total_tickets"] = ticketCount
+	} else {
+		stats["total_tickets"] = "N/A"
 	}
 
-	// Prepare tiles with color schemes and icons
-	tilesData := make([]map[string]interface{}, len(dashboardConfig.Spec.Dashboard.Tiles))
-	for i, tile := range dashboardConfig.Spec.Dashboard.Tiles {
-		colorScheme := config.DefaultDashboardManager.GetColorScheme(dashboardConfig, tile.Color)
-		iconPath := config.DefaultDashboardManager.GetIconPath(dashboardConfig, tile.Icon)
-
-		tilesData[i] = map[string]interface{}{
-			"name":        tile.Name,
-			"description": tile.Description,
-			"url":         tile.URL,
-			"icon":        iconPath,
-			"color":       colorScheme,
-			"category":    tile.Category,
-			"featured":    tile.Featured,
-		}
+	// Get user count
+	var userCount int
+	if err := db.QueryRow(database.ConvertPlaceholders("SELECT COUNT(*) FROM users")).Scan(&userCount); err == nil {
+		stats["total_users"] = userCount
+	} else {
+		stats["total_users"] = "N/A"
 	}
 
-	// Prepare quick actions
-	actionsData := make([]map[string]interface{}, len(dashboardConfig.Spec.Dashboard.QuickActions))
-	for i, action := range dashboardConfig.Spec.Dashboard.QuickActions {
-		colorScheme := config.DefaultDashboardManager.GetColorScheme(dashboardConfig, action.Color)
-		iconPath := config.DefaultDashboardManager.GetIconPath(dashboardConfig, action.Icon)
-
-		actionsData[i] = map[string]interface{}{
-			"name":     action.Name,
-			"action":   action.Action,
-			"url":      action.URL,
-			"endpoint": action.Endpoint,
-			"icon":     iconPath,
-			"color":    colorScheme,
-			"confirm":  action.Confirm,
-		}
+	// Get queue count
+	var queueCount int
+	if err := db.QueryRow(database.ConvertPlaceholders("SELECT COUNT(*) FROM queue")).Scan(&queueCount); err == nil {
+		stats["total_queues"] = queueCount
+	} else {
+		stats["total_queues"] = "N/A"
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/dev/dashboard_dynamic.pongo2", pongo2.Context{
+	// Get open tickets count
+	var openTickets int
+	if err := db.QueryRow(database.ConvertPlaceholders(`
+		SELECT COUNT(*) FROM ticket t 
+		JOIN ticket_state ts ON t.ticket_state_id = ts.id 
+		WHERE ts.name = 'open'
+	`)).Scan(&openTickets); err == nil {
+		stats["open_tickets"] = openTickets
+	} else {
+		stats["open_tickets"] = "N/A"
+	}
+
+	// Define basic tiles
+	tilesData := []map[string]interface{}{
+		{
+			"name":        "Database Explorer",
+			"description": "Query and explore the database",
+			"url":         "/dev/database",
+			"icon":        "/static/images/database.svg",
+			"color":       "blue",
+			"category":    "tools",
+			"featured":    true,
+		},
+		{
+			"name":        "Log Viewer",
+			"description": "View application logs",
+			"url":         "/dev/logs",
+			"icon":        "/static/images/logs.svg",
+			"color":       "green",
+			"category":    "monitoring",
+			"featured":    true,
+		},
+		{
+			"name":        "Ticket Monitor",
+			"description": "Monitor ticket queue",
+			"url":         "/dev/claude-tickets",
+			"icon":        "/static/images/tickets.svg",
+			"color":       "orange",
+			"category":    "monitoring",
+			"featured":    false,
+		},
+		{
+			"name":        "Dynamic Dashboard",
+			"description": "Dynamic dashboard view",
+			"url":         "/dev/dashboard-dynamic",
+			"icon":        "/static/images/dashboard.svg",
+			"color":       "purple",
+			"category":    "tools",
+			"featured":    false,
+		},
+	}
+
+	// Define quick actions
+	actionsData := []map[string]interface{}{
+		{
+			"name":     "Clear Cache",
+			"action":   "clear-cache",
+			"url":      "#",
+			"endpoint": "/dev/action/clear-cache",
+			"icon":     "/static/images/cache.svg",
+			"color":    "yellow",
+			"confirm":  false,
+		},
+		{
+			"name":     "Check Health",
+			"action":   "check-health",
+			"url":      "#",
+			"endpoint": "/dev/action/check-health",
+			"icon":     "/static/images/health.svg",
+			"color":    "green",
+			"confirm":  false,
+		},
+	}
+
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/dev/dashboard.pongo2", pongo2.Context{
 		"User":       getUserMapForTemplate(c),
 		"ActivePage": "dev",
-		"config":     dashboardConfig,
 		"stats":      stats,
 		"tiles":      tilesData,
 		"actions":    actionsData,

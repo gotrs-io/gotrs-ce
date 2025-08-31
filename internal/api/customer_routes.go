@@ -424,7 +424,7 @@ func handleCustomerCreateTicket(db *sql.DB) gin.HandlerFunc {
 		}
 
 		// Redirect to ticket view
-		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/customer/tickets/%d", ticketID))
+		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/customer/ticket/%d", ticketID))
 	}
 }
 

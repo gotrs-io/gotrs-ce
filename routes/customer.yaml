@@ -9,6 +9,7 @@ metadata:
 spec:
   prefix: /customer
   middleware:
+    - session # Set session context including is_customer
     - auth # Require authentication
     - customer # Require customer access
   routes:

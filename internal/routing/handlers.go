@@ -78,8 +78,8 @@ func RegisterExistingHandlers(registry *HandlerRegistry) {
 		},
 
 		"customer": func(c *gin.Context) {
-			isCustomer, _ := c.Get("is_customer")
-			if !isCustomer.(bool) {
+			isCustomer, exists := c.Get("is_customer")
+			if !exists || !isCustomer.(bool) {
 				c.JSON(http.StatusForbidden, gin.H{"error": "Customer access required"})
 				c.Abort()
 				return

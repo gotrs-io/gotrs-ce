@@ -36,3 +36,9 @@ spec:
       method: GET
       handler: handleLogoutRedirect
       description: "GET logout route that redirects to login"
+
+    # Demo customer login for testing
+    - path: /auth/customer
+      method: GET
+      handler: handleDemoCustomerLogin
+      description: "Demo customer login for testing customer functionality"

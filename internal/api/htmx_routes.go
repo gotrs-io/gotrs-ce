@@ -22,7 +22,9 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
+
 	"github.com/gotrs-io/gotrs-ce/internal/service"
+
 	"github.com/xeonx/timeago"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -878,6 +880,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 	// Authentication endpoints (no auth required)
 	{
 		api.GET("/auth/login", handleHTMXLogin) // Also support GET for the form
+	api.GET("/auth/customer", handleDemoCustomerLogin) // Demo customer login
 		api.POST("/auth/login", handleLogin(jwtManager))
 		api.POST("/auth/logout", handleHTMXLogout)
 		api.GET("/auth/refresh", underConstructionAPI("/auth/refresh")) // GET for testing
@@ -1298,6 +1301,18 @@ func handleHTMXLogout(c *gin.Context) {
 	c.SetCookie("access_token", "", -1, "/", "", false, true)
 	c.Header("HX-Redirect", "/login")
 	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+// handleDemoCustomerLogin creates a demo customer token for testing
+func handleDemoCustomerLogin(c *gin.Context) {
+	// Create a demo customer token
+	token := fmt.Sprintf("demo_customer_%s_%d", "john.customer", time.Now().Unix())
+	
+	// Set cookie with 24 hour expiry
+	c.SetCookie("access_token", token, 86400, "/", "", false, true)
+	
+	// Redirect to customer dashboard
+	c.Redirect(http.StatusFound, "/customer/")
 }
 
 // handleLogout handles logout requests
@@ -5287,3 +5302,5 @@ func handleClaudeFeedback(c *gin.Context) {
 		"ticket_id":     ticketID,
 	})
 }
+
+

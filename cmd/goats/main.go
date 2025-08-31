@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
@@ -380,6 +381,16 @@ func main() {
 			default:
 				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 			}
+		},
+		"handleDemoCustomerLogin": func(c *gin.Context) {
+			// Create a demo customer token
+			token := fmt.Sprintf("demo_customer_%s_%d", "john.customer", time.Now().Unix())
+			
+			// Set cookie with 24 hour expiry
+			c.SetCookie("access_token", token, 86400, "/", "", false, true)
+			
+			// Redirect to customer dashboard
+			c.Redirect(http.StatusFound, "/customer/")
 		},
 	}
 

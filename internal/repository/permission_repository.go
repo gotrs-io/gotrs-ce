@@ -1,9 +1,10 @@
 package repository
 
 import (
-	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"database/sql"
 	"fmt"
+
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 )
 
 // PermissionKey represents the OTRS permission types
@@ -42,7 +43,7 @@ func (r *PermissionRepository) GetUserPermissions(userID uint) (map[uint][]strin
 	query := database.ConvertPlaceholders(`
 		SELECT group_id, permission_key 
 		FROM group_user 
-		WHERE user_id = $1 AND permission_value = 1
+		WHERE user_id = $1
 		ORDER BY group_id, permission_key`)
 
 	rows, err := r.db.Query(query, userID)
@@ -69,7 +70,7 @@ func (r *PermissionRepository) GetGroupPermissions(groupID uint) (map[uint][]str
 	query := database.ConvertPlaceholders(`
 		SELECT user_id, permission_key 
 		FROM group_user 
-		WHERE group_id = $1 AND permission_value = 1
+		WHERE group_id = $1
 		ORDER BY user_id, permission_key`)
 
 	rows, err := r.db.Query(query, groupID)
@@ -93,32 +94,30 @@ func (r *PermissionRepository) GetGroupPermissions(groupID uint) (map[uint][]str
 
 // SetUserGroupPermission sets or updates a permission
 func (r *PermissionRepository) SetUserGroupPermission(userID, groupID uint, permKey string, value int) error {
-	// First try to update existing permission
-	updateQuery := database.ConvertPlaceholders(`
-		UPDATE group_user 
-		SET permission_value = $4, change_time = CURRENT_TIMESTAMP, change_by = $5
-		WHERE user_id = $1 AND group_id = $2 AND permission_key = $3`)
+	// In OTRS schema, presence of a row means the permission is granted
+	// If value is 0, we delete the row; if value is 1, we ensure the row exists
+	if value == 0 {
+		// Remove permission by deleting the row
+		deleteQuery := database.ConvertPlaceholders(`
+			DELETE FROM group_user 
+			WHERE user_id = $1 AND group_id = $2 AND permission_key = $3`)
 
-	result, err := r.db.Exec(updateQuery, userID, groupID, permKey, value, userID)
-	if err != nil {
-		return fmt.Errorf("failed to update permission: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	// If no rows were updated, insert new permission
-	if rowsAffected == 0 {
-		insertQuery := database.ConvertPlaceholders(`
-			INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_by, change_by)
-			VALUES ($1, $2, $3, $4, $5, $6)`)
-
-		_, err = r.db.Exec(insertQuery, userID, groupID, permKey, value, userID, userID)
+		_, err := r.db.Exec(deleteQuery, userID, groupID, permKey)
 		if err != nil {
-			return fmt.Errorf("failed to insert permission: %w", err)
+			return fmt.Errorf("failed to remove permission: %w", err)
 		}
+		return nil
+	}
+
+	// Insert or update permission (value = 1 means grant permission)
+	insertQuery := database.ConvertPlaceholders(`
+		INSERT INTO group_user (user_id, group_id, permission_key, create_time, create_by, change_time, change_by)
+		VALUES ($1, $2, $3, NOW(), $4, NOW(), $4)
+		ON DUPLICATE KEY UPDATE change_time = NOW(), change_by = $4`)
+
+	_, err := r.db.Exec(insertQuery, userID, groupID, permKey, userID)
+	if err != nil {
+		return fmt.Errorf("failed to set permission: %w", err)
 	}
 
 	return nil
@@ -133,7 +132,7 @@ func (r *PermissionRepository) RemoveUserGroupPermission(userID, groupID uint, p
 // GetUserGroupMatrix gets all permissions for a specific user-group combination
 func (r *PermissionRepository) GetUserGroupMatrix(userID, groupID uint) (map[string]bool, error) {
 	query := database.ConvertPlaceholders(`
-		SELECT permission_key, permission_value 
+		SELECT permission_key
 		FROM group_user 
 		WHERE user_id = $1 AND group_id = $2`)
 
@@ -151,11 +150,10 @@ func (r *PermissionRepository) GetUserGroupMatrix(userID, groupID uint) (map[str
 
 	for rows.Next() {
 		var permKey string
-		var permValue int
-		if err := rows.Scan(&permKey, &permValue); err != nil {
+		if err := rows.Scan(&permKey); err != nil {
 			return nil, fmt.Errorf("failed to scan matrix: %w", err)
 		}
-		matrix[permKey] = (permValue == 1)
+		matrix[permKey] = true // Presence of row means permission is granted
 	}
 
 	return matrix, rows.Err()
@@ -171,7 +169,7 @@ func (r *PermissionRepository) SetUserGroupMatrix(userID, groupID uint, permissi
 	defer tx.Rollback()
 
 	// Delete existing permissions
-	deleteQuery := `DELETE FROM group_user WHERE user_id = $1 AND group_id = $2`
+	deleteQuery := database.ConvertPlaceholders(`DELETE FROM group_user WHERE user_id = $1 AND group_id = $2`)
 	_, err = tx.Exec(deleteQuery, userID, groupID)
 	if err != nil {
 		return fmt.Errorf("failed to delete existing permissions: %w", err)
@@ -179,8 +177,8 @@ func (r *PermissionRepository) SetUserGroupMatrix(userID, groupID uint, permissi
 
 	// Insert new permissions
 	insertQuery := database.ConvertPlaceholders(`
-		INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_time, create_by, change_time, change_by)
-		VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5, CURRENT_TIMESTAMP, $6`)
+		INSERT INTO group_user (user_id, group_id, permission_key, create_time, create_by, change_time, change_by)
+		VALUES ($1, $2, $3, NOW(), $4, NOW(), $4)`)
 
 	stmt, err := tx.Prepare(insertQuery)
 	if err != nil {
@@ -189,14 +187,13 @@ func (r *PermissionRepository) SetUserGroupMatrix(userID, groupID uint, permissi
 	defer stmt.Close()
 
 	for permKey, enabled := range permissions {
-		value := 0
 		if enabled {
-			value = 1
+			_, err = stmt.Exec(userID, groupID, permKey, 1, 1) // Using system user (1) for audit fields
+			if err != nil {
+				return fmt.Errorf("failed to insert permission %s: %w", permKey, err)
+			}
 		}
-		_, err = stmt.Exec(userID, groupID, permKey, value, 1, 1) // Using system user (1) for audit fields
-		if err != nil {
-			return fmt.Errorf("failed to insert permission %s: %w", permKey, err)
-		}
+		// If not enabled, we don't insert anything (absence means no permission)
 	}
 
 	return tx.Commit()
@@ -205,7 +202,7 @@ func (r *PermissionRepository) SetUserGroupMatrix(userID, groupID uint, permissi
 // GetAllUserGroupPermissions gets complete permission matrix for all users and groups
 func (r *PermissionRepository) GetAllUserGroupPermissions() ([]UserGroupPermission, error) {
 	query := database.ConvertPlaceholders(`
-		SELECT ug.user_id, ug.group_id, ug.permission_key, ug.permission_value
+		SELECT ug.user_id, ug.group_id, ug.permission_key
 		FROM group_user ug
 		JOIN users u ON ug.user_id = u.id
 		JOIN groups g ON ug.group_id = g.id
@@ -221,9 +218,10 @@ func (r *PermissionRepository) GetAllUserGroupPermissions() ([]UserGroupPermissi
 	var permissions []UserGroupPermission
 	for rows.Next() {
 		var perm UserGroupPermission
-		if err := rows.Scan(&perm.UserID, &perm.GroupID, &perm.PermissionKey, &perm.PermissionValue); err != nil {
+		if err := rows.Scan(&perm.UserID, &perm.GroupID, &perm.PermissionKey); err != nil {
 			return nil, fmt.Errorf("failed to scan permission: %w", err)
 		}
+		perm.PermissionValue = 1 // In OTRS schema, presence of row means permission is granted
 		permissions = append(permissions, perm)
 	}
 

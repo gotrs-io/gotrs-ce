@@ -51,6 +51,12 @@ spec:
       handler: handleAdminPasswordPolicy
       description: "Get password policy configuration"
 
+    # Users API
+    - path: /users/list
+      method: GET
+      handler: HandleAdminUsersList
+      description: "Get all users (JSON API)"
+
     # Group management
     - path: /groups
       method: GET
@@ -106,6 +112,22 @@ spec:
       method: DELETE
       handler: handleRemoveUserFromGroup
       description: "Remove user from group"
+      
+    # Group users API endpoints (for frontend compatibility)
+    - path: /groups/:id/users
+      method: GET
+      handler: HandleAdminGroupsUsers
+      description: "Get group users"
+      
+    - path: /groups/:id/users
+      method: POST
+      handler: HandleAdminGroupsAddUser
+      description: "Add user to group"
+      
+    - path: /groups/:id/users/:userId
+      method: DELETE
+      handler: HandleAdminGroupsRemoveUser
+      description: "Remove user from group"
 
     # Queue management
     - path: /queues
@@ -127,6 +149,16 @@ spec:
       handler: handleAdminPermissions
       template: pages/admin/permissions.pongo2
       description: "Display permission management page"
+      
+    - path: /permissions/user/:userId
+      method: GET
+      handler: handleGetUserPermissionMatrix
+      description: "Get user permission matrix"
+      
+    - path: /permissions/user/:userId
+      method: PUT
+      handler: handleUpdateUserPermissions
+      description: "Update user permissions"
 
     # State management
     - path: /states

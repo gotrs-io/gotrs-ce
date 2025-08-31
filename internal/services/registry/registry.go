@@ -9,17 +9,17 @@ import (
 
 // ServiceRegistry manages all registered services
 type ServiceRegistry struct {
-	mu          sync.RWMutex
-	services    map[string]ServiceInterface
-	bindings    map[string][]*ServiceBinding
-	factories   map[ServiceType]ServiceFactory
+	mu           sync.RWMutex
+	services     map[string]ServiceInterface
+	bindings     map[string][]*ServiceBinding
+	factories    map[ServiceType]ServiceFactory
 	healthChecks map[string]*time.Ticker
-	migrations  map[string]*ServiceMigration
-	
+	migrations   map[string]*ServiceMigration
+
 	// Event channels
 	healthEvents chan ServiceHealth
 	errorEvents  chan error
-	
+
 	// Context for lifecycle management
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -28,7 +28,7 @@ type ServiceRegistry struct {
 // NewServiceRegistry creates a new service registry
 func NewServiceRegistry() *ServiceRegistry {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	return &ServiceRegistry{
 		services:     make(map[string]ServiceInterface),
 		bindings:     make(map[string][]*ServiceBinding),
@@ -46,11 +46,11 @@ func NewServiceRegistry() *ServiceRegistry {
 func (r *ServiceRegistry) RegisterFactory(serviceType ServiceType, factory ServiceFactory) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	if _, exists := r.factories[serviceType]; exists {
 		return fmt.Errorf("factory for service type %s already registered", serviceType)
 	}
-	
+
 	r.factories[serviceType] = factory
 	return nil
 }
@@ -59,38 +59,39 @@ func (r *ServiceRegistry) RegisterFactory(serviceType ServiceType, factory Servi
 func (r *ServiceRegistry) RegisterService(config *ServiceConfig) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	// Check if service already exists
 	if _, exists := r.services[config.ID]; exists {
 		return fmt.Errorf("service %s already registered", config.ID)
 	}
-	
+
 	// Get the appropriate factory
 	factory, exists := r.factories[config.Type]
 	if !exists {
 		return fmt.Errorf("no factory registered for service type %s", config.Type)
 	}
-	
+
 	// Create the service instance
 	service, err := factory.CreateService(config)
 	if err != nil {
 		return fmt.Errorf("failed to create service %s: %w", config.ID, err)
 	}
-	
-	// Connect to the service
-	ctx, cancel := context.WithTimeout(r.ctx, 30*time.Second)
-	defer cancel()
-	
+
+	// Try to connect to the service, but don't fail registration if it fails
+	ctx, cancel := context.WithTimeout(r.ctx, 5*time.Second)
 	if err := service.Connect(ctx); err != nil {
-		return fmt.Errorf("failed to connect to service %s: %w", config.ID, err)
+		// Log the connection error but don't fail registration
+		// The service can be connected later when needed
+		fmt.Printf("Warning: Failed to connect to service %s during registration: %v\n", config.ID, err)
 	}
-	
+	cancel()
+
 	// Register the service
 	r.services[config.ID] = service
-	
+
 	// Start health monitoring
 	r.startHealthMonitoring(config.ID, service)
-	
+
 	return nil
 }
 
@@ -98,33 +99,33 @@ func (r *ServiceRegistry) RegisterService(config *ServiceConfig) error {
 func (r *ServiceRegistry) UnregisterService(serviceID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	service, exists := r.services[serviceID]
 	if !exists {
 		return fmt.Errorf("service %s not found", serviceID)
 	}
-	
+
 	// Stop health monitoring
 	if ticker, exists := r.healthChecks[serviceID]; exists {
 		ticker.Stop()
 		delete(r.healthChecks, serviceID)
 	}
-	
+
 	// Disconnect the service
 	ctx, cancel := context.WithTimeout(r.ctx, 10*time.Second)
 	defer cancel()
-	
+
 	if err := service.Disconnect(ctx); err != nil {
 		// Log error but continue with unregistration
 		r.errorEvents <- fmt.Errorf("error disconnecting service %s: %w", serviceID, err)
 	}
-	
+
 	// Remove all bindings for this service
 	delete(r.bindings, serviceID)
-	
+
 	// Remove the service
 	delete(r.services, serviceID)
-	
+
 	return nil
 }
 
@@ -132,12 +133,12 @@ func (r *ServiceRegistry) UnregisterService(serviceID string) error {
 func (r *ServiceRegistry) GetService(serviceID string) (ServiceInterface, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	service, exists := r.services[serviceID]
 	if !exists {
 		return nil, fmt.Errorf("service %s not found", serviceID)
 	}
-	
+
 	return service, nil
 }
 
@@ -145,14 +146,14 @@ func (r *ServiceRegistry) GetService(serviceID string) (ServiceInterface, error)
 func (r *ServiceRegistry) GetServicesByType(serviceType ServiceType) []ServiceInterface {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	var services []ServiceInterface
 	for _, service := range r.services {
 		if service.Type() == serviceType {
 			services = append(services, service)
 		}
 	}
-	
+
 	return services
 }
 
@@ -160,18 +161,18 @@ func (r *ServiceRegistry) GetServicesByType(serviceType ServiceType) []ServiceIn
 func (r *ServiceRegistry) CreateBinding(binding *ServiceBinding) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	// Verify service exists
 	if _, exists := r.services[binding.ServiceID]; !exists {
 		return fmt.Errorf("service %s not found", binding.ServiceID)
 	}
-	
+
 	// Add binding
 	binding.CreatedAt = time.Now()
 	binding.UpdatedAt = time.Now()
-	
+
 	r.bindings[binding.AppID] = append(r.bindings[binding.AppID], binding)
-	
+
 	return nil
 }
 
@@ -179,7 +180,7 @@ func (r *ServiceRegistry) CreateBinding(binding *ServiceBinding) error {
 func (r *ServiceRegistry) GetBindings(appID string) []*ServiceBinding {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	return r.bindings[appID]
 }
 
@@ -187,9 +188,9 @@ func (r *ServiceRegistry) GetBindings(appID string) []*ServiceBinding {
 func (r *ServiceRegistry) GetBoundService(appID string, purpose string) (ServiceInterface, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	bindings := r.bindings[appID]
-	
+
 	// Find binding with highest priority for the given purpose
 	var bestBinding *ServiceBinding
 	for _, binding := range bindings {
@@ -199,16 +200,16 @@ func (r *ServiceRegistry) GetBoundService(appID string, purpose string) (Service
 			}
 		}
 	}
-	
+
 	if bestBinding == nil {
 		return nil, fmt.Errorf("no service bound for app %s with purpose %s", appID, purpose)
 	}
-	
+
 	service, exists := r.services[bestBinding.ServiceID]
 	if !exists {
 		return nil, fmt.Errorf("bound service %s not found", bestBinding.ServiceID)
 	}
-	
+
 	return service, nil
 }
 
@@ -216,7 +217,7 @@ func (r *ServiceRegistry) GetBoundService(appID string, purpose string) (Service
 func (r *ServiceRegistry) startHealthMonitoring(serviceID string, service ServiceInterface) {
 	ticker := time.NewTicker(30 * time.Second)
 	r.healthChecks[serviceID] = ticker
-	
+
 	go func() {
 		for {
 			select {
@@ -224,7 +225,7 @@ func (r *ServiceRegistry) startHealthMonitoring(serviceID string, service Servic
 				ctx, cancel := context.WithTimeout(r.ctx, 5*time.Second)
 				health, err := service.Health(ctx)
 				cancel()
-				
+
 				if err != nil {
 					r.errorEvents <- fmt.Errorf("health check failed for service %s: %w", serviceID, err)
 					health = &ServiceHealth{
@@ -234,14 +235,14 @@ func (r *ServiceRegistry) startHealthMonitoring(serviceID string, service Servic
 						Error:       err.Error(),
 					}
 				}
-				
+
 				// Send health event
 				select {
 				case r.healthEvents <- *health:
 				default:
 					// Channel full, skip this event
 				}
-				
+
 			case <-r.ctx.Done():
 				return
 			}
@@ -253,16 +254,16 @@ func (r *ServiceRegistry) startHealthMonitoring(serviceID string, service Servic
 func (r *ServiceRegistry) StartMigration(fromServiceID, toServiceID string, strategy MigrationStrategy) (*ServiceMigration, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	// Verify both services exist
 	if _, exists := r.services[fromServiceID]; !exists {
 		return nil, fmt.Errorf("source service %s not found", fromServiceID)
 	}
-	
+
 	if _, exists := r.services[toServiceID]; !exists {
 		return nil, fmt.Errorf("target service %s not found", toServiceID)
 	}
-	
+
 	// Create migration
 	migration := &ServiceMigration{
 		ID:          fmt.Sprintf("migration-%d", time.Now().Unix()),
@@ -273,12 +274,12 @@ func (r *ServiceRegistry) StartMigration(fromServiceID, toServiceID string, stra
 		StartedAt:   time.Now(),
 		Status:      "in_progress",
 	}
-	
+
 	r.migrations[migration.ID] = migration
-	
+
 	// Start migration process (simplified for now)
 	go r.executeMigration(migration)
-	
+
 	return migration, nil
 }
 
@@ -286,7 +287,7 @@ func (r *ServiceRegistry) StartMigration(fromServiceID, toServiceID string, stra
 func (r *ServiceRegistry) executeMigration(migration *ServiceMigration) {
 	// This is a simplified implementation
 	// In a real system, this would handle data migration, traffic shifting, etc.
-	
+
 	switch migration.Strategy {
 	case MigrationImmediate:
 		// Immediately switch all bindings
@@ -305,7 +306,7 @@ func (r *ServiceRegistry) executeMigration(migration *ServiceMigration) {
 		now := time.Now()
 		migration.CompletedAt = &now
 		r.mu.Unlock()
-		
+
 	case MigrationCanary:
 		// Gradually shift traffic (simplified)
 		steps := 10
@@ -316,7 +317,7 @@ func (r *ServiceRegistry) executeMigration(migration *ServiceMigration) {
 		migration.Status = "completed"
 		now := time.Now()
 		migration.CompletedAt = &now
-		
+
 	default:
 		migration.Status = "failed"
 		migration.Error = "unsupported migration strategy"
@@ -327,12 +328,12 @@ func (r *ServiceRegistry) executeMigration(migration *ServiceMigration) {
 func (r *ServiceRegistry) GetMigration(migrationID string) (*ServiceMigration, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	migration, exists := r.migrations[migrationID]
 	if !exists {
 		return nil, fmt.Errorf("migration %s not found", migrationID)
 	}
-	
+
 	return migration, nil
 }
 
@@ -349,12 +350,12 @@ func (r *ServiceRegistry) ErrorEvents() <-chan error {
 // Shutdown gracefully shuts down the registry
 func (r *ServiceRegistry) Shutdown(ctx context.Context) error {
 	r.cancel()
-	
+
 	// Stop all health checks
 	for _, ticker := range r.healthChecks {
 		ticker.Stop()
 	}
-	
+
 	// Disconnect all services
 	var errors []error
 	for id, service := range r.services {
@@ -362,10 +363,10 @@ func (r *ServiceRegistry) Shutdown(ctx context.Context) error {
 			errors = append(errors, fmt.Errorf("failed to disconnect service %s: %w", id, err))
 		}
 	}
-	
+
 	if len(errors) > 0 {
 		return fmt.Errorf("shutdown errors: %v", errors)
 	}
-	
+
 	return nil
 }

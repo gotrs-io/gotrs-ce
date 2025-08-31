@@ -13,10 +13,10 @@ import (
 
 // MySQLService implements DatabaseService for MySQL
 type MySQLService struct {
-	config   *registry.ServiceConfig
-	db       *sql.DB
-	health   *registry.ServiceHealth
-	metrics  *registry.ServiceMetrics
+	config  *registry.ServiceConfig
+	db      *sql.DB
+	health  *registry.ServiceHealth
+	metrics *registry.ServiceMetrics
 }
 
 // NewMySQLService creates a new MySQL service instance
@@ -37,7 +37,7 @@ func NewMySQLService(config *registry.ServiceConfig) (DatabaseService, error) {
 func (s *MySQLService) Connect(ctx context.Context) error {
 	// Build connection string
 	connStr := s.buildConnectionString()
-	
+
 	// Open database connection
 	db, err := sql.Open("mysql", connStr)
 	if err != nil {
@@ -45,7 +45,7 @@ func (s *MySQLService) Connect(ctx context.Context) error {
 		s.health.Error = err.Error()
 		return fmt.Errorf("failed to open database: %w", err)
 	}
-	
+
 	// Configure connection pool
 	if s.config.MaxConns > 0 {
 		db.SetMaxOpenConns(s.config.MaxConns)
@@ -54,17 +54,22 @@ func (s *MySQLService) Connect(ctx context.Context) error {
 		db.SetMaxIdleConns(s.config.MinConns)
 	}
 	db.SetConnMaxLifetime(5 * time.Minute)
-	
-	// Test connection
-	if err := db.PingContext(ctx); err != nil {
+
+	// Test connection with a shorter timeout
+	pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	if err := db.PingContext(pingCtx); err != nil {
 		s.health.Status = registry.StatusUnhealthy
 		s.health.Error = err.Error()
+		// Don't close the connection, just mark as unhealthy
+		// The connection might work later
 		return fmt.Errorf("failed to ping database: %w", err)
 	}
-	
+
 	s.db = db
 	s.health.Status = registry.StatusHealthy
-	
+
 	return nil
 }
 
@@ -81,6 +86,14 @@ func (s *MySQLService) Disconnect(ctx context.Context) error {
 
 // GetDB returns the underlying database connection
 func (s *MySQLService) GetDB() *sql.DB {
+	if s.db == nil {
+		// Try to connect if not already connected
+		if err := s.Connect(context.Background()); err != nil {
+			// If connection fails, return nil
+			// The caller should handle this case
+			return nil
+		}
+	}
 	return s.db
 }
 
@@ -228,7 +241,7 @@ func (s *MySQLService) buildConnectionString() string {
 			// Already in DSN format, return as-is
 			return url
 		}
-		
+
 		// Parse MySQL URL format: mysql://user:password@host:port/database
 		// Convert to DSN format: user:password@tcp(host:port)/database
 		if len(url) > 8 && url[:8] == "mysql://" {
@@ -259,18 +272,18 @@ func (s *MySQLService) buildConnectionString() string {
 			return fmt.Sprintf("%s@tcp(%s)/%s?parseTime=true", userPass, hostPort, database)
 		}
 	}
-	
+
 	// Build from individual components
 	host := s.config.Host
 	if host == "" {
 		host = "localhost"
 	}
-	
+
 	port := s.config.Port
 	if port == 0 {
 		port = 3306
 	}
-	
+
 	// MySQL DSN format: username:password@tcp(host:port)/database?params
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true",
 		s.config.Username,
@@ -279,6 +292,6 @@ func (s *MySQLService) buildConnectionString() string {
 		port,
 		s.config.Database,
 	)
-	
+
 	return dsn
 }

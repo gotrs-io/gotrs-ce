@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/services/adapter"
 )
 
 // Admin Users CRUD Handlers
@@ -99,6 +100,50 @@ func HandleAdminUsersDelete(c *gin.Context) {
 }
 
 // HandleAdminUsersStatus is implemented in admin_users_handlers.go
+
+// HandleAdminUsersList handles GET /admin/users (JSON API)
+func HandleAdminUsersList(c *gin.Context) {
+	db, err := adapter.GetDB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+		return
+	}
+
+	rows, err := db.Query(database.ConvertPlaceholders(`
+		SELECT id, login, first_name, last_name, valid_id
+		FROM users 
+		WHERE valid_id = 1
+		ORDER BY login
+	`))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+		return
+	}
+	defer rows.Close()
+
+	var users []gin.H
+	for rows.Next() {
+		var user struct {
+			ID        int    `json:"id"`
+			Login     string `json:"login"`
+			FirstName string `json:"first_name"`
+			LastName  string `json:"last_name"`
+			ValidID   int    `json:"valid_id"`
+		}
+		if err := rows.Scan(&user.ID, &user.Login, &user.FirstName, &user.LastName, &user.ValidID); err != nil {
+			continue
+		}
+		users = append(users, gin.H{
+			"id":         user.ID,
+			"login":      user.Login,
+			"first_name": user.FirstName,
+			"last_name":  user.LastName,
+			"valid_id":   user.ValidID,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "users": users})
+}
 
 // Admin Groups CRUD Handlers
 
@@ -194,14 +239,14 @@ func HandleAdminGroupsUsers(c *gin.Context) {
 		return
 	}
 
-	db, err := database.GetDB()
+	db, err := adapter.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
 
 	rows, err := db.Query(database.ConvertPlaceholders(`
-		SELECT u.id, u.login, u.first_name, u.last_name, u.email
+		SELECT u.id, u.login, u.first_name, u.last_name, u.login as email
 		FROM users u
 		JOIN group_user gu ON u.id = gu.user_id
 		WHERE gu.group_id = $1 AND u.valid_id = 1
@@ -255,17 +300,16 @@ func HandleAdminGroupsAddUser(c *gin.Context) {
 		return
 	}
 
-	db, err := database.GetDB()
+	db, err := adapter.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
 
-	// Add user to group with default 'rw' permission
+	// Add user to group with default 'rw' permission (OTRS schema)
 	_, err = db.Exec(database.ConvertPlaceholders(`
-		INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_time, create_by, change_time, change_by)
-		VALUES ($1, $2, 'rw', 1, NOW(), 1, NOW(), 1)
-		ON CONFLICT (user_id, group_id, permission_key) DO NOTHING
+		INSERT IGNORE INTO group_user (user_id, group_id, permission_key, create_time, create_by, change_time, change_by)
+		VALUES ($1, $2, 'rw', NOW(), 1, NOW(), 1)
 	`), req.UserID, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add user to group"})
@@ -292,11 +336,12 @@ func HandleAdminGroupsRemoveUser(c *gin.Context) {
 		return
 	}
 
-	db, err := database.GetDB()
+	dbService, err := adapter.GetDatabase()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
+	db := dbService.GetDB()
 
 	// Remove user from group
 	_, err = db.Exec(database.ConvertPlaceholders("DELETE FROM group_user WHERE user_id = $1 AND group_id = $2"), uid, gid)

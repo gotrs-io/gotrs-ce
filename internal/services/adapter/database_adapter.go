@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/gotrs-io/gotrs-ce/internal/services/database"
 	"github.com/gotrs-io/gotrs-ce/internal/services/registry"
 )
@@ -179,13 +180,56 @@ func GetDB() (*sql.DB, error) {
 		return globalDB.GetDB(), nil
 	}
 
-	// Try to get or initialize
+	// Try direct connection first (bypass service registry)
+	if db := GetDirectDB(); db != nil {
+		return db, nil
+	}
+
+	// Fallback to service registry
 	dbService, err := GetDatabase()
 	if err != nil {
 		return nil, err
 	}
 
 	return dbService.GetDB(), nil
+}
+
+// GetDirectDB creates a direct database connection using environment variables
+func GetDirectDB() *sql.DB {
+	// Check for DATABASE_URL first
+	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+		db, err := sql.Open("mysql", dbURL)
+		if err == nil {
+			// Test the connection
+			if err := db.Ping(); err == nil {
+				return db
+			}
+			db.Close()
+		}
+	}
+
+	// Use individual environment variables
+	host := getEnvOrDefault("DB_HOST", "localhost")
+	port := getEnvAsIntOrDefault("DB_PORT", 3306)
+	user := getEnvOrDefault("DB_USER", "otrs")
+	password := getEnvOrDefault("DB_PASSWORD", "LetClaude.1n")
+	database := getEnvOrDefault("DB_NAME", "otrs")
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true&multiStatements=true",
+		user, password, host, port, database)
+
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil
+	}
+
+	// Test the connection
+	if err := db.Ping(); err != nil {
+		db.Close()
+		return nil
+	}
+
+	return db
 }
 
 // RegisterDatabaseService registers a custom database service

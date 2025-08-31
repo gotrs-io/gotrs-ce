@@ -23,26 +23,28 @@ var (
 
 // Admin handlers
 var (
-	HandleAdminDashboard = handleAdminDashboard
-	HandleAdminUsers     = handleAdminUsers
-	HandleAdminUserEdit  = HandleAdminUserGet // Same handler for edit form
-	HandleAdminPasswordPolicy = HandlePasswordPolicy
-	HandleAdminGroups         = handleAdminGroups
-	HandleGetGroup            = handleGetGroup
-	HandleCreateGroup         = handleCreateGroup
-	HandleUpdateGroup         = handleUpdateGroup
-	HandleDeleteGroup         = handleDeleteGroup
-	HandleGroupMembers        = handleGetGroupMembers
-	HandleAddUserToGroup      = handleAddUserToGroup
-	HandleRemoveUserFromGroup = handleRemoveUserFromGroup
-	HandleAdminQueues         = handleAdminQueues
-	HandleAdminPriorities     = handleAdminPriorities
-	HandleAdminPermissions    = handleAdminPermissions // Renamed from roles
-	HandleAdminStates         = handleAdminStates
-	HandleAdminTypes          = handleAdminTypes
-	HandleAdminServices       = handleAdminServices
-	HandleAdminSLA            = handleAdminSLA
-	HandleAdminLookups        = handleAdminLookups
+	HandleAdminDashboard          = handleAdminDashboard
+	HandleAdminUsers              = handleAdminUsers
+	HandleAdminUserEdit           = HandleAdminUserGet // Same handler for edit form
+	HandleAdminPasswordPolicy     = HandlePasswordPolicy
+	HandleAdminGroups             = handleAdminGroups
+	HandleGetGroup                = handleGetGroup
+	HandleCreateGroup             = handleCreateGroup
+	HandleUpdateGroup             = handleUpdateGroup
+	HandleDeleteGroup             = handleDeleteGroup
+	HandleGroupMembers            = handleGetGroupMembers
+	HandleAddUserToGroup          = handleAddUserToGroup
+	HandleRemoveUserFromGroup     = handleRemoveUserFromGroup
+	HandleAdminQueues             = handleAdminQueues
+	HandleAdminPriorities         = handleAdminPriorities
+	HandleAdminPermissions        = handleAdminPermissions // Renamed from roles
+	HandleGetUserPermissionMatrix = handleGetUserPermissionMatrix
+	HandleUpdateUserPermissions   = handleUpdateUserPermissions
+	HandleAdminStates             = handleAdminStates
+	HandleAdminTypes              = handleAdminTypes
+	HandleAdminServices           = handleAdminServices
+	HandleAdminSLA                = handleAdminSLA
+	HandleAdminLookups            = handleAdminLookups
 	// Customer company handlers - wrapped to get database from adapter
 	HandleAdminCustomerCompanies = func(c *gin.Context) {
 		dbService, err := adapter.GetDatabase()

@@ -392,6 +392,73 @@
     </div>
 </div>
 
+<!-- Group Members Modal -->
+<div id="groupMembersModal" class="hidden fixed z-10 inset-0 overflow-y-auto" aria-labelledby="members-modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeGroupMembersModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+            <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-gotrs-100 dark:bg-gotrs-900 sm:mx-0 sm:h-10 sm:w-10">
+                        <svg class="h-6 w-6 text-gotrs-600 dark:text-gotrs-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="members-modal-title">
+                            Group Members
+                        </h3>
+                        <div class="mt-4">
+                            <input type="hidden" id="currentGroupId" value="">
+                            
+                            <!-- Add User Section -->
+                            <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Add User to Group</h4>
+                                <div class="flex space-x-3">
+                                    <select
+                                        id="addUserSelect"
+                                        class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-gotrs-500 focus:border-gotrs-500 dark:bg-gray-700 dark:text-white"
+                                    >
+                                        <option value="">-- Select a user to add --</option>
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onclick="addUserToGroup()"
+                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gotrs-600 hover:bg-gotrs-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500"
+                                    >
+                                        <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                        </svg>
+                                        Add User
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Current Members Section -->
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Current Members</h4>
+                                <div id="groupMembersList" class="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg">
+                                    <p class="text-gray-500 dark:text-gray-400 text-center py-4">Loading members...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                    type="button"
+                    onclick="closeGroupMembersModal()"
+                    class="w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 // Session storage keys
 const STORAGE_KEY = 'groupsPageState';
@@ -497,7 +564,9 @@ function showEditGroupModal(groupId) {
     document.getElementById('formError').classList.add('hidden');
     
     // Fetch group data
-    fetch(`/admin/groups/${groupId}`)
+    fetch(`/admin/groups/${groupId}`, {
+        credentials: 'include'
+    })
         .then(response => response.json())
         .then(data => {
             if (data.success && data.role) {
@@ -537,7 +606,8 @@ function handleGroupSubmit(event) {
     
     fetch(url, {
         method: method,
-        body: formData
+        body: formData,
+        credentials: 'include'
     })
     .then(response => {
         if (!response.ok) {
@@ -631,7 +701,8 @@ function executeDelete() {
     if (cancelBtn) cancelBtn.disabled = true;
     
     fetch(`/admin/groups/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
     })
     .then(response => response.json())
     .then(data => {
@@ -749,8 +820,179 @@ function createToastContainer() {
 }
 
 function showGroupMembers(groupId) {
-    // TODO: Show members modal or navigate to members page
-    console.log('Show members for group:', groupId);
+    // Show group members modal
+    document.getElementById('groupMembersModal').classList.remove('hidden');
+    document.getElementById('currentGroupId').value = groupId;
+    
+    // Load group members
+    loadGroupMembers(groupId);
+    
+    // Load available users for adding
+    loadAvailableUsers(groupId);
+}
+
+function loadGroupMembers(groupId) {
+    fetch(`/admin/groups/${groupId}/users`, {
+        credentials: 'include'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.users) {
+            const membersList = document.getElementById('groupMembersList');
+            membersList.innerHTML = '';
+            
+            if (data.users.length === 0) {
+                membersList.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">No members in this group</p>';
+                return;
+            }
+            
+            data.users.forEach(user => {
+                const memberItem = document.createElement('div');
+                memberItem.className = 'flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 last:border-b-0';
+                memberItem.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="flex-shrink-0">
+                            <div class="h-8 w-8 rounded-full bg-gotrs-600 flex items-center justify-center">
+                                <span class="text-sm font-medium text-white">${user.first_name ? user.first_name.charAt(0) : user.login.charAt(0)}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900 dark:text-white">${user.first_name} ${user.last_name}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">${user.login}</p>
+                        </div>
+                    </div>
+                    <button 
+                        onclick="removeUserFromGroup(${groupId}, ${user.id})"
+                        class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                        title="Remove user from group"
+                    >
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+                membersList.appendChild(memberItem);
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error loading group members:', error);
+        document.getElementById('groupMembersList').innerHTML = '<p class="text-red-500 text-center py-4">Error loading members</p>';
+    });
+}
+
+function loadAvailableUsers(groupId) {
+    fetch(`/admin/users/list`, {
+        credentials: 'include'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.users) {
+            const userSelect = document.getElementById('addUserSelect');
+            userSelect.innerHTML = '<option value="">-- Select a user to add --</option>';
+            
+            data.users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = `${user.login} (${user.first_name} ${user.last_name})`;
+                userSelect.appendChild(option);
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error loading available users:', error);
+    });
+}
+
+function addUserToGroup() {
+    const groupId = document.getElementById('currentGroupId').value;
+    const userId = document.getElementById('addUserSelect').value;
+    
+    if (!userId) {
+        alert('Please select a user to add');
+        return;
+    }
+    
+    fetch(`/admin/groups/${groupId}/users`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ user_id: parseInt(userId) })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload members and update count
+            loadGroupMembers(groupId);
+            loadAvailableUsers(groupId);
+            document.getElementById('addUserSelect').value = '';
+            
+            // Update the member count in the main table
+            fetch(`/admin/groups/${groupId}/users`, {
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.users) {
+                    document.getElementById(`member-count-${groupId}`).textContent = data.users.length;
+                }
+            });
+            
+            showToast('User added to group successfully', 'success');
+        } else {
+            showToast(data.error || 'Failed to add user to group', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error adding user to group:', error);
+        showToast('Error adding user to group', 'error');
+    });
+}
+
+function removeUserFromGroup(groupId, userId) {
+    if (!confirm('Are you sure you want to remove this user from the group?')) {
+        return;
+    }
+    
+    fetch(`/admin/groups/${groupId}/users/${userId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload members and update count
+            loadGroupMembers(groupId);
+            loadAvailableUsers(groupId);
+            
+            // Update the member count in the main table
+            fetch(`/admin/groups/${groupId}/users`, {
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.users) {
+                    document.getElementById(`member-count-${groupId}`).textContent = data.users.length;
+                }
+            });
+            
+            showToast('User removed from group successfully', 'success');
+        } else {
+            showToast(data.error || 'Failed to remove user from group', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error removing user from group:', error);
+        showToast('Error removing user from group', 'error');
+    });
+}
+
+function closeGroupMembersModal() {
+    document.getElementById('groupMembersModal').classList.add('hidden');
+    document.getElementById('currentGroupId').value = '';
+    document.getElementById('addUserSelect').value = '';
 }
 
 function showGroupPermissions(groupId) {
@@ -772,11 +1014,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load member counts for each group
     {% for group in Groups %}
-    fetch(`/admin/groups/{{ group.ID }}/users`)
+    fetch(`/admin/groups/{{ group.ID }}/users`, {
+        credentials: 'include'
+    })
         .then(response => response.json())
         .then(data => {
-            if (data.success && data.data) {
-                document.getElementById('member-count-{{ group.ID }}').textContent = data.data.length;
+            if (data.success && data.users) {
+                document.getElementById('member-count-{{ group.ID }}').textContent = data.users.length;
             }
         })
         .catch(error => console.error('Error loading members for group {{ group.ID }}:', error));

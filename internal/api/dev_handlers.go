@@ -379,7 +379,7 @@ func handleDevAction(c *gin.Context) {
 				strings.Contains(strings.ToLower(currentStateName), "merged") {
 				// Get the ID for 'open' state
 				var openStateID int
-				err = db.QueryRow("SELECT id FROM ticket_state WHERE name = 'open' LIMIT 1").Scan(&openStateID)
+				err = db.QueryRow(database.ConvertPlaceholders("SELECT id FROM ticket_state WHERE name = 'open' LIMIT 1")).Scan(&openStateID)
 				if err == nil {
 					// Update ticket to open state
 					_, err = db.Exec(database.ConvertPlaceholders(`
@@ -417,7 +417,7 @@ func handleDevAction(c *gin.Context) {
 			return
 		}
 
-		db, err := database.GetDB()
+		db, err := adapter.GetDB()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,

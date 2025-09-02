@@ -25,10 +25,10 @@ func init() {
 // TestGroupAssignmentWorkflow tests the complete workflow that the user reported as broken
 func TestGroupAssignmentWorkflow(t *testing.T) {
 	// Initialize database connection
-	db, err := database.GetDB()
-	if err != nil {
-		t.Skip("Database not available, skipping integration test")
-	}
+    db, err := database.GetDB()
+    if err != nil || db == nil {
+        t.Skip("Database not available, skipping integration test")
+    }
 
 	// Setup test user and groups
 	testUser := setupGroupAssignmentTestUser(t, db)
@@ -100,10 +100,10 @@ func TestGroupAssignmentWorkflow(t *testing.T) {
 
 func TestGroupAssignmentEdgeCases(t *testing.T) {
 	// Initialize database connection
-	db, err := database.GetDB()
-	if err != nil {
-		t.Skip("Database not available, skipping integration test")
-	}
+    db, err := database.GetDB()
+    if err != nil || db == nil {
+        t.Skip("Database not available, skipping integration test")
+    }
 
 	testUser := setupGroupAssignmentTestUser(t, db)
 	defer cleanupGroupAssignmentTestUser(t, db, testUser.ID)

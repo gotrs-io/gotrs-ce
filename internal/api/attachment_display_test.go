@@ -153,15 +153,18 @@ func TestAttachmentDownloadHandler(t *testing.T) {
 }
 
 func TestGetMessagesWithAttachments(t *testing.T) {
-	// Get database connection
-	_, err := database.GetDB()
-	if err != nil {
-		t.Skip("Database not available, skipping integration test")
-	}
+    // Get database connection
+    db, err := database.GetDB()
+    if err != nil || db == nil {
+        t.Skip("Database not available, skipping integration test")
+    }
 
 	t.Run("GetMessages includes attachment data from database", func(t *testing.T) {
-		db, err := database.GetDB()
-		require.NoError(t, err)
+        // Re-check DB availability (defensive)
+        db, err := database.GetDB()
+        if err != nil || db == nil {
+            t.Skip("Database not available, skipping integration test")
+        }
 
 		// Create a test ticket
 		var ticketID int

@@ -494,22 +494,13 @@ toolbox-test-api: toolbox-build
 # Run tests directly in toolbox (faster than compose exec)
 toolbox-test:
 	@$(MAKE) toolbox-build
-	@printf "🧪 Running tests in toolbox...\n"
-	@$(CONTAINER_CMD) run --rm \
-		-v "$$(pwd):/workspace" \
-		-w /workspace \
-		-u "$$(id -u):$$(id -g)" \
-		--network host \
-		-e DB_HOST=localhost \
-		-e DB_PORT=5432 \
-		-e DB_NAME=gotrs_test \
-		-e DB_USER=gotrs_test \
-		-e DB_PASSWORD=gotrs_test_password \
-		-e VALKEY_HOST=localhost \
-		-e VALKEY_PORT=6388 \
-		-e APP_ENV=test \
-		gotrs-toolbox:latest \
-		sh -lc "export PATH=/usr/local/go/bin:$$PATH; source .env 2>/dev/null || true; pkgs='./cmd/goats ./internal/api ./generated/tdd-comprehensive'; echo Running: $$pkgs; go test -v $$pkgs"
+	@printf "🧪 Running core test suite in isolated toolbox container...\n"
+	-@$(CONTAINER_CMD) rm -f gotrs-test-all >/dev/null 2>&1 || true
+	@$(CONTAINER_CMD) create --name gotrs-test-all gotrs-toolbox:latest sleep infinity >/dev/null
+	@$(CONTAINER_CMD) cp . gotrs-test-all:/workspace
+	@$(CONTAINER_CMD) start gotrs-test-all >/dev/null
+	@$(CONTAINER_CMD) exec gotrs-test-all bash -lc "export PATH=/usr/local/go/bin:$$PATH && cd /workspace && APP_ENV=test DB_HOST=localhost DB_PORT=5432 DB_NAME=gotrs_test DB_USER=gotrs_test DB_PASSWORD=gotrs_test_password VALKEY_HOST=localhost VALKEY_PORT=6388 go test -v ./cmd/goats ./internal/api ./generated/tdd-comprehensive"
+	@$(CONTAINER_CMD) rm -f gotrs-test-all >/dev/null
 
 # Run specific test with toolbox
 toolbox-test-run:

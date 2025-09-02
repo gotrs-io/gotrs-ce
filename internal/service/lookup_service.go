@@ -95,7 +95,7 @@ func (s *LookupService) buildFormDataWithLang(lang string) *models.TicketFormDat
 	}
 	
 	// If we have database connection, get values from there
-	if s.repo != nil {
+    if s.repo != nil {
 		ctx := context.Background()
 		log.Printf("LookupService: Fetching data from database for language: %s", lang)
 		
@@ -159,14 +159,9 @@ func (s *LookupService) buildFormDataWithLang(lang string) *models.TicketFormDat
 		return result
 	}
 	
-	// No fallback - database is the single source of truth
-	log.Printf("ERROR: No lookup data available from database")
-	return &models.TicketFormData{
-		Queues:     []models.QueueInfo{},
-		Priorities: []models.LookupItem{},
-		Types:      []models.LookupItem{},
-		Statuses:   []models.LookupItem{},
-	}
+    // Graceful fallback when DB unavailable: empty lists but valid structure
+    log.Printf("WARNING: No lookup data available from database; returning empty defaults")
+    return result
 }
 
 // GetQueues returns available queues

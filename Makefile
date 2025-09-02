@@ -38,7 +38,12 @@ endef
 VOLUME_PWD := -v "$$(pwd):/workspace$(VZ)"
 WORKDIR_FLAGS := -w /workspace
 USER_FLAGS := -u "$$(id -u):$$(id -g)"
+# Default DB host: prefer host.containers.internal on Podman
+ifeq ($(findstring podman,$(CONTAINER_CMD)),podman)
+DB_HOST ?= host.containers.internal
+else
 DB_HOST ?= localhost
+endif
 DB_PORT ?= 5432
 DB_NAME ?= gotrs
 DB_USER ?= gotrs_user

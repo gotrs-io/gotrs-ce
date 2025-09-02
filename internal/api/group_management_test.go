@@ -414,14 +414,19 @@ func TestGroupSessionState(t *testing.T) {
 	})
 
 	t.Run("RestoreFilterState", func(t *testing.T) {
+		if err := database.InitTestDB(); err != nil {
+			t.Skip("Database not available")
+		}
+		defer database.CloseTestDB()
 		router := gin.New()
 		SetupHTMXRoutes(router)
 
 		// Load page without parameters - should restore from session
 		req, _ := http.NewRequest("GET", "/admin/groups", nil)
+		encoded := url.QueryEscape(`{"search":"test","status":"active"}`)
 		req.AddCookie(&http.Cookie{
 			Name:  "group_filters",
-			Value: `{"search":"test","status":"active"}`,
+			Value: encoded,
 		})
 		
 		w := httptest.NewRecorder()

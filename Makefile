@@ -490,7 +490,7 @@ toolbox-test-api: toolbox-build
 	@$(call ensure_caches)
 	@$(CONTAINER_CMD) run --rm \
         --security-opt label=disable \
-        -v "$$PWD:/workspace$(VZ)" \
+        -v "$$PWD:/workspace" \
 		-w /workspace \
 		-e GOCACHE=/workspace/.cache/go-build \
 		-e GOMODCACHE=/workspace/.cache/go-mod \
@@ -507,7 +507,7 @@ toolbox-test:
 	@$(call ensure_caches)
 	@$(CONTAINER_CMD) run --rm \
         --security-opt label=disable \
-        -v "$$PWD:/workspace$(VZ)" \
+        -v "$$PWD:/workspace" \
 		-w /workspace \
 		-e GOCACHE=/workspace/.cache/go-build \
 		-e GOMODCACHE=/workspace/.cache/go-mod \
@@ -525,7 +525,7 @@ toolbox-test-run:
 	@$(call ensure_caches)
 	@$(CONTAINER_CMD) run --rm \
         --security-opt label=disable \
-        -v "$$PWD:/workspace$(VZ)" \
+        -v "$$PWD:/workspace" \
 		-w /workspace \
 		--network host \
 		-e GOCACHE=/workspace/.cache/go-build \

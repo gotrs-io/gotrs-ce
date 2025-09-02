@@ -18,11 +18,11 @@ import (
 )
 
 func TestAttachmentDisplayInTicketDetail(t *testing.T) {
-	// Get database connection
-	_, err := database.GetDB()
-	if err != nil {
-		t.Skip("Database not available, skipping integration test")
-	}
+    // Get database connection
+    db, err := database.GetDB()
+    if err != nil || db == nil {
+        t.Skip("Database not available, skipping integration test")
+    }
 
 	// Set up Gin in test mode
 	gin.SetMode(gin.TestMode)
@@ -87,11 +87,11 @@ func TestAttachmentDisplayInTicketDetail(t *testing.T) {
 }
 
 func TestAttachmentDownloadHandler(t *testing.T) {
-	// Get database connection
-	_, err := database.GetDB()
-	if err != nil {
-		t.Skip("Database not available, skipping integration test")
-	}
+    // Get database connection
+    db, err := database.GetDB()
+    if err != nil || db == nil {
+        t.Skip("Database not available, skipping integration test")
+    }
 
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

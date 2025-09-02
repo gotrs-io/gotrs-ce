@@ -400,9 +400,9 @@ toolbox-run:
 	@$(MAKE) toolbox-build
 	@printf "\n🔧 Starting toolbox shell...\n"
 	$(call ensure_caches)
-	@$(CONTAINER_CMD) run --rm -it \
-		--security-opt label=disable \
-		-v "$$PWD:/workspace$(VZ)" \
+    @$(CONTAINER_CMD) run --rm -it \
+        --security-opt label=disable \
+        -v "$$PWD:/workspace" \
 		-v "$$PWD/.cache/go-build:/tmp/.cache/go-build$(VZ)" \
 		-v "$$PWD/.cache/go-mod:/tmp/.cache/go-mod$(VZ)" \
 		-w /workspace \
@@ -414,9 +414,9 @@ toolbox-run:
 toolbox-exec:
 	@$(MAKE) toolbox-build
 	$(call ensure_caches)
-	@$(CONTAINER_CMD) run --rm \
-		--security-opt label=disable \
-		-v "$$PWD:/workspace$(VZ)" \
+    @$(CONTAINER_CMD) run --rm \
+        --security-opt label=disable \
+        -v "$$PWD:/workspace" \
 		-v "$$PWD/.cache/go-build:/tmp/.cache/go-build$(VZ)" \
 		-v "$$PWD/.cache/go-mod:/tmp/.cache/go-mod$(VZ)" \
 		-w /workspace \
@@ -430,9 +430,9 @@ toolbox-compile:
 	@$(MAKE) toolbox-build
 	@printf "\n🔨 Checking compilation...\n"
 	$(call ensure_caches)
-	@$(CONTAINER_CMD) run --rm \
-		--security-opt label=disable \
-		-v "$$PWD:/workspace$(VZ)" \
+    @$(CONTAINER_CMD) run --rm \
+        --security-opt label=disable \
+        -v "$$PWD:/workspace" \
 		-v "$$PWD/.cache/go-build:/tmp/.cache/go-build$(VZ)" \
 		-v "$$PWD/.cache/go-mod:/tmp/.cache/go-mod$(VZ)" \
 		-w /workspace \
@@ -445,9 +445,9 @@ toolbox-compile-api:
 	@$(MAKE) toolbox-build
 	@printf "\n🔨 Compiling API and goats packages only...\n"
 	$(call ensure_caches)
-	@$(CONTAINER_CMD) run --rm \
-		--security-opt label=disable \
-		-v "$$PWD:/workspace$(VZ)" \
+    @$(CONTAINER_CMD) run --rm \
+        --security-opt label=disable \
+        -v "$$PWD:/workspace" \
 		-v "$$PWD/.cache/go-build:/tmp/.cache/go-build$(VZ)" \
 		-v "$$PWD/.cache/go-mod:/tmp/.cache/go-mod$(VZ)" \
 		-w /workspace \
@@ -462,7 +462,7 @@ compile: toolbox-build
 	@mkdir -p bin
 	@$(CONTAINER_CMD) run --rm \
 		--security-opt label=disable \
-		-v "$$(pwd):/workspace$(VZ)" \
+        -v "$$(pwd):/workspace" \
 		-v "$$(pwd)/bin:/workspace/bin$(VZ)" \
 		-w /workspace \
 		-u "$$(id -u):$$(id -g)" \
@@ -487,9 +487,9 @@ compile-safe: toolbox-build
 toolbox-test-api: toolbox-build
 	@printf "\n🧪 Running internal/api tests in toolbox...\n"
 	$(call ensure_caches)
-	@$(CONTAINER_CMD) run --rm \
-		--security-opt label=disable \
-		-v "$$PWD:/workspace$(VZ)" \
+    @$(CONTAINER_CMD) run --rm \
+        --security-opt label=disable \
+        -v "$$PWD:/workspace" \
 		-v "$$PWD/.cache/go-build:/tmp/.cache/go-build$(VZ)" \
 		-v "$$PWD/.cache/go-mod:/tmp/.cache/go-mod$(VZ)" \
 		-w /workspace \
@@ -505,9 +505,9 @@ toolbox-test:
 	@$(MAKE) toolbox-build
 	@printf "\n🧪 Running core test suite in toolbox...\n"
 	$(call ensure_caches)
-	@$(CONTAINER_CMD) run --rm \
-		--security-opt label=disable \
-		-v "$$PWD:/workspace$(VZ)" \
+    @$(CONTAINER_CMD) run --rm \
+        --security-opt label=disable \
+        -v "$$PWD:/workspace" \
 		-v "$$PWD/.cache/go-build:/tmp/.cache/go-build$(VZ)" \
 		-v "$$PWD/.cache/go-mod:/tmp/.cache/go-mod$(VZ)" \
 		-w /workspace \
@@ -524,9 +524,9 @@ toolbox-test-run:
 	@$(MAKE) toolbox-build
 	@printf "\n🧪 Running specific test: $(TEST)\n"
 	$(call ensure_caches)
-	@$(CONTAINER_CMD) run --rm \
-		--security-opt label=disable \
-		-v "$$PWD:/workspace$(VZ)" \
+    @$(CONTAINER_CMD) run --rm \
+        --security-opt label=disable \
+        -v "$$PWD:/workspace" \
 		-v "$$PWD/.cache/go-build:/tmp/.cache/go-build$(VZ)" \
 		-v "$$PWD/.cache/go-mod:/tmp/.cache/go-mod$(VZ)" \
 		-w /workspace \
@@ -544,9 +544,9 @@ toolbox-run-file:
 	@$(MAKE) toolbox-build
 	@printf "\n🚀 Running Go file: $(FILE)\n"
 	$(call ensure_caches)
-	@$(CONTAINER_CMD) run --rm \
-		--security-opt label=disable \
-		-v "$$PWD:/workspace$(VZ)" \
+    @$(CONTAINER_CMD) run --rm \
+        --security-opt label=disable \
+        -v "$$PWD:/workspace" \
 		-v "$$PWD/.cache/go-build:/tmp/.cache/go-build$(VZ)" \
 		-v "$$PWD/.cache/go-mod:/tmp/.cache/go-mod$(VZ)" \
 		-w /workspace \

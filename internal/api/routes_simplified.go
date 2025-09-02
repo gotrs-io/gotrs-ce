@@ -2,6 +2,7 @@ package api
 
 import (
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,11 +15,15 @@ func NewSimpleRouter() *gin.Engine {
 	r := gin.Default()
 	log.Println("✅ Gin router created")
 
-	// Initialize pongo2 renderer for templates
-	templateDir := "./templates"
-	log.Printf("📂 Attempting to initialize pongo2 renderer with template dir: %s", templateDir)
-	pongo2Renderer = NewPongo2Renderer(templateDir)
-	log.Println("✅ Pongo2 template renderer initialized")
+    // Initialize pongo2 renderer for templates, but only if templates exist
+    templateDir := "./templates"
+    if _, err := os.Stat(templateDir); err == nil {
+        log.Printf("📂 Initializing pongo2 renderer with template dir: %s", templateDir)
+        pongo2Renderer = NewPongo2Renderer(templateDir)
+        log.Println("✅ Pongo2 template renderer initialized")
+    } else {
+        log.Printf("⚠️ Templates directory not found (%s); skipping renderer init", templateDir)
+    }
 
 	// Static files will be served by SetupHTMXRoutes
 	log.Println("📁 Static file serving will be handled by SetupHTMXRoutes")

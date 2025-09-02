@@ -29,10 +29,9 @@ else
 VZ :=
 endif
 
-# Ensure Go caches exist for toolbox runs (writable by container user)
+# Ensure Go caches exist for toolbox runs
 define ensure_caches
 @mkdir -p .cache/go-build .cache/go-mod
-@chmod -R 0777 .cache || true
 endef
 
 # Common run flags
@@ -491,9 +490,11 @@ toolbox-test-api: toolbox-build
 	@$(CONTAINER_CMD) run --rm \
         --security-opt label=disable \
         -v "$$PWD:/workspace" \
+		-v gotrs_go_mod_cache:/go/pkg/mod \
+		-v gotrs_go_build_cache:/home/appuser/.cache/go-build \
 		-w /workspace \
-		-e GOCACHE=/workspace/.cache/go-build \
-		-e GOMODCACHE=/workspace/.cache/go-mod \
+		-e GOCACHE=/home/appuser/.cache/go-build \
+		-e GOMODCACHE=/go/pkg/mod \
 		-e APP_ENV=test \
 		-e DB_HOST=$(DB_HOST) -e DB_PORT=$(DB_PORT) \
 		-e DB_NAME=gotrs_test -e DB_USER=gotrs_test -e DB_PASSWORD=gotrs_test_password \
@@ -508,9 +509,11 @@ toolbox-test:
 	@$(CONTAINER_CMD) run --rm \
         --security-opt label=disable \
         -v "$$PWD:/workspace" \
+		-v gotrs_go_mod_cache:/go/pkg/mod \
+		-v gotrs_go_build_cache:/home/appuser/.cache/go-build \
 		-w /workspace \
-		-e GOCACHE=/workspace/.cache/go-build \
-		-e GOMODCACHE=/workspace/.cache/go-mod \
+		-e GOCACHE=/home/appuser/.cache/go-build \
+		-e GOMODCACHE=/go/pkg/mod \
 		-e APP_ENV=test \
 		-e DB_HOST=$(DB_HOST) -e DB_PORT=$(DB_PORT) \
 		-e DB_NAME=gotrs_test -e DB_USER=gotrs_test -e DB_PASSWORD=gotrs_test_password \
@@ -526,10 +529,12 @@ toolbox-test-run:
 	@$(CONTAINER_CMD) run --rm \
         --security-opt label=disable \
         -v "$$PWD:/workspace" \
+		-v gotrs_go_mod_cache:/go/pkg/mod \
+		-v gotrs_go_build_cache:/home/appuser/.cache/go-build \
 		-w /workspace \
 		--network host \
-		-e GOCACHE=/workspace/.cache/go-build \
-		-e GOMODCACHE=/workspace/.cache/go-mod \
+		-e GOCACHE=/home/appuser/.cache/go-build \
+		-e GOMODCACHE=/go/pkg/mod \
 		-e DB_HOST=$(DB_HOST) -e DB_PORT=$(DB_PORT) \
 		-e DB_NAME=gotrs_test -e DB_USER=gotrs_test -e DB_PASSWORD=gotrs_test_password \
 		-e VALKEY_HOST=$(VALKEY_HOST) -e VALKEY_PORT=$(VALKEY_PORT) \

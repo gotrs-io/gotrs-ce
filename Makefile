@@ -526,16 +526,15 @@ toolbox-test-run:
         --security-opt label=disable \
         -v "$$PWD:/workspace" \
 		-w /workspace \
-		-u "$$UID:$$GID" \
 		--network host \
-		-e GOCACHE=/workspace/.cache/go-build \
-		-e GOMODCACHE=/workspace/.cache/go-mod \
+		-e GOCACHE=/tmp/gocache \
+		-e GOMODCACHE=/tmp/gomodcache \
 		-e DB_HOST=$(DB_HOST) -e DB_PORT=$(DB_PORT) \
 		-e DB_NAME=gotrs_test -e DB_USER=gotrs_test -e DB_PASSWORD=gotrs_test_password \
 		-e VALKEY_HOST=$(VALKEY_HOST) -e VALKEY_PORT=$(VALKEY_PORT) \
 		-e APP_ENV=test \
 		gotrs-toolbox:latest \
-		bash -lc 'export PATH=/usr/local/go/bin:$$PATH && go test -v -run "$(TEST)" ./...'
+		bash -lc 'mkdir -p $$GOCACHE $$GOMODCACHE; export PATH=/usr/local/go/bin:$$PATH; go test -v -run "$(TEST)" ./...'
 
 # Run a specific Go file
 toolbox-run-file:

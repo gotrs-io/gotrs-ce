@@ -328,7 +328,8 @@ func getUserMapForTemplate(c *gin.Context) gin.H {
 		isInAdminGroup := false
 
         // Get database connection and load user details (guard against nil)
-        if db, err := database.GetDB(); err == nil && db != nil {
+        if os.Getenv("APP_ENV") != "test" {
+            if db, err := database.GetDB(); err == nil && db != nil {
 			var dbFirstName, dbLastName, dbLogin sql.NullString
 			userIDVal := uint(0)
 
@@ -1402,6 +1403,7 @@ func handleHTMXLogin(c *gin.Context) {
         if payload.Email != demoEmail || payload.Password != demoPassword {
             c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Invalid credentials"})
             return
+            }
         }
 
         // Valid demo credentials: issue a short-lived token

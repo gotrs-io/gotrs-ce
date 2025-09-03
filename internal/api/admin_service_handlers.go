@@ -142,8 +142,13 @@ func handleAdminServices(c *gin.Context) {
 		services = append(services, s)
 	}
 
-	// Render the template
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/services.pongo2", pongo2.Context{
+    // Render the template or fallback if renderer not initialized
+    if pongo2Renderer == nil {
+        c.Header("Content-Type", "text/html; charset=utf-8")
+        c.String(http.StatusOK, `<h1>Service Management</h1><button>Add New Service</button>`)
+        return
+    }
+    pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/services.pongo2", pongo2.Context{
 		"Title":       "Service Management",
 		"Services":    services,
 		"SearchQuery": searchQuery,

@@ -36,15 +36,16 @@ func TestArticleAPI(t *testing.T) {
     if db == nil {
         t.Skip("Database not available, skipping")
     }
-	var ticketID int
-    ticketQuery := database.ConvertPlaceholders(`
-        INSERT INTO ticket (tn, title, queue_id, type_id, ticket_state_id, 
+    var ticketID int
+    // MariaDB-safe insert without RETURNING; then fetch by TN
+    ticketInsert := database.ConvertPlaceholders(`
+        INSERT INTO ticket (tn, title, queue_id, type_id, ticket_state_id,
             ticket_priority_id, customer_user_id, user_id, responsible_user_id,
             create_time, create_by, change_time, change_by)
         VALUES ($1, $2, 1, 1, 1, 3, 'test@example.com', 1, 1, NOW(), 1, NOW(), 1)
-        RETURNING id
     `)
-	db.QueryRow(ticketQuery, "2024123100001", "Test Ticket").Scan(&ticketID)
+    _, _ = db.Exec(ticketInsert, "2024123100001", "Test Ticket")
+    _ = db.QueryRow(database.ConvertPlaceholders(`SELECT id FROM ticket WHERE tn = $1 ORDER BY id DESC LIMIT 1`), "2024123100001").Scan(&ticketID)
 
 	t.Run("List Articles", func(t *testing.T) {
 		router := gin.New()
@@ -98,16 +99,17 @@ func TestArticleAPI(t *testing.T) {
 		})
 		router.GET("/api/v1/tickets/:ticket_id/articles/:id", HandleGetArticleAPI)
 
-		// Create a test article
-		var articleID int
-		articleQuery := database.ConvertPlaceholders(`
-			INSERT INTO article (ticket_id, article_type_id, article_sender_type_id,
-				from_email, to_email, subject, body, create_time, create_by, change_time, change_by)
-			VALUES ($1, 1, 1, 'from@test.com', 'to@test.com', 
-				'Get Test', 'Get Test Body', NOW(), 1, NOW(), 1)
-			RETURNING id
-		`)
-		db.QueryRow(articleQuery, ticketID).Scan(&articleID)
+        // Create a test article (MariaDB-safe)
+        var articleID int
+        _, _ = db.Exec(database.ConvertPlaceholders(`
+            INSERT INTO article (ticket_id, article_type_id, article_sender_type_id,
+                from_email, to_email, subject, body, create_time, create_by, change_time, change_by)
+            VALUES ($1, 1, 1, 'from@test.com', 'to@test.com', 
+                'Get Test', 'Get Test Body', NOW(), 1, NOW(), 1)
+        `), ticketID)
+        _ = db.QueryRow(database.ConvertPlaceholders(`
+            SELECT id FROM article WHERE ticket_id = $1 AND subject = 'Get Test' ORDER BY id DESC LIMIT 1
+        `), ticketID).Scan(&articleID)
 
 		// Test getting the article
 		req := httptest.NewRequest("GET", "/api/v1/tickets/"+strconv.Itoa(ticketID)+"/articles/"+strconv.Itoa(articleID), nil)
@@ -190,16 +192,17 @@ func TestArticleAPI(t *testing.T) {
 		})
 		router.PUT("/api/v1/tickets/:ticket_id/articles/:id", HandleUpdateArticleAPI)
 
-		// Create a test article
-		var articleID int
-		articleQuery := database.ConvertPlaceholders(`
-			INSERT INTO article (ticket_id, article_type_id, article_sender_type_id,
-				from_email, to_email, subject, body, create_time, create_by, change_time, change_by)
-			VALUES ($1, 1, 1, 'original@test.com', 'to@test.com', 
-				'Original Subject', 'Original Body', NOW(), 1, NOW(), 1)
-			RETURNING id
-		`)
-		db.QueryRow(articleQuery, ticketID).Scan(&articleID)
+        // Create a test article (MariaDB-safe)
+        var articleID int
+        _, _ = db.Exec(database.ConvertPlaceholders(`
+            INSERT INTO article (ticket_id, article_type_id, article_sender_type_id,
+                from_email, to_email, subject, body, create_time, create_by, change_time, change_by)
+            VALUES ($1, 1, 1, 'original@test.com', 'to@test.com', 
+                'Original Subject', 'Original Body', NOW(), 1, NOW(), 1)
+        `), ticketID)
+        _ = db.QueryRow(database.ConvertPlaceholders(`
+            SELECT id FROM article WHERE ticket_id = $1 AND subject = 'Original Subject' ORDER BY id DESC LIMIT 1
+        `), ticketID).Scan(&articleID)
 
 		// Test updating article
 		payload := map[string]interface{}{
@@ -236,16 +239,17 @@ func TestArticleAPI(t *testing.T) {
 		})
 		router.DELETE("/api/v1/tickets/:ticket_id/articles/:id", HandleDeleteArticleAPI)
 
-		// Create a test article
-		var articleID int
-		articleQuery := database.ConvertPlaceholders(`
-			INSERT INTO article (ticket_id, article_type_id, article_sender_type_id,
-				from_email, to_email, subject, body, create_time, create_by, change_time, change_by)
-			VALUES ($1, 1, 1, 'delete@test.com', 'to@test.com', 
-				'Delete Test', 'Delete Body', NOW(), 1, NOW(), 1)
-			RETURNING id
-		`)
-		db.QueryRow(articleQuery, ticketID).Scan(&articleID)
+        // Create a test article (MariaDB-safe)
+        var articleID int
+        _, _ = db.Exec(database.ConvertPlaceholders(`
+            INSERT INTO article (ticket_id, article_type_id, article_sender_type_id,
+                from_email, to_email, subject, body, create_time, create_by, change_time, change_by)
+            VALUES ($1, 1, 1, 'delete@test.com', 'to@test.com', 
+                'Delete Test', 'Delete Body', NOW(), 1, NOW(), 1)
+        `), ticketID)
+        _ = db.QueryRow(database.ConvertPlaceholders(`
+            SELECT id FROM article WHERE ticket_id = $1 AND subject = 'Delete Test' ORDER BY id DESC LIMIT 1
+        `), ticketID).Scan(&articleID)
 
 		// Test deleting article
 		req := httptest.NewRequest("DELETE", "/api/v1/tickets/"+strconv.Itoa(ticketID)+"/articles/"+strconv.Itoa(articleID), nil)
@@ -273,16 +277,17 @@ func TestArticleAPI(t *testing.T) {
 		})
 		router.GET("/api/v1/tickets/:ticket_id/articles/:id", HandleGetArticleAPI)
 
-		// Create article with attachment
-		var articleID int
-		articleQuery := database.ConvertPlaceholders(`
-			INSERT INTO article (ticket_id, article_type_id, article_sender_type_id,
-				from_email, to_email, subject, body, create_time, create_by, change_time, change_by)
-			VALUES ($1, 1, 1, 'attach@test.com', 'to@test.com', 
-				'Attachment Test', 'Body with attachment', NOW(), 1, NOW(), 1)
-			RETURNING id
-		`)
-		db.QueryRow(articleQuery, ticketID).Scan(&articleID)
+        // Create article with attachment (MariaDB-safe)
+        var articleID int
+        _, _ = db.Exec(database.ConvertPlaceholders(`
+            INSERT INTO article (ticket_id, article_type_id, article_sender_type_id,
+                from_email, to_email, subject, body, create_time, create_by, change_time, change_by)
+            VALUES ($1, 1, 1, 'attach@test.com', 'to@test.com', 
+                'Attachment Test', 'Body with attachment', NOW(), 1, NOW(), 1)
+        `), ticketID)
+        _ = db.QueryRow(database.ConvertPlaceholders(`
+            SELECT id FROM article WHERE ticket_id = $1 AND subject = 'Attachment Test' ORDER BY id DESC LIMIT 1
+        `), ticketID).Scan(&articleID)
 
 		// Add attachment
 		attachQuery := database.ConvertPlaceholders(`

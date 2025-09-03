@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-    "os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

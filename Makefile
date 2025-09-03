@@ -505,7 +505,8 @@ toolbox-test-api: toolbox-build
 		-e STORAGE_PATH=/tmp \
 		-e TEMPLATES_DIR=/workspace/templates \
 		-e DB_HOST=$(DB_HOST) -e DB_PORT=$(DB_PORT) \
-		-e DB_NAME=gotrs_test -e DB_USER=gotrs_test -e DB_PASSWORD=gotrs_test_password \
+        -e DB_DRIVER=mariadb \
+        -e DB_NAME=otrs -e DB_USER=otrs -e DB_PASSWORD=LetClaude.1n \
 		gotrs-toolbox:latest \
 		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go test -v ./internal/api -run "Queue|Article|Search|Priority|User"'
 
@@ -527,7 +528,8 @@ toolbox-test:
 		-e STORAGE_PATH=/tmp \
 		-e TEMPLATES_DIR=/workspace/templates \
 		-e DB_HOST=$(DB_HOST) -e DB_PORT=$(DB_PORT) \
-		-e DB_NAME=gotrs_test -e DB_USER=gotrs_test -e DB_PASSWORD=gotrs_test_password \
+        -e DB_DRIVER=mariadb \
+        -e DB_NAME=otrs -e DB_USER=otrs -e DB_PASSWORD=LetClaude.1n \
 		-e VALKEY_HOST=$(VALKEY_HOST) -e VALKEY_PORT=$(VALKEY_PORT) \
 		gotrs-toolbox:latest \
 		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; pkgs="./cmd/goats ./internal/api ./generated/tdd-comprehensive"; echo Running: $$pkgs; go test -v $$pkgs'

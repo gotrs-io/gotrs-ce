@@ -18,9 +18,6 @@ import (
 // Focus on business logic and API responses
 
 func TestHTMXLoginHandler_Logic(t *testing.T) {
-    if os.Getenv("SKIP_UNSTABLE") == "1" {
-        t.Skip("Skipping unstable login logic tests")
-    }
     t.Setenv("DEMO_LOGIN_EMAIL", "test@example.com")
     t.Setenv("DEMO_LOGIN_PASSWORD", "testpass123")
 
@@ -90,9 +87,6 @@ func TestHTMXLoginHandler_Logic(t *testing.T) {
 }
 
 func TestHTMXLoginHandler_NoEnvVars(t *testing.T) {
-    if os.Getenv("SKIP_UNSTABLE") == "1" {
-        t.Skip("Skipping unstable login tests without env vars")
-    }
     t.Setenv("DEMO_LOGIN_EMAIL", "")
     t.Setenv("DEMO_LOGIN_PASSWORD", "")
 
@@ -116,9 +110,6 @@ func TestHTMXLoginHandler_NoEnvVars(t *testing.T) {
 }
 
 func TestCreateTicketHandler_Logic(t *testing.T) {
-    if os.Getenv("SKIP_UNSTABLE") == "1" {
-        t.Skip("Skipping unstable create ticket tests")
-    }
 	gin.SetMode(gin.TestMode)
     // Avoid DB-dependent path in unit test
     t.Setenv("APP_ENV", "test")

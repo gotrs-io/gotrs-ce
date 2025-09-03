@@ -492,6 +492,8 @@ compile-safe: toolbox-build
 toolbox-test-api: toolbox-build
 	@printf "\n🧪 Running internal/api tests in toolbox...\n"
 	@$(call ensure_caches)
+	@printf "📡 Starting dependencies (mariadb, valkey)...\n"
+	@$(COMPOSE_CMD) up -d mariadb valkey >/dev/null 2>&1 || true
 	@$(CONTAINER_CMD) run --rm \
         --security-opt label=disable \
         -v "$$PWD:/workspace" \
@@ -504,7 +506,7 @@ toolbox-test-api: toolbox-build
 		-e APP_ENV=test \
 		-e STORAGE_PATH=/tmp \
 		-e TEMPLATES_DIR=/workspace/templates \
-		-e DB_HOST=$(DB_HOST) -e DB_PORT=$(DB_PORT) \
+		-e DB_HOST=$(DB_HOST) -e DB_PORT=3306 \
         -e DB_DRIVER=mariadb \
         -e DB_NAME=otrs -e DB_USER=otrs -e DB_PASSWORD=LetClaude.1n \
 		gotrs-toolbox:latest \
@@ -515,6 +517,8 @@ toolbox-test:
 	@$(MAKE) toolbox-build
 	@printf "\n🧪 Running core test suite in toolbox...\n"
 	@$(call ensure_caches)
+	@printf "📡 Starting dependencies (mariadb, valkey)...\n"
+	@$(COMPOSE_CMD) up -d mariadb valkey >/dev/null 2>&1 || true
 	@$(CONTAINER_CMD) run --rm \
         --security-opt label=disable \
         -v "$$PWD:/workspace" \
@@ -527,7 +531,7 @@ toolbox-test:
 		-e APP_ENV=test \
 		-e STORAGE_PATH=/tmp \
 		-e TEMPLATES_DIR=/workspace/templates \
-		-e DB_HOST=$(DB_HOST) -e DB_PORT=$(DB_PORT) \
+		-e DB_HOST=$(DB_HOST) -e DB_PORT=3306 \
         -e DB_DRIVER=mariadb \
         -e DB_NAME=otrs -e DB_USER=otrs -e DB_PASSWORD=LetClaude.1n \
 		-e VALKEY_HOST=$(VALKEY_HOST) -e VALKEY_PORT=$(VALKEY_PORT) \

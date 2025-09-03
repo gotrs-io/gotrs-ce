@@ -16,9 +16,11 @@ import (
 )
 
 func TestSLAAPI(t *testing.T) {
-	// Initialize test database
-	database.InitTestDB()
-	defer database.CloseTestDB()
+    // Initialize test database; skip if unavailable
+    if err := database.InitTestDB(); err != nil {
+        t.Skip("Database not available, skipping SLA API tests")
+    }
+    defer database.CloseTestDB()
 
 	// Create test JWT manager
     jwtManager := auth.NewJWTManager("test-secret", time.Hour)
@@ -38,7 +40,10 @@ func TestSLAAPI(t *testing.T) {
 		router.GET("/api/v1/slas", HandleListSLAsAPI)
 
 		// Create test SLAs
-		db, _ := database.GetDB()
+        db, err := database.GetDB()
+        if err != nil || db == nil {
+            t.Skip("Database not available, skipping integration test")
+        }
 		slaQuery := database.ConvertPlaceholders(`
 			INSERT INTO sla (name, calendar_id, first_response_time, first_response_notify,
 				update_time, update_notify, solution_time, solution_notify,
@@ -96,7 +101,10 @@ func TestSLAAPI(t *testing.T) {
 		router.GET("/api/v1/slas/:id", HandleGetSLAAPI)
 
 		// Create a test SLA first
-		db, _ := database.GetDB()
+        db, err := database.GetDB()
+        if err != nil || db == nil {
+            t.Skip("Database not available, skipping integration test")
+        }
 		var slaID int
 		query := database.ConvertPlaceholders(`
 			INSERT INTO sla (name, calendar_id, first_response_time, first_response_notify,
@@ -204,7 +212,10 @@ func TestSLAAPI(t *testing.T) {
 		router.PUT("/api/v1/slas/:id", HandleUpdateSLAAPI)
 
 		// Create a test SLA
-		db, _ := database.GetDB()
+        db, err := database.GetDB()
+        if err != nil || db == nil {
+            t.Skip("Database not available, skipping integration test")
+        }
 		var slaID int
 		query := database.ConvertPlaceholders(`
 			INSERT INTO sla (name, calendar_id, first_response_time, first_response_notify,
@@ -264,7 +275,10 @@ func TestSLAAPI(t *testing.T) {
 		router.DELETE("/api/v1/slas/:id", HandleDeleteSLAAPI)
 
 		// Create a test SLA
-		db, _ := database.GetDB()
+        db, err := database.GetDB()
+        if err != nil || db == nil {
+            t.Skip("Database not available, skipping integration test")
+        }
 		var slaID int
 		query := database.ConvertPlaceholders(`
 			INSERT INTO sla (name, calendar_id, first_response_time, first_response_notify,

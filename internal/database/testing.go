@@ -4,6 +4,7 @@ import (
 	"database/sql"
     "fmt"
 	"log"
+	"os"
 
 	"github.com/gotrs-io/gotrs-ce/internal/services/adapter"
 )
@@ -16,6 +17,12 @@ var testDB *sql.DB
 // It does not create schema by default; individual tests should
 // create required tables with CREATE TABLE IF NOT EXISTS as needed.
 func InitTestDB() error {
+    // In test environment with no DB configured, fast-return so tests can proceed DB-less
+    if v := os.Getenv("APP_ENV"); v == "test" {
+        if os.Getenv("DB_HOST") == "" && os.Getenv("DATABASE_URL") == "" {
+            return fmt.Errorf("no database connection available")
+        }
+    }
 	// Ensure the service registry and database are configured
 	if err := adapter.AutoConfigureDatabase(); err != nil {
 		// Not fatal; adapter.GetDB may still return a direct connection

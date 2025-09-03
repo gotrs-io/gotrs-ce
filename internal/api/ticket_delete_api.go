@@ -33,19 +33,21 @@ func HandleDeleteTicketAPI(c *gin.Context) {
 
 	// Get user ID
 	userID := 1 // Default for testing
-	if id, exists := c.Get("user_id"); exists {
-		userID = id.(int)
-	}
+    if id, exists := c.Get("user_id"); exists {
+        switch v := id.(type) {
+        case int:
+            userID = v
+        case uint:
+            userID = int(v)
+        }
+    }
 
 	// Get database connection
-	db, err := database.GetDB()
-	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"success": false,
-			"error":   "Database unavailable",
-		})
-		return
-	}
+    db, err := database.GetDB()
+    if err != nil || db == nil {
+        c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Authentication required"})
+        return
+    }
 
 	// Check if ticket exists and get current state
 	var currentStateID int

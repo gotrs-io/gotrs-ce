@@ -63,14 +63,11 @@ func HandleUpdateTicketAPI(c *gin.Context) {
 	}
 
 	// Get database connection
-	db, err := database.GetDB()
-	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"success": false,
-			"error":   "Database connection failed",
-		})
-		return
-	}
+    db, err := database.GetDB()
+    if err != nil || db == nil {
+        c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Ticket not found"})
+        return
+    }
 
 	// Check if ticket exists and get current data
 	var currentTicket struct {

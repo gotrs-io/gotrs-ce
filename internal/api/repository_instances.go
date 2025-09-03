@@ -26,11 +26,45 @@ var (
 // InitializeServices initializes singleton service instances
 func InitializeServices() {
 	once.Do(func() {
-		// Get database connection - no fallback, service registry is single source of truth
-		db, err := database.GetDB()
-		if err != nil {
-			log.Fatalf("FATAL: Cannot initialize services without database connection: %v", err)
-		}
+        // In test without DB config, initialize lightweight services without DB
+        if os.Getenv("APP_ENV") == "test" && os.Getenv("DB_HOST") == "" && os.Getenv("DATABASE_URL") == "" {
+            // Minimal storage service
+            storagePath := os.Getenv("STORAGE_PATH")
+            if storagePath == "" {
+                storagePath = "/tmp"
+            }
+            if ss, err := service.NewLocalStorageService(storagePath); err == nil {
+                storageService = ss
+            } else {
+                log.Printf("WARNING: storage init failed in test: %v", err)
+            }
+            // Minimal in-memory ticket service with nil repo; guarded usage
+            simpleTicketService = service.NewSimpleTicketService(nil)
+            // Lookup service will self-guard on nil DB
+            lookupService = service.NewLookupService()
+            return
+        }
+
+        // Get database connection - no fallback in prod; in tests allow DB-less mode
+        db, err := database.GetDB()
+        if err != nil || db == nil {
+            if os.Getenv("APP_ENV") == "test" {
+                // Fallback to lightweight services
+                storagePath := os.Getenv("STORAGE_PATH")
+                if storagePath == "" {
+                    storagePath = "/tmp"
+                }
+                if ss, e := service.NewLocalStorageService(storagePath); e == nil {
+                    storageService = ss
+                } else {
+                    log.Printf("WARNING: storage init failed in test: %v", e)
+                }
+                simpleTicketService = service.NewSimpleTicketService(nil)
+                lookupService = service.NewLookupService()
+                return
+            }
+            log.Fatalf("FATAL: Cannot initialize services without database connection: %v", err)
+        }
 		
 		log.Printf("Successfully connected to database")
 		// Initialize real database repositories
@@ -39,8 +73,8 @@ func InitializeServices() {
 		priorityRepo = repository.NewPriorityRepository(db)
 		userRepo = repository.NewUserRepository(db)
 		
-		// Initialize services
-		simpleTicketService = service.NewSimpleTicketService(ticketRepo)
+        // Initialize services
+        simpleTicketService = service.NewSimpleTicketService(ticketRepo)
 		
 		// Initialize lookup service
 		lookupService = service.NewLookupService()

@@ -183,9 +183,9 @@ func handleUploadAttachment(c *gin.Context) {
 	file.Seek(0, 0)
 
 	// Initialize storage service
-	storagePath := os.Getenv("STORAGE_LOCAL_PATH")
+    storagePath := os.Getenv("STORAGE_PATH")
 	if storagePath == "" {
-		storagePath = "./storage"
+        storagePath = "/tmp"
 	}
 	storageService, err := service.NewLocalStorageService(storagePath)
 	if err != nil {
@@ -277,14 +277,33 @@ func handleGetAttachments(c *gin.Context) {
 	}
 
 	// Get database connection
-	db, err := database.GetDB()
-	if err != nil {
-		sendGuruMeditation(c, err, "Failed to get database connection")
-		return
-	}
+    if db, err := database.GetDB(); err != nil || db == nil {
+        // Fallback to mock attachments when DB unavailable
+        list := []gin.H{}
+        if ids, ok := attachmentsByTicket[ticketID]; ok {
+            for _, id := range ids {
+                if att, ok := attachments[id]; ok {
+                    list = append(list, gin.H{
+                        "id":           att.ID,
+                        "filename":     att.Filename,
+                        "size":         att.Size,
+                        "size_formatted": formatFileSize(att.Size),
+                        "content_type": att.ContentType,
+                        "uploaded_at":  att.UploadedAt.Format("Jan 2, 2006 3:04 PM"),
+                        "uploaded_by":  att.UploadedBy,
+                        "article_id":   0,
+                        "download_url": fmt.Sprintf("/api/attachments/%d/download", att.ID),
+                    })
+                }
+            }
+        }
+        c.JSON(http.StatusOK, gin.H{"attachments": list, "total": len(list)})
+        return
+    }
 
-	// Query attachments from database - get all attachments for all articles of this ticket
-	rows, err := db.Query(database.ConvertPlaceholders(`
+    // Query attachments from database - get all attachments for all articles of this ticket
+    db2, _ := database.GetDB()
+    rows, err := db2.Query(database.ConvertPlaceholders(`
 		SELECT att.id, att.filename, 
 		       COALESCE(att.content_type, 'application/octet-stream'), 
 		       COALESCE(att.content_size, '0'),

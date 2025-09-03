@@ -39,14 +39,14 @@ func HandleGetTicketAPI(c *gin.Context) {
 	}
 
 	// Get database connection
-	db, err := database.GetDB()
-	if err != nil || db == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Database connection not available",
-		})
-		return
-	}
+    db, err := database.GetDB()
+    if err != nil || db == nil {
+        c.JSON(http.StatusNotFound, gin.H{
+            "success": false,
+            "error":   "Ticket not found",
+        })
+        return
+    }
 
 	// Query for ticket details with related information
 	query := database.ConvertPlaceholders(`

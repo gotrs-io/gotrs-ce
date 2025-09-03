@@ -56,6 +56,10 @@ func shouldAutoConfig() bool {
 
 // AutoConfigureDatabase configures database from environment variables
 func AutoConfigureDatabase() error {
+    // Fast-fail in test when DB is clearly not configured; avoids background openers
+    if os.Getenv("APP_ENV") == "test" && os.Getenv("DB_HOST") == "" && os.Getenv("DATABASE_URL") == "" {
+        return fmt.Errorf("test env: no DB configured")
+    }
 	// Initialize registry if not already done
 	reg, err := InitializeServiceRegistry()
 	if err != nil {
@@ -144,10 +148,13 @@ func buildDatabaseConfig() *registry.ServiceConfig {
 // GetDatabase returns the primary database service
 func GetDatabase() (database.DatabaseService, error) {
 	if globalDB == nil {
-		// Try to initialize
-		if err := AutoConfigureDatabase(); err != nil {
-			return nil, fmt.Errorf("database not initialized: %w", err)
-		}
+        // Try to initialize; in tests without DB, return explicit error quickly
+        if err := AutoConfigureDatabase(); err != nil {
+            if os.Getenv("APP_ENV") == "test" {
+                return nil, fmt.Errorf("database not initialized in test: %w", err)
+            }
+            return nil, fmt.Errorf("database not initialized: %w", err)
+        }
 	}
 
 	return globalDB, nil
@@ -175,10 +182,25 @@ func GetDatabaseForApp(appID string, purpose string) (database.DatabaseService, 
 
 // GetDB returns a *sql.DB for compatibility with existing code
 func GetDB() (*sql.DB, error) {
-	// Quick check if already initialized
-	if globalDB != nil {
-		return globalDB.GetDB(), nil
-	}
+    // Quick check if already initialized
+    if globalDB != nil {
+        db := globalDB.GetDB()
+        if db == nil {
+            if os.Getenv("APP_ENV") == "test" {
+                return nil, fmt.Errorf("database unreachable in test: no db instance")
+            }
+            return nil, fmt.Errorf("database not initialized: no db instance")
+        }
+        // In tests, proactively verify connectivity with a short timeout
+        if os.Getenv("APP_ENV") == "test" {
+            ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+            defer cancel()
+            if pingErr := db.PingContext(ctx); pingErr != nil {
+                return nil, fmt.Errorf("database unreachable in test: %w", pingErr)
+            }
+        }
+        return db, nil
+    }
 
 	// Try direct connection first (bypass service registry)
 	if db := GetDirectDB(); db != nil {
@@ -212,6 +234,12 @@ func GetDB() (*sql.DB, error) {
 
 // GetDirectDB creates a direct database connection using environment variables
 func GetDirectDB() *sql.DB {
+    if os.Getenv("APP_ENV") == "test" {
+        // Respect a very short timeout by ping, but don't attempt if no host
+        if os.Getenv("DB_HOST") == "" && os.Getenv("DATABASE_URL") == "" {
+            return nil
+        }
+    }
 	// Check for DATABASE_URL first
 	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
 		db, err := sql.Open("mysql", dbURL)

@@ -14,9 +14,11 @@ import (
 )
 
 func TestStatisticsAPI(t *testing.T) {
-	// Initialize test database
-	database.InitTestDB()
-	defer database.CloseTestDB()
+    // Initialize test database; skip if unavailable
+    if err := database.InitTestDB(); err != nil {
+        t.Skip("Database not available, skipping Statistics API tests")
+    }
+    defer database.CloseTestDB()
 
 	// Create test JWT manager
     jwtManager := auth.NewJWTManager("test-secret", time.Hour)
@@ -28,7 +30,10 @@ func TestStatisticsAPI(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	// Setup comprehensive test data
-	db, _ := database.GetDB()
+    db, err := database.GetDB()
+    if err != nil || db == nil {
+        t.Skip("Database not available, skipping integration test setup")
+    }
 	
 	// Create test tickets with various states and dates
 	ticketQuery := database.ConvertPlaceholders(`

@@ -16,7 +16,10 @@ func NewSimpleRouter() *gin.Engine {
 	log.Println("✅ Gin router created")
 
     // Initialize pongo2 renderer for templates, but only if templates exist
-    templateDir := "./templates"
+    templateDir := os.Getenv("TEMPLATES_DIR")
+    if templateDir == "" {
+        templateDir = "./templates"
+    }
     if _, err := os.Stat(templateDir); err == nil {
         log.Printf("📂 Initializing pongo2 renderer with template dir: %s", templateDir)
         pongo2Renderer = NewPongo2Renderer(templateDir)

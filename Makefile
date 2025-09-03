@@ -495,6 +495,7 @@ toolbox-test-api: toolbox-build
 	@$(CONTAINER_CMD) run --rm \
         --security-opt label=disable \
         -v "$$PWD:/workspace" \
+		--network host \
 		-v gotrs_go_mod_cache:/go/pkg/mod \
 		-v gotrs_go_build_cache:/home/appuser/.cache/go-build \
 		-w /workspace \
@@ -502,6 +503,7 @@ toolbox-test-api: toolbox-build
 		-e GOMODCACHE=/go/pkg/mod \
 		-e APP_ENV=test \
 		-e STORAGE_PATH=/tmp \
+		-e TEMPLATES_DIR=/workspace/templates \
 		-e DB_HOST=$(DB_HOST) -e DB_PORT=$(DB_PORT) \
 		-e DB_NAME=gotrs_test -e DB_USER=gotrs_test -e DB_PASSWORD=gotrs_test_password \
 		gotrs-toolbox:latest \
@@ -515,14 +517,15 @@ toolbox-test:
 	@$(CONTAINER_CMD) run --rm \
         --security-opt label=disable \
         -v "$$PWD:/workspace" \
+		--network host \
 		-v gotrs_go_mod_cache:/go/pkg/mod \
 		-v gotrs_go_build_cache:/home/appuser/.cache/go-build \
 		-w /workspace \
 		-e GOCACHE=/home/appuser/.cache/go-build \
 		-e GOMODCACHE=/go/pkg/mod \
 		-e APP_ENV=test \
-		-e SKIP_UNSTABLE=1 \
 		-e STORAGE_PATH=/tmp \
+		-e TEMPLATES_DIR=/workspace/templates \
 		-e DB_HOST=$(DB_HOST) -e DB_PORT=$(DB_PORT) \
 		-e DB_NAME=gotrs_test -e DB_USER=gotrs_test -e DB_PASSWORD=gotrs_test_password \
 		-e VALKEY_HOST=$(VALKEY_HOST) -e VALKEY_PORT=$(VALKEY_PORT) \

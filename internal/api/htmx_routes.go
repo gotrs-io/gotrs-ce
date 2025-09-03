@@ -549,7 +549,11 @@ func NewHTMXRouter(jwtManager *auth.JWTManager, ldapProvider *ldap.Provider) *gi
 func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapProvider *ldap.Provider, i18nSvc interface{}) {
 
 	// Initialize pongo2 renderer
-	templateDir := "./templates"
+    // Allow override via TEMPLATES_DIR (useful in containers/tests)
+    templateDir := os.Getenv("TEMPLATES_DIR")
+    if templateDir == "" {
+        templateDir = "./templates"
+    }
 	if _, err := os.Stat(templateDir); err == nil {
 		pongo2Renderer = NewPongo2Renderer(templateDir)
 	} else {

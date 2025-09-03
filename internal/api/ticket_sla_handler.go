@@ -281,21 +281,19 @@ func checkAutoEscalation(ticketData map[string]interface{}) EscalationResult {
 	sla := calculateSLA(priority, createdAt, time.Now())
 	
 	// Determine if escalation needed
-	if sla.Status == "overdue" {
-		level := "senior_agent"
-		
-		// Higher escalation for higher priorities
-		if priority == "5 very high" {
-			level = "manager"
-		} else if priority == "4 high" && sla.PercentUsed > 125 {
-			level = "manager"
-		}
-		
-		return EscalationResult{
-			ShouldEscalate:  true,
-			EscalationLevel: level,
-		}
-	}
+    if sla.Status == "overdue" {
+        level := "senior_agent"
+        
+        // Higher escalation for very high priority only
+        if priority == "5 very high" {
+            level = "manager"
+        }
+        
+        return EscalationResult{
+            ShouldEscalate:  true,
+            EscalationLevel: level,
+        }
+    }
 	
 	// Special case: Very high priority tickets escalate faster
 	if priority == "5 very high" && sla.PercentUsed > 75 {

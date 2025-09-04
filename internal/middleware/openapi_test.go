@@ -441,12 +441,13 @@ func TestLoadOpenAPIMiddleware(t *testing.T) {
 
 	t.Run("Loads validator when spec file exists", func(t *testing.T) {
 		// Create api directory if it doesn't exist
-		apiDir := "api"
+        apiDir := t.TempDir()
 		os.MkdirAll(apiDir, 0755)
 		defer os.RemoveAll(apiDir)
 
 		// Create a valid spec file
-		specPath := filepath.Join(apiDir, "openapi.yaml")
+        // Create in temp dir and point loader to it by chdir
+        specPath := filepath.Join(apiDir, "openapi.yaml")
 		specContent := `
 openapi: 3.0.0
 info:
@@ -459,10 +460,18 @@ paths:
         '200':
           description: Success
 `
-		err := os.WriteFile(specPath, []byte(specContent), 0644)
+        err := os.WriteFile(specPath, []byte(specContent), 0644)
 		require.NoError(t, err)
 
-		middleware := LoadOpenAPIMiddleware()
+        // Change working directory so LoadOpenAPIMiddleware finds api/openapi.yaml
+        cwd, _ := os.Getwd()
+        defer os.Chdir(cwd)
+        // Create api dir within temp and move file accordingly
+        os.MkdirAll(filepath.Join(apiDir, "api"), 0755)
+        _ = os.Rename(specPath, filepath.Join(apiDir, "api", "openapi.yaml"))
+        os.Chdir(apiDir)
+
+        middleware := LoadOpenAPIMiddleware()
 		assert.NotNil(t, middleware)
 
 		// Test that middleware works
@@ -481,17 +490,21 @@ paths:
 
 	t.Run("Returns no-op middleware on invalid spec", func(t *testing.T) {
 		// Create api directory if it doesn't exist
-		apiDir := "api"
-		os.MkdirAll(apiDir, 0755)
-		defer os.RemoveAll(apiDir)
+        apiRoot := t.TempDir()
 
-		// Create an invalid spec file
-		specPath := filepath.Join(apiDir, "openapi.yaml")
+        // Create an invalid spec file under api in temp dir
+        os.MkdirAll(filepath.Join(apiRoot, "api"), 0755)
+        specPath := filepath.Join(apiRoot, "api", "openapi.yaml")
 		invalidContent := `invalid: [yaml content`
 		err := os.WriteFile(specPath, []byte(invalidContent), 0644)
 		require.NoError(t, err)
 
-		middleware := LoadOpenAPIMiddleware()
+        // Change cwd so loader resolves api/openapi.yaml
+        cwd, _ := os.Getwd()
+        defer os.Chdir(cwd)
+        os.Chdir(apiRoot)
+
+        middleware := LoadOpenAPIMiddleware()
 		assert.NotNil(t, middleware)
 
 		// Test that middleware still allows requests

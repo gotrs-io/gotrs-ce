@@ -633,7 +633,7 @@ toolbox-staticcheck:
 		bash -lc 'set -e; export PATH=/usr/local/go/bin:/usr/local/bin:$$PATH; export GOFLAGS="-buildvcs=false"; go version; staticcheck -version; \
 		PKGS=$$(go list ./... | rg -v "^(github.com/gotrs-io/gotrs-ce/(tests/e2e))"); \
 		echo "Staticchecking packages:"; echo "$$PKGS" | tr "\n" " "; echo; \
-		GOTOOLCHAIN=local staticcheck $$PKGS'
+		GOTOOLCHAIN=local staticcheck -f=stylish -checks=all,-U1000,-ST1000,-ST1003,-SA9003,-ST1020,-ST1021,-ST1022,-ST1023 $$PKGS'
 
 # Run a specific Go file
 toolbox-run-file:

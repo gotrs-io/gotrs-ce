@@ -33,30 +33,34 @@ func NewPongo2Renderer(templateDir string, debug bool) *Pongo2Renderer {
 func (r *Pongo2Renderer) Instance(name string, data interface{}) *pongo2.Template {
     var tmpl *pongo2.Template
     var err error
+    // no shadowing warnings
 	
 	// Use absolute path for templates
 	fullPath := r.TemplateDir + "/" + name
 	fmt.Printf("DEBUG Instance: Loading template from %s\n", fullPath)
 	
-	if r.Debug {
+    if r.Debug {
 		// Always load from disk in debug mode
 		tmpl, err = pongo2.FromFile(fullPath)
 		if err != nil {
 			fmt.Printf("DEBUG Instance Error: %v\n", err)
 		}
-	} else {
+    } else {
 		// Use cache in production
 		r.mu.RLock()
-        tmpl, ok := r.cache[name]
+        tmpl = r.cache[name]
 		r.mu.RUnlock()
 		
-		if !ok {
-            tmpl, err = pongo2.FromFile(fullPath)
-			if err == nil {
-				r.mu.Lock()
-				r.cache[name] = tmpl
-				r.mu.Unlock()
-			}
+        if tmpl == nil {
+            t, e := pongo2.FromFile(fullPath)
+            if e == nil {
+                r.mu.Lock()
+                r.cache[name] = t
+                r.mu.Unlock()
+                tmpl = t
+            } else {
+                err = e
+            }
 		}
 	}
 	

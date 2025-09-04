@@ -401,6 +401,8 @@ func TestConcurrentAPIAccess(t *testing.T) {
 }
 
 // Helper function to parse JSON response
+// parseJSONResponse is a local test helper; currently unused.
+//nolint:unused
 func parseJSONResponse(t *testing.T, body []byte) map[string]interface{} {
 	var response map[string]interface{}
 	err := json.Unmarshal(body, &response)
@@ -409,6 +411,8 @@ func parseJSONResponse(t *testing.T, body []byte) map[string]interface{} {
 }
 
 // Helper function to create a test TicketFormData
+// createTestFormData constructs a sample form payload; currently unused.
+//nolint:unused
 func createTestFormData() *models.TicketFormData {
 	return &models.TicketFormData{
 		Queues: []models.QueueInfo{

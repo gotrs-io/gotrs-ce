@@ -488,6 +488,8 @@ func isRouteRegistered(group *gin.RouterGroup, method, path string) bool {
 }
 
 // getRouteTree gets the route tree for a specific HTTP method
+// getRouteTree is reserved for future deep inspection of gin route trees.
+//nolint:unused
 func getRouteTree(engine *gin.Engine, method string) interface{} {
 	// This is a placeholder - in a real implementation you'd need to access
 	// the internal gin.Engine trees field which is not exported
@@ -513,6 +515,8 @@ func IsRouteRegistered(method, path string) bool {
 }
 
 // getFullPath constructs the full path for a route in a group
+// getFullPath returns group's base path joined with path. Currently unused.
+//nolint:unused
 func getFullPath(group *gin.RouterGroup, path string) string {
 	basePath := group.BasePath()
 	if basePath == "/" {

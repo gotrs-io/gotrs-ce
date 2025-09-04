@@ -103,16 +103,14 @@ func HandleAdminUserGet(c *gin.Context) {
 		JOIN group_user gu ON g.id = gu.group_id
 		WHERE gu.user_id = $1 AND g.valid_id = 1`)
 
-	rows, err := db.Query(groupQuery, id)
+    rows, err := db.Query(groupQuery, id)
 	if err == nil {
 		defer rows.Close()
-		var groupIDs []int
 		var groupNames []string
 		for rows.Next() {
 			var gid int
 			var gname string
 			if err := rows.Scan(&gid, &gname); err == nil {
-				groupIDs = append(groupIDs, gid)
 				groupNames = append(groupNames, gname)
 			}
 		}
@@ -318,40 +316,44 @@ func HandleAdminUserUpdate(c *gin.Context) {
     }
 
     // Update user basic info
-	if req.Password != "" {
-		// Update with new password
-		hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"error":   "Failed to hash password",
-			})
-			return
-		}
+    if req.Password != "" {
+        // Update with new password
+        hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "success": false,
+                "error":   "Failed to hash password",
+            })
+            return
+        }
 
-		_, err = db.Exec(database.ConvertPlaceholders(`
-			UPDATE users 
-			SET login = $1, pw = $2, first_name = $3, last_name = $4, 
-			    valid_id = $5, change_time = NOW(), change_by = 1
-			WHERE id = $6`),
-			req.Login, string(hash), req.FirstName, req.LastName, req.ValidID, id)
-	} else {
-		// Update without changing password
-		_, err = db.Exec(database.ConvertPlaceholders(`
-			UPDATE users 
-			SET login = $1, first_name = $2, last_name = $3, 
-			    valid_id = $4, change_time = NOW(), change_by = 1
-			WHERE id = $5`),
-			req.Login, req.FirstName, req.LastName, req.ValidID, id)
-	}
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   fmt.Sprintf("Failed to update user: %v", err),
-		})
-		return
-	}
+        if _, err := db.Exec(database.ConvertPlaceholders(`
+            UPDATE users 
+            SET login = $1, pw = $2, first_name = $3, last_name = $4, 
+                valid_id = $5, change_time = NOW(), change_by = 1
+            WHERE id = $6`),
+            req.Login, string(hash), req.FirstName, req.LastName, req.ValidID, id); err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "success": false,
+                "error":   fmt.Sprintf("Failed to update user: %v", err),
+            })
+            return
+        }
+    } else {
+        // Update without changing password
+        if _, err := db.Exec(database.ConvertPlaceholders(`
+            UPDATE users 
+            SET login = $1, first_name = $2, last_name = $3, 
+                valid_id = $4, change_time = NOW(), change_by = 1
+            WHERE id = $5`),
+            req.Login, req.FirstName, req.LastName, req.ValidID, id); err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "success": false,
+                "error":   fmt.Sprintf("Failed to update user: %v", err),
+            })
+            return
+        }
+    }
 
     // Update group memberships
     // If DB not available, we already returned; otherwise proceed

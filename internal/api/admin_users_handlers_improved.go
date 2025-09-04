@@ -79,8 +79,7 @@ func ImprovedHandleAdminUserGet(c *gin.Context) {
 		user.Groups = []string{}
 	} else {
 		defer rows.Close()
-		var groupNames []string
-		var groupDetails []gin.H
+        var groupNames []string
 		
 		for rows.Next() {
 			var gid int
@@ -89,12 +88,7 @@ func ImprovedHandleAdminUserGet(c *gin.Context) {
 			
 			if err := rows.Scan(&gid, &gname, &permKey, &permValue); err == nil {
 				groupNames = append(groupNames, gname)
-				groupDetails = append(groupDetails, gin.H{
-					"id":              gid,
-					"name":            gname,
-					"permission_key":  permKey,
-					"permission_value": permValue,
-				})
+                // omit groupDetails until used
 				fmt.Printf("INFO: User %d has group: %s (id=%d, perm=%s:%d)\n", 
 					id, gname, gid, permKey, permValue)
 			}
@@ -201,31 +195,38 @@ func ImprovedHandleAdminUserUpdate(c *gin.Context) {
 			return
 		}
 		
-		_, err = tx.Exec(database.ConvertPlaceholders(`
+        if _, err = tx.Exec(database.ConvertPlaceholders(`
 			UPDATE users 
 			SET login = $1, pw = $2, first_name = $3, last_name = $4, 
 			    valid_id = $5, change_time = NOW(), change_by = 1
 			WHERE id = $6`),
-			req.Login, string(hash), req.FirstName, req.LastName, req.ValidID, id,
-		)
+            req.Login, string(hash), req.FirstName, req.LastName, req.ValidID, id,
+        ); err != nil {
+            fmt.Printf("ERROR: Failed to update user %d: %v\n", id, err)
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "success": false,
+                "error":   fmt.Sprintf("Failed to update user: %v", err),
+            })
+            return
+        }
 	} else {
 		// Update without changing password
-		_, err = tx.Exec(database.ConvertPlaceholders(`
+        if _, err = tx.Exec(database.ConvertPlaceholders(`
 			UPDATE users 
 			SET login = $1, first_name = $2, last_name = $3, 
 			    valid_id = $4, change_time = NOW(), change_by = 1
 			WHERE id = $5`),
-			req.Login, req.FirstName, req.LastName, req.ValidID, id)
+            req.Login, req.FirstName, req.LastName, req.ValidID, id); err != nil {
+            fmt.Printf("ERROR: Failed to update user %d: %v\n", id, err)
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "success": false,
+                "error":   fmt.Sprintf("Failed to update user: %v", err),
+            })
+            return
+        }
 	}
 
-	if err != nil {
-		fmt.Printf("ERROR: Failed to update user %d: %v\n", id, err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   fmt.Sprintf("Failed to update user: %v", err),
-		})
-		return
-	}
+// err handled inline above
 
 	fmt.Printf("SUCCESS: Updated user %d basic info\n", id)
 
@@ -250,7 +251,7 @@ func ImprovedHandleAdminUserUpdate(c *gin.Context) {
 	fmt.Printf("INFO: User %d current groups: %v\n", id, currentGroups)
 
 	// Remove all existing group memberships
-    if _, err := tx.Exec("DELETE FROM group_user WHERE user_id = $1", id); err != nil {
+    if _, err := tx.Exec(database.ConvertPlaceholders("DELETE FROM group_user WHERE user_id = $1"), id); err != nil {
 		fmt.Printf("ERROR: Failed to remove existing group memberships for user %d: %v\n", id, err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -271,7 +272,7 @@ func ImprovedHandleAdminUserUpdate(c *gin.Context) {
 		}
 		
 		var groupID int
-        if err := tx.QueryRow("SELECT id FROM groups WHERE name = $1 AND valid_id = 1", groupName).Scan(&groupID); err != nil {
+        if err := tx.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE name = $1 AND valid_id = 1"), groupName).Scan(&groupID); err != nil {
 			fmt.Printf("WARNING: Group '%s' not found or invalid\n", groupName)
 			failedGroups = append(failedGroups, groupName)
 			continue
@@ -305,7 +306,7 @@ func ImprovedHandleAdminUserUpdate(c *gin.Context) {
 
 	// Final verification - query the actual groups from database
 	var finalGroups []string
-	rows, err = db.Query(database.ConvertPlaceholders(`
+    rows, err = db.Query(database.ConvertPlaceholders(`
 		SELECT g.name FROM groups g 
 		JOIN group_user gu ON g.id = gu.group_id 
 		WHERE gu.user_id = $1 AND g.valid_id = 1

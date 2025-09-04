@@ -59,6 +59,8 @@ func (h *PasswordHasher) VerifyPassword(password, hash string) bool {
 }
 
 // detectHashType determines the hash algorithm from the hash format
+// detectHashType determines the hash algorithm from the hash format.
+//nolint:unused
 func (h *PasswordHasher) detectHashType(hash string) PasswordHashType {
 	// Bcrypt hashes start with $2a$, $2b$, or $2y$
 	if strings.HasPrefix(hash, "$2") {
@@ -94,6 +96,8 @@ func (h *PasswordHasher) hashBcrypt(password string) (string, error) {
 }
 
 // verifyBcrypt checks a bcrypt hash
+// verifyBcrypt checks a bcrypt hash.
+//nolint:unused
 func (h *PasswordHasher) verifyBcrypt(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
@@ -107,6 +111,8 @@ func (h *PasswordHasher) hashSHA256(password string) string {
 }
 
 // verifySHA256 checks a SHA256 hash (supports both salted and unsalted formats)
+// verifySHA256 checks a SHA256 hash (supports both salted and unsalted formats).
+//nolint:unused
 func (h *PasswordHasher) verifySHA256(password, hash string) bool {
 	return h.verifyPassword(password, hash)
 }
@@ -141,6 +147,8 @@ func (h *PasswordHasher) verifyPassword(password, hashedPassword string) bool {
 }
 
 // isHex checks if a string contains only hexadecimal characters
+// isHex checks if a string contains only hexadecimal characters.
+//nolint:unused
 func isHex(s string) bool {
 	for _, c := range s {
 		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {

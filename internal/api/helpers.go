@@ -30,6 +30,9 @@ func formatFileSize(size int64) string {
 }
 
 // getUserIDFromContext gets the user ID from the gin context
+// getUserIDFromContext returns user ID from context. Kept for future admin pages.
+// Deprecated: prefer extracting from JWT middleware claims.
+//nolint:unused
 func getUserIDFromContext(c *gin.Context) int {
 	// Try to get user from context
 	userInterface, exists := c.Get("user")

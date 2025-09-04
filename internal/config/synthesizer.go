@@ -31,9 +31,11 @@ type EnvVariable struct {
 }
 
 type Synthesizer struct {
-	templatePath string
-	outputPath   string
-	variables    []EnvVariable
+    // templatePath is reserved for future template-driven synthesis
+    //nolint:unused
+    templatePath string
+    outputPath   string
+    variables    []EnvVariable
 }
 
 func NewSynthesizer(outputPath string) *Synthesizer {
@@ -128,6 +130,8 @@ func (s *Synthesizer) generateAPIKey(keyType string, envPrefix string) (string, 
 	return fmt.Sprintf("gtr-%s-%s", keyType, strings.ToLower(random)), nil
 }
 
+// randomInt returns a secure random integer in [0,max). Currently unused.
+//nolint:unused
 func (s *Synthesizer) randomInt(max int) int {
 	n, _ := rand.Int(rand.Reader, big.NewInt(int64(max)))
 	return int(n.Int64())

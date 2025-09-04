@@ -276,6 +276,8 @@ func countTablesWithData(tables map[string]*TableInfo) int {
 	return count
 }
 
+// importSQLDump is retained for compatibility; prefer importSQLDumpFixed. Unused in current flow.
+//nolint:unused
 func importSQLDump(sqlFile, dbURL string, verbose, dryRun bool) error {
 	if dryRun {
 		fmt.Printf("🧪 DRY RUN: Analyzing import process for %s\n", sqlFile)
@@ -410,6 +412,8 @@ func importSQLDump(sqlFile, dbURL string, verbose, dryRun bool) error {
 	return nil
 }
 
+// convertMySQLToPostgreSQL converts an INSERT for PostgreSQL; kept for reference.
+//nolint:unused
 func convertMySQLToPostgreSQL(mysqlSQL string) (string, string, error) {
 	// Extract table name
 	insertPattern := regexp.MustCompile(`INSERT INTO ` + "`" + `([^` + "`" + `]+)` + "`")
@@ -494,6 +498,8 @@ func convertMySQLToPostgreSQL(mysqlSQL string) (string, string, error) {
 	return converted, tableName, nil
 }
 
+// convertInsertStatement maps implicit column INSERTs to explicit form. Reference only.
+//nolint:unused
 func convertInsertStatement(sql, tableName string) string {
 	// For tables with auto-increment IDs, we need to remove the ID and add explicit column names
 	tablesNeedingColumnMapping := map[string][]string{

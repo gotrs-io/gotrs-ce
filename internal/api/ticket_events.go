@@ -16,7 +16,8 @@ var ticketEventClients = struct {
 	clients: make(map[chan string]bool),
 }
 
-// handleTicketEvents provides Server-Sent Events for real-time ticket updates
+// handleTicketEvents provides Server-Sent Events for real-time ticket updates.
+//nolint:unused
 func handleTicketEvents(c *gin.Context) {
 	// Set headers for SSE
 	c.Header("Content-Type", "text/event-stream")

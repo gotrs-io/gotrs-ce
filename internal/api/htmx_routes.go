@@ -2169,8 +2169,7 @@ func handleRecentTickets(c *gin.Context) {
     }
 
     ticketList := []gin.H{}
-    if tickets != nil {
-        for _, ticket := range tickets {
+    for _, ticket := range tickets {
             // Determine status label
             statusLabel := "unknown"
             switch ticket.TicketStateID {
@@ -2192,7 +2191,6 @@ func handleRecentTickets(c *gin.Context) {
                 "customer": ticket.CustomerUserID,
                 "updated":  timeago.English.Format(ticket.ChangeTime),
             })
-        }
     }
 
     c.JSON(http.StatusOK, gin.H{"tickets": ticketList})

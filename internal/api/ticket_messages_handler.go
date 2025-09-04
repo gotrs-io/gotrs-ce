@@ -398,6 +398,8 @@ func renderSimpleMessageHTML(msg *service.SimpleTicketMessage) string {
 		attachmentsHTML)
 }
 
+// renderMessagesHTML renders articles as HTML. Currently not referenced.
+//nolint:unused
 func renderMessagesHTML(messages []models.Article) string {
 	if len(messages) == 0 {
 		return `<div class="text-gray-500 text-center py-8">No messages found.</div>`

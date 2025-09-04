@@ -280,10 +280,11 @@ func UpdateFieldHandler(ctx *WorkflowContext, action Action) error {
 func SendEmailHandler(ctx *WorkflowContext, action Action) error {
 	to, _ := action.Config["to"].(string)
 	subject, _ := action.Config["subject"].(string)
-	body, _ := action.Config["body"].(string)
+    body, _ := action.Config["body"].(string)
 	
 	// Replace variables in email template
-	body = replaceVariables(body, ctx.Variables)
+    body = replaceVariables(body, ctx.Variables)
+    _ = body // avoid unused until send implemented
 	
 	ctx.Log(fmt.Sprintf("Sending email to %s: %s", to, subject))
 	

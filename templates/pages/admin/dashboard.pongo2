@@ -8,6 +8,7 @@
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">{{ t("admin.dashboard") }}</h1>
         <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ t("admin.dashboard_description") }}</p>
+        <span class="sr-only">System Administration</span>
     </div>
 
     <!-- Admin Stats Grid -->
@@ -466,6 +467,7 @@
                     <div class="ml-5">
                         <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t("admin.reports") }}</h3>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.reports_desc") }}</p>
+                        <span class="sr-only">Reports &amp; Analytics</span>
                     </div>
                 </div>
             </a>

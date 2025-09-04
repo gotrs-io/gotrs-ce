@@ -538,7 +538,7 @@ toolbox-test:
 		gotrs-toolbox:latest \
 		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; set -e; \
 		echo Running: ./cmd/goats; go test -v ./cmd/goats; \
-		echo Running: ./internal/api focused; go test -v ./internal/api -run "^Test(AdminType|Queue|Article|Search|Priority|User|TicketZoom)"; \
+		echo Running: ./internal/api focused; go test -v ./internal/api -run "^Test(AdminType|Queue|Article|Search|Priority|User|TicketZoom|AdminService|AdminStates|AdminGroupManagement|HandleGetQueues|HandleGetPriorities|DatabaseIntegrity)"; \
 		echo Running: ./generated/tdd-comprehensive; go test -v ./generated/tdd-comprehensive'
 
 # Run a specific test pattern across all packages

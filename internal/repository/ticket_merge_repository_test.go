@@ -188,9 +188,13 @@ func TestTicketMergeRepository(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, children, 3)
 		
-		for i, childID := range children {
-			assert.Equal(t, childIDs[i], childID)
-		}
+        // Order is not guaranteed; compare as sets
+        expected := map[uint]bool{childIDs[0]: true, childIDs[1]: true, childIDs[2]: true}
+        for _, childID := range children {
+            assert.True(t, expected[childID], "unexpected child id: %v", childID)
+            delete(expected, childID)
+        }
+        assert.Empty(t, expected)
 	})
 
 	t.Run("GetMergeStatistics", func(t *testing.T) {

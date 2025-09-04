@@ -240,18 +240,17 @@ func ImprovedHandleAdminUserUpdate(c *gin.Context) {
 		WHERE gu.user_id = $1 AND g.valid_id = 1`), id)
 	if err == nil {
 		defer rows.Close()
-		for rows.Next() {
-			var groupName string
-			if rows.Scan(&groupName) == nil {
-				currentGroups = append(currentGroups, groupName)
-			}
-		}
+        for rows.Next() {
+            var groupName string
+            if err := rows.Scan(&groupName); err == nil {
+                currentGroups = append(currentGroups, groupName)
+            }
+        }
 	}
 	fmt.Printf("INFO: User %d current groups: %v\n", id, currentGroups)
 
 	// Remove all existing group memberships
-	result, err := tx.Exec("DELETE FROM group_user WHERE user_id = $1", id)
-	if err != nil {
+    if _, err := tx.Exec("DELETE FROM group_user WHERE user_id = $1", id); err != nil {
 		fmt.Printf("ERROR: Failed to remove existing group memberships for user %d: %v\n", id, err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -259,9 +258,7 @@ func ImprovedHandleAdminUserUpdate(c *gin.Context) {
 		})
 		return
 	}
-	
-	rowsAffected, _ := result.RowsAffected()
-	fmt.Printf("INFO: Removed %d existing group memberships for user %d\n", rowsAffected, id)
+    fmt.Printf("INFO: Removed existing group memberships for user %d\n", id)
 
 	// Add new group memberships
 	var addedGroups []string
@@ -274,8 +271,7 @@ func ImprovedHandleAdminUserUpdate(c *gin.Context) {
 		}
 		
 		var groupID int
-		err = tx.QueryRow("SELECT id FROM groups WHERE name = $1 AND valid_id = 1", groupName).Scan(&groupID)
-		if err != nil {
+        if err := tx.QueryRow("SELECT id FROM groups WHERE name = $1 AND valid_id = 1", groupName).Scan(&groupID); err != nil {
 			fmt.Printf("WARNING: Group '%s' not found or invalid\n", groupName)
 			failedGroups = append(failedGroups, groupName)
 			continue

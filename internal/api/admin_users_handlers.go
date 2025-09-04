@@ -355,8 +355,7 @@ func HandleAdminUserUpdate(c *gin.Context) {
 
     // Update group memberships
     // If DB not available, we already returned; otherwise proceed
-    _, err = db.Exec(database.ConvertPlaceholders("DELETE FROM group_user WHERE user_id = $1"), id)
-    if err == nil {
+    if _, delErr := db.Exec(database.ConvertPlaceholders("DELETE FROM group_user WHERE user_id = $1"), id); delErr == nil {
         // Then add new group memberships
         for _, groupName := range req.Groups {
             groupName = strings.TrimSpace(groupName)
@@ -365,8 +364,7 @@ func HandleAdminUserUpdate(c *gin.Context) {
             }
             var groupID int
             // Ensure group exists; create if missing (test-friendly)
-            scanErr := db.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE name = $1 AND valid_id = 1"), groupName).Scan(&groupID)
-            if scanErr != nil {
+            if err := db.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE name = $1 AND valid_id = 1"), groupName).Scan(&groupID); err != nil {
                 // Create group with minimal fields
                 _, _ = db.Exec(database.ConvertPlaceholders(`
                     INSERT INTO groups (name, comments, valid_id, create_time, create_by, change_time, change_by)

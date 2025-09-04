@@ -290,10 +290,30 @@ func runResetUser(cmd *cobra.Command, args []string) error {
 	}
 	defer db.Close()
 
-	// Test connection
+    // Test connection
 	if err := db.Ping(); err != nil {
 		return fmt.Errorf("failed to ping database: %w", err)
 	}
+
+    // Ensure minimal users table exists for convenience on empty DBs
+    if err := ensureUsersTable(db, driverName); err != nil {
+        return fmt.Errorf("failed to ensure users table: %w", err)
+    }
+
+    // Ensure user row exists (create minimally if missing)
+    var existing int
+    sel := database.ConvertPlaceholders("SELECT 1 FROM users WHERE login = $1")
+    if err := db.QueryRow(sel, usernameFlag).Scan(&existing); err != nil {
+        // Create minimal user row
+        fmt.Println("👤 Creating minimal user row...")
+        ins := database.ConvertPlaceholders(`
+            INSERT INTO users (login, pw, first_name, last_name, valid_id, create_by, change_by)
+            VALUES ($1, '', '', '', 1, 1, 1)`)
+        if _, ie := db.Exec(ins, usernameFlag); ie != nil {
+            // continue; update might still succeed if column set differs
+            fmt.Printf("⚠️  Warning: failed to insert minimal user row: %v\n", ie)
+        }
+    }
 
 	// Generate bcrypt hash for the password
 	fmt.Printf("🔒 Generating password hash...\n")
@@ -307,19 +327,19 @@ func runResetUser(cmd *cobra.Command, args []string) error {
 	var sqlArgs []any
 	
 	if enableFlag {
-		sqlQuery = `UPDATE users SET 
-			pw = $1,
-			valid_id = 1,
-			change_time = CURRENT_TIMESTAMP,
-			change_by = 1
-		WHERE login = $2`
+        sqlQuery = database.ConvertPlaceholders(`UPDATE users SET 
+            pw = $1,
+            valid_id = 1,
+            change_time = NOW(),
+            change_by = 1
+        WHERE login = $2`)
 		sqlArgs = []any{string(hash), usernameFlag}
 	} else {
-		sqlQuery = `UPDATE users SET 
-			pw = $1,
-			change_time = CURRENT_TIMESTAMP,
-			change_by = 1
-		WHERE login = $2`
+        sqlQuery = database.ConvertPlaceholders(`UPDATE users SET 
+            pw = $1,
+            change_time = NOW(),
+            change_by = 1
+        WHERE login = $2`)
 		sqlArgs = []any{string(hash), usernameFlag}
 	}
 
@@ -344,7 +364,7 @@ func runResetUser(cmd *cobra.Command, args []string) error {
 	var validID int
 	var passwordStatus string
 	
-	err = db.QueryRow(database.ConvertPlaceholders(`SELECT login,
+    err = db.QueryRow(database.ConvertPlaceholders(`SELECT login,
 		CASE WHEN pw IS NOT NULL THEN 'SET' ELSE 'NULL' END as password_status,
 		valid_id
 		FROM users WHERE login = $1`), usernameFlag).Scan(&login, &passwordStatus, &validID)
@@ -363,6 +383,51 @@ func runResetUser(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// ensureUsersTable creates a minimal users table if absent (portable across postgres/mysql)
+func ensureUsersTable(db *sql.DB, driverName string) error {
+    // Check existence
+    checkSQL := "SELECT 1 FROM users LIMIT 1"
+    if _, err := db.Exec(checkSQL); err == nil {
+        return nil
+    }
+    fmt.Println("🧰 'users' table missing; creating minimal schema for password reset...")
+    var createSQL string
+    switch driverName {
+    case "postgres":
+        createSQL = `
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    login VARCHAR(200) NOT NULL UNIQUE,
+    pw VARCHAR(255),
+    title VARCHAR(50),
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    valid_id SMALLINT NOT NULL DEFAULT 1,
+    create_time TIMESTAMP NOT NULL DEFAULT NOW(),
+    create_by INTEGER NOT NULL DEFAULT 1,
+    change_time TIMESTAMP NOT NULL DEFAULT NOW(),
+    change_by INTEGER NOT NULL DEFAULT 1
+);`
+    default: // mysql/mariadb
+        createSQL = `
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    login VARCHAR(200) NOT NULL UNIQUE,
+    pw VARCHAR(255),
+    title VARCHAR(50),
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    valid_id SMALLINT NOT NULL DEFAULT 1,
+    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    create_by INT NOT NULL DEFAULT 1,
+    change_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    change_by INT NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`
+    }
+    _, err := db.Exec(createSQL)
+    return err
 }
 
 func main() {

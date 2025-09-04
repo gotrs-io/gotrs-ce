@@ -437,7 +437,7 @@ toolbox-compile:
 	@$(call ensure_caches)
 	@$(CONTAINER_CMD) run --rm \
         --security-opt label=disable \
-        -v "$$PWD:/workspace$(VZ)" \
+        -v "$$PWD:/workspace" \
 		-w /workspace \
 		-u "$$UID:$$GID" \
 		-e GOCACHE=/workspace/.cache/go-build \
@@ -452,7 +452,7 @@ toolbox-compile-api:
 	@$(call ensure_caches)
 	@$(CONTAINER_CMD) run --rm \
         --security-opt label=disable \
-        -v "$$PWD:/workspace$(VZ)" \
+        -v "$$PWD:/workspace" \
 		-w /workspace \
 		-u "$$UID:$$GID" \
 		-e GOCACHE=/workspace/.cache/go-build \

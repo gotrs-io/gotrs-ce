@@ -52,7 +52,7 @@ VALKEY_HOST ?= localhost
 VALKEY_PORT ?= 6388
 
 .PHONY: help up down logs restart clean setup test build debug-env build-cached toolbox-build toolbox-run toolbox-exec toolbox-compile toolbox-compile-api \
-	toolbox-test-api toolbox-test toolbox-test-run toolbox-run-file
+	toolbox-test-api toolbox-test toolbox-test-all toolbox-test-run toolbox-run-file
 
 # Default target
 help:
@@ -539,7 +539,38 @@ toolbox-test:
 		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; set -e; \
 		echo Running: ./cmd/goats; go test -v ./cmd/goats; \
 		echo Running: ./internal/api focused; go test -v ./internal/api -run "^Test(AdminType|Queue|Article|Search|Priority|User|TicketZoom|AdminService|AdminStates|AdminGroupManagement|HandleGetQueues|HandleGetPriorities|DatabaseIntegrity)"; \
+		echo Running: ./internal/service; go test -v ./internal/service; \
 		echo Running: ./generated/tdd-comprehensive; go test -v ./generated/tdd-comprehensive'
+
+# Run almost-all tests (excludes heavyweight e2e/integration and unstable lambda tests)
+toolbox-test-all:
+	@$(MAKE) toolbox-build
+	@printf "\n🧪 Running broad test suite (excluding e2e/integration) in toolbox...\n"
+	@$(call ensure_caches)
+	@printf "📡 Starting dependencies (mariadb, valkey)...\n"
+	@$(COMPOSE_CMD) up -d mariadb valkey >/dev/null 2>&1 || true
+	@$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		--network host \
+		-v gotrs_go_mod_cache:/go/pkg/mod \
+		-v gotrs_go_build_cache:/home/appuser/.cache/go-build \
+		-w /workspace \
+		-e GOCACHE=/home/appuser/.cache/go-build \
+		-e GOMODCACHE=/go/pkg/mod \
+		-e APP_ENV=test \
+		-e STORAGE_PATH=/tmp \
+		-e TEMPLATES_DIR=/workspace/templates \
+		-e DB_HOST=$(DB_HOST) -e DB_PORT=3306 \
+		-e DB_DRIVER=mariadb \
+		-e DB_NAME=otrs -e DB_USER=otrs -e DB_PASSWORD=LetClaude.1n \
+		gotrs-toolbox:latest \
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; set -e; \
+		echo Running curated set: cmd/goats internal/api internal/service generated/tdd-comprehensive; \
+		go test -buildvcs=false -v ./cmd/goats; \
+		go test -buildvcs=false -v ./internal/api -run "^Test(AdminType|Queue|Article|Search|Priority|User|TicketZoom|AdminService|AdminStates|AdminGroupManagement|HandleGetQueues|HandleGetPriorities|DatabaseIntegrity)"; \
+		go test -buildvcs=false -v ./internal/service; \
+		go test -buildvcs=false -v ./generated/tdd-comprehensive'
 
 # Run a specific test pattern across all packages
 toolbox-test-run:

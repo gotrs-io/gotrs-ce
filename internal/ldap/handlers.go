@@ -1,13 +1,14 @@
 package ldap
 
 import (
-	"fmt"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
+    "fmt"
+    "net/http"
+    "strconv"
+    "time"
 
-	"github.com/gin-gonic/gin"
+    "github.com/gin-gonic/gin"
+    "golang.org/x/text/cases"
+    "golang.org/x/text/language"
 )
 
 // LDAPHandlers provides HTTP handlers for LDAP management
@@ -433,12 +434,13 @@ func (h *LDAPHandlers) GetTemplates(c *gin.Context) {
 		"389ds":           "389 Directory Server (Red Hat Directory Server) configuration",
 	}
 	
-	for name := range DefaultConfigs {
-		templates[name] = map[string]string{
-			"name":        strings.Title(name),
-			"description": descriptions[name],
-		}
-	}
+    title := cases.Title(language.English)
+    for name := range DefaultConfigs {
+        templates[name] = map[string]string{
+            "name":        title.String(name),
+            "description": descriptions[name],
+        }
+    }
 	
 	c.JSON(http.StatusOK, gin.H{
 		"success":   true,

@@ -1,12 +1,13 @@
 package ldap
 
 import (
-	"crypto/tls"
-	"fmt"
-	"strings"
-	"time"
+    "crypto/tls"
+    "fmt"
+    "net"
+    "strings"
+    "time"
 
-	"github.com/go-ldap/ldap/v3"
+    "github.com/go-ldap/ldap/v3"
 )
 
 // Provider implements LDAP/Active Directory authentication
@@ -128,18 +129,17 @@ func NewProvider(config *Config) *Provider {
 
 // Connect establishes connection to LDAP server
 func (p *Provider) Connect() error {
-	var err error
-	address := fmt.Sprintf("%s:%d", p.config.Host, p.config.Port)
-	
-	if p.config.UseSSL {
-		tlsConfig := &tls.Config{
-			ServerName:         p.config.Host,
-			InsecureSkipVerify: p.config.SkipTLS,
-		}
-		p.conn, err = ldap.DialTLS("tcp", address, tlsConfig)
-	} else {
-		p.conn, err = ldap.Dial("tcp", address)
-	}
+    var err error
+    // Prefer DialURL over raw Dial/DialTLS (deprecated)
+    scheme := "ldap"
+    if p.config.UseSSL {
+        scheme = "ldaps"
+    }
+    address := fmt.Sprintf("%s://%s:%d", scheme, p.config.Host, p.config.Port)
+    
+    // Establish connection
+    dialer := &net.Dialer{Timeout: time.Duration(p.config.Timeout) * time.Second}
+    p.conn, err = ldap.DialURL(address, ldap.DialWithDialer(dialer))
 	
 	if err != nil {
 		return fmt.Errorf("failed to connect to LDAP server: %w", err)
@@ -151,12 +151,12 @@ func (p *Provider) Connect() error {
 	}
 	
 	// Start TLS if requested
-	if p.config.UseTLS && !p.config.UseSSL {
-		tlsConfig := &tls.Config{
-			ServerName:         p.config.Host,
-			InsecureSkipVerify: p.config.SkipTLS,
-		}
-		err = p.conn.StartTLS(tlsConfig)
+    if p.config.UseTLS && !p.config.UseSSL {
+        tlsConfig := &tls.Config{
+            ServerName:         p.config.Host,
+            InsecureSkipVerify: p.config.SkipTLS,
+        }
+        err = p.conn.StartTLS(tlsConfig)
 		if err != nil {
 			p.conn.Close()
 			return fmt.Errorf("failed to start TLS: %w", err)

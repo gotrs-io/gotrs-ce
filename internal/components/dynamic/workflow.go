@@ -302,8 +302,8 @@ func CallWebhookHandler(ctx *WorkflowContext, action Action) error {
 	
 	ctx.Log(fmt.Sprintf("Calling webhook: %s %s", method, url))
 	
-	// TODO: Implement actual HTTP request
-	return nil
+    // TODO: Implement actual HTTP request
+    return nil
 }
 
 // CreateRecordHandler creates a new record

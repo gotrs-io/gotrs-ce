@@ -234,7 +234,7 @@ func ImprovedHandleAdminUserUpdate(c *gin.Context) {
 	
 	// First, get current group memberships for logging
 	var currentGroups []string
-	rows, err := tx.Query(database.ConvertPlaceholders(`
+    rows, err := tx.Query(database.ConvertPlaceholders(`
 		SELECT g.name FROM groups g 
 		JOIN group_user gu ON g.id = gu.group_id 
 		WHERE gu.user_id = $1 AND g.valid_id = 1`), id)

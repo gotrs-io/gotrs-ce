@@ -31,8 +31,8 @@ func NewPongo2Renderer(templateDir string, debug bool) *Pongo2Renderer {
 
 // Instance returns a Pongo2 template instance, using cache if not in debug mode
 func (r *Pongo2Renderer) Instance(name string, data interface{}) *pongo2.Template {
-	var tmpl *pongo2.Template
-	var err error
+    var tmpl *pongo2.Template
+    var err error
 	
 	// Use absolute path for templates
 	fullPath := r.TemplateDir + "/" + name
@@ -47,11 +47,11 @@ func (r *Pongo2Renderer) Instance(name string, data interface{}) *pongo2.Templat
 	} else {
 		// Use cache in production
 		r.mu.RLock()
-		tmpl, ok := r.cache[name]
+        tmpl, ok := r.cache[name]
 		r.mu.RUnlock()
 		
 		if !ok {
-			tmpl, err = pongo2.FromFile(fullPath)
+            tmpl, err = pongo2.FromFile(fullPath)
 			if err == nil {
 				r.mu.Lock()
 				r.cache[name] = tmpl
@@ -60,11 +60,10 @@ func (r *Pongo2Renderer) Instance(name string, data interface{}) *pongo2.Templat
 		}
 	}
 	
-	if err != nil {
-		// Return a template that will show the error
-		tmpl, _ = pongo2.FromString("Template error: {{ error }}")
-		// Don't try to execute with nil writer, just return the error template
-	}
+    if err != nil {
+        // Return a template that will show the error
+        tmpl, _ = pongo2.FromString("Template error")
+    }
 	
 	return tmpl
 }

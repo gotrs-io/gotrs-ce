@@ -1,17 +1,18 @@
 package service
 
 import (
-	"context"
-	"crypto/tls"
-	"fmt"
-	"log"
-	"strings"
-	"sync"
-	"time"
+    "context"
+    "crypto/tls"
+    "fmt"
+    "log"
+    "net"
+    "strings"
+    "sync"
+    "time"
 
-	"github.com/go-ldap/ldap/v3"
-	"github.com/gotrs-io/gotrs-ce/internal/models"
-	"github.com/gotrs-io/gotrs-ce/internal/repository/memory"
+    "github.com/go-ldap/ldap/v3"
+    "github.com/gotrs-io/gotrs-ce/internal/models"
+    "github.com/gotrs-io/gotrs-ce/internal/repository/memory"
 )
 
 // LDAPService handles LDAP/Active Directory integration
@@ -363,35 +364,28 @@ func (s *LDAPService) Stop() {
 
 // connect establishes connection to LDAP server
 func (s *LDAPService) connect(config *LDAPConfig) (*ldap.Conn, error) {
-	address := fmt.Sprintf("%s:%d", config.Host, config.Port)
+    // Prefer URL-based dialing with timeout
+    scheme := "ldap"
+    if config.UseTLS {
+        scheme = "ldaps"
+    }
+    url := fmt.Sprintf("%s://%s:%d", scheme, config.Host, config.Port)
+    dialer := &net.Dialer{Timeout: 10 * time.Second}
 
-	var conn *ldap.Conn
-	var err error
+    conn, err := ldap.DialURL(url, ldap.DialWithDialer(dialer))
+    if err != nil {
+        return nil, err
+    }
 
-	if config.UseTLS {
-		tlsConfig := &tls.Config{
-			InsecureSkipVerify: config.InsecureSkipVerify,
-		}
-		conn, err = ldap.DialTLS("tcp", address, tlsConfig)
-	} else {
-		conn, err = ldap.Dial("tcp", address)
-	}
+    if config.StartTLS && !config.UseTLS {
+        tlsConfig := &tls.Config{InsecureSkipVerify: config.InsecureSkipVerify}
+        if err := conn.StartTLS(tlsConfig); err != nil {
+            conn.Close()
+            return nil, err
+        }
+    }
 
-	if err != nil {
-		return nil, err
-	}
-
-	if config.StartTLS && !config.UseTLS {
-		tlsConfig := &tls.Config{
-			InsecureSkipVerify: config.InsecureSkipVerify,
-		}
-		if err := conn.StartTLS(tlsConfig); err != nil {
-			conn.Close()
-			return nil, err
-		}
-	}
-
-	return conn, nil
+    return conn, nil
 }
 
 // searchUser searches for a single user in LDAP

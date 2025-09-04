@@ -181,11 +181,9 @@ func (h *I18nHandlers) Translate(c *gin.Context) {
 		lang = req.Language
 	}
 	
-	// Convert args to interface slice
-	var args []interface{}
-	for _, arg := range req.Args {
-		args = append(args, arg)
-	}
+    // Convert args to interface slice
+    var args []interface{}
+    args = append(args, req.Args...)
 	
 	translation := h.i18n.T(lang, req.Key, args...)
 	

@@ -3,7 +3,6 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
-	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,10 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 // TestGroupAssignmentWorkflow tests the complete workflow that the user reported as broken
 func TestGroupAssignmentWorkflow(t *testing.T) {
@@ -272,10 +267,14 @@ func assignUserToGroups(t *testing.T, db *sql.DB, userID int, groupNames []strin
 }
 
 func randomString(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[rand.Intn(len(charset))]
-	}
-	return string(b)
+    const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+    b := make([]byte, length)
+    // Simple deterministic fallback using time-based index to avoid rand.Seed deprecation
+    now := time.Now().UnixNano()
+    for i := range b {
+        idx := int((now/int64(i+1))) % len(charset)
+        if idx < 0 { idx = -idx }
+        b[i] = charset[idx]
+    }
+    return string(b)
 }

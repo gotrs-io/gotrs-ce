@@ -1,11 +1,12 @@
 package ldap
 
 import (
-	"log"
-	"net/http"
-	"strings"
+    "log"
+    "net/http"
 
-	"github.com/gin-gonic/gin"
+    "github.com/gin-gonic/gin"
+    "golang.org/x/text/cases"
+    "golang.org/x/text/language"
 )
 
 // AuthMiddleware provides LDAP authentication middleware
@@ -317,13 +318,14 @@ func (m *AuthMiddleware) TemplateHandler(c *gin.Context) {
 	ldapType := c.Param("type")
 	if ldapType == "" {
 		// Return available templates
-		templates := make(map[string]interface{})
-		for name := range DefaultConfigs {
-			templates[name] = map[string]string{
-				"name":        strings.Title(name),
-				"description": getTemplateDescription(name),
-			}
-		}
+        templates := make(map[string]interface{})
+        title := cases.Title(language.English)
+        for name := range DefaultConfigs {
+            templates[name] = map[string]string{
+                "name":        title.String(name),
+                "description": getTemplateDescription(name),
+            }
+        }
 		
 		c.JSON(http.StatusOK, gin.H{
 			"templates": templates,

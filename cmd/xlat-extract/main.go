@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+    "golang.org/x/text/cases"
+    "golang.org/x/text/language"
 )
 
 // TranslationKey represents a translation key found in templates
@@ -337,8 +339,9 @@ func getTranslationValue(tk *TranslationKey, lang string) string {
 	if len(parts) > 0 {
 		lastPart := parts[len(parts)-1]
 		// Convert snake_case or camelCase to Title Case
-		words := regexp.MustCompile(`[_\-]|([a-z])([A-Z])`).ReplaceAllString(lastPart, "$1 $2")
-		words = strings.Title(strings.ToLower(words))
+        words := regexp.MustCompile(`[_\-]|([a-z])([A-Z])`).ReplaceAllString(lastPart, "$1 $2")
+        title := cases.Title(language.English)
+        words = title.String(strings.ToLower(words))
 		
 		// Add [DE] prefix for German to indicate it needs translation
 		if lang == "de" {

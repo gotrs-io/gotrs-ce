@@ -412,15 +412,14 @@ func TestFormDataBindingIssues(t *testing.T) {
 }
 
 // Helper function to create authenticated test context (for future use)
-func createAuthenticatedContext() *gin.Context {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	
-	// Set up mock session/auth data
-	c.Set("user_id", 1)
-	c.Set("user_role", "admin")
-	c.Set("authenticated", true)
-	
-	return c
-}
+// createAuthenticatedContext is unused; kept for future test expansions.
+// Commented out to satisfy static analysis until referenced.
+// func createAuthenticatedContext() *gin.Context {
+//     gin.SetMode(gin.TestMode)
+//     w := httptest.NewRecorder()
+//     c, _ := gin.CreateTestContext(w)
+//     c.Set("user_id", 1)
+//     c.Set("user_role", "admin")
+//     c.Set("authenticated", true)
+//     return c
+// }

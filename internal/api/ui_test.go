@@ -339,11 +339,11 @@ func TestNavigationVisibility(t *testing.T) {
 			// Add middleware to set user role
 			router.Use(func(c *gin.Context) {
 				c.Set("user_role", tt.userRole)
-				c.Set("user", gin.H{
+                c.Set("user", gin.H{
 					"FirstName": "Test",
 					"LastName":  "User",
 					"Email":     "test@example.com",
-					"Role":      strings.Title(tt.userRole),
+                    "Role":      tt.userRole,
 				})
 				c.Next()
 			})

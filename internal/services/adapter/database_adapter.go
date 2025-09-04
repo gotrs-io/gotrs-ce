@@ -49,10 +49,10 @@ func InitializeServiceRegistry() (*registry.ServiceRegistry, error) {
 }
 
 // shouldAutoConfig checks if we should auto-configure from environment
-func shouldAutoConfig() bool {
-	// Check if we have database environment variables
-	return os.Getenv("DB_HOST") != "" || os.Getenv("DATABASE_URL") != ""
-}
+// Deprecated: kept for compatibility; callers should invoke AutoConfigureDatabase directly.
+// func shouldAutoConfig() bool {
+//     return os.Getenv("DB_HOST") != "" || os.Getenv("DATABASE_URL") != ""
+// }
 
 // AutoConfigureDatabase configures database from environment variables
 func AutoConfigureDatabase() error {

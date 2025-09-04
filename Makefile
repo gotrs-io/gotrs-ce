@@ -628,8 +628,12 @@ toolbox-staticcheck:
 		-u "$$UID:$$GID" \
 		-e GOCACHE=/workspace/.cache/go-build \
 		-e GOMODCACHE=/workspace/.cache/go-mod \
+		-e GOFLAGS=-buildvcs=false \
 		gotrs-toolbox:latest \
-		bash -lc 'set -e; export PATH=/usr/local/go/bin:/usr/local/bin:$$PATH; go version; staticcheck -version; GOTOOLCHAIN=local staticcheck ./...'
+		bash -lc 'set -e; export PATH=/usr/local/go/bin:/usr/local/bin:$$PATH; export GOFLAGS="-buildvcs=false"; go version; staticcheck -version; \
+		PKGS=$$(go list ./... | rg -v "^(github.com/gotrs-io/gotrs-ce/(tests/e2e))"); \
+		echo "Staticchecking packages:"; echo "$$PKGS" | tr "\n" " "; echo; \
+		GOTOOLCHAIN=local staticcheck $$PKGS'
 
 # Run a specific Go file
 toolbox-run-file:

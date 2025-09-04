@@ -1,13 +1,12 @@
 package routing
 
 import (
-	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
-	"path/filepath"
-	"strings"
-	"sync"
+    "fmt"
+    "log"
+    "os"
+    "path/filepath"
+    "strings"
+    "sync"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gin-gonic/gin"
@@ -119,7 +118,7 @@ func (l *RouteLoader) LoadRoutes() error {
 
 // loadRouteFile loads a single route configuration file
 func (l *RouteLoader) loadRouteFile(path string) error {
-	data, err := ioutil.ReadFile(path)
+    data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}

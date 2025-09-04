@@ -270,8 +270,9 @@ func TestTicketEditPermissions(t *testing.T) {
 			req, _ := http.NewRequest("PUT", "/api/tickets/"+tt.ticketID, strings.NewReader(formData.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			
-			// Simulate ticket assignment in context
-			req = req.WithContext(context.WithValue(req.Context(), "ticket_assigned_to", tt.assignedTo))
+            // Simulate ticket assignment in context
+            type ctxKey string
+            req = req.WithContext(context.WithValue(req.Context(), ctxKey("ticket_assigned_to"), tt.assignedTo))
 			
 			router.ServeHTTP(w, req)
 

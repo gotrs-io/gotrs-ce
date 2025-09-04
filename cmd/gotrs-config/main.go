@@ -7,7 +7,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/gotrs-io/gotrs-ce/internal/yamlmgmt"
+    "github.com/gotrs-io/gotrs-ce/internal/yamlmgmt"
+    "golang.org/x/text/cases"
+    "golang.org/x/text/language"
 	"gopkg.in/yaml.v3"
 )
 
@@ -460,7 +462,8 @@ func handleVersion(versionMgr *yamlmgmt.VersionManager) {
 			fmt.Printf("  Total fields: %d\n", version.Stats.TotalFields)
 			if len(version.Stats.CustomStats) > 0 {
 				for key, value := range version.Stats.CustomStats {
-					fmt.Printf("  %s: %d\n", strings.Title(key), value)
+                title := cases.Title(language.English)
+                fmt.Printf("  %s: %d\n", title.String(key), value)
 				}
 			}
 		}

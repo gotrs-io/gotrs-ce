@@ -184,9 +184,9 @@ func handleUploadAttachment(c *gin.Context) {
 
 	// Initialize storage service
     storagePath := os.Getenv("STORAGE_PATH")
-	if storagePath == "" {
+    if storagePath == "" {
         storagePath = "/tmp"
-	}
+    }
 	storageService, err := service.NewLocalStorageService(storagePath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to initialize storage"})
@@ -399,10 +399,10 @@ func handleDownloadAttachment(c *gin.Context) {
 	}
 
 	// Initialize storage service
-	storagePath := os.Getenv("STORAGE_LOCAL_PATH")
-	if storagePath == "" {
-		storagePath = "./storage"
-	}
+    storagePath := os.Getenv("STORAGE_PATH")
+    if storagePath == "" {
+        storagePath = "/tmp"
+    }
 	storageService, err := service.NewLocalStorageService(storagePath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to initialize storage"})
@@ -481,10 +481,10 @@ func handleDeleteAttachment(c *gin.Context) {
 	}
 
 	// Initialize storage service
-	storagePath := os.Getenv("STORAGE_LOCAL_PATH")
-	if storagePath == "" {
-		storagePath = "./storage"
-	}
+    storagePath := os.Getenv("STORAGE_PATH")
+    if storagePath == "" {
+        storagePath = "/tmp"
+    }
 	storageService, err := service.NewLocalStorageService(storagePath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to initialize storage"})
@@ -607,15 +607,15 @@ func validateFile(header *multipart.FileHeader) error {
 	filename := header.Filename
 	
 	// Check for hidden files
-	if strings.HasPrefix(filename, ".") {
-		return fmt.Errorf("Hidden files are not allowed")
+    if strings.HasPrefix(filename, ".") {
+        return fmt.Errorf("hidden files are not allowed")
 	}
 	
 	// Check extension
 	ext := strings.ToLower(filepath.Ext(filename))
 	for _, blocked := range blockedExtensions {
 		if ext == blocked {
-			return fmt.Errorf("File type not allowed: %s", ext)
+            return fmt.Errorf("file type not allowed: %s", ext)
 		}
 	}
 	
@@ -623,8 +623,8 @@ func validateFile(header *multipart.FileHeader) error {
 	contentType := header.Header.Get("Content-Type")
 	if contentType != "" && !allowedMimeTypes[contentType] {
 		// Check if it's a generic binary type
-		if contentType != "application/octet-stream" {
-			return fmt.Errorf("File type not allowed: %s", contentType)
+        if contentType != "application/octet-stream" {
+            return fmt.Errorf("file type not allowed: %s", contentType)
 		}
 	}
 	

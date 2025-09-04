@@ -3,14 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"text/template"
 
 	"gopkg.in/yaml.v3"
+    "golang.org/x/text/cases"
+    "golang.org/x/text/language"
 )
 
 // ModuleConfig represents the YAML configuration for a module
@@ -91,7 +91,7 @@ func main() {
 	}
 	
 	// Read configuration file
-	data, err := ioutil.ReadFile(*configFile)
+    data, err := os.ReadFile(*configFile)
 	if err != nil {
 		log.Fatalf("Error reading config file: %v", err)
 	}
@@ -380,7 +380,8 @@ func (h *Admin{{.Module.Singular}}Handler) Search(c *gin.Context) {
 {{end}}
 `
 
-	tmpl, err := template.New("handler").Funcs(template.FuncMap{
+    title := cases.Title(language.English)
+    tmpl, err := template.New("handler").Funcs(template.FuncMap{
 		"goType": func(f Field) string {
 			switch f.Type {
 			case "string", "text", "color", "select":
@@ -397,7 +398,7 @@ func (h *Admin{{.Module.Singular}}Handler) Search(c *gin.Context) {
 				return "interface{}"
 			}
 		},
-		"capitalize": strings.Title,
+        "capitalize": func(s string) string { return title.String(s) },
 		"inc": func(i int) int { return i + 1 },
 	}).Parse(handlerTemplate)
 	
@@ -517,7 +518,7 @@ validation:
     - name
 `
 
-	err := ioutil.WriteFile("example-module.yaml", []byte(example), 0644)
+    err := os.WriteFile("example-module.yaml", []byte(example), 0644)
 	if err != nil {
 		log.Fatalf("Error writing example config: %v", err)
 	}

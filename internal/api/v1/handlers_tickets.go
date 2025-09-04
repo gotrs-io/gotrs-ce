@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	. "github.com/gotrs-io/gotrs-ce/internal/api"
+    api "github.com/gotrs-io/gotrs-ce/internal/api"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
@@ -18,16 +18,10 @@ import (
 )
 
 // HandleListTickets returns a paginated list of tickets (exported for tests)
-func (router *APIRouter) HandleListTickets(c *gin.Context) {
-	// Delegate to the standalone handler
-	HandleListTicketsAPI(c)
-}
+func (router *APIRouter) HandleListTickets(c *gin.Context) { api.HandleListTicketsAPI(c) }
 
 // HandleUpdateTicket updates a ticket (exported for tests)
-func (router *APIRouter) HandleUpdateTicket(c *gin.Context) {
-	// Delegate to the standalone handler
-	HandleUpdateTicketAPI(c)
-}
+func (router *APIRouter) HandleUpdateTicket(c *gin.Context) { api.HandleUpdateTicketAPI(c) }
 
 // handleListTickets returns a paginated list of tickets
 func (router *APIRouter) handleListTickets(c *gin.Context) {
@@ -87,7 +81,7 @@ func (router *APIRouter) handleListTickets(c *gin.Context) {
 	}
 
 	// Get tickets from service
-	ticketService := GetTicketService()
+    ticketService := api.GetTicketService()
 	request := &models.TicketListRequest{
 		Page:       page,
 		PerPage:    perPage,
@@ -127,7 +121,7 @@ func (router *APIRouter) handleListTickets(c *gin.Context) {
 		tickets = append(tickets, ticket)
 	}
 	
-	pagination := Pagination{
+    pagination := Pagination{
 		Page:       response.Page,
 		PerPage:    response.PerPage,
 		Total:      response.Total,
@@ -136,7 +130,7 @@ func (router *APIRouter) handleListTickets(c *gin.Context) {
 		HasPrev:    response.Page > 1,
 	}
 
-	sendPaginatedResponse(c, tickets, pagination)
+    sendPaginatedResponse(c, tickets, pagination)
 }
 
 // HandleCreateTicket creates a new ticket
@@ -1331,10 +1325,7 @@ func (router *APIRouter) handleGetTicketArticles(c *gin.Context) {
 }
 
 // handleAddTicketArticle adds a new article to a ticket
-func (router *APIRouter) handleAddTicketArticle(c *gin.Context) {
-	// Delegate to the actual implementation from api package
-	HandleCreateArticleAPI(c)
-}
+func (router *APIRouter) handleAddTicketArticle(c *gin.Context) { api.HandleCreateArticleAPI(c) }
 
 // handleGetTicketArticle returns a specific article
 func (router *APIRouter) handleGetTicketArticle(c *gin.Context) {

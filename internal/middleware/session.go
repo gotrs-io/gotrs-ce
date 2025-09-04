@@ -1,15 +1,18 @@
 package middleware
 
 import (
-	"context"
-	"net/http"
-	"strconv"
-	"strings"
+    "context"
+    "net/http"
+    "strconv"
+    "strings"
 
-	"github.com/gin-gonic/gin"
-	"github.com/gotrs-io/gotrs-ce/internal/auth"
-	"github.com/gotrs-io/gotrs-ce/internal/models"
+    "github.com/gin-gonic/gin"
+    "github.com/gotrs-io/gotrs-ce/internal/auth"
+    "github.com/gotrs-io/gotrs-ce/internal/models"
 )
+
+// contextKey is a private type to avoid key collisions in context
+type contextKey string
 
 // SessionMiddleware validates JWT tokens from cookies or Authorization header
 func SessionMiddleware(jwtManager *auth.JWTManager) gin.HandlerFunc {
@@ -127,10 +130,10 @@ func SessionMiddleware(jwtManager *auth.JWTManager) gin.HandlerFunc {
 			c.Set("is_customer", false)
 		}
 		
-		// Add user info to request context for services
-		ctx := context.WithValue(c.Request.Context(), "user_id", claims.UserID)
-		ctx = context.WithValue(ctx, "user_email", claims.Email)
-		ctx = context.WithValue(ctx, "user_role", claims.Role)
+        // Add user info to request context for services using typed keys
+        ctx := context.WithValue(c.Request.Context(), contextKey("user_id"), claims.UserID)
+        ctx = context.WithValue(ctx, contextKey("user_email"), claims.Email)
+        ctx = context.WithValue(ctx, contextKey("user_role"), claims.Role)
 		c.Request = c.Request.WithContext(ctx)
 		
 		c.Next()

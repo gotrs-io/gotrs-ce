@@ -323,7 +323,7 @@ func isReadOnlyQuery(query string) bool {
 	}
 
 	// Trim whitespace and get first word
-	q = fmt.Sprintf(" %s ", q) // Add spaces for boundary checking
+    q = " " + q + " " // Add spaces for boundary checking
 	
 	// Allow only SELECT statements
 	// Block INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, etc.
@@ -333,7 +333,7 @@ func isReadOnlyQuery(query string) bool {
 		" EXEC ", " EXECUTE ", " WITH ",
 	}
 
-	queryUpper := fmt.Sprintf(" %s ", query)
+    queryUpper := " " + q + " "
 	for _, danger := range dangerous {
 		if contains(queryUpper, danger) {
 			return false

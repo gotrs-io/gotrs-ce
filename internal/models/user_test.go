@@ -103,8 +103,8 @@ func TestUser(t *testing.T) {
 		assert.True(t, user.IsLocked())
 		assert.NotNil(t, user.LockedUntil)
 		
-		// Check lock duration is 15 minutes
-		lockDuration := user.LockedUntil.Sub(time.Now())
+        // Check lock duration is 15 minutes
+        lockDuration := time.Until(*user.LockedUntil)
 		assert.Greater(t, lockDuration, 14*time.Minute)
 		assert.Less(t, lockDuration, 16*time.Minute)
 	})

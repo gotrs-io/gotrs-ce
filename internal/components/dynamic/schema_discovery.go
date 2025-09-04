@@ -1,9 +1,11 @@
 package dynamic
 
 import (
-	"database/sql"
-	"fmt"
-	"strings"
+    "database/sql"
+    "fmt"
+    "strings"
+    "golang.org/x/text/cases"
+    "golang.org/x/text/language"
 )
 
 // TableInfo represents database table information
@@ -316,7 +318,7 @@ func (sd *SchemaDiscovery) toSingular(tableName string) string {
 	} else if strings.HasSuffix(tableName, "s") {
 		singular = strings.TrimSuffix(tableName, "s")
 	}
-	return strings.Title(singular)
+    return cases.Title(language.English).String(singular)
 }
 
 func (sd *SchemaDiscovery) toPlural(tableName string) string {
@@ -327,15 +329,16 @@ func (sd *SchemaDiscovery) toPlural(tableName string) string {
 	} else if !strings.HasSuffix(tableName, "s") {
 		plural = tableName + "s"
 	}
-	return strings.Title(plural)
+    return cases.Title(language.English).String(plural)
 }
 
 func (sd *SchemaDiscovery) toLabel(columnName string) string {
 	// Convert snake_case to Title Case
 	parts := strings.Split(columnName, "_")
-	for i, part := range parts {
-		parts[i] = strings.Title(part)
-	}
+    title := cases.Title(language.English)
+    for i, part := range parts {
+        parts[i] = title.String(part)
+    }
 	return strings.Join(parts, " ")
 }
 

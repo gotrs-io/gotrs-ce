@@ -222,7 +222,7 @@ func HandleUpdateTicketAPI(c *gin.Context) {
 			case "responsible_user_id":
 				// Nullable integer field
 				if value == nil {
-					updateFields = append(updateFields, fmt.Sprintf("%s = NULL", column))
+                updateFields = append(updateFields, column+" = NULL")
 				} else if floatVal, ok := value.(float64); ok {
 					updateFields = append(updateFields, fmt.Sprintf("%s = $%d", column, argIndex))
 					args = append(args, int(floatVal))
@@ -233,7 +233,7 @@ func HandleUpdateTicketAPI(c *gin.Context) {
 	}
 
 	// Always update change_time and change_by
-	updateFields = append(updateFields, fmt.Sprintf("change_time = NOW()"))
+    updateFields = append(updateFields, "change_time = NOW()")
 	updateFields = append(updateFields, fmt.Sprintf("change_by = $%d", argIndex))
 	args = append(args, userID)
 	argIndex++
@@ -330,22 +330,22 @@ func HandleUpdateTicketAPI(c *gin.Context) {
 		return
 	}
 
-	// Convert to response format
-	responseData := gin.H{
-		"id":                ticketID,
-		"tn":                ticket.TN,
-		"title":             ticket.Title,
-		"queue_id":          ticket.QueueID,
-		"type_id":           ticket.TypeID,
-		"state_id":          ticket.StateID,
-		"priority_id":       ticket.PriorityID,
-		"user_id":           ticket.UserID,
-		"ticket_lock_id":    ticket.TicketLockID,
-		"create_time":       ticket.CreateTime,
-		"create_by":         ticket.CreateBy,
-		"change_time":       ticket.ChangeTime,
-		"change_by":         ticket.ChangeBy,
-	}
+    // Convert to response format
+    responseData := gin.H{
+        "id":             ticketID,
+        "tn":             ticket.TN,
+        "title":          ticket.Title,
+        "queue_id":       ticket.QueueID,
+        "type_id":        ticket.TypeID,
+        "state_id":       ticket.StateID,
+        "priority_id":    ticket.PriorityID,
+        "user_id":        ticket.UserID,
+        "ticket_lock_id": ticket.TicketLockID,
+        "create_time":    ticket.CreateTime,
+        "create_by":      ticket.CreateBy,
+        "change_time":    ticket.ChangeTime,
+        "change_by":      ticket.ChangeBy,
+    }
 
 	// Add nullable fields
 	if ticket.CustomerUserID != nil {

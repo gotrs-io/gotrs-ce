@@ -29,7 +29,7 @@ func (s *SQLServerDatabase) Connect() error {
 	// dsn := s.buildDSN()
 	// var err error
 	// s.db, err = sql.Open("sqlserver", dsn)
-	return fmt.Errorf("SQL Server driver not yet implemented - requires github.com/denisenkom/go-mssqldb")
+    return fmt.Errorf("sql server driver not yet implemented - requires github.com/denisenkom/go-mssqldb")
 }
 
 // Close closes the database connection
@@ -94,19 +94,19 @@ func (s *SQLServerDatabase) BeginTx(ctx context.Context, opts *sql.TxOptions) (I
 // TableExists checks if a table exists (stub implementation)
 func (s *SQLServerDatabase) TableExists(ctx context.Context, tableName string) (bool, error) {
 	// TODO: Implement SQL Server-specific table existence check
-	return false, fmt.Errorf("TableExists not yet implemented for SQL Server")
+    return false, fmt.Errorf("tableExists not yet implemented for sql server")
 }
 
 // GetTableColumns returns column information for a table (stub implementation)
 func (s *SQLServerDatabase) GetTableColumns(ctx context.Context, tableName string) ([]ColumnInfo, error) {
 	// TODO: Implement SQL Server-specific column introspection
-	return []ColumnInfo{}, fmt.Errorf("GetTableColumns not yet implemented for SQL Server")
+    return []ColumnInfo{}, fmt.Errorf("getTableColumns not yet implemented for sql server")
 }
 
 // CreateTable creates a table from definition (stub implementation)
 func (s *SQLServerDatabase) CreateTable(ctx context.Context, definition *TableDefinition) error {
 	// TODO: Implement SQL Server-specific CREATE TABLE
-	return fmt.Errorf("CreateTable not yet implemented for SQL Server")
+    return fmt.Errorf("createTable not yet implemented for sql server")
 }
 
 // DropTable drops a table
@@ -119,7 +119,7 @@ func (s *SQLServerDatabase) DropTable(ctx context.Context, tableName string) err
 // CreateIndex creates an index (stub implementation)
 func (s *SQLServerDatabase) CreateIndex(ctx context.Context, tableName, indexName string, columns []string, unique bool) error {
 	// TODO: Implement SQL Server-specific CREATE INDEX
-	return fmt.Errorf("CreateIndex not yet implemented for SQL Server")
+    return fmt.Errorf("createIndex not yet implemented for sql server")
 }
 
 // DropIndex drops an index

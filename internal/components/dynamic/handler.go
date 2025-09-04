@@ -10,7 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+    "os"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -203,14 +203,14 @@ func NewDynamicModuleHandler(db *sql.DB, renderer *pongo2.TemplateSet, modulesPa
 
 // loadAllConfigs loads all YAML configs from modules directory
 func (h *DynamicModuleHandler) loadAllConfigs() error {
-	files, err := ioutil.ReadDir(h.modulesPath)
+    files, err := os.ReadDir(h.modulesPath)
 	if err != nil {
 		return err
 	}
 
-	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), ".yaml") {
-			configPath := filepath.Join(h.modulesPath, file.Name())
+    for _, file := range files {
+        if !file.IsDir() && strings.HasSuffix(file.Name(), ".yaml") {
+            configPath := filepath.Join(h.modulesPath, file.Name())
 			if err := h.loadConfig(configPath); err != nil {
 				fmt.Printf("Warning: Failed to load %s: %v\n", file.Name(), err)
 			}
@@ -223,7 +223,7 @@ func (h *DynamicModuleHandler) loadAllConfigs() error {
 
 // loadConfig loads a single YAML config
 func (h *DynamicModuleHandler) loadConfig(path string) error {
-	data, err := ioutil.ReadFile(path)
+    data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -1391,7 +1391,7 @@ func (h *DynamicModuleHandler) handleSchemaDiscovery(c *gin.Context) {
 			return
 		}
 
-		if err := ioutil.WriteFile(filename, yamlData, 0644); err != nil {
+        if err := os.WriteFile(filename, yamlData, 0644); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}

@@ -487,14 +487,16 @@ func handleExecuteSavedSearch(c *gin.Context) {
 	
 	// Execute the search (simplified - reuse the search logic)
 	var results []SearchResult
-	for _, ticket := range searchableTickets {
-		// Simple match for demo
-		if strings.Contains(search.Query, "open") && ticket.Status == "open" {
-			results = append(results, ticket)
-		} else if strings.Contains(search.Query, "critical") && ticket.Priority == "critical" {
-			results = append(results, ticket)
-		}
-	}
+    for _, ticket := range searchableTickets {
+        // Simple match for demo
+        if strings.Contains(search.Query, "open") && ticket.Status == "open" {
+            results = append(results, ticket)
+            continue
+        }
+        if strings.Contains(search.Query, "critical") && ticket.Priority == "critical" {
+            results = append(results, ticket)
+        }
+    }
 	
 	c.JSON(http.StatusOK, gin.H{
 		"results": results,
@@ -570,10 +572,8 @@ func handleExportSearchResults(c *gin.Context) {
 	}
 	
 	// Get search results (simplified)
-	var results []SearchResult
-	for _, ticket := range searchableTickets {
-		results = append(results, ticket)
-	}
+    var results []SearchResult
+    results = append(results, searchableTickets...)
 	
 	timestamp := time.Now().Format("20060102-150405")
 	

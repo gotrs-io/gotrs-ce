@@ -1,3 +1,4 @@
+//go:build ignore
 // ARCHIVED: Old user management handlers - replaced by dynamic module system
 // Kept for reference only - DO NOT USE
 // The /admin/users routes now use the dynamic module system via internal/components/dynamic/
@@ -20,18 +21,18 @@ import (
 // ARCHIVED - replaced by dynamic module
 // handleCreateUser creates a new user (archived, unused)
 // func handleCreateUser_ARCHIVED(c *gin.Context) {
-	var user models.User
-	if err := c.ShouldBindJSON(&user); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+    // var user models.User
+    // if err := c.ShouldBindJSON(&user); err != nil {
+    //     c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+    //     return
+    // }
 
 	// Get database connection
-	db, err := database.GetDB()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
-		return
-	}
+    // db, err := database.GetDB()
+    // if err != nil {
+    //     c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+    //     return
+    // }
 
 	// Set default values
 	if user.ValidID == 0 {

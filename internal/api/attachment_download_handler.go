@@ -10,6 +10,7 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 )
 
+//go:build ignore
 // handleAttachmentDownload serves attachment files for download (unused in MVP)
 // func handleAttachmentDownload(c *gin.Context) {
 	// Get attachment ID from URL

@@ -159,6 +159,23 @@ func loadTemplate(files ...string) (*template.Template, error) {
 	if len(files) == 0 {
 		return nil, fmt.Errorf("no template files provided")
 	}
-	
-	return template.ParseFiles(files...)
+
+    // Provide minimal functions expected by templates during tests
+    funcMap := template.FuncMap{
+        "firstLetter": func(s string) string {
+            if len(s) == 0 {
+                return ""
+            }
+            return s[:1]
+        },
+    }
+
+    // Parse with func map to avoid "function not defined" errors in tests
+    tmpl := template.New("base").Funcs(funcMap)
+    var err error
+    tmpl, err = tmpl.ParseFiles(files...)
+    if err != nil {
+        return nil, err
+    }
+    return tmpl, nil
 }

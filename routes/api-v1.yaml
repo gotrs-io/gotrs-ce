@@ -89,6 +89,17 @@ spec:
     handler: HandleGetPriorityAPI
     description: "Get priority by ID"
     
+  # Types and states (add missing endpoints)
+  - path: /types
+    method: GET
+    handler: HandleListTypesAPI
+    description: "List ticket types"
+
+  - path: /states
+    method: GET
+    handler: HandleListStatesAPI
+    description: "List ticket states"
+
   # Search endpoints
   - path: /search
     method: POST

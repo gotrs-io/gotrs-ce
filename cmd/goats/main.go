@@ -156,6 +156,8 @@ func main() {
 		"HandleRemoveQueueGroupAPI": api.HandleRemoveQueueGroupAPI,
 		"HandleListPrioritiesAPI": api.HandleListPrioritiesAPI,
 		"HandleGetPriorityAPI":    api.HandleGetPriorityAPI,
+		"HandleListTypesAPI":      api.HandleListTypesAPI,
+		"HandleListStatesAPI":     api.HandleListStatesAPI,
 		"HandleSearchAPI":         api.HandleSearchAPI,
 		"HandleSearchSuggestionsAPI": api.HandleSearchSuggestionsAPI,
 		"HandleReindexAPI":        api.HandleReindexAPI,

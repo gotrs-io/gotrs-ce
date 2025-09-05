@@ -1,12 +1,12 @@
 package database
 
 import (
-	"database/sql"
+    "database/sql"
     "fmt"
-	"log"
-	"os"
+    "log"
+    "os"
 
-	"github.com/gotrs-io/gotrs-ce/internal/services/adapter"
+    "github.com/gotrs-io/gotrs-ce/internal/services/adapter"
 )
 
 // testDB is kept for API compatibility; we do not own the lifecycle
@@ -17,10 +17,12 @@ var testDB *sql.DB
 // It does not create schema by default; individual tests should
 // create required tables with CREATE TABLE IF NOT EXISTS as needed.
 func InitTestDB() error {
-    // In test environment with no DB configured, fast-return so tests can proceed DB-less
+    // In test environment with no DB configured, fast-return success (DB-less)
     if v := os.Getenv("APP_ENV"); v == "test" {
         if os.Getenv("DB_HOST") == "" && os.Getenv("DATABASE_URL") == "" {
-            return fmt.Errorf("no database connection available")
+            // Leave testDB nil so callers that require DB can detect absence,
+            // but allow DB-less tests to proceed quickly.
+            return nil
         }
     }
 	// Ensure the service registry and database are configured

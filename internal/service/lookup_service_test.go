@@ -381,25 +381,24 @@ func TestConcurrentAccess(t *testing.T) {
 }
 
 func TestCacheTTL(t *testing.T) {
-	t.Skip("Skipping time-dependent test in CI")
-	
-	service := NewLookupService()
-	service.cacheTTL = 100 * time.Millisecond // Short TTL for testing
-	
-	// Get initial data
-	data1 := service.GetTicketFormData()
-	require.NotNil(t, data1)
-	cacheTime1 := service.cacheTime["en"]
-	
-	// Access within TTL - should use cache
-	time.Sleep(50 * time.Millisecond)
-	data2 := service.GetTicketFormData()
-	assert.Equal(t, cacheTime1, service.cacheTime["en"])
-	assert.Equal(t, data1, data2)
-	
-	// Access after TTL - should refresh
-	time.Sleep(60 * time.Millisecond)
-	data3 := service.GetTicketFormData()
-	assert.True(t, service.cacheTime["en"].After(cacheTime1))
-	assert.NotNil(t, data3)
+    service := NewLookupService()
+    // Use slightly larger TTL and sleeps to reduce flakiness on CI
+    service.cacheTTL = 150 * time.Millisecond
+
+    // Get initial data
+    data1 := service.GetTicketFormData()
+    require.NotNil(t, data1)
+    cacheTime1 := service.cacheTime["en"]
+
+    // Access within TTL - should use cache
+    time.Sleep(70 * time.Millisecond)
+    data2 := service.GetTicketFormData()
+    assert.Equal(t, cacheTime1, service.cacheTime["en"])
+    assert.Equal(t, data1, data2)
+
+    // Access after TTL (total sleep > TTL) - should refresh
+    time.Sleep(110 * time.Millisecond)
+    data3 := service.GetTicketFormData()
+    assert.True(t, service.cacheTime["en"].After(cacheTime1))
+    require.NotNil(t, data3)
 }

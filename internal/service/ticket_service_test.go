@@ -6,9 +6,10 @@ import (
 
 func TestTicketService_Creation(t *testing.T) {
 	t.Run("can create ticket service", func(t *testing.T) {
-		// Skip this test as it needs database connection
-		t.Skip("Requires database connection")
-		// service := NewTicketService(nil) 
-		// assert.NotNil(t, service)
+        // Creation should not require a live database connection
+        service := NewTicketService(nil)
+        if service == nil {
+            t.Fatalf("expected service to be non-nil")
+        }
 	})
 }

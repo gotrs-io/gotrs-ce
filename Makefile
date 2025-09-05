@@ -166,6 +166,8 @@ help:
 	@printf "  \033[0;32mmake toolbox-build\033[0m                🔨 Build toolbox container\n"
 	@printf "  \033[0;32mmake toolbox-run\033[0m                  🐚 Interactive shell\n"
 	@printf "  \033[0;32mmake toolbox-test\033[0m                 🧪 Run core tests quickly\n"
+	@printf "  \033[0;32mmake openapi-lint\033[0m               📜 Lint OpenAPI spec (Node 22)\n"
+	@printf "  \033[0;32mmake openapi-bundle\033[0m             📦 Bundle OpenAPI spec\n"
 	@printf "  \033[0;32mmake tdd-comprehensive\033[0m           📋 Run comprehensive TDD gates\n"
 	@printf "  \033[0;32mmake toolbox-test-run\033[0m             🎯 Run specific test\n"
 	@printf "  \033[0;32mmake toolbox-run-file\033[0m             📄 Run Go file\n"
@@ -605,6 +607,24 @@ tdd-comprehensive-quick:
 		-u 0 \
 		gotrs-toolbox:latest \
 		bash -lc 'bash scripts/tdd-comprehensive.sh quick || true; echo "See generated/evidence for report"'
+
+.PHONY: openapi-lint
+openapi-lint:
+	@echo "📜 Linting OpenAPI spec with Node 22 (Redocly)..."
+	@$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD/api:/spec"$(VZ) \
+		node:22-alpine \
+		sh -lc 'npm -g i @redocly/cli >/dev/null 2>&1 && redocly lint /spec/openapi.yaml'
+
+.PHONY: openapi-bundle
+openapi-bundle:
+	@echo "📦 Bundling OpenAPI spec with Redocly..."
+	@$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD/api:/spec"$(VZ) \
+		node:22-alpine \
+		sh -lc 'npm -g i @redocly/cli >/dev/null 2>&1 && redocly bundle /spec/openapi.yaml -o /spec/openapi.bundle.yaml'
 
 # Run almost-all tests (excludes heavyweight e2e/integration and unstable lambda tests)
 toolbox-test-all:

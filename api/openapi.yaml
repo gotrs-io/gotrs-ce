@@ -26,6 +26,7 @@ paths:
       operationId: getHealth
       tags:
         - System
+      security: []
       responses:
         '200':
           description: Server is healthy
@@ -50,6 +51,7 @@ paths:
       operationId: getApiStatus
       tags:
         - System
+      security: []
       responses:
         '200':
           description: API status information

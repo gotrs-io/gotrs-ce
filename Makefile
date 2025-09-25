@@ -88,7 +88,7 @@ DB_PORT ?= 5432
 endif
 
 .PHONY: help up down logs logs-follow restart clean setup test build debug-env build-cached toolbox-build toolbox-run toolbox-exec toolbox-compile toolbox-compile-api \
-	toolbox-test-api toolbox-test toolbox-test-all toolbox-test-run toolbox-run-file toolbox-staticcheck
+	toolbox-test-api toolbox-test toolbox-test-all toolbox-test-run toolbox-run-file toolbox-staticcheck test-actions-dropdown
 
 # Default target
 help:
@@ -194,6 +194,7 @@ help:
 	@printf "  \033[0;32mmake test-coverage\033[0m                📈 Tests with coverage\n"
 	@printf "  \033[0;32mmake test-safe\033[0m                    🏃 Race/deadlock detection\n"
 	@printf "  \033[0;32mmake test-html\033[0m                    🌐 HTML test report\n"
+	@printf "  \033[0;32mmake test-actions-dropdown\033[0m         🎯 Test Actions dropdown components\n"
 	@printf "\n"
 	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
 	@printf "  \033[1;33m🐠 i18n (Babel fish) Commands\033[0m\n"
@@ -1275,6 +1276,11 @@ test-html:
 		echo "run_tests.sh not found, running in container"; \
 		$(MAKE) test-coverage-html; \
 	fi
+
+# Test Actions dropdown functionality
+test-actions-dropdown:
+	@echo "🔍 Testing Actions dropdown components..."
+	@./test_actions_dropdown.sh
 
 # Run tests with comprehensive safety checks (runs in container if script missing)
 test-safe:

@@ -37,6 +37,11 @@ spec:
     handler: HandleDeleteTicketAPI
     description: "Delete ticket"
     
+  - path: /tickets/:id/reopen
+    method: POST
+    handler: HandleReopenTicketAPI
+    description: "Reopen ticket"
+    
   # Article endpoints
   - path: /tickets/:id/articles
     method: GET

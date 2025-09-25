@@ -20,11 +20,11 @@ func GetJWTManager() *auth.JWTManager {
 		// Get JWT secret from environment or use default for development
 		jwtSecret := os.Getenv("JWT_SECRET")
 		if jwtSecret == "" {
-			jwtSecret = "development-secret-change-in-production"
+			jwtSecret = "your-secret-key-here"
 		}
 		
-		// Token duration (24 hours by default)
-		tokenDuration := 24 * time.Hour
+		// Token duration (15 minutes to match auth API)
+		tokenDuration := 15 * time.Minute
 		
 		// Create the shared JWT manager using the proper constructor
 		globalJWTManager = auth.NewJWTManager(jwtSecret, tokenDuration)

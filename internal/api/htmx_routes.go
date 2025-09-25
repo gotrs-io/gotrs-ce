@@ -2416,14 +2416,17 @@ func handleTicketDetail(c *gin.Context) {
 		})
 	}
 
-	// Get state name from database
+	// Get state name and type from database
 	stateName := "unknown"
+	stateTypeID := 0
 	var stateRow struct {
-		Name string
+		Name   string
+		TypeID int
 	}
-	err = db.QueryRow(database.ConvertPlaceholders("SELECT name FROM ticket_state WHERE id = $1"), ticket.TicketStateID).Scan(&stateRow.Name)
+	err = db.QueryRow(database.ConvertPlaceholders("SELECT name, type_id FROM ticket_state WHERE id = $1"), ticket.TicketStateID).Scan(&stateRow.Name, &stateRow.TypeID)
 	if err == nil {
 		stateName = stateRow.Name
+		stateTypeID = stateRow.TypeID
 	}
 
 	// Get priority name
@@ -2450,7 +2453,7 @@ func handleTicketDetail(c *gin.Context) {
 
 	// Check if ticket is closed
 	isClosed := false
-	if ticket.TicketStateID == 3 || ticket.TicketStateID == 4 || strings.Contains(strings.ToLower(stateName), "closed") {
+	if stateTypeID == 3 || strings.Contains(strings.ToLower(stateName), "closed") {
 		isClosed = true
 	}
 
@@ -2570,6 +2573,7 @@ func handleTicketDetail(c *gin.Context) {
 		"state_type": strings.ToLower(strings.Fields(stateName)[0]), // First word of state for badge colors
 		"is_closed": isClosed,
 		"priority":  priorityName,
+		"priority_id": ticket.TicketPriorityID,
 		"queue":     queueName,
 		"queue_id":  ticket.QueueID,
 		"customer_name": customerName,

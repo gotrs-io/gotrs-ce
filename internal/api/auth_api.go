@@ -3,14 +3,13 @@ package api
 import (
 	"context"
 	"net/http"
-	"os"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/auth"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/service"
+	"github.com/gotrs-io/gotrs-ce/internal/shared"
 )
 
 var globalJWTManager *auth.JWTManager
@@ -18,11 +17,7 @@ var globalJWTManager *auth.JWTManager
 // getJWTManager returns a singleton JWT manager
 func getJWTManager() *auth.JWTManager {
 	if globalJWTManager == nil {
-		secret := os.Getenv("JWT_SECRET")
-		if secret == "" {
-			secret = "your-secret-key-here" // Default for testing
-		}
-		globalJWTManager = auth.NewJWTManager(secret, 15*time.Minute)
+		globalJWTManager = shared.GetJWTManager()
 	}
 	return globalJWTManager
 }

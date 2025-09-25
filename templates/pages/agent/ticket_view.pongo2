@@ -91,6 +91,32 @@
                 <button onclick="addNote({{ ticket.id }})" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600">
                     Add Note
                 </button>
+                <!-- Actions Dropdown -->
+                <div class="relative">
+                    <button onclick="toggleDropdown('actionsDropdown')" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600 inline-flex items-center">
+                        Actions
+                        <i class="fas fa-chevron-down ml-2"></i>
+                    </button>
+                    <div id="actionsDropdown" class="hidden absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-md shadow-lg z-10 border border-gray-200 dark:border-gray-600">
+                        <div class="py-1">
+                            <a href="#" onclick="changeStatus(); toggleDropdown('actionsDropdown')" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <i class="fas fa-tasks mr-2"></i>Change Status
+                            </a>
+                            <a href="#" onclick="assignAgent(); toggleDropdown('actionsDropdown')" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <i class="fas fa-user-check mr-2"></i>Assign Agent
+                            </a>
+                            <a href="#" onclick="changePriority(); toggleDropdown('actionsDropdown')" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <i class="fas fa-flag mr-2"></i>Change Priority
+                            </a>
+                            <a href="#" onclick="moveQueue(); toggleDropdown('actionsDropdown')" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <i class="fas fa-inbox mr-2"></i>Move to Queue
+                            </a>
+                            <a href="#" onclick="mergeTicket(); toggleDropdown('actionsDropdown')" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <i class="fas fa-code-branch mr-2"></i>Merge Ticket
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -890,6 +916,25 @@ document.addEventListener('DOMContentLoaded', function() {
         attributes: true,
         attributeFilter: ['class']
     });
+    
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(event) {
+        const dropdowns = document.querySelectorAll('[id$="Dropdown"]');
+        const dropdownButtons = document.querySelectorAll('button[onclick*="toggleDropdown"]');
+        
+        let clickedInsideDropdown = false;
+        dropdownButtons.forEach(button => {
+            if (button.contains(event.target)) {
+                clickedInsideDropdown = true;
+            }
+        });
+        
+        dropdowns.forEach(dropdown => {
+            if (!dropdown.contains(event.target) && !clickedInsideDropdown) {
+                dropdown.classList.add('hidden');
+            }
+        });
+    });
 });
 
 // Form submission functions
@@ -1041,6 +1086,21 @@ function openModal(modalId) {
 
 function closeModal(modalId) {
     document.getElementById(modalId).classList.add('hidden');
+}
+
+function toggleDropdown(dropdownId) {
+    const dropdown = document.getElementById(dropdownId);
+    const isHidden = dropdown.classList.contains('hidden');
+    
+    // Hide all dropdowns first
+    document.querySelectorAll('[id$="Dropdown"]').forEach(d => {
+        d.classList.add('hidden');
+    });
+    
+    // Show the clicked dropdown if it was hidden
+    if (isHidden) {
+        dropdown.classList.remove('hidden');
+    }
 }
 
 function updateNoteSubject() {

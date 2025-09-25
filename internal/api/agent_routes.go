@@ -1059,18 +1059,16 @@ func handleAgentTicketStatus(db *sql.DB) gin.HandlerFunc {
 		pendingUntil := c.PostForm("pending_until")
 
 		// Handle pending time for pending states
-		var untilTime sql.NullInt64
-		pendingStates := map[string]bool{"4": true, "5": true, "6": true} // pending reminder, auto close+, auto close-
+		var untilTime int64
+		pendingStates := map[string]bool{"6": true, "7": true, "8": true} // pending reminder, pending auto close+, pending auto close-
 
 		if pendingStates[statusID] {
 			if pendingUntil == "" {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Pending time is required for pending states"})
 				return
-			}
-
-			// Parse the datetime-local format: 2006-01-02T15:04
+			}			// Parse the datetime-local format: 2006-01-02T15:04
 			if t, err := time.Parse("2006-01-02T15:04", pendingUntil); err == nil {
-				untilTime = sql.NullInt64{Int64: t.Unix(), Valid: true}
+				untilTime = t.Unix()
 				log.Printf("Setting pending time for ticket %s to %v (unix: %d)", ticketID, t, t.Unix())
 			} else {
 				log.Printf("Failed to parse pending time '%s': %v", pendingUntil, err)
@@ -1079,7 +1077,7 @@ func handleAgentTicketStatus(db *sql.DB) gin.HandlerFunc {
 			}
 		} else {
 			// Clear pending time for non-pending states
-			untilTime = sql.NullInt64{Int64: 0, Valid: false}
+			untilTime = 0
 		}
 
 		// Update ticket status with pending time
@@ -1096,10 +1094,17 @@ func handleAgentTicketStatus(db *sql.DB) gin.HandlerFunc {
 		}
 
 		// Log the status change for audit trail
-		statusName := getStatusName(statusID)
-		if untilTime.Valid {
+		statusName := "unknown"
+		var statusRow struct {
+			Name string
+		}
+		err = db.QueryRow(database.ConvertPlaceholders("SELECT name FROM ticket_state WHERE id = $1"), statusID).Scan(&statusRow.Name)
+		if err == nil {
+			statusName = statusRow.Name
+		}
+		if untilTime > 0 {
 			log.Printf("Ticket %s status changed to %s (ID: %s) with pending time until %v by user %d",
-				ticketID, statusName, statusID, time.Unix(untilTime.Int64, 0), c.GetUint("user_id"))
+				ticketID, statusName, statusID, time.Unix(untilTime, 0), c.GetUint("user_id"))
 		} else {
 			log.Printf("Ticket %s status changed to %s (ID: %s) by user %d",
 				ticketID, statusName, statusID, c.GetUint("user_id"))
@@ -1109,22 +1114,6 @@ func handleAgentTicketStatus(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-// Helper function to get status name from ID (for logging)
-func getStatusName(statusID string) string {
-	statusNames := map[string]string{
-		"1": "new",
-		"2": "open",
-		"4": "pending reminder",
-		"5": "pending auto close+",
-		"6": "pending auto close-",
-		"7": "closed successful",
-		"8": "closed unsuccessful",
-	}
-	if name, exists := statusNames[statusID]; exists {
-		return name
-	}
-	return "unknown"
-}
 func handleAgentTicketAssign(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ticketID := c.Param("id")

@@ -134,6 +134,7 @@ func main() {
 		"HandleGetTicketAPI":    api.HandleGetTicketAPI,
 		"HandleUpdateTicketAPI": api.HandleUpdateTicketAPI,
 		"HandleDeleteTicketAPI": api.HandleDeleteTicketAPI,
+		"HandleReopenTicketAPI": api.HandleReopenTicketAPI,
 		"HandleAgentNewTicket": func(c *gin.Context) {
 			db, _ := database.GetDB()
 			if db == nil {

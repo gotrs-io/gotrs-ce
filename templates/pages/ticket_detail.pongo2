@@ -46,13 +46,18 @@
                 </div>
             </div>
             <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-                <button type="button" onclick="updateTicket()"
-                    class="inline-flex items-center justify-center rounded-md bg-gotrs-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gotrs-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gotrs-600">
-                    Update Ticket
-                </button>
+                <div class="flex space-x-2">
+                    <button type="button" onclick="updateTicket()"
+                        class="inline-flex items-center justify-center rounded-md bg-gotrs-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gotrs-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gotrs-600">
+                        Update Ticket
+                    </button>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- Add hidden queue ID, priority ID, and status ID for JavaScript -->
+    <div data-queue-id="{{ Ticket.queue_id }}" data-priority-id="{{ Ticket.priority_id }}" data-status-id="{{ Ticket.status_id }}" style="display: none;"></div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Main content -->
@@ -198,19 +203,35 @@
                     {# TODO: Check config option for allowing ticket reopen #}
                     <button type="button" onclick="reopenTicket()"
                         class="w-full rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
-                        Reopen Ticket
+                        <i class="fas fa-undo mr-2"></i>Reopen Ticket
                     </button>
                     {% else %}
                     {% if Ticket.status != 'merged' and Ticket.status != 'removed' %}
                     <button type="button" onclick="closeTicket()"
                         class="w-full rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
-                        Close Ticket
+                        <i class="fas fa-times mr-2"></i>Close Ticket
                     </button>
                     {% endif %}
                     {% endif %}
+                    <button type="button" onclick="changeStatus()"
+                        class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gotrs-500 focus:ring-offset-2">
+                        <i class="fas fa-tasks mr-2"></i>Change Status
+                    </button>
                     <button type="button" onclick="assignTicket()"
                         class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gotrs-500 focus:ring-offset-2">
-                        Assign Agent
+                        <i class="fas fa-user-check mr-2"></i>Assign Agent
+                    </button>
+                    <button type="button" onclick="changePriority()"
+                        class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gotrs-500 focus:ring-offset-2">
+                        <i class="fas fa-flag mr-2"></i>Change Priority
+                    </button>
+                    <button type="button" onclick="moveQueue()"
+                        class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gotrs-500 focus:ring-offset-2">
+                        <i class="fas fa-inbox mr-2"></i>Move to Queue
+                    </button>
+                    <button type="button" onclick="mergeTicket()"
+                        class="w-full rounded-md border border-red-300 dark:border-red-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-red-700 dark:text-red-300 shadow-sm hover:bg-red-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                        <i class="fas fa-code-branch mr-2"></i>Merge Ticket
                     </button>
                 </div>
             </div>
@@ -381,7 +402,7 @@
                     </label>
                     <textarea id="reopenReason" name="reopenReason" rows="3" required
                         placeholder="Explain why this ticket needs to be reopened..."
-                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500"></textarea>
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500"></textarea>
                 </div>
 
                 <!-- Additional Notes -->
@@ -391,7 +412,7 @@
                     </label>
                     <textarea id="reopenNotes" name="reopenNotes" rows="3"
                         placeholder="Any additional information or context..."
-                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500"></textarea>
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500"></textarea>
                 </div>
 
                 <!-- Notify Customer -->
@@ -421,9 +442,114 @@
     </div>
 </div>
 
+<!-- Queue Modal -->
+<div id="queueModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Move to Queue</h3>
+        </div>
+        <form onsubmit="submitQueue(event)">
+            <div class="p-6">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Queue</label>
+                    <select name="queue_id" required
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white">
+                        <option value="">Select queue...</option>
+                        <!-- Will be populated dynamically -->
+                    </select>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-100 dark:bg-gray-700 rounded-b-lg flex justify-end space-x-3">
+                <button type="button" onclick="closeModal('queueModal')" class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-gotrs-600 text-white rounded hover:bg-gotrs-700">Move</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Priority Modal -->
+<div id="priorityModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Change Priority</h3>
+        </div>
+        <form onsubmit="submitPriority(event)">
+            <div class="p-6">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
+                    <select name="priority_id" required
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white">
+                        <option value="">Select priority...</option>
+                        <!-- Will be populated dynamically -->
+                    </select>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-100 dark:bg-gray-700 rounded-b-lg flex justify-end space-x-3">
+                <button type="button" onclick="closeModal('priorityModal')" class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-gotrs-600 text-white rounded hover:bg-gotrs-700">Update</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Status Modal -->
+<div id="statusModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Change Status</h3>
+        </div>
+        <form onsubmit="submitStatus(event)">
+            <div class="p-6">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                    <select name="status_id" required
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white">
+                        <option value="">Select status...</option>
+                        <!-- Will be populated dynamically -->
+                    </select>
+                </div>
+                <div class="mb-4" id="pendingTimeContainer" style="display: none;">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pending Until</label>
+                    <input type="datetime-local" name="pending_until"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Required for pending states</p>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-100 dark:bg-gray-700 rounded-b-lg flex justify-end space-x-3">
+                <button type="button" onclick="closeModal('statusModal')" class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-gotrs-600 text-white rounded hover:bg-gotrs-700">Update</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Merge Modal -->
+<div id="mergeModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Merge Ticket</h3>
+        </div>
+        <form onsubmit="submitMerge(event)">
+            <div class="p-6">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Ticket Number</label>
+                    <input type="text" name="target_tn" required placeholder="Enter ticket number to merge into"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white">
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-100 dark:bg-gray-700 rounded-b-lg flex justify-end space-x-3">
+                <button type="button" onclick="closeModal('mergeModal')" class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Merge</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block script %}
+<!-- Include Ticket Zoom JavaScript Functions -->
+<script src="/static/js/ticket-zoom.js"></script>
 <script>
 const ticketId = '{{ Ticket.id }}';
 
@@ -738,6 +864,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// Initialize ticket zoom functionality
+initTicketZoom(ticketId);
 
 </script>
 {% endblock %}

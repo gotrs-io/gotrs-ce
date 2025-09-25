@@ -160,10 +160,54 @@ function closeModal(modalId) {
  * Change ticket status
  */
 function changeStatus() {
+    // Load available statuses
+    apiFetch('/api/v1/states')
+        .then(r => r.json())
+        .then(data => {
+            const select = document.querySelector('#statusModal select[name="status_id"]');
+            select.innerHTML = '<option value="">Select status...</option>';
+            if (data.success && data.data) {
+                data.data.forEach(status => {
+                    const currentStatusId = getCurrentStatusId();
+                    const selected = status.id == currentStatusId ? 'selected' : '';
+                    select.innerHTML += `<option value="${status.id}" ${selected}>${status.name}</option>`;
+                });
+                console.log(`Loaded ${data.data.length} statuses`);
+            } else {
+                console.error('Failed to load statuses:', data);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading statuses:', error);
+            const select = document.querySelector('#statusModal select[name="status_id"]');
+            select.innerHTML = '<option value="">Failed to load statuses - API error</option>';
+            showToast('Failed to load statuses - check API connection', 'error');
+        });
+        
     const statusModal = document.getElementById('statusModal');
     if (statusModal) {
         statusModal.classList.remove('hidden');
         console.log('Status modal opened');
+        
+        // Add event listener to show/hide pending time field
+        const statusSelect = document.querySelector('#statusModal select[name="status_id"]');
+        if (statusSelect) {
+            statusSelect.addEventListener('change', function() {
+                const pendingContainer = document.getElementById('pendingTimeContainer');
+                const pendingInput = document.querySelector('#statusModal input[name="pending_until"]');
+                
+                // Pending states: 6 (pending reminder), 7 (pending auto close+), 8 (pending auto close-)
+                const pendingStates = ['6', '7', '8'];
+                if (pendingStates.includes(this.value)) {
+                    pendingContainer.style.display = 'block';
+                    pendingInput.required = true;
+                } else {
+                    pendingContainer.style.display = 'none';
+                    pendingInput.required = false;
+                    pendingInput.value = '';
+                }
+            });
+        }
     }
 }
 
@@ -210,6 +254,31 @@ function assignAgent() {
  * Change ticket priority
  */
 function changePriority() {
+    // Load available priorities
+    apiFetch('/api/v1/priorities')
+        .then(r => r.json())
+        .then(data => {
+            const select = document.querySelector('#priorityModal select[name="priority_id"]');
+            select.innerHTML = '<option value="">Select priority...</option>';
+            if (data.success && data.data) {
+                data.data.forEach(priority => {
+                    const currentPriorityId = getCurrentPriorityId();
+                    const selected = priority.id == currentPriorityId ? 'selected' : '';
+                    select.innerHTML += `<option value="${priority.id}" ${selected}>${priority.name}</option>`;
+                });
+                console.log(`Loaded ${data.data.length} priorities`);
+            } else {
+                console.error('Failed to load priorities:', data);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading priorities:', error);
+            // No fallback - fail hard so we know the API is broken
+            const select = document.querySelector('#priorityModal select[name="priority_id"]');
+            select.innerHTML = '<option value="">Failed to load priorities - API error</option>';
+            showToast('Failed to load priorities - check API connection', 'error');
+        });
+        
     const priorityModal = document.getElementById('priorityModal');
     if (priorityModal) {
         priorityModal.classList.remove('hidden');
@@ -269,6 +338,42 @@ function getCurrentQueueId() {
     }
     
     return 1; // Default fallback
+}
+
+/**
+ * Get current priority ID from page data
+ */
+function getCurrentPriorityId() {
+    // Try to get from data attribute or global variable
+    const priorityElement = document.querySelector('[data-priority-id]');
+    if (priorityElement) {
+        return priorityElement.getAttribute('data-priority-id');
+    }
+    
+    // Fallback to parsing from template if available
+    if (window.ticketData && window.ticketData.priority_id) {
+        return window.ticketData.priority_id;
+    }
+    
+    return 3; // Default fallback (usually "normal" priority)
+}
+
+/**
+ * Get current ticket status ID
+ */
+function getCurrentStatusId() {
+    // Try to get from data attribute
+    const statusElement = document.querySelector('[data-status-id]');
+    if (statusElement) {
+        return statusElement.getAttribute('data-status-id');
+    }
+    
+    // Fallback to parsing from template if available
+    if (window.ticketData && window.ticketData.status_id) {
+        return window.ticketData.status_id;
+    }
+    
+    return 1; // Default fallback (usually "new" status)
 }
 
 /**

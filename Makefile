@@ -87,7 +87,7 @@ DB_HOST ?= postgres
 DB_PORT ?= 5432
 endif
 
-.PHONY: help up down logs restart clean setup test build debug-env build-cached toolbox-build toolbox-run toolbox-exec toolbox-compile toolbox-compile-api \
+.PHONY: help up down logs logs-follow restart clean setup test build debug-env build-cached toolbox-build toolbox-run toolbox-exec toolbox-compile toolbox-compile-api \
 	toolbox-test-api toolbox-test toolbox-test-all toolbox-test-run toolbox-run-file toolbox-staticcheck
 
 # Default target
@@ -100,7 +100,8 @@ help:
 	@printf "\n"
 	@printf "  \033[0;32mmake up\033[0m                           ▶️ Start all services\n"
 	@printf "  \033[0;32mmake down\033[0m                         🛑 Stop all services\n"
-	@printf "  \033[0;32mmake logs\033[0m                         📋 View logs\n"
+	@printf "  \033[0;32mmake logs\033[0m                         📋 View a portion of the most recent logs\n"
+	@printf "  \033[0;32mmake logs-follow\033[0m                  📋 View and endlessly follow logs\n"
 	@printf "  \033[0;32mmake restart\033[0m                      🔄 Restart all services\n"
 	@printf "  \033[0;32mmake clean\033[0m                        🧹 Clean everything (including volumes)\n"
 	@printf "  \033[0;32mmake setup\033[0m                        🎯 Initial project setup with secure secrets\n"
@@ -123,6 +124,7 @@ help:
 	@printf "  \033[1;33m🎨 CSS/Frontend Build\033[0m\n"
 	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
 	@printf "\n"
+	@printf "  \033[0;32mmake npm-updates\033[0m                  ⬆️ Update NPM dependencies\n"
 	@printf "  \033[0;32mmake css-build\033[0m                    📦 Build production CSS from Tailwind\n"
 	@printf "  \033[0;32mmake css-watch\033[0m                    👁️ Watch and rebuild CSS on changes\n"
 	@printf "  \033[0;32mmake css-deps\033[0m                     📥 Install CSS build dependencies\n"
@@ -166,13 +168,13 @@ help:
 	@printf "  \033[0;32mmake toolbox-build\033[0m                🔨 Build toolbox container\n"
 	@printf "  \033[0;32mmake toolbox-run\033[0m                  🐚 Interactive shell\n"
 	@printf "  \033[0;32mmake toolbox-test\033[0m                 🧪 Run core tests quickly\n"
-	@printf "  \033[0;32mmake openapi-lint\033[0m               📜 Lint OpenAPI spec (Node 22)\n"
-	@printf "  \033[0;32mmake openapi-bundle\033[0m             📦 Bundle OpenAPI spec\n"
-	@printf "  \033[0;32mmake tdd-comprehensive\033[0m           📋 Run comprehensive TDD gates\n"
+	@printf "  \033[0;32mmake openapi-lint\033[0m                 📜 Lint OpenAPI spec (Node 22)\n"
+	@printf "  \033[0;32mmake openapi-bundle\033[0m               📦 Bundle OpenAPI spec\n"
+	@printf "  \033[0;32mmake tdd-comprehensive\033[0m            📋 Run comprehensive TDD gates\n"
 	@printf "  \033[0;32mmake toolbox-test-run\033[0m             🎯 Run specific test\n"
 	@printf "  \033[0;32mmake toolbox-run-file\033[0m             📄 Run Go file\n"
 	@printf "  \033[0;32mmake test-unit\033[0m                    🧪 Run unit tests only (stable set)\n"
-	@printf "  \033[0;32mmake test-e2e TEST=...\033[0m         🎯 Run targeted E2E tests (pattern)\n"
+	@printf "  \033[0;32mmake test-e2e TEST=...\033[0m            🎯 Run targeted E2E tests (pattern)\n"
 	@printf "\n"
 	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
 	@printf "  \033[1;33m🎭 E2E Testing (Playwright)\033[0m\n"
@@ -865,6 +867,13 @@ restart: down up-d
 # View logs
 logs:
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
+		$(COMPOSE_CMD) logs postgres valkey backend; \
+	else \
+		$(COMPOSE_CMD) logs mariadb valkey backend; \
+	fi
+
+logs-follow:
+	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
 		$(COMPOSE_CMD) logs -f postgres valkey backend; \
 	else \
 		$(COMPOSE_CMD) logs -f mariadb valkey backend; \
@@ -1412,13 +1421,13 @@ scan-vulnerabilities:
 # Run all security scans
 security-scan: scan-secrets scan-vulnerabilities
 	@printf "Security scanning completed!\n"
-# Build for production (includes CSS and container build)
-build: css-build
+# Build for production (includes CSS, JS and container build)
+build: frontend-build
 	@printf "🔨 Building backend container...\n"	$(CONTAINER_CMD) build -f Dockerfile -t gotrs:latest .
 	@printf "🧹 Cleaning host binaries...\n"
 	@rm -f goats gotrs gotrs-* generator migrate server  # Clean root directory
 	@rm -f bin/* 2>/dev/null || true  # Clean bin directory
-	@printf "✅ Build complete - CSS compiled and containers ready\n"
+	@printf "✅ Build complete - CSS and JS compiled, containers ready\n"
 # ============================================
 # Enhanced Build Targets with BuildKit
 # ============================================
@@ -1662,28 +1671,32 @@ test-containerized:
 include task-coordination.mk
 
 # CSS Build Commands
-.PHONY: css-deps css-build css-watch
+.PHONY: npm-updates css-deps css-build css-watch
 
+npm-updates:
+	@printf "📦 Updating NPM dependencies...\n"
+	@$(CONTAINER_CMD) run --rm --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine sh -c "npx npm-check-updates -u && npm install"
+	@printf "✅ NPM dependencies updated\n"
 # Install CSS build dependencies (in container with user permissions)
 css-deps:
 	@printf "📦 Installing CSS build dependencies...\n"
 	@$(CONTAINER_CMD) run --rm --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm install
+	@printf "✅ CSS dependencies installed\n"
+# Install CSS dependencies without upgrading (preserves pinned versions)
+css-deps-stable:
+	@printf "📦 Installing CSS build dependencies (stable versions)...\n"
+	@$(CONTAINER_CMD) run --rm --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine sh -c "npm install"
 	@printf "✅ CSS dependencies installed\n"
 # Build production CSS (in container with user permissions)
 css-build:
 	@printf "🎨 Building production CSS...\n"
 	@if [ ! -d "node_modules" ]; then \
 		echo "📦 Installing CSS dependencies first..."; \
-		$(MAKE) css-deps; \
+		$(MAKE) css-deps-stable; \
 	fi
 	@$(CONTAINER_CMD) run --rm --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm run build-css
 	@printf "✅ CSS built to static/css/output.css\n"
-# Build JavaScript assets (Tiptap editor bundle)
-js-deps:
-	@printf "📦 Installing JavaScript dependencies...\n"
-	@$(CONTAINER_CMD) run --rm --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm install
-	@printf "✅ JavaScript dependencies installed\n"
-js-build: js-deps
+js-build: css-deps-stable
 	@printf "🔨 Building JavaScript bundles...\n"
 	@$(CONTAINER_CMD) run --rm --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm run build-js
 	@printf "✅ JavaScript built to static/js/tiptap.min.js\n"

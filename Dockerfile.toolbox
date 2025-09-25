@@ -68,7 +68,6 @@ RUN apk add --no-cache \
     fd \
     tree \
     # Go development\
-    go \
     gcc \
     musl-dev \
     # Go runtime\

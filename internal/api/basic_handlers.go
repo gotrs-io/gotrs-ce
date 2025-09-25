@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"github.com/gin-gonic/gin"
+	"strings"
 )
 
 // HandleRedirect handles redirect routes
@@ -55,4 +56,28 @@ func HandleTemplate(c *gin.Context) {
 	
 	// Use the pongo2 renderer
 	GetPongo2Renderer().HTML(c, http.StatusOK, template, data)
+}
+
+// HandleStaticFiles serves static files from the static directory
+func HandleStaticFiles(c *gin.Context) {
+	// Get the full path from the request
+	requestPath := c.Request.URL.Path
+
+	// Map the request path to the file system path
+	var filePath string
+
+	if requestPath == "/favicon.ico" {
+		filePath = "./static/favicon.ico"
+	} else if requestPath == "/favicon.svg" {
+		filePath = "./static/favicon.svg"
+	} else if strings.HasPrefix(requestPath, "/static/") {
+		// Extract the static file path
+		filePath = "." + requestPath
+	} else {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	// Serve the file
+	c.File(filePath)
 }

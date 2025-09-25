@@ -57,10 +57,11 @@ services:
   valkey:
     image: valkey/valkey:7-alpine
     container_name: gotrs-valkey
+    user: "999:1000" # Run as valkey user (standard for Valkey)
     ports:
       - "${VALKEY_PORT:-6388}:6379"
     volumes:
-      - valkey_data:/data
+      - valkey_data:/data:Z
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 10s

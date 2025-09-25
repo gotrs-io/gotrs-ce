@@ -83,6 +83,8 @@ func registerExistingHandlers(registry *HandlerRegistry, db *sql.DB, jwtManager 
 			c.String(http.StatusOK, "# HELP gotrs_up GOTRS is up\n# TYPE gotrs_up gauge\ngotrs_up 1\n")
 		},
 
+		"handleStaticFiles": api.HandleStaticFiles,
+
 		// Authentication handlers would be registered here
 		// "handleLogin": api.HandleLogin(db, jwtManager),
 		// "handleLogout": api.HandleLogout(),

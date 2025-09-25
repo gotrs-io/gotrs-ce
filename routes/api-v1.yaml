@@ -53,6 +53,27 @@ spec:
     handler: HandleGetArticleAPI
     description: "Get specific article"
     
+  # Internal notes endpoints
+  - path: /tickets/:id/internal-notes
+    method: GET
+    handler: HandleGetInternalNotes
+    description: "Get internal notes for a ticket"
+    
+  - path: /tickets/:id/internal-notes
+    method: POST
+    handler: HandleCreateInternalNote
+    description: "Create internal note for a ticket"
+    
+  - path: /tickets/:id/internal-notes/:note_id
+    method: PUT
+    handler: HandleUpdateInternalNote
+    description: "Update internal note"
+    
+  - path: /tickets/:id/internal-notes/:note_id
+    method: DELETE
+    handler: HandleDeleteInternalNote
+    description: "Delete internal note"
+    
   # User endpoints
   - path: /users
     method: GET

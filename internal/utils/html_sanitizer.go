@@ -35,6 +35,11 @@ func NewHTMLSanitizer() *HTMLSanitizer {
 	p.AllowElements("table", "thead", "tbody", "tfoot", "tr", "th", "td")
 	p.AllowAttrs("colspan", "rowspan").OnElements("td", "th")
 	
+	// Images (with safe attributes)
+	p.AllowElements("img")
+	p.AllowAttrs("src", "alt", "title", "width", "height").OnElements("img")
+	p.AllowURLSchemes("http", "https", "data") // Allow data URLs for base64 images
+	
 	// Links (with safe attributes only)
 	p.AllowElements("a")
 	p.AllowAttrs("href").OnElements("a")
@@ -47,7 +52,7 @@ func NewHTMLSanitizer() *HTMLSanitizer {
 	// Allow class attributes for styling (limited to safe values)
 	p.AllowAttrs("class").Matching(bluemonday.SpaceSeparatedTokens).OnElements(
 		"div", "span", "p", "ul", "ol", "li", "table", "tr", "td", "th",
-		"h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "code", "pre",
+		"h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "code", "pre", "img",
 	)
 	
 	return &HTMLSanitizer{
@@ -63,7 +68,7 @@ func (s *HTMLSanitizer) Sanitize(html string) string {
 // IsHTML checks if the content appears to be HTML
 func IsHTML(content string) bool {
 	// Check for common HTML tags
-	htmlTags := []string{"<p>", "<br>", "<div>", "<span>", "<b>", "<i>", "<strong>", "<em>", "<h1>", "<h2>", "<h3>", "<ul>", "<ol>", "<li>", "<table>", "<a ", "<blockquote>"}
+	htmlTags := []string{"<p>", "<br>", "<div>", "<span>", "<b>", "<i>", "<strong>", "<em>", "<h1>", "<h2>", "<h3>", "<ul>", "<ol>", "<li>", "<table>", "<a ", "<blockquote>", "<img "}
 	
 	contentLower := strings.ToLower(content)
 	for _, tag := range htmlTags {

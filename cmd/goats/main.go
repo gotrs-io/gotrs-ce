@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/flosch/pongo2/v6"
@@ -89,11 +88,7 @@ func main() {
 		"handleAgentCustomerTickets": api.AgentHandlerExports.HandleAgentCustomerTickets,
 		"handleAgentSearchResults":   api.AgentHandlerExports.HandleAgentSearchResults,
 		"handleAgentDashboard": func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{
-				"message": "Agent Dashboard",
-				"user":    "Agent User",
-				"status":  "Agent access working!",
-			})
+			c.Redirect(http.StatusFound, "/login")
 		},
 
 		// Customer handlers
@@ -160,6 +155,10 @@ func main() {
 		"HandleGetArticleAPI":        api.HandleGetArticleAPI,
 		"HandleUpdateArticleAPI":     api.HandleUpdateArticleAPI,
 		"HandleDeleteArticleAPI":     api.HandleDeleteArticleAPI,
+		"HandleGetInternalNotes":     api.HandleGetInternalNotes,
+		"HandleCreateInternalNote":   api.HandleCreateInternalNote,
+		"HandleUpdateInternalNote":   api.HandleUpdateInternalNote,
+		"HandleDeleteInternalNote":   api.HandleDeleteInternalNote,
 		"HandleUserMeAPI":            api.HandleUserMeAPI,
 		"HandleListUsersAPI":         api.HandleListUsersAPI,
 		"HandleGetUserAPI":           api.HandleGetUserAPI,
@@ -315,28 +314,6 @@ func main() {
 			// Basic Prometheus metrics
 			c.String(http.StatusOK, "# HELP gotrs_up GOTRS is up\n# TYPE gotrs_up gauge\ngotrs_up 1\n")
 		},
-		"handleStaticFiles": func(c *gin.Context) {
-			// Get the full path from the request
-			requestPath := c.Request.URL.Path
-
-			// Map the request path to the file system path
-			var filePath string
-
-			if requestPath == "/favicon.ico" {
-				filePath = "./static/favicon.ico"
-			} else if requestPath == "/favicon.svg" {
-				filePath = "./static/favicon.svg"
-			} else if strings.HasPrefix(requestPath, "/static/") {
-				// Extract the static file path
-				filePath = "." + requestPath
-			} else {
-				c.Status(http.StatusNotFound)
-				return
-			}
-
-			// Serve the file
-			c.File(filePath)
-		},
 		"handleLogoutRedirect": func(c *gin.Context) {
 			// Clear any auth cookies/tokens and redirect to login
 			c.SetCookie("auth_token", "", -1, "/", "", false, true)
@@ -429,6 +406,7 @@ func main() {
 			// Redirect to customer dashboard
 			c.Redirect(http.StatusFound, "/customer/")
 		},
+		"handleStaticFiles": api.HandleStaticFiles,
 	}
 
 	routing.RegisterAPIHandlers(handlerRegistry, apiHandlers)

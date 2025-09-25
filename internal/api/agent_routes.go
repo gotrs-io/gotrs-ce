@@ -838,7 +838,22 @@ func handleAgentTicketReply(db *sql.DB) gin.HandlerFunc {
 func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ticketID := c.Param("id")
-		body := c.PostForm("body")
+
+		// Get body content - try JSON first, then form data
+		var body string
+		if c.ContentType() == "application/json" {
+			var jsonData struct {
+				Body string `json:"body"`
+			}
+			if err := c.ShouldBindJSON(&jsonData); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format"})
+				return
+			}
+			body = jsonData.Body
+		} else {
+			body = c.PostForm("body")
+		}
+
 		subject := c.PostForm("subject")
 
 		// Get communication channel from form (defaults to Internal if not specified)

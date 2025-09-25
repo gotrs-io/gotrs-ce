@@ -1,6 +1,6 @@
 {% extends "layouts/base.pongo2" %}
 
-{% block title %}Ticket {{ Ticket.id }} - GOTRS{% endblock %}
+{% block title %}Ticket {{ Ticket.tn }} - GOTRS{% endblock %}
 
 {% block content %}
 <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
@@ -11,7 +11,7 @@
                 <nav class="flex" aria-label="Breadcrumb">
                     <ol class="flex items-center space-x-4">
                         <li>
-                            <a href="/tickets" class="text-gotrs-600 hover:text-gotrs-500">Tickets</a>
+                            <a href="/tickets" class="text-gray-900 dark:text-white hover:text-gotrs-500">Tickets</a>
                         </li>
                         <li>
                             <svg class="flex-shrink-0 h-5 w-5 text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
@@ -19,7 +19,7 @@
                             </svg>
                         </li>
                         <li>
-                            <span class="text-gray-500 dark:text-gray-400">{{ Ticket.id }}</span>
+                            <span class="text-gray-500 dark:text-gray-400">{{ Ticket.tn }}</span>
                         </li>
                     </ol>
                 </nav>
@@ -60,8 +60,8 @@
             <!-- Ticket Description -->
             <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
                 <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Description</h2>
-                <div class="prose dark:prose-invert max-w-none">
-                    <p>{{ Ticket.description }}</p>
+                <div id="descriptionViewer" class="prose dark:prose-invert max-w-none">
+                    {{ Ticket.description|safe }}
                 </div>
             </div>
 
@@ -71,7 +71,9 @@
                 <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Notes & Updates</h2>
                 <div class="flow-root">
                     <ul class="-mb-8">
+                        {% set note_counter = 0 %}
                         {% for note in Ticket.notes %}
+                        {% set note_counter = note_counter + 1 %}
                         <li>
                             <div class="relative pb-8">
                                 {% if not forloop.last %}
@@ -93,7 +95,9 @@
                                             <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{{ note.time }}</p>
                                         </div>
                                         <div class="mt-2 text-sm text-gray-700 dark:text-gray-300">
-                                            <p>{{ note.content }}</p>
+                                            <div id="note-content-{{ note_counter }}" class="prose dark:prose-invert max-w-none">
+                                                {{ note.body|safe }}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -113,9 +117,10 @@
                         <label for="note_content" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Note Content
                         </label>
-                        <textarea id="note_content" name="content" rows="4" required
-                            class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm"
-                            placeholder="Add your note or update..."></textarea>
+                        <div id="noteEditor" class="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus-within:border-gotrs-500 focus-within:ring-gotrs-500 min-h-[120px] p-3">
+                            <!-- Tiptap editor will be initialized here -->
+                        </div>
+                        <input type="hidden" name="content" id="note_content" required>
                     </div>
                     <div class="flex justify-end">
                         <button type="submit"
@@ -268,7 +273,7 @@
         <div class="relative z-50 w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg shadow-xl">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    Close Ticket - {{ Ticket.id }}
+                    Close Ticket - {{ Ticket.tn }}
                 </h3>
             </div>
             
@@ -352,7 +357,7 @@
         <div class="relative z-50 w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg shadow-xl">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    Reopen Ticket - {{ Ticket.id }}
+                    Reopen Ticket - {{ Ticket.tn }}
                 </h3>
             </div>
             
@@ -416,6 +421,9 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block script %}
 <script>
 const ticketId = '{{ Ticket.id }}';
 
@@ -674,12 +682,12 @@ document.getElementById('noteForm').addEventListener('submit', function(e) {
     submitBtn.textContent = 'Adding Note...';
     submitBtn.disabled = true;
     
-    apiFetch(`/api/tickets/${ticketId}/notes`, {
+    apiFetch(`/tickets/${ticketId}/comments`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ content: content })
+        body: JSON.stringify({ body: content })
     })
     .then(response => response.json())
     .then(data => {
@@ -714,5 +722,22 @@ document.getElementById('noteForm').addEventListener('submit', function(e) {
         submitBtn.disabled = false;
     });
 });
+
+// Initialize Tiptap editor for note content
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof window.TiptapEditor === 'undefined') {
+        console.error('TiptapEditor not loaded');
+        return;
+    }
+    
+    TiptapEditor.init('noteEditor', {
+        placeholder: 'Add your note or update...',
+        editorMode: 'richtext', // Default to rich text, users can toggle to markdown
+        onUpdate: (content) => {
+            document.getElementById('note_content').value = content;
+        }
+    });
+});
+
 </script>
 {% endblock %}

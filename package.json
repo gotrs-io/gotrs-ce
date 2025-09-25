@@ -17,8 +17,8 @@
     "build": "npm run build-css && npm run build-js"
   },
   "devDependencies": {
-    "js-yaml": "^4.1.0",
-    "esbuild": "^0.19.0"
+    "esbuild": "^0.25.10",
+    "js-yaml": "^4.1.0"
   },
   "keywords": [
     "ticketing",
@@ -36,17 +36,27 @@
   "license": "AGPL-3.0",
   "author": "GOTRS Team",
   "dependencies": {
-    "@playwright/test": "^1.55.0",
+    "@playwright/test": "^1.55.1",
     "@tailwindcss/forms": "^0.5.10",
-    "@tailwindcss/typography": "^0.5.16",
-    "tailwindcss": "^3.4.1",
-    "@tiptap/core": "^2.1.13",
-    "@tiptap/starter-kit": "^2.1.13",
-    "@tiptap/extension-placeholder": "^2.1.13",
-    "@tiptap/extension-link": "^2.1.13",
-    "@tiptap/extension-table": "^2.1.13",
-    "@tiptap/extension-table-row": "^2.1.13",
-    "@tiptap/extension-table-cell": "^2.1.13",
-    "@tiptap/extension-table-header": "^2.1.13"
+    "@tailwindcss/typography": "^0.5.18",
+    "@tiptap/core": "^3.5.1",
+    "@tiptap/extension-color": "^3.5.1",
+    "@tiptap/extension-highlight": "^3.5.1",
+    "@tiptap/extension-image": "^3.5.1",
+    "@tiptap/extension-link": "^3.5.1",
+    "@tiptap/extension-placeholder": "^3.5.1",
+    "@tiptap/extension-table": "^3.5.1",
+    "@tiptap/extension-table-cell": "^3.5.1",
+    "@tiptap/extension-table-header": "^3.5.1",
+    "@tiptap/extension-table-row": "^3.5.1",
+    "@tiptap/extension-task-item": "^3.5.1",
+    "@tiptap/extension-task-list": "^3.5.1",
+    "@tiptap/extension-text-align": "^3.5.1",
+    "@tiptap/extension-text-style": "^3.5.1",
+    "@tiptap/extension-underline": "^3.5.1",
+    "@tiptap/pm": "^3.5.1",
+    "@tiptap/starter-kit": "^3.5.1",
+    "npm-check-updates": "^18.3.0",
+    "tailwindcss": "^3.4.0"
   }
 }

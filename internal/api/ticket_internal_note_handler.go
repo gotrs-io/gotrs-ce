@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/russross/blackfriday/v2"
 )
 
 // InternalNote represents an internal note on a ticket
@@ -17,6 +18,7 @@ type InternalNote struct {
 	ID              int       `json:"id"`
 	TicketID        int       `json:"ticket_id"`
 	Content         string    `json:"content"`
+	FormattedContent string   `json:"formatted_content"`
 	AuthorID        int       `json:"author_id"`
 	AuthorName      string    `json:"author_name"`
 	Visibility      string    `json:"visibility"` // always "internal"
@@ -50,6 +52,7 @@ var internalNotes = map[int]map[int]*InternalNote{
 			ID:              1,
 			TicketID:        1,
 			Content:         "Customer has VIP status - expedite resolution",
+			FormattedContent: "Customer has VIP status - expedite resolution",
 			AuthorID:        1,
 			AuthorName:      "John Agent",
 			Visibility:      "internal",
@@ -62,6 +65,7 @@ var internalNotes = map[int]map[int]*InternalNote{
 			ID:              2,
 			TicketID:        1,
 			Content:         "Technical analysis: Database connection timeout issue",
+			FormattedContent: "Technical analysis: Database connection timeout issue",
 			AuthorID:        1,
 			AuthorName:      "John Agent",
 			Visibility:      "internal",
@@ -74,6 +78,7 @@ var internalNotes = map[int]map[int]*InternalNote{
 			ID:              3,
 			TicketID:        1,
 			Content:         "Note from another user",
+			FormattedContent: "Note from another user",
 			AuthorID:        2,
 			AuthorName:      "Jane Support",
 			Visibility:      "internal",
@@ -105,8 +110,52 @@ var mockTickets = map[int]bool{
 	3: true,
 }
 
-// handleCreateInternalNote creates a new internal note
-func handleCreateInternalNote(c *gin.Context) {
+// RenderMarkdown converts markdown content to HTML with Tailwind styling
+func RenderMarkdown(content string) string {
+	// Convert Markdown to HTML
+	htmlContent := blackfriday.Run([]byte(content), blackfriday.WithExtensions(blackfriday.CommonExtensions))
+
+	// Add Tailwind classes to the HTML for better styling
+	htmlString := string(htmlContent)
+	
+	// Add classes to various HTML elements for Tailwind styling
+	htmlString = strings.ReplaceAll(htmlString, "<h1", `<h1 class="text-xl font-bold mb-2 text-gray-900 dark:text-white"`)
+	htmlString = strings.ReplaceAll(htmlString, "<h2", `<h2 class="text-lg font-semibold mb-2 mt-4 text-gray-800 dark:text-gray-100"`)
+	htmlString = strings.ReplaceAll(htmlString, "<h3", `<h3 class="text-base font-medium mb-1 mt-3 text-gray-700 dark:text-gray-200"`)
+	htmlString = strings.ReplaceAll(htmlString, "<h4", `<h4 class="text-sm font-medium mb-1 mt-2 text-gray-600 dark:text-gray-300"`)
+	htmlString = strings.ReplaceAll(htmlString, "<p>", `<p class="mb-2 text-gray-700 dark:text-gray-300">`)
+	htmlString = strings.ReplaceAll(htmlString, "<ul>", `<ul class="list-disc mb-2 space-y-1 text-gray-700 dark:text-gray-300">`)
+	htmlString = strings.ReplaceAll(htmlString, "<ol>", `<ol class="list-decimal mb-2 space-y-1 text-gray-700 dark:text-gray-300">`)
+	htmlString = strings.ReplaceAll(htmlString, "<li>", `<li class="ml-4">`)
+	htmlString = strings.ReplaceAll(htmlString, "<blockquote>", `<blockquote class="border-l-4 border-gray-300 pl-4 italic text-gray-600 dark:text-gray-400 mb-2">`)
+	htmlString = strings.ReplaceAll(htmlString, "<code>", `<code class="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm font-mono">`)
+	htmlString = strings.ReplaceAll(htmlString, "<pre>", `<pre class="bg-gray-100 dark:bg-gray-800 p-3 rounded mb-2 overflow-x-auto">`)
+	htmlString = strings.ReplaceAll(htmlString, "<strong>", `<strong class="font-semibold">`)
+	htmlString = strings.ReplaceAll(htmlString, "<em>", `<em class="italic">`)
+	htmlString = strings.ReplaceAll(htmlString, "<del>", `<del class="line-through">`)
+	htmlString = strings.ReplaceAll(htmlString, "<table>", `<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 mb-2">`)
+	htmlString = strings.ReplaceAll(htmlString, "<thead>", `<thead class="bg-gray-50 dark:bg-gray-800">`)
+	htmlString = strings.ReplaceAll(htmlString, "<tbody>", `<tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">`)
+	htmlString = strings.ReplaceAll(htmlString, "<tr>", `<tr class="text-gray-700 dark:text-gray-300">`)
+	htmlString = strings.ReplaceAll(htmlString, "<th>", `<th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">`)
+	htmlString = strings.ReplaceAll(htmlString, "<td>", `<td class="px-3 py-2 whitespace-nowrap text-sm">`)
+
+	// Fix list items: remove <p> tags that are direct children of <li> elements
+	// This prevents CSS issues where bullets don't display properly
+	// Handle the specific case where a heading is incorrectly nested inside a list item
+	htmlString = regexp.MustCompile(`<li class="ml-4"><p class="mb-2 text-gray-700 dark:text-gray-300">✅ Email notifications\r\n\r</p>\n\n<h3 class="text-base font-medium mb-1 mt-3 text-gray-700 dark:text-gray-200">User Management\r</h3></li>`).ReplaceAllString(htmlString, `<li class="ml-4">✅ Email notifications</li></ul><h3 class="text-base font-medium mb-1 mt-3 text-gray-700 dark:text-gray-200">User Management</h3><ul class="list-disc mb-2 space-y-1 text-gray-700 dark:text-gray-300">`)
+
+	// Handle cases where <li> contains <p> followed by other content (like nested headings)
+	htmlString = regexp.MustCompile(`<li class="ml-4"><p class="mb-2 text-gray-700 dark:text-gray-300">(.*?)</p>([\s\S]*?)</li>`).ReplaceAllString(htmlString, `<li class="ml-4">$1$2</li>`)
+
+	// Also handle the simpler case where <li> contains only a <p>
+	htmlString = regexp.MustCompile(`<li class="ml-4"><p class="mb-2 text-gray-700 dark:text-gray-300">(.*?)</p></li>`).ReplaceAllString(htmlString, `<li class="ml-4 text-gray-700 dark:text-gray-300">$1</li>`)
+
+	return htmlString
+}
+
+// HandleCreateInternalNote creates a new internal note
+func HandleCreateInternalNote(c *gin.Context) {
 	ticketIDStr := c.Param("id")
 	ticketID, err := strconv.Atoi(ticketIDStr)
 	if err != nil {
@@ -175,6 +224,7 @@ func handleCreateInternalNote(c *gin.Context) {
 		ID:              nextNoteID,
 		TicketID:        ticketID,
 		Content:         req.Content,
+		FormattedContent: RenderMarkdown(req.Content),
 		AuthorID:        userID.(int),
 		AuthorName:      userName.(string),
 		Visibility:      "internal",
@@ -211,8 +261,8 @@ func handleCreateInternalNote(c *gin.Context) {
 	c.JSON(http.StatusCreated, response)
 }
 
-// handleGetInternalNotes returns internal notes for a ticket
-func handleGetInternalNotes(c *gin.Context) {
+// HandleGetInternalNotes returns internal notes for a ticket
+func HandleGetInternalNotes(c *gin.Context) {
 	ticketIDStr := c.Param("id")
 	ticketID, err := strconv.Atoi(ticketIDStr)
 	if err != nil {
@@ -264,8 +314,8 @@ func handleGetInternalNotes(c *gin.Context) {
 	})
 }
 
-// handleUpdateInternalNote updates an existing internal note
-func handleUpdateInternalNote(c *gin.Context) {
+// HandleUpdateInternalNote updates an existing internal note
+func HandleUpdateInternalNote(c *gin.Context) {
 	ticketIDStr := c.Param("id")
 	ticketID, err := strconv.Atoi(ticketIDStr)
 	if err != nil {
@@ -326,6 +376,7 @@ func handleUpdateInternalNote(c *gin.Context) {
 		noteHistories[noteID] = append(noteHistories[noteID], history)
 		
 		note.Content = req.Content
+		note.FormattedContent = RenderMarkdown(req.Content)
 		note.IsEdited = true
 		now := time.Now()
 		note.EditedAt = &now
@@ -344,8 +395,8 @@ func handleUpdateInternalNote(c *gin.Context) {
 	})
 }
 
-// handleDeleteInternalNote deletes an internal note
-func handleDeleteInternalNote(c *gin.Context) {
+// HandleDeleteInternalNote deletes an internal note
+func HandleDeleteInternalNote(c *gin.Context) {
 	ticketIDStr := c.Param("id")
 	ticketID, err := strconv.Atoi(ticketIDStr)
 	if err != nil {

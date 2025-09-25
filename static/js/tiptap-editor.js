@@ -1,5 +1,5 @@
 // GOTRS Tiptap Rich Text Editor
-// MIT Licensed editor for composing and viewing articles
+// Based on Tiptap Simple Editor Template - MIT Licensed
 
 let editors = {};
 
@@ -10,17 +10,23 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initTiptapEditor(elementId, options = {}) {
+    console.log('initTiptapEditor called with elementId:', elementId);
     const container = document.getElementById(elementId);
-    if (!container) return null;
-    
+    console.log('Container element:', container);
+    if (!container) {
+        console.error('Container not found for elementId:', elementId);
+        return null;
+    }
+
     // Default options
     const config = {
         mode: options.mode || 'edit', // 'edit' or 'view'
+        editorMode: options.editorMode || 'richtext', // 'richtext' or 'markdown'
         placeholder: options.placeholder || 'Write your message here...',
         content: options.content || '',
         onUpdate: options.onUpdate || null
     };
-    
+
     // Build editor div structure
     const editorHtml = `
         <div class="tiptap-editor ${config.mode === 'view' ? 'readonly' : ''}" data-editor-id="${elementId}">
@@ -41,7 +47,13 @@ function initTiptapEditor(elementId, options = {}) {
                         <i class="fas fa-strikethrough"></i>
                     </button>
                 </div>
-                
+
+                <!-- Colors and Highlights -->
+                <div class="flex gap-1 border-r border-gray-200 dark:border-gray-700 pr-2">
+                    <input type="color" data-action="textColor" class="toolbar-btn w-8 h-8 p-0 border rounded" title="Text Color">
+                    <input type="color" data-action="highlight" class="toolbar-btn w-8 h-8 p-0 border rounded" title="Highlight Color" value="#ffff00">
+                </div>
+
                 <!-- Headings -->
                 <div class="flex gap-1 border-r border-gray-200 dark:border-gray-700 pr-2">
                     <button type="button" data-action="heading1" class="toolbar-btn" title="Heading 1">
@@ -57,7 +69,23 @@ function initTiptapEditor(elementId, options = {}) {
                         <i class="fas fa-paragraph"></i>
                     </button>
                 </div>
-                
+
+                <!-- Text Alignment -->
+                <div class="flex gap-1 border-r border-gray-200 dark:border-gray-700 pr-2">
+                    <button type="button" data-action="alignLeft" class="toolbar-btn" title="Align Left">
+                        <i class="fas fa-align-left"></i>
+                    </button>
+                    <button type="button" data-action="alignCenter" class="toolbar-btn" title="Align Center">
+                        <i class="fas fa-align-center"></i>
+                    </button>
+                    <button type="button" data-action="alignRight" class="toolbar-btn" title="Align Right">
+                        <i class="fas fa-align-right"></i>
+                    </button>
+                    <button type="button" data-action="alignJustify" class="toolbar-btn" title="Justify">
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+
                 <!-- Lists -->
                 <div class="flex gap-1 border-r border-gray-200 dark:border-gray-700 pr-2">
                     <button type="button" data-action="bulletList" class="toolbar-btn" title="Bullet List">
@@ -66,8 +94,11 @@ function initTiptapEditor(elementId, options = {}) {
                     <button type="button" data-action="orderedList" class="toolbar-btn" title="Numbered List">
                         <i class="fas fa-list-ol"></i>
                     </button>
+                    <button type="button" data-action="taskList" class="toolbar-btn" title="Task List">
+                        <i class="fas fa-tasks"></i>
+                    </button>
                 </div>
-                
+
                 <!-- Block elements -->
                 <div class="flex gap-1 border-r border-gray-200 dark:border-gray-700 pr-2">
                     <button type="button" data-action="blockquote" class="toolbar-btn" title="Blockquote">
@@ -76,11 +107,20 @@ function initTiptapEditor(elementId, options = {}) {
                     <button type="button" data-action="codeBlock" class="toolbar-btn" title="Code Block">
                         <i class="fas fa-code"></i>
                     </button>
+                    <button type="button" data-action="setLink" class="toolbar-btn" title="Insert Link (Ctrl+K)">
+                        <i class="fas fa-link"></i>
+                    </button>
+                    <button type="button" data-action="unsetLink" class="toolbar-btn" title="Remove Link">
+                        <i class="fas fa-unlink"></i>
+                    </button>
+                    <button type="button" data-action="insertImage" class="toolbar-btn" title="Insert Image">
+                        <i class="fas fa-image"></i>
+                    </button>
                     <button type="button" data-action="horizontalRule" class="toolbar-btn" title="Horizontal Rule">
                         <i class="fas fa-minus"></i>
                     </button>
                 </div>
-                
+
                 <!-- Table -->
                 <div class="flex gap-1 border-r border-gray-200 dark:border-gray-700 pr-2">
                     <button type="button" data-action="insertTable" class="toolbar-btn" title="Insert Table">
@@ -96,9 +136,13 @@ function initTiptapEditor(elementId, options = {}) {
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
-                
+
                 <!-- Actions -->
                 <div class="flex gap-1">
+                    <button type="button" data-action="toggleMode" class="toolbar-btn mode-toggle" title="Toggle Rich Text/Markdown Mode">
+                        <i class="fas fa-code"></i>
+                        <span class="mode-text">Rich Text</span>
+                    </button>
                     <button type="button" data-action="undo" class="toolbar-btn" title="Undo (Ctrl+Z)">
                         <i class="fas fa-undo"></i>
                     </button>
@@ -114,156 +158,473 @@ function initTiptapEditor(elementId, options = {}) {
             <div class="tiptap-content prose prose-sm dark:prose-invert max-w-none p-4 min-h-[200px] focus:outline-none ${config.mode === 'edit' ? 'border border-gray-300 dark:border-gray-600 rounded-b-lg' : ''}"></div>
         </div>
     `;
-    
+
     container.innerHTML = editorHtml;
-    
+
     // Initialize Tiptap editor (using bundled Tiptap)
-    // Wait for Tiptap to be loaded
     if (typeof window.Tiptap === 'undefined') {
-        console.error('Tiptap not loaded yet');
+        console.error('Tiptap not loaded');
         return null;
     }
-    
-    const { Editor, StarterKit, Placeholder, Link, Table, TableRow, TableCell, TableHeader } = window.Tiptap;
-    
-    const editor = new Editor({
-        element: container.querySelector('.tiptap-content'),
-        extensions: [
-            StarterKit.configure({
-                heading: {
-                    levels: [1, 2, 3]
+
+    // Initialize editor based on mode
+    let editor = null;
+    let markdownTextarea = null;
+    let currentMode = config.editorMode;
+
+    // Update toolbar visibility and mode button text
+    function updateToolbarVisibility() {
+        const toolbar = container.querySelector('.tiptap-toolbar');
+        const modeToggle = container.querySelector('.mode-toggle .mode-text');
+
+        // Get all toolbar sections
+        const toolbarSections = toolbar.querySelectorAll('.flex.gap-1');
+        const actionsSection = toolbar.querySelector('.flex.gap-1:last-child');
+
+        if (currentMode === 'markdown') {
+            // Hide all sections except the last one (Actions) which contains mode toggle, undo, redo, clear format
+            toolbarSections.forEach((section, index) => {
+                if (index < toolbarSections.length - 1) {
+                    section.style.display = 'none';
+                } else {
+                    section.style.display = 'flex';
                 }
-            }),
-            Placeholder.configure({
-                placeholder: config.placeholder
-            }),
-            Link.configure({
-                openOnClick: config.mode === 'view'
-            }),
-            Table.configure({
-                resizable: true
-            }),
+            });
+            if (modeToggle) modeToggle.textContent = 'Markdown';
+        } else {
+            // Show all sections in rich text mode
+            toolbarSections.forEach(section => {
+                section.style.display = 'flex';
+            });
+            if (modeToggle) modeToggle.textContent = 'Rich Text';
+        }
+    }
+
+    // Convert content between formats
+    function convertContent(content, fromMode, toMode) {
+        if (fromMode === toMode) return content;
+
+        if (fromMode === 'richtext' && toMode === 'markdown') {
+            return window.Tiptap.htmlToMarkdown ? window.Tiptap.htmlToMarkdown(content) : content;
+        } else if (fromMode === 'markdown' && toMode === 'richtext') {
+            return window.Tiptap.markdownToHTML ? window.Tiptap.markdownToHTML(content) : content;
+        }
+
+        return content;
+    }
+
+    // Initialize rich text editor
+    function initRichTextEditor(content) {
+        if (editor) return;
+
+        const {
+            Editor,
+            StarterKit,
+            Placeholder,
+            TextAlign,
+            TextStyle,
+            Color,
+            Highlight,
+            Underline,
+            TaskList,
+            TaskItem,
+            Table,
             TableRow,
             TableCell,
-            TableHeader
-        ],
-        content: config.content,
-        editable: config.mode === 'edit',
-        onUpdate: ({ editor }) => {
-            if (config.onUpdate) {
-                config.onUpdate(editor.getHTML());
+            TableHeader,
+            Image
+        } = window.Tiptap;
+
+        const contentElement = container.querySelector('.tiptap-content');
+        editor = new Editor({
+            element: contentElement,
+            extensions: [
+                StarterKit.configure({
+                    heading: {
+                        levels: [1, 2, 3]
+                    }
+                }),
+                Placeholder.configure({
+                    placeholder: config.placeholder
+                }),
+                TextAlign.configure({
+                    types: ['heading', 'paragraph'],
+                }),
+                TextStyle,
+                Color,
+                Highlight.configure({
+                    multicolor: true,
+                }),
+                Underline,
+                TaskList,
+                TaskItem.configure({
+                    nested: true,
+                }),
+                Table.configure({
+                    resizable: true
+                }),
+                TableRow,
+                TableCell,
+                TableHeader,
+                Image
+            ],
+            content: content,
+            editable: config.mode === 'edit',
+            onUpdate: ({ editor: updatedEditor }) => {
+                console.log('Rich text editor content updated');
+                if (config.onUpdate) {
+                    const markdown = window.Tiptap.htmlToMarkdown ? window.Tiptap.htmlToMarkdown(updatedEditor.getHTML()) : updatedEditor.getHTML();
+                    config.onUpdate(markdown);
+                }
             }
+        });
+    }
+
+    // Initialize markdown textarea
+    function initMarkdownTextarea(content) {
+        if (markdownTextarea) return;
+
+        const contentElement = container.querySelector('.tiptap-content');
+        markdownTextarea = document.createElement('textarea');
+        markdownTextarea.className = 'w-full h-64 p-3 border border-gray-300 dark:border-gray-600 rounded-md font-mono text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white';
+        markdownTextarea.placeholder = config.placeholder;
+        markdownTextarea.value = content;
+        markdownTextarea.disabled = config.mode !== 'edit';
+
+        contentElement.innerHTML = '';
+        contentElement.appendChild(markdownTextarea);
+
+        markdownTextarea.addEventListener('input', () => {
+            console.log('Markdown textarea content updated');
+            if (config.onUpdate) {
+                config.onUpdate(markdownTextarea.value);
+            }
+        });
+    }
+
+    // Toggle between modes
+    function toggleMode() {
+        const newMode = currentMode === 'richtext' ? 'markdown' : 'richtext';
+        const currentContent = currentMode === 'richtext' ?
+            (editor ? editor.getHTML() : '') :
+            (markdownTextarea ? markdownTextarea.value : '');
+
+        const convertedContent = convertContent(currentContent, currentMode, newMode);
+
+        // Destroy current editor/textarea
+        if (editor) {
+            editor.destroy();
+            editor = null;
         }
-    });
-    
+        if (markdownTextarea) {
+            markdownTextarea.remove();
+            markdownTextarea = null;
+        }
+
+        // Switch mode and reinitialize
+        currentMode = newMode;
+        updateToolbarVisibility();
+
+        if (currentMode === 'richtext') {
+            initRichTextEditor(convertedContent);
+        } else {
+            initMarkdownTextarea(convertedContent);
+        }
+    }
+
+    // Initialize with current mode
+    updateToolbarVisibility();
+    if (currentMode === 'richtext') {
+        initRichTextEditor(config.content);
+    } else {
+        initMarkdownTextarea(config.content);
+    }
+
     // Attach toolbar actions for edit mode
     if (config.mode === 'edit') {
         const toolbar = container.querySelector('.tiptap-toolbar');
         toolbar.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-action]');
             if (!btn) return;
-            
+
             e.preventDefault();
             const action = btn.dataset.action;
-            
+
             switch(action) {
-                // Text formatting
+                // Mode toggle
+                case 'toggleMode':
+                    toggleMode();
+                    break;
+
+                // Text formatting - only work in rich text mode
                 case 'bold':
-                    editor.chain().focus().toggleBold().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().toggleBold().run();
+                    }
                     break;
                 case 'italic':
-                    editor.chain().focus().toggleItalic().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().toggleItalic().run();
+                    }
                     break;
                 case 'underline':
-                    editor.chain().focus().toggleUnderline().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().toggleMark('underline').run();
+                    }
                     break;
                 case 'strike':
-                    editor.chain().focus().toggleStrike().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().toggleStrike().run();
+                    }
                     break;
-                    
+
+                // Colors
+                case 'textColor':
+                    if (currentMode === 'richtext' && editor) {
+                        const textColor = e.target.value;
+                        editor.chain().focus().setColor(textColor).run();
+                    }
+                    break;
+                case 'highlight':
+                    if (currentMode === 'richtext' && editor) {
+                        const highlightColor = e.target.value;
+                        editor.chain().focus().toggleHighlight({ color: highlightColor }).run();
+                    }
+                    break;
+
                 // Headings
                 case 'heading1':
-                    editor.chain().focus().toggleHeading({ level: 1 }).run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().toggleHeading({ level: 1 }).run();
+                    }
                     break;
                 case 'heading2':
-                    editor.chain().focus().toggleHeading({ level: 2 }).run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().toggleHeading({ level: 2 }).run();
+                    }
                     break;
                 case 'heading3':
-                    editor.chain().focus().toggleHeading({ level: 3 }).run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().toggleHeading({ level: 3 }).run();
+                    }
                     break;
                 case 'paragraph':
-                    editor.chain().focus().setParagraph().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().setParagraph().run();
+                    }
                     break;
-                    
+
+                // Text alignment
+                case 'alignLeft':
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().setTextAlign('left').run();
+                    }
+                    break;
+                case 'alignCenter':
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().setTextAlign('center').run();
+                    }
+                    break;
+                case 'alignRight':
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().setTextAlign('right').run();
+                    }
+                    break;
+                case 'alignJustify':
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().setTextAlign('justify').run();
+                    }
+                    break;
+
                 // Lists
                 case 'bulletList':
-                    editor.chain().focus().toggleBulletList().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().toggleBulletList().run();
+                    }
                     break;
                 case 'orderedList':
-                    editor.chain().focus().toggleOrderedList().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().toggleOrderedList().run();
+                    }
                     break;
-                    
+                case 'taskList':
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().toggleTaskList().run();
+                    }
+                    break;
+
                 // Block elements
                 case 'blockquote':
-                    editor.chain().focus().toggleBlockquote().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().toggleBlockquote().run();
+                    }
                     break;
                 case 'codeBlock':
-                    editor.chain().focus().toggleCodeBlock().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().toggleCodeBlock().run();
+                    }
+                    break;
+                case 'setLink':
+                    if (currentMode === 'richtext' && editor) {
+                        const url = prompt('Enter URL:');
+                        if (url) {
+                            editor.chain().focus().setLink({ href: url }).run();
+                        }
+                    }
+                    break;
+                case 'unsetLink':
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().unsetLink().run();
+                    }
+                    break;
+                case 'insertImage':
+                    if (currentMode === 'richtext' && editor) {
+                        const imageUrl = prompt('Enter image URL:');
+                        if (imageUrl) {
+                            editor.chain().focus().setImage({ src: imageUrl }).run();
+                        }
+                    }
                     break;
                 case 'horizontalRule':
-                    editor.chain().focus().setHorizontalRule().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().setHorizontalRule().run();
+                    }
                     break;
-                    
+
                 // Tables
                 case 'insertTable':
-                    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+                    }
                     break;
                 case 'addColumnBefore':
-                    editor.chain().focus().addColumnBefore().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().addColumnBefore().run();
+                    }
                     break;
                 case 'addRowAfter':
-                    editor.chain().focus().addRowAfter().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().addRowAfter().run();
+                    }
                     break;
                 case 'deleteTable':
-                    editor.chain().focus().deleteTable().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().deleteTable().run();
+                    }
                     break;
-                    
+
                 // Actions
                 case 'undo':
-                    editor.chain().focus().undo().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().undo().run();
+                    }
                     break;
                 case 'redo':
-                    editor.chain().focus().redo().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().redo().run();
+                    }
                     break;
                 case 'clearFormat':
-                    editor.chain().focus().clearNodes().unsetAllMarks().run();
+                    if (currentMode === 'richtext' && editor) {
+                        editor.chain().focus().clearNodes().unsetAllMarks().run();
+                    }
                     break;
             }
-            
+
             // Update button states
-            updateToolbarState(editor, toolbar);
+            updateToolbarState(currentMode === 'richtext' ? editor : null, toolbar);
         });
-        
+
         // Update toolbar button states
-        editor.on('selectionUpdate', () => {
+        if (currentMode === 'richtext' && editor) {
+            editor.on('selectionUpdate', () => {
+                updateToolbarState(editor, toolbar);
+            });
+
             updateToolbarState(editor, toolbar);
-        });
-        
-        updateToolbarState(editor, toolbar);
+        }
     }
-    
-    // Store editor instance
-    editors[elementId] = editor;
-    
-    return editor;
+
+    // Store editor instance and return interface
+    editors[elementId] = {
+        getHTML: () => {
+            if (currentMode === 'richtext' && editor) {
+                return window.Tiptap.htmlToMarkdown ? window.Tiptap.htmlToMarkdown(editor.getHTML()) : editor.getHTML();
+            } else if (currentMode === 'markdown' && markdownTextarea) {
+                return markdownTextarea.value;
+            }
+            return '';
+        },
+        getMarkdown: () => {
+            if (currentMode === 'markdown' && markdownTextarea) {
+                return markdownTextarea.value;
+            } else if (currentMode === 'richtext' && editor) {
+                return window.Tiptap.htmlToMarkdown ? window.Tiptap.htmlToMarkdown(editor.getHTML()) : editor.getHTML();
+            }
+            return '';
+        },
+        setContent: (content, mode = null) => {
+            const targetMode = mode || currentMode;
+            if (targetMode === 'richtext') {
+                const htmlContent = currentMode === 'markdown' ? (window.Tiptap.markdownToHTML ? window.Tiptap.markdownToHTML(content) : content) : content;
+                if (editor) {
+                    editor.commands.setContent(htmlContent);
+                }
+            } else {
+                const markdownContent = currentMode === 'richtext' ? (window.Tiptap.htmlToMarkdown ? window.Tiptap.htmlToMarkdown(content) : content) : content;
+                if (markdownTextarea) {
+                    markdownTextarea.value = markdownContent;
+                }
+            }
+        },
+        getMode: () => currentMode,
+        setMode: (mode) => {
+            if (mode !== currentMode) {
+                toggleMode();
+            }
+        },
+        destroy: () => {
+            if (editor) {
+                editor.destroy();
+                editor = null;
+            }
+            if (markdownTextarea) {
+                markdownTextarea.remove();
+                markdownTextarea = null;
+            }
+        }
+    };
+
+    return editors[elementId];
 }
 
 function updateToolbarState(editor, toolbar) {
+    if (!editor) {
+        // In markdown mode, disable most buttons but keep toggleMode enabled
+        toolbar.querySelectorAll('[data-action]').forEach(btn => {
+            if (btn.dataset.action === 'toggleMode') {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                btn.disabled = true;
+                btn.classList.remove('active');
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        });
+        return;
+    }
+
+    // Enable buttons and update states for rich text mode
+    toolbar.querySelectorAll('[data-action]').forEach(btn => {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    });
+
     // Update active states for toolbar buttons
     toolbar.querySelectorAll('[data-action]').forEach(btn => {
         const action = btn.dataset.action;
         let isActive = false;
-        
+
         switch(action) {
             case 'bold':
                 isActive = editor.isActive('bold');
@@ -289,11 +650,26 @@ function updateToolbarState(editor, toolbar) {
             case 'paragraph':
                 isActive = editor.isActive('paragraph');
                 break;
+            case 'alignLeft':
+                isActive = editor.isActive({ textAlign: 'left' });
+                break;
+            case 'alignCenter':
+                isActive = editor.isActive({ textAlign: 'center' });
+                break;
+            case 'alignRight':
+                isActive = editor.isActive({ textAlign: 'right' });
+                break;
+            case 'alignJustify':
+                isActive = editor.isActive({ textAlign: 'justify' });
+                break;
             case 'bulletList':
                 isActive = editor.isActive('bulletList');
                 break;
             case 'orderedList':
                 isActive = editor.isActive('orderedList');
+                break;
+            case 'taskList':
+                isActive = editor.isActive('taskList');
                 break;
             case 'blockquote':
                 isActive = editor.isActive('blockquote');
@@ -301,8 +677,12 @@ function updateToolbarState(editor, toolbar) {
             case 'codeBlock':
                 isActive = editor.isActive('codeBlock');
                 break;
+            case 'setLink':
+            case 'unsetLink':
+                isActive = editor.isActive('link');
+                break;
         }
-        
+
         if (isActive) {
             btn.classList.add('active');
         } else {
@@ -347,31 +727,31 @@ style.textContent = `
         align-items: center;
         justify-content: center;
     }
-    
+
     .dark .tiptap-toolbar .toolbar-btn {
         color: #D1D5DB;
     }
-    
+
     .tiptap-toolbar .toolbar-btn:hover {
         background: #F3F4F6;
         color: #1F2937;
     }
-    
+
     .dark .tiptap-toolbar .toolbar-btn:hover {
         background: #374151;
         color: #F9FAFB;
     }
-    
+
     .tiptap-toolbar .toolbar-btn.active {
         background: #3B82F6;
         color: white;
     }
-    
+
     .tiptap-content .ProseMirror {
         min-height: inherit;
         outline: none;
     }
-    
+
     .tiptap-content .ProseMirror p.is-editor-empty:first-child::before {
         color: #9CA3AF;
         content: attr(data-placeholder);
@@ -379,7 +759,7 @@ style.textContent = `
         height: 0;
         pointer-events: none;
     }
-    
+
     .tiptap-content table {
         border-collapse: collapse;
         table-layout: fixed;
@@ -387,7 +767,7 @@ style.textContent = `
         margin: 0;
         overflow: hidden;
     }
-    
+
     .tiptap-content td, .tiptap-content th {
         min-width: 1em;
         border: 2px solid #D1D5DB;
@@ -396,20 +776,20 @@ style.textContent = `
         box-sizing: border-box;
         position: relative;
     }
-    
+
     .dark .tiptap-content td, .dark .tiptap-content th {
         border-color: #4B5563;
     }
-    
+
     .tiptap-content th {
         background-color: #F3F4F6;
         font-weight: bold;
     }
-    
+
     .dark .tiptap-content th {
         background-color: #374151;
     }
-    
+
     .tiptap-content .selectedCell:after {
         z-index: 2;
         position: absolute;
@@ -418,7 +798,7 @@ style.textContent = `
         background: rgba(200, 200, 255, 0.4);
         pointer-events: none;
     }
-    
+
     .tiptap-content .column-resize-handle {
         position: absolute;
         right: -2px;
@@ -427,6 +807,44 @@ style.textContent = `
         width: 4px;
         background-color: #adf;
         pointer-events: none;
+    }
+
+    /* Image styles */
+    .tiptap-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 4px;
+    }
+
+    .tiptap-content img.ProseMirror-selectednode {
+        outline: 3px solid #68CEF8;
+    }
+
+    /* Task list styles */
+    .tiptap-content ul[data-type="taskList"] {
+        list-style: none;
+        padding: 0;
+    }
+
+    .tiptap-content ul[data-type="taskList"] li {
+        display: flex;
+        align-items: flex-start;
+    }
+
+    .tiptap-content ul[data-type="taskList"] li > label {
+        display: flex;
+        align-items: center;
+        margin-right: 0.5rem;
+        user-select: none;
+    }
+
+    .tiptap-content ul[data-type="taskList"] li > label input[type="checkbox"] {
+        margin-right: 0.5rem;
+    }
+
+    .tiptap-content ul[data-type="taskList"] li[data-checked="true"] {
+        text-decoration: line-through;
+        opacity: 0.6;
     }
 `;
 document.head.appendChild(style);

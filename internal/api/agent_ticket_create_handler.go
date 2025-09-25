@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -260,7 +261,7 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 				IsVisibleForCustomer:   visibility,
 				Subject:                title,
 				Body:                   message,
-				MimeType:               "text/plain",
+				MimeType:               detectTicketContentType(message),
 				Charset:                "utf-8",
 				CreateBy:               int(userID),
 				ChangeBy:               int(userID),
@@ -275,4 +276,26 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 		// Redirect to ticket view using the generated ticket number (TN)
 		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/tickets/%s", tn))
 	}
+}
+
+// detectTicketContentType determines the MIME type based on content analysis
+func detectTicketContentType(content string) string {
+	// Check for HTML tags
+	if strings.Contains(content, "<") && strings.Contains(content, ">") {
+		// Look for common HTML tags
+		htmlTags := []string{"<p>", "<br", "<div>", "<span>", "<strong>", "<em>", "<b>", "<i>", "<h1>", "<h2>", "<h3>", "<ul>", "<ol>", "<li>"}
+		for _, tag := range htmlTags {
+			if strings.Contains(content, tag) {
+				return "text/html"
+			}
+		}
+	}
+	
+	// Check for markdown syntax
+	if strings.Contains(content, "#") || strings.Contains(content, "**") || strings.Contains(content, "*") || strings.Contains(content, "`") {
+		return "text/markdown"
+	}
+	
+	// Default to plain text
+	return "text/plain"
 }

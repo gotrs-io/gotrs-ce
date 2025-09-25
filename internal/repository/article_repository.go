@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gotrs-io/gotrs-ce/internal/database"
@@ -103,6 +104,45 @@ func (r *ArticleRepository) Create(article *models.Article) error {
 		}
 	}
 
+	// Handle HTML content securely like OTRS - store HTML in attachment
+	if strings.Contains(contentType, "text/html") && bodyStr != "" {
+		// Create HTML body attachment
+		attachmentQuery := database.ConvertPlaceholders(`
+			INSERT INTO article_data_mime_attachment (
+				article_id, filename, content_type, content_size, content,
+				content_id, content_alternative, disposition,
+				create_time, create_by, change_time, change_by
+			) VALUES (
+				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+			) RETURNING id`)
+
+		contentSize := len(bodyStr)
+		var attachmentID64 int64
+		err = tx.QueryRow(
+			attachmentQuery,
+			articleID64,
+			"html-body.html", // Special filename for HTML body like OTRS
+			"text/html; charset=utf-8",
+			contentSize,
+			bodyStr,
+			nil, // content_id
+			"",  // content_alternative
+			"inline", // disposition - inline for HTML body
+			now,
+			article.CreateBy,
+			now,
+			article.ChangeBy,
+		).Scan(&attachmentID64)
+
+		if err != nil {
+			return fmt.Errorf("failed to create HTML body attachment: %w", err)
+		}
+
+		// For HTML content, store a placeholder in the main body
+		bodyStr = "[HTML content - see attachment]"
+		contentType = "text/plain; charset=utf-8"
+	}
+
 	_, err = tx.Exec(
 		mimeQuery,
 		articleID64,
@@ -194,8 +234,52 @@ func (r *ArticleRepository) GetByID(id uint) (*models.Article, error) {
 	return &article, err
 }
 
+// GetHTMLBodyAttachmentID finds the HTML body attachment for an article (OTRS-style)
+func (r *ArticleRepository) GetHTMLBodyAttachmentID(articleID uint) (*uint, error) {
+	query := database.ConvertPlaceholders(`
+		SELECT id FROM article_data_mime_attachment
+		WHERE article_id = $1
+		AND filename = 'html-body.html'
+		AND content_type LIKE 'text/html%'
+		AND disposition = 'inline'
+		ORDER BY id LIMIT 1`)
+
+	var attachmentID uint
+	err := r.db.QueryRow(query, articleID).Scan(&attachmentID)
+	if err == sql.ErrNoRows {
+		return nil, nil // No HTML body attachment found
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &attachmentID, nil
+}
+
+// GetHTMLBodyContent retrieves the HTML body content for an article
+func (r *ArticleRepository) GetHTMLBodyContent(articleID uint) (string, error) {
+	query := database.ConvertPlaceholders(`
+		SELECT content FROM article_data_mime_attachment
+		WHERE article_id = $1
+		AND content_type LIKE 'text/html%'
+		ORDER BY id DESC LIMIT 1`)
+
+	var content []byte
+	err := r.db.QueryRow(query, articleID).Scan(&content)
+	if err == sql.ErrNoRows {
+		return "", nil // No HTML body attachment found
+	}
+	if err != nil {
+		return "", err
+	}
+
+	return string(content), nil
+}
+
 // GetByTicketID retrieves all articles for a specific ticket
 func (r *ArticleRepository) GetByTicketID(ticketID uint, includeInternal bool) ([]models.Article, error) {
+	fmt.Printf("DEBUG: GetByTicketID called with ticketID=%d, includeInternal=%v\n", ticketID, includeInternal)
+	
 	query := database.ConvertPlaceholders(`
 		SELECT 
 			a.id, a.ticket_id, a.article_sender_type_id,
@@ -212,6 +296,7 @@ func (r *ArticleRepository) GetByTicketID(ticketID uint, includeInternal bool) (
 
 	query += " ORDER BY a.create_time ASC"
 
+	fmt.Printf("DEBUG: Executing query: %s with ticketID=%d\n", query, ticketID)
 	rows, err := r.db.Query(query, ticketID)
 	if err != nil {
 		return nil, err
@@ -248,6 +333,9 @@ func (r *ArticleRepository) GetByTicketID(ticketID uint, includeInternal bool) (
 		}
 		if bodyBytes != nil {
 			article.Body = string(bodyBytes)
+			fmt.Printf("DEBUG: Article ID %d has body: %q\n", article.ID, article.Body)
+		} else {
+			fmt.Printf("DEBUG: Article ID %d has nil bodyBytes\n", article.ID)
 		}
 		if contentType.Valid {
 			article.MimeType = contentType.String
@@ -256,6 +344,7 @@ func (r *ArticleRepository) GetByTicketID(ticketID uint, includeInternal bool) (
 		articles = append(articles, article)
 	}
 
+	fmt.Printf("DEBUG: Found %d articles for ticket %d\n", len(articles), ticketID)
 	return articles, nil
 }
 

@@ -112,6 +112,13 @@ Avoid `FormData` for checkbox matrices when the backend expects `application/x-w
 - `make db-shell`: open PostgreSQL shell
 - `make test`: run tests in containers
 - `make toolbox-compile`: compile all packages inside toolbox container
+- `make toolbox-exec ARGS="go mod tidy"`: run Go module management commands in container (tidy, download, etc.)
+- `make frontend-build`: build CSS and JavaScript assets (Tailwind + esbuild)
+- `make tiptap-build`: build only Tiptap JavaScript bundle for debugging
+- `make frontend-clean-build`: clean and rebuild all frontend assets
+- `make frontend-dev`: start frontend development server with hot reload
+
+**Note**: `css-deps` uses `npm-check-updates` which may upgrade Tailwind CSS to v4, causing build failures. Pin Tailwind to `^3.4.0` in package.json and avoid `npm-check-updates` for frontend dependencies.
 
 ## Troubleshooting Checklist
 - Build fails: run `make toolbox-compile` and read the first error; fix from top to bottom

@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
@@ -100,6 +101,13 @@ func (s *TicketService) CreateTicket(req *CreateTicketRequest, createBy int) (*C
 		ValidID:                1,
 		CreateBy:               createBy,
 		ChangeBy:               createBy,
+	}
+
+	// Check if the body contains HTML tags (from RTF editor)
+	if strings.Contains(req.Body, "<") && strings.Contains(req.Body, ">") {
+		// Content appears to be HTML, set appropriate MIME type
+		article.BodyType = "text/html"
+		article.MimeType = "text/html"
 	}
 
 	// Insert article via repository (handles schema + tx)

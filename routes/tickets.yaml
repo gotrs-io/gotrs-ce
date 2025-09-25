@@ -22,7 +22,7 @@ spec:
     - path: /:id
       method: GET
       handler: handleTicketDetail
-      template: pages/agent/ticket_view.pongo2
+      template: pages/ticket_detail.pongo2
       description: "Display individual ticket details and conversation"
 
     # New ticket creation form

@@ -239,7 +239,7 @@
                         Select Agent <span class="text-red-500">*</span>
                     </label>
                     <select id="assignAgent" name="assignAgent" required
-                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500">
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 text-gray-900">
                         <option value="">Loading agents...</option>
                     </select>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -284,7 +284,7 @@
                         Close State <span class="text-red-500">*</span>
                     </label>
                     <select id="closeState" name="closeState" required
-                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500">
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 text-gray-900">
                         <option value="3">Closed Successful</option>
                         <option value="4">Closed Unsuccessful</option>
                     </select>
@@ -368,7 +368,7 @@
                         Target State <span class="text-red-500">*</span>
                     </label>
                     <select id="reopenState" name="reopenState" required
-                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500">
+                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 text-gray-900">
                         <option value="1">New</option>
                         <option value="2" selected>Open</option>
                     </select>

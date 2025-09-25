@@ -45,7 +45,7 @@
                 hx-trigger="change"
                 hx-target="#notes-list"
                 name="category"
-                class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
             <option value="">All Categories</option>
             <option value="investigation">Investigation</option>
             <option value="resolution">Resolution</option>
@@ -102,9 +102,9 @@
                 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Category</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
                         <select name="category"
-                                class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                             <option value="">Select category</option>
                             <option value="investigation">Investigation</option>
                             <option value="resolution">Resolution</option>
@@ -115,10 +115,10 @@
                     </div>
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Template</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Template</label>
                         <select name="template_id"
                                 onchange="loadNoteTemplate(this.value)"
-                                class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                             <option value="">No template</option>
                             <option value="1">Investigation Started</option>
                             <option value="2">Escalation Note</option>

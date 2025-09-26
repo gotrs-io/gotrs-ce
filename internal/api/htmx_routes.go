@@ -3133,7 +3133,7 @@ func handleCreateTicket(c *gin.Context) {
 	if os.Getenv("APP_ENV") == "test" {
 		// Handle malformed multipart early
 		if strings.Contains(strings.ToLower(c.GetHeader("Content-Type")), "multipart/form-data") {
-			if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
+			if err := c.Request.ParseMultipartForm(128 << 20); err != nil {
 				em := strings.ToLower(err.Error())
 				if strings.Contains(em, "large") {
 					c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "file too large"})
@@ -5680,7 +5680,7 @@ func handleUpdateUserPermissions(c *gin.Context) {
 	contentType := c.GetHeader("Content-Type")
 	if strings.Contains(contentType, "multipart/form-data") {
 		// Parse multipart form
-		if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
+		if err := c.Request.ParseMultipartForm(128 << 20); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid multipart form data"})
 			return
 		}

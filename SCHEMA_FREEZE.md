@@ -83,6 +83,59 @@ Changes to the frozen schema require:
 3. Sign-off from project lead
 4. Major version bump (e.g., 2.0.0)
 
+#### Documented Exception: UTF8MB4 Character Set Migration
+**Date:** 2025-09-26  
+**Table:** `article_data_mime`  
+**Change:** Character set converted from `utf8mb3` to `utf8mb4`  
+**Status:** IMPLEMENTED (cannot be reverted due to existing data)
+
+**Justification:**
+- OTRS Community Edition uses `utf8mb3` (limited Unicode support)
+- Modern applications require full Unicode support (emojis, international characters)
+- Without this change, articles containing Unicode characters fail to save
+- This affects user experience and limits GOTRS adoption
+
+**Impact Assessment:**
+- ✅ **Forward Compatible:** utf8mb4 can read utf8mb3 data
+- ✅ **OTRS Compatible:** OTRS can work with utf8mb4 tables
+- ⚠️ **Migration Required:** Existing OTRS databases need this change to work with GOTRS
+- ⚠️ **Cannot Revert:** Unicode data now exists that prevents rollback
+
+**Migration Path:**
+1. Run `ALTER TABLE article_data_mime CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
+2. This is a one-way migration - cannot be undone without data loss
+3. Document in release notes as breaking change for OTRS compatibility
+
+**Current Implementation: Hybrid Unicode Support**
+**Date:** 2025-09-26  
+**Status:** IMPLEMENTED
+
+To balance modern Unicode requirements with OTRS compatibility, GOTRS implements a hybrid approach:
+
+**Configuration-Based Unicode Support:**
+- `UNICODE_SUPPORT=true`: Full Unicode support (utf8mb4 + all characters)
+- `UNICODE_SUPPORT=false` (default): OTRS-compatible mode (utf8mb4 + filtered characters)
+
+**Application-Level Unicode Filtering:**
+When `UNICODE_SUPPORT=false`, GOTRS automatically filters out:
+- Emojis and symbols (U+10000 and above)
+- Extended Unicode characters incompatible with OTRS
+- Mathematical symbols and rare Unicode blocks
+- Preserves common accented characters (Latin-1 Supplement, Latin Extended-A)
+
+**Benefits of This Approach:**
+- ✅ **Schema Flexibility:** utf8mb4 supports all Unicode when needed
+- ✅ **OTRS Compatibility:** Filtering ensures compatibility with OTRS tools/workflows
+- ✅ **User Choice:** Organizations can choose Unicode level based on needs
+- ✅ **Zero Migration Cost:** Existing OTRS databases work without changes
+- ✅ **Future-Proof:** Can enable full Unicode support without schema changes
+
+**Implementation Details:**
+- Filter logic in `internal/utils/unicode_filter.go`
+- Applied to article content before database storage
+- Environment variable controlled: `UNICODE_SUPPORT`
+- Default: OTRS-compatible mode for seamless migration
+
 ---
 
 **Remember:** Users choose GOTRS because it's a drop-in OTRS replacement. Breaking compatibility breaks trust.

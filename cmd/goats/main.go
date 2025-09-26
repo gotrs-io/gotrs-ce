@@ -425,6 +425,9 @@ func main() {
 	// Create router for YAML routes
 	r := gin.New()
 
+	// Configure larger multipart memory limit for large article content
+	r.MaxMultipartMemory = 128 << 20 // 128MB
+
 	// Initialize pongo2 renderer for template rendering
 	templateDir := "./templates"
 	api.InitPongo2Renderer(templateDir)

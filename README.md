@@ -21,6 +21,7 @@ GOTRS-CE is an **independent, original implementation** of a ticket management s
 - 🌐 **Cloud Native** - Containerized microservices supporting Docker, Podman, and Kubernetes
 - 📱 **Responsive UI** - Modern HTMX-powered interface with progressive enhancement
 - 🔄 **OTRS Compatible** - Database schema superset enables seamless migration
+  - ⚠️ **Unicode Support**: Configure with `UNICODE_SUPPORT=true` for full Unicode support (requires utf8mb4 migration)
 - 🌍 **Multi-Language** - Full i18n with German 100% complete, even supports Klingon! 🖖
 - 🎨 **Themeable** - Customizable UI with dark/light modes and branding options
 - 🔌 **Extensible** - Plugin framework for custom modules and integrations

@@ -136,6 +136,15 @@ func buildDatabaseConfig() *registry.ServiceConfig {
 		if sslMode := os.Getenv("DB_SSLMODE"); sslMode != "" {
 			config.Options["sslmode"] = sslMode
 		}
+
+		// MySQL charset for Unicode support (only when explicitly enabled)
+		if provider == registry.ProviderMySQL {
+			unicodeSupport := os.Getenv("UNICODE_SUPPORT")
+			if unicodeSupport == "true" || unicodeSupport == "1" || unicodeSupport == "enabled" {
+				config.Options["charset"] = "utf8mb4"
+			}
+			// Default: no charset specified, uses database default (utf8mb3 for OTRS compatibility)
+		}
 	}
 
 	// Connection pool settings

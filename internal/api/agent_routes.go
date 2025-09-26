@@ -690,7 +690,7 @@ func handleAgentTicketReply(db *sql.DB) gin.HandlerFunc {
 		ticketID := c.Param("id")
 
 		// Parse multipart form to handle file uploads
-		err := c.Request.ParseMultipartForm(32 << 20) // 32MB max
+		err := c.Request.ParseMultipartForm(128 << 20) // 128MB max
 		if err != nil && err != http.ErrNotMultipart {
 			log.Printf("Error parsing multipart form: %v", err)
 		}
@@ -740,6 +740,11 @@ func handleAgentTicketReply(db *sql.DB) gin.HandlerFunc {
 			sanitizer := utils.NewHTMLSanitizer()
 			body = sanitizer.Sanitize(body)
 			contentType = "text/html"
+		}
+
+		// Filter Unicode characters if Unicode support is disabled (OTRS compatibility mode)
+		if os.Getenv("UNICODE_SUPPORT") != "true" && os.Getenv("UNICODE_SUPPORT") != "1" && os.Getenv("UNICODE_SUPPORT") != "enabled" {
+			body = utils.FilterUnicode(body)
 		}
 
 		// Start transaction
@@ -903,6 +908,11 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 			contentType = "text/html"
 		}
 
+		// Filter Unicode characters if Unicode support is disabled (OTRS compatibility mode)
+		if os.Getenv("UNICODE_SUPPORT") != "true" && os.Getenv("UNICODE_SUPPORT") != "1" && os.Getenv("UNICODE_SUPPORT") != "enabled" {
+			body = utils.FilterUnicode(body)
+		}
+
 		// Start transaction
 		tx, err := db.Begin()
 		if err != nil {
@@ -991,6 +1001,11 @@ func handleAgentTicketPhone(db *sql.DB) gin.HandlerFunc {
 			sanitizer := utils.NewHTMLSanitizer()
 			body = sanitizer.Sanitize(body)
 			contentType = "text/html"
+		}
+
+		// Filter Unicode characters if Unicode support is disabled (OTRS compatibility mode)
+		if os.Getenv("UNICODE_SUPPORT") != "true" && os.Getenv("UNICODE_SUPPORT") != "1" && os.Getenv("UNICODE_SUPPORT") != "enabled" {
+			body = utils.FilterUnicode(body)
 		}
 
 		// Test-mode, DB-less fallback

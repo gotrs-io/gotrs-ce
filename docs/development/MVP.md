@@ -10,7 +10,14 @@ This document outlines the Minimum Viable Product (MVP) implementation for GOTRS
 - ✅ Basic ticket CRUD operations
 - ✅ User authentication and authorization
 - ✅ Email integration (send/receive)
-- ✅ Simple workflow (New → Open → Resolved → Closed)
+-# Backend dependencies
+make toolbox-exec ARGS="go get github.com/gin-gonic/gin"
+make toolbox-exec ARGS="go get github.com/golang-jwt/jwt/v5"
+make toolbox-exec ARGS="go get github.com/lib/pq"
+make toolbox-exec ARGS="go get github.com/valkey-io/valkey-go"
+
+# Frontend dependencies
+make css-depse workflow (New → Open → Resolved → Closed)
 - ✅ Agent and customer portals
 - ✅ Basic search functionality
 - ✅ Docker deployment
@@ -342,18 +349,15 @@ volumes:
 
 ### Day 1-3: Setup
 ```bash
-# Initialize project
-go mod init github.com/gotrs/gotrs
-npm create vite@latest web -- --template react-ts
-
+# Project is already initialized with Go modules and frontend setup
 # Install dependencies
-go get github.com/gin-gonic/gin
-go get github.com/golang-jwt/jwt/v5
-go get github.com/lib/pq
-go get github.com/valkey-io/valkey-go
+make toolbox-exec ARGS="go get github.com/gin-gonic/gin"
+make toolbox-exec ARGS="go get github.com/golang-jwt/jwt/v5"
+make toolbox-exec ARGS="go get github.com/lib/pq"
+make toolbox-exec ARGS="go get github.com/valkey-io/valkey-go"
 
-# Frontend dependencies
-cd web && npm install @mui/material @reduxjs/toolkit react-redux axios
+# Frontend dependencies (already configured)
+make css-deps
 ```
 
 ### Day 4-10: Backend Development

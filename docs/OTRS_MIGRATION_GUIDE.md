@@ -10,7 +10,7 @@ GOTRS provides comprehensive compatibility with OTRS/Znuny systems through the `
 
 ```bash
 # Build the migration tool
-go build -o bin/gotrs-migrate ./cmd/gotrs-migrate
+make toolbox-exec ARGS="go build -o bin/gotrs-migrate ./cmd/gotrs-migrate"
 ```
 
 ### Usage

@@ -345,7 +345,7 @@ spec:
 docker-compose up -d postgres redis rabbitmq
 
 # Run service locally
-go run cmd/ticket-service/main.go
+make toolbox-exec ARGS="go run cmd/ticket-service/main.go"
 
 # Or use Tilt for multi-service development
 tilt up

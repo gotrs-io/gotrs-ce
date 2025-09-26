@@ -113,13 +113,10 @@ make logs
 # Prerequisites: Go 1.21+, Node.js 18+, PostgreSQL 15+, Valkey 7+
 
 # Backend setup
-go mod download
-go run cmd/server/main.go
+make up
 
-# Frontend setup (in separate terminal)
-cd web
-npm install
-npm run dev
+# Frontend development (in separate terminal)  
+make frontend-dev
 ```
 
 #### Development Commands

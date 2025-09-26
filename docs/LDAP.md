@@ -174,7 +174,7 @@ curl -X POST http://localhost:8080/api/v1/ldap/import/users \
 
 ```bash
 # Run unit tests
-go test ./internal/service -v -run TestLDAPService
+make toolbox-exec ARGS="go test ./internal/service -v -run TestLDAPService"
 ```
 
 ### Integration Tests
@@ -186,21 +186,21 @@ Integration tests require a running OpenLDAP server:
 make up
 
 # Run integration tests
-LDAP_INTEGRATION_TESTS=true go test ./internal/service -v -run TestLDAPIntegration
+LDAP_INTEGRATION_TESTS=true make toolbox-exec ARGS="go test ./internal/service -v -run TestLDAPIntegration"
 
 # Run with race detection
-LDAP_INTEGRATION_TESTS=true go test ./internal/service -v -race -run TestLDAPIntegration
+LDAP_INTEGRATION_TESTS=true make toolbox-exec ARGS="go test ./internal/service -v -race -run TestLDAPIntegration"
 
 # Run benchmarks
-LDAP_INTEGRATION_TESTS=true go test ./internal/service -v -bench=BenchmarkLDAP
+LDAP_INTEGRATION_TESTS=true make toolbox-exec ARGS="go test ./internal/service -v -bench=BenchmarkLDAP"
 ```
 
 ### Test Coverage
 
 ```bash
 # Generate coverage report
-LDAP_INTEGRATION_TESTS=true go test ./internal/service -coverprofile=coverage.out
-go tool cover -html=coverage.out
+LDAP_INTEGRATION_TESTS=true make toolbox-exec ARGS="go test ./internal/service -coverprofile=coverage.out"
+make toolbox-exec ARGS="go tool cover -html=coverage.out"
 ```
 
 ## Production Configuration

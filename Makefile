@@ -180,10 +180,10 @@ help:
 	@printf "  \033[1;33m🎭 E2E Testing (Playwright)\033[0m\n"
 	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
 	@printf "\n"
-	@printf "  \033[0;32mmake test-e2e\033[0m                     🤖 Run E2E tests headless\n"
-	@printf "  \033[0;32mmake test-e2e-debug\033[0m               👀 Tests with visible browser\n"
-	@printf "  \033[0;32mmake test-e2e-watch\033[0m               🔁 Tests in watch mode\n"
-	@printf "  \033[0;32mmake test-e2e-report\033[0m              📊 View test results\n"
+	@printf "  \033[0;32mmake test-e2e-playwright\033[0m                 🤖 Run Playwright E2E tests headless\n"
+	@printf "  \033[0;32mmake test-e2e-playwright-debug\033[0m           👀 Playwright tests with visible browser\n"
+	@printf "  \033[0;32mmake test-e2e-playwright-watch\033[0m           🔁 Playwright tests in watch mode\n"
+	@printf "  \033[0;32mmake test-e2e-playwright-report\033[0m          📊 View Playwright test results\n"
 	@printf "\n"
 	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
 	@printf "  \033[1;33m🧪 Testing Commands\033[0m\n"
@@ -453,40 +453,21 @@ k8s-secrets:
 	@./scripts/generate-k8s-secrets.sh
 
 # Build toolbox image
-toolbox-build: build-cached
+toolbox-build:
 	@printf "\n🔧 Building GOTRS toolbox container...\n"
-	@$(CONTAINER_CMD) build -f Dockerfile.toolbox -t gotrs-toolbox:latest .
+	@$(COMPOSE_CMD) --profile toolbox build toolbox
 	@printf "✅ Toolbox container ready\n"
 
 # Interactive toolbox shell (non-root, with SELinux-friendly mounts)
 toolbox-run:
-	@$(MAKE) toolbox-build
 	@printf "\n🔧 Starting toolbox shell...\n"
 	@$(call ensure_caches)
-	$(CONTAINER_CMD) run --rm -it \
-        --security-opt label=disable \
-        -v "$$PWD:/workspace" \
-		-w /workspace \
-		-u "$$UID:$$GID" \
-		-e GOCACHE=/workspace/.cache/go-build \
-		-e GOMODCACHE=/workspace/.cache/go-mod \
-		gotrs-toolbox:latest \
-		$(if $(ARGS),$(ARGS),/bin/bash)
+	$(COMPOSE_CMD) --profile toolbox run --rm toolbox $(if $(ARGS),$(ARGS),/bin/bash)
 
 # Non-interactive toolbox exec
 toolbox-exec:
-	@$(MAKE) toolbox-build
 	@$(call ensure_caches)
-	$(CONTAINER_CMD) run --rm \
-        --security-opt label=disable \
-        -v "$$PWD:/workspace" \
-		-w /workspace \
-		-u "$$UID:$$GID" \
-		-e GOCACHE=/workspace/.cache/go-build \
-		-e GOMODCACHE=/workspace/.cache/go-mod \
-		--network host \
-		gotrs-toolbox:latest \
-		$(ARGS)
+	$(COMPOSE_CMD) --profile toolbox run --rm toolbox $(ARGS)
 
 # Compile everything (bind mounts + caches)
 toolbox-compile:
@@ -664,17 +645,45 @@ toolbox-test-all:
 .PHONY: test-unit
 test-unit:
 	@echo "🧪 Running stable unit test set (excluding examples and e2e)..."
-	@go test -count=1 -buildvcs=false -v ./cmd/goats ./internal/... ./generated/... | tee generated/test-results/unit_stable.log
+	@$(MAKE) toolbox-build
+	@$(call ensure_caches)
+	@$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		-w /workspace \
+		-u "$$(id -u):$$(id -g)" \
+		-e GOCACHE=/workspace/.cache/go-build \
+		-e GOMODCACHE=/workspace/.cache/go-mod \
+		-e GOFLAGS=-buildvcs=false \
+		gotrs-toolbox:latest \
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; \
+		go test -count=1 -buildvcs=false -v ./cmd/goats ./internal/... ./generated/... | tee generated/test-results/unit_stable.log'
 
 .PHONY: test-e2e
 test-e2e:
 	@echo "🎯 Running targeted E2E tests (set TEST=pattern, e.g., TEST=Login|Groups)"
 	@[ -n "$(TEST)" ] || (echo "Usage: make test-e2e TEST=Login|Groups|Queues" && exit 2)
+	@$(MAKE) toolbox-build
+	@$(call ensure_caches)
 	@HEADLESS=${HEADLESS:-true} \
 	 BASE_URL=${BASE_URL:-http://localhost:$(BACKEND_PORT)} \
 	 DEMO_ADMIN_EMAIL=${DEMO_ADMIN_EMAIL:-} \
 	 DEMO_ADMIN_PASSWORD=${DEMO_ADMIN_PASSWORD:-} \
-	 go test -count=1 -buildvcs=false -v ./tests/e2e -run "$(TEST)" | tee generated/test-results/e2e_$(shell echo $(TEST) | tr ' ' '_').log
+	 $(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		-w /workspace \
+		-u "$$(id -u):$$(id -g)" \
+		-e GOCACHE=/workspace/.cache/go-build \
+		-e GOMODCACHE=/workspace/.cache/go-mod \
+		-e GOFLAGS=-buildvcs=false \
+		-e HEADLESS \
+		-e BASE_URL \
+		-e DEMO_ADMIN_EMAIL \
+		-e DEMO_ADMIN_PASSWORD \
+		gotrs-toolbox:latest \
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; \
+		go test -count=1 -buildvcs=false -v ./tests/e2e -run "$(TEST)" | tee generated/test-results/e2e_$(shell echo $(TEST) | tr ' ' '_').log'
 
 # Run integration tests (requires running Postgres and proper creds)
 toolbox-test-integration:
@@ -929,42 +938,64 @@ DB_PASSWORD ?= LetClaude.1n
 #    e.g.   echo "select * from users;"| make db-shell
 #           echo "select * from users;"| make DB_DRIVER=mysql   db-shell
 db-shell:
-	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
-		$(COMPOSE_CMD) exec -T postgres psql -U $(DB_USER) -d $(DB_NAME); \
+	@if [ -t 0 ]; then \
+		TTY_FLAGS="-it"; \
 	else \
-		$(CONTAINER_CMD) run --rm -it \
-			--network gotrs-ce_gotrs-network \
-			gotrs-toolbox:latest \
-			bash -lc 'mysql -h"$(DB_HOST)" -u"$(DB_USER)" -p"$(DB_PASSWORD)" -D"$(DB_NAME)"'; \
+		TTY_FLAGS="-T"; \
+	fi; \
+	if [ "$(DB_DRIVER)" = "postgres" ]; then \
+		$(COMPOSE_CMD) --profile toolbox run --rm $$TTY_FLAGS toolbox psql -h $(DB_HOST) -U $(DB_USER) -d $(DB_NAME); \
+	else \
+		$(COMPOSE_CMD) --profile toolbox run --rm $$TTY_FLAGS toolbox mysql -h $(DB_HOST) -u $(DB_USER) -p$(DB_PASSWORD) -D $(DB_NAME); \
 	fi
 
-# Fix PostgreSQL sequences after data import
+# Fix PostgreSQL sequences after data import (PostgreSQL only)
 db-fix-sequences:
-	@printf "🔧 Fixing database sequences...\n"
-	@./scripts/fix-sequences.sh
-	@printf "✅ Sequences fixed - duplicate key errors should be resolved\n"
+	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
+		@printf "🔧 Fixing database sequences...\n"; \
+		@./scripts/fix-sequences.sh; \
+		@printf "✅ Sequences fixed - duplicate key errors should be resolved\n"; \
+	else \
+		@printf "ℹ️  Sequence fixing is only needed for PostgreSQL databases\n"; \
+	fi
 # Run a database query (use QUERY="SELECT ..." make db-query)
 db-query:
 	@if [ -z "$(QUERY)" ]; then \
 		echo "Usage: make db-query QUERY=\"SELECT * FROM table\""; \
 		exit 1; \
+	fi; \
+	if [ "$(DB_DRIVER)" = "postgres" ]; then \
+		$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox psql -h $(DB_HOST) -U $(DB_USER) -d $(DB_NAME) -t -c "$(QUERY)"; \
+	else \
+		$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox mysql -h $(DB_HOST) -u $(DB_USER) -p$(DB_PASSWORD) -D $(DB_NAME) -e "$(QUERY)"; \
 	fi
-	@$(COMPOSE_CMD) exec -T postgres psql -U $(DB_USER) -d $(DB_NAME) -t -c "$(QUERY)"
 
 db-migrate:
 	@printf "Running database migrations...\n"
-	$(COMPOSE_CMD) exec backend ./migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up
+	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
+		$(COMPOSE_CMD) exec backend ./migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up; \
+	else \
+		$(COMPOSE_CMD) exec backend ./migrate -path /app/migrations -database "mysql://$(DB_USER):$(DB_PASSWORD)@tcp(mariadb:3306)/$(DB_NAME)" up; \
+	fi
 	@printf "Migrations completed successfully!\n"
-	@printf "🔧 Fixing database sequences to prevent duplicate key errors...\n"
-	@./scripts/fix-sequences.sh > /dev/null 2>&1 || true
-	@printf "✅ Database ready with sequences properly synchronized!\n"
+	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
+		@printf "🔧 Fixing database sequences to prevent duplicate key errors...\n"; \
+		@./scripts/fix-sequences.sh > /dev/null 2>&1 || true; \
+		@printf "✅ Database ready with sequences properly synchronized!\n"; \
+	fi
 db-migrate-schema-only:
 	@printf "Running schema migration only...\n"
-	$(COMPOSE_CMD) exec backend ./migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up 3
+	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
+		$(COMPOSE_CMD) exec backend ./migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up 3; \
+	else \
+		$(COMPOSE_CMD) exec backend ./migrate -path /app/migrations -database "mysql://$(DB_USER):$(DB_PASSWORD)@tcp(mariadb:3306)/$(DB_NAME)" up 3; \
+	fi
 	@printf "Schema and initial data applied (no test data)\n"
-	@printf "🔧 Fixing database sequences...\n"
-	@./scripts/fix-sequences.sh > /dev/null 2>&1 || true
-	@printf "✅ Sequences synchronized!\n"
+	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
+		@printf "🔧 Fixing database sequences...\n"; \
+		@./scripts/fix-sequences.sh > /dev/null 2>&1 || true; \
+		@printf "✅ Sequences synchronized!\n"; \
+	fi
 db-seed-dev:
 	@printf "Seeding development database with comprehensive test data...\n"
 	@$(COMPOSE_CMD) exec backend ./migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up
@@ -1329,29 +1360,29 @@ test-contracts: toolbox-build
 		gotrs-toolbox:latest \
 		go test -v ./internal/testing/contracts/...
 
-test-all: test test-frontend test-contracts test-e2e
+test-all: test test-frontend test-contracts test-e2e-playwright
 	@printf "All tests completed!\n"
 # E2E Testing Commands
-.PHONY: test-e2e test-e2e-watch test-e2e-debug test-e2e-report playwright-build
+.PHONY: test-e2e-playwright test-e2e-playwright-watch test-e2e-playwright-debug test-e2e-playwright-report playwright-build
 
 # Build Playwright test container
 playwright-build:
 	@printf "Building Playwright test container...\n"
-	@$(COMPOSE_CMD) build playwright
+	@$(COMPOSE_CMD) -f docker-compose.playwright.yml build playwright
 
 # Run E2E tests
-test-e2e: playwright-build
+test-e2e-playwright: playwright-build
 	@printf "Running E2E tests with Playwright...\n"
 	@mkdir -p test-results/screenshots test-results/videos
-	@$(COMPOSE_CMD) run --rm \
+	@$(COMPOSE_CMD) -f docker-compose.playwright.yml run --rm \
 		-e HEADLESS=true \
 		playwright
 
 # Run E2E tests in watch mode (for development)
-test-e2e-watch: playwright-build
+test-e2e-playwright-watch: playwright-build
 	@printf "Running E2E tests in watch mode...\n"
 	@mkdir -p test-results/screenshots test-results/videos
-	@$(COMPOSE_CMD) run --rm \
+	@$(COMPOSE_CMD) -f docker-compose.playwright.yml run --rm \
 		-e HEADLESS=false \
 		-e SLOW_MO=100 \
 		playwright go test ./tests/e2e/... -v -watch
@@ -1362,10 +1393,10 @@ check-translations:
 	@./scripts/check-translations.sh
 
 # Run E2E tests with headed browser for debugging
-test-e2e-debug: playwright-build
+test-e2e-playwright-debug: playwright-build
 	@printf "Running E2E tests in debug mode (headed browser)...\n"
 	@mkdir -p test-results/screenshots test-results/videos
-	@$(COMPOSE_CMD) run --rm \
+	@$(COMPOSE_CMD) -f docker-compose.playwright.yml run --rm \
 		-e HEADLESS=false \
 		-e SLOW_MO=500 \
 		-e SCREENSHOTS=true \
@@ -1373,7 +1404,7 @@ test-e2e-debug: playwright-build
 		playwright go test ./tests/e2e/... -v
 
 # Generate HTML test report
-test-e2e-report:
+test-e2e-playwright-report:
 	@printf "Generating E2E test report...\n"
 	@if [ -d "test-results" ]; then \
 		echo "Test results:"; \
@@ -1381,7 +1412,7 @@ test-e2e-report:
 		echo "Videos: $$(find test-results/videos -name "*.webm" 2>/dev/null | wc -l) files"; \
 		ls -la test-results/ 2>/dev/null || true; \
 	else \
-		echo "No test results found. Run test-e2e first."; \
+		echo "No test results found. Run test-e2e-playwright first."; \
 	fi
 
 # Clean test results

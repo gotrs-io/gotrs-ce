@@ -286,6 +286,32 @@ services:
       - gotrs-network
     profiles: ["testing"]
 
+  # Development toolbox with all-in-one development tools
+  toolbox:
+    build:
+      context: .
+      dockerfile: Dockerfile.toolbox
+    container_name: gotrs-toolbox
+    user: "1000:1000" # Run as non-root user (matching backend)
+    environment:
+      # Go development environment
+      GOCACHE: /tmp/.cache/go-build
+      GOMODCACHE: /tmp/.cache/go-mod
+      GOTOOLCHAIN: local
+      PATH: /usr/local/go/bin:/usr/local/bin:$PATH
+    volumes:
+      - .:/workspace:Z
+      - /tmp/.cache/go-build:/tmp/.cache/go-build:Z
+      - /tmp/.cache/go-mod:/tmp/.cache/go-mod:Z
+    working_dir: /workspace
+    networks:
+      - gotrs-network
+    profiles: ["toolbox"]
+    # Interactive shell by default
+    stdin_open: true
+    tty: true
+    command: ["/bin/bash"]
+
 networks:
   gotrs-network:
     driver: bridge

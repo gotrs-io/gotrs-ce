@@ -51,7 +51,7 @@
 ### 6. Manual Testing Protocol
 ```bash
 # 1. Build and restart
-go build ./cmd/server && make restart
+make toolbox-exec ARGS="go build ./cmd/server" && make restart
 
 # 2. Check health
 curl -s http://localhost:8080/health

@@ -405,7 +405,7 @@ curl -X POST https://try.gotrs.io/api/auth/demo-token \
 
 # Use in tests
 export GOTRS_API_TOKEN=demo_token_xxx
-npm run test:api
+make test-contracts
 ```
 
 ### Load Testing

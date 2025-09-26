@@ -5,6 +5,7 @@ Status: Canonical. This document supersedes CLAUDE.md.
 Purpose: Provide clear, enforceable rules and a practical workflow for engineering assistants working in the GOTRS codebase. Follow this document as the single source of truth for operating procedures, quality bars, and guardrails.
 
 ## Golden Rules
+- **All operations in containers**: Go toolchain and database clients are not installed on host. Use `make toolbox-*` targets for Go operations and `make db-*` targets for database operations. Never attempt to run `go`, `mysql`, or `psql` commands directly on host.
 - Containers-first: Run builds, tests, and tools in containers. Use Makefile targets; do not bypass with ad‑hoc docker/podman commands unless mirroring Makefile behavior.
 - Makefile as entrypoint: Prefer `make up`, `make down`, `make logs`, `make restart`, `make test`, `make toolbox-compile`.
 - SQL portability: Always wrap SQL strings with `database.ConvertPlaceholders(...)`. Never use raw `$n` placeholders directly.
@@ -18,8 +19,15 @@ Purpose: Provide clear, enforceable rules and a practical workflow for engineeri
 
 ## Required Workflow
 1. Plan (if multi-step): Outline non-trivial tasks and confirm scope.
-2. Build check: `make toolbox-compile` to ensure the repo compiles.
-3. Service lifecycle:
+2. **Go operations**: Use toolbox container for all Go work:
+   - Build check: `make toolbox-compile` to ensure the repo compiles
+   - Module management: `make toolbox-exec ARGS="go mod tidy"`
+   - Code generation/formatting: `make toolbox-exec ARGS="go generate ./..."`
+3. **Database operations**: Use make targets for all database work:
+   - Database shell: `make db-shell` (automatically detects driver and uses correct credentials)
+   - Database queries: `echo "SELECT * FROM table;" | make db-shell`
+   - Database migrations: `make db-migrate` or `make db-migrate-schema-only`
+4. Service lifecycle:
    - `make restart`
    - Health check: `curl -sf http://localhost:8080/health`
    - Logs sanity: `make logs | tail -200` (ensure no panic/errors)
@@ -104,12 +112,33 @@ Avoid `FormData` for checkbox matrices when the backend expects `application/x-w
 - Never include assistant/AI attribution in commits or PRs
 - When introducing route or behavior changes, briefly note testing steps (build, restart, health, logs, UI path)
 
+## Development Environment
+**Go toolchain and database clients are NOT installed on host system.** All development operations must use containers:
+
+### Go Operations (Toolbox Container)
+- **Build/Compile**: `make toolbox-compile`
+- **Module management**: `make toolbox-exec ARGS="go mod tidy"`
+- **Code generation**: `make toolbox-exec ARGS="go generate ./..."`
+- **Formatting**: `make toolbox-exec ARGS="goimports -w ."`
+- **Linting**: `make toolbox-exec ARGS="golangci-lint run"`
+- **Interactive shell**: `make toolbox-run` (for complex multi-step operations)
+
+### Database Operations (Make Targets)
+- **Database shell**: `make db-shell` (driver-aware, uses correct credentials automatically)
+- **Run SQL queries**: `echo "SELECT * FROM users;" | make db-shell`
+- **Single query execution**: `make db-query QUERY="SELECT COUNT(*) FROM tickets"`
+- **Database migrations**: `make db-migrate` (full migration with test data)
+- **Schema only migration**: `make db-migrate-schema-only` (schema + initial data, no test data)
+- **Fix sequences**: `make db-fix-sequences` (PostgreSQL only, after data imports)
+
+**Never run `go` commands directly on host** - they will fail with "command not found".
+
 ## Makefile Targets (Common)
 - `make up` / `make up-d`: start services (foreground/background)
 - `make down`: stop services
 - `make restart`: restart backend service
 - `make logs` / `make backend-logs`: view logs
-- `make db-shell`: open PostgreSQL shell
+- `make db-shell`: open database shell (MySQL/PostgreSQL, driver-aware with automatic credentials)
 - `make test`: run tests in containers
 - `make toolbox-compile`: compile all packages inside toolbox container
 - `make toolbox-exec ARGS="go mod tidy"`: run Go module management commands in container (tidy, download, etc.)
@@ -121,6 +150,9 @@ Avoid `FormData` for checkbox matrices when the backend expects `application/x-w
 **Note**: `css-deps` uses `npm-check-updates` which may upgrade Tailwind CSS to v4, causing build failures. Pin Tailwind to `^3.4.0` in package.json and avoid `npm-check-updates` for frontend dependencies.
 
 ## Troubleshooting Checklist
+- **Go command fails**: Go is not installed on host. Use `make toolbox-exec ARGS="go <command>"` instead
+- **Database connection fails**: Database clients not installed on host. Use `make db-shell` for interactive access or pipe SQL to it
+- **Wrong database credentials**: Never hardcode credentials. Use `make db-shell` which gets credentials from environment/Makefile variables
 - Build fails: run `make toolbox-compile` and read the first error; fix from top to bottom
 - Service panic: `make logs | tail -200`; search for duplicate routes or nil dereferences
 - UI mismatch after save: verify network request payload and response; refresh view state after save

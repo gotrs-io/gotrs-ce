@@ -1,12 +1,14 @@
 package routing
 
 import (
-    "fmt"
-    "log"
-    "os"
-    "path/filepath"
-    "strings"
-    "sync"
+	"bytes"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gin-gonic/gin"
@@ -118,30 +120,61 @@ func (l *RouteLoader) LoadRoutes() error {
 
 // loadRouteFile loads a single route configuration file
 func (l *RouteLoader) loadRouteFile(path string) error {
-    data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
 
-	var config RouteConfig
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return fmt.Errorf("failed to parse YAML: %w", err)
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	docIndex := 0
+	loadedAny := false
+	base := filepath.Base(path)
+
+	for {
+		var cfg RouteConfig
+		err := dec.Decode(&cfg)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return fmt.Errorf("failed to parse YAML (doc %d in %s): %w", docIndex, base, err)
+		}
+
+		// Skip completely empty docs
+		if cfg.APIVersion == "" && cfg.Kind == "" && cfg.Metadata.Name == "" && len(cfg.Spec.Routes) == 0 {
+			docIndex++
+			continue
+		}
+
+		if err := l.validateConfig(&cfg); err != nil {
+			return fmt.Errorf("invalid configuration (doc %d in %s): %w", docIndex, base, err)
+		}
+
+		// Store each document under a synthetic key if multiple docs present
+		l.mu.Lock()
+		key := base
+		if docIndex > 0 {
+			key = fmt.Sprintf("%s#%d", base, docIndex)
+		}
+		l.configs[key] = &cfg
+		l.mu.Unlock()
+
+		loadedAny = true
+		if docIndex == 0 {
+			log.Printf("Loaded route configuration: %s (%s)", cfg.Metadata.Name, base)
+		} else {
+			log.Printf("Loaded route configuration: %s (%s doc %d)", cfg.Metadata.Name, base, docIndex)
+		}
+
+		docIndex++
 	}
 
-	// Validate configuration
-	if err := l.validateConfig(&config); err != nil {
-		return fmt.Errorf("invalid configuration: %w", err)
+	if !loadedAny {
+		log.Printf("Warning: no route configurations found in %s", base)
+	} else if docIndex > 1 {
+		log.Printf("Note: %s contained %d YAML documents", base, docIndex)
 	}
 
-	// Store configuration
-	l.mu.Lock()
-	configName := filepath.Base(path)
-	l.configs[configName] = &config
-	l.mu.Unlock()
-
-	log.Printf("Loaded route configuration: %s (%s)", config.Metadata.Name, configName)
-
-	// Add to watcher if hot reload is enabled
 	if l.watcher != nil {
 		l.watcher.Add(path)
 	}

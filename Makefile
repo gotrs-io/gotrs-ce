@@ -562,9 +562,9 @@ toolbox-run:
 toolbox-exec:
 	@$(call ensure_caches)
 	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
-		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox $(ARGS); \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox bash -lc 'export GOFLAGS="-buildvcs=false $$GOFLAGS"; $$0' $(ARGS); \
 	else \
-		$(COMPOSE_CMD) --profile toolbox run --rm toolbox $(ARGS); \
+		$(COMPOSE_CMD) --profile toolbox run --rm toolbox bash -lc 'export GOFLAGS="-buildvcs=false $$GOFLAGS"; $$0' $(ARGS); \
 	fi
 
 # API testing with automatic authentication

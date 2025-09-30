@@ -3,6 +3,7 @@ package api
 import (
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,17 +17,31 @@ func NewSimpleRouter() *gin.Engine {
 	log.Println("✅ Gin router created")
 
     // Initialize pongo2 renderer for templates, but only if templates exist
-    templateDir := os.Getenv("TEMPLATES_DIR")
-    if templateDir == "" {
-        templateDir = "./templates"
-    }
-    if _, err := os.Stat(templateDir); err == nil {
-        log.Printf("📂 Initializing pongo2 renderer with template dir: %s", templateDir)
-        pongo2Renderer = NewPongo2Renderer(templateDir)
-        log.Println("✅ Pongo2 template renderer initialized")
-    } else {
-        log.Printf("⚠️ Templates directory not found (%s); skipping renderer init", templateDir)
-    }
+	// Determine template directory with fallbacks
+	templateDir := os.Getenv("TEMPLATES_DIR")
+	if templateDir == "" {
+		// Try local templates then web/templates
+		candidates := []string{"./templates", "./web/templates"}
+		for _, c := range candidates {
+			if fi, err := os.Stat(c); err == nil && fi.IsDir() {
+				templateDir = c
+				break
+			}
+		}
+	}
+	if templateDir != "" {
+		if _, err := os.Stat(templateDir); err == nil {
+			// Normalize path
+			abs, _ := filepath.Abs(templateDir)
+			log.Printf("📂 Initializing pongo2 renderer with template dir: %s", abs)
+			pongo2Renderer = NewPongo2Renderer(templateDir)
+			log.Println("✅ Pongo2 template renderer initialized")
+		} else {
+			log.Printf("⚠️ Templates directory resolved but not accessible (%s): %v", templateDir, err)
+		}
+	} else {
+		log.Printf("⚠️ No template directory found; renderer disabled (OK for route-only tests)")
+	}
 
 	// Static files will be served by SetupHTMXRoutes
 	log.Println("📁 Static file serving will be handled by SetupHTMXRoutes")

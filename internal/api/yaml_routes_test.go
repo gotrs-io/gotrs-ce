@@ -9,6 +9,10 @@ import (
 
 // TestYAMLRoutesBasicAvailability ensures newly YAML-registered UI routes exist
 func TestYAMLRoutesBasicAvailability(t *testing.T) {
+    if _, err := os.Stat("./templates"); os.IsNotExist(err) {
+        // Allow absence of templates in minimal CI/image contexts
+        t.Log("templates directory missing; skipping template-dependent route rendering assertions")
+    }
     r := NewSimpleRouter() // invokes SetupHTMXRoutes + YAML registration
 
     tests := []struct {

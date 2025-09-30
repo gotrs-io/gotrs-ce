@@ -1,0 +1,22 @@
+# Go + Playwright runner for Go e2e tests
+FROM mcr.microsoft.com/playwright:v1.52.0-jammy
+
+# Install Go toolchain (match project toolchain if needed)
+ARG GO_VERSION=1.24.6
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git build-essential && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz -o /tmp/go.tgz \
+    && tar -C /usr/local -xzf /tmp/go.tgz \
+    && rm /tmp/go.tgz \
+    && ln -s /usr/local/go/bin/go /usr/local/bin/go
+
+ENV PATH=/usr/local/go/bin:$PATH \
+    PLAYWRIGHT_PREINSTALLED=1 \
+    CGO_ENABLED=0
+
+WORKDIR /workspace
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+COPY . .
+
+# Default command runs tests with playwright tag
+CMD ["bash","-lc","go test -tags playwright -v ./tests/e2e"]

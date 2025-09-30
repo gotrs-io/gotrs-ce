@@ -12,7 +12,7 @@
     "contracts:all": "npm run generate-types && npm run generate-docs && cd web && npm run test:contracts",
     "build-css": "npx tailwindcss -i ./static/css/input.css -o ./static/css/output.css --minify",
     "watch-css": "npx tailwindcss -i ./static/css/input.css -o ./static/css/output.css --watch",
-    "build-tiptap": "esbuild static/js/tiptap-bundle.js --bundle --minify --outfile=static/js/tiptap.min.js --format=iife --global-name=TiptapBundle",
+  "build-tiptap": "esbuild static/js/tiptap-bundle.js --bundle --minify --format=iife --global-name=TiptapBundle --outfile=static/js/tiptap.min.js",
     "build-js": "npm run build-tiptap",
     "build": "npm run build-css && npm run build-js"
   },

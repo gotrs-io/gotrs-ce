@@ -159,6 +159,21 @@ Avoid `FormData` for checkbox matrices when the backend expects `application/x-w
 - SQL errors on MySQL: confirm `database.ConvertPlaceholders` usage and SQL syntax portability
 - Missing assets: verify static route points to `./static` not `./web/static`
 
+## Caching (Go & Tooling)
+Persistent named volumes are used for Go build cache, module cache, and golangci-lint cache to speed up iterative development.
+
+Targets:
+- `make go-cache-info` / `make go-cache-clean`
+- `make lint-cache-info` / `make lint-cache-clean`
+- `make cache-clean-all` (aggregate purge; leaves node_modules intact)
+
+Environment paths (inside toolbox):
+- Build cache: `/workspace/.cache/go-build`
+- Module cache: `/workspace/.cache/go-mod`
+- Lint cache: `/workspace/.cache/golangci-lint`
+
+Do not manually delete these inside containers; prefer the Make targets to keep workflow consistent.
+
 ## Legal & Compliance
 - GOTRS-CE is an original implementation; maintain compatibility without copying upstream code
 - Keep all secrets in environment variables; generate via project tooling; do not commit

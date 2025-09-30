@@ -4,7 +4,7 @@
 services:
   # MariaDB Database - Secure non-root container for OTRS compatibility
   mariadb:
-    image: mariadb:11
+    image: docker.io/mariadb:11
     container_name: gotrs-mariadb
     user: "999:999" # Run as mysql user (standard for MariaDB)
     environment:
@@ -53,9 +53,9 @@ services:
   #   networks:
   #     - gotrs-network
 
-  # Valkey Cache
+    # Valkey Cache - High-performance Redis-compatible cache
   valkey:
-    image: valkey/valkey:7-alpine
+    image: docker.io/valkey/valkey:7-alpine
     container_name: gotrs-valkey
     user: "999:1000" # Run as valkey user (standard for Valkey)
     ports:
@@ -70,11 +70,24 @@ services:
     networks:
       - gotrs-network
 
-  # Go Backend with Hot Reload
+  # GOTRS Backend - Main application server
   backend:
-    build: .
-    image: gotrs-backend:latest
-    container_name: gotrs-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: localhost/gotrs-backend:latest
+    command: >
+      sh -c "
+        # Generate self-signed certificates if they don't exist
+        if [ ! -f /app/certs/server.crt ] || [ ! -f /app/certs/server.key ]; then
+          echo '🔐 Generating self-signed TLS certificates...'
+          mkdir -p /app/certs
+          openssl req -x509 -newkey rsa:4096 -keyout /app/certs/server.key -out /app/certs/server.crt -days 365 -nodes -subj '/CN=gotrs-backend'
+          echo '✅ TLS certificates generated'
+        fi
+        # Start the application
+        ./goats
+      "
     environment:
       # Enable YAML-based routing by default
       ENABLE_YAML_ROUTING: ${ENABLE_YAML_ROUTING:-true}
@@ -96,10 +109,14 @@ services:
       STORAGE_LOCAL_PATH: ./storage
       MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-10MB}
       ALLOWED_FILE_TYPES: ${ALLOWED_FILE_TYPES:-pdf,doc,docx,txt,png,jpg,jpeg,gif,zip}
+      # TLS configuration
+      TLS_CERT_FILE: /app/certs/server.crt
+      TLS_KEY_FILE: /app/certs/server.key
     ports:
       - "${BACKEND_PORT:-8081}:8080"
     volumes:
        - ./storage:/app/storage:Z
+       - ./certs:/app/certs:Z
     depends_on:
       # postgres:
       #   condition: service_healthy
@@ -255,9 +272,9 @@ services:
   #   profiles:
   #     - tools
 
-  # Adminer for Database Management (Optional)
+    # Adminer - Database management tool
   adminer:
-    image: adminer:latest
+    image: docker.io/adminer:latest
     container_name: gotrs-adminer
     ports:
       - "${ADMINER_PORT:-8090}:8080"
@@ -291,18 +308,23 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.toolbox
+    image: localhost/gotrs-toolbox:latest
     container_name: gotrs-toolbox
     user: "1000:1000" # Run as non-root user (matching backend)
     environment:
       # Go development environment
-      GOCACHE: /tmp/.cache/go-build
-      GOMODCACHE: /tmp/.cache/go-mod
+      GOCACHE: /workspace/.cache/go-build
+      GOMODCACHE: /workspace/.cache/go-mod
+      GOLANGCI_LINT_CACHE: /workspace/.cache/golangci-lint
       GOTOOLCHAIN: local
       PATH: /usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
     volumes:
       - .:/workspace:Z
-      - /tmp/.cache/go-build:/tmp/.cache/go-build:Z
-      - /tmp/.cache/go-mod:/tmp/.cache/go-mod:Z
+      - gotrs_go_build_cache:/workspace/.cache/go-build
+      - gotrs_go_mod_cache:/workspace/.cache/go-mod
+      - gotrs_golangci_cache:/workspace/.cache/golangci-lint
+      - gotrs_node_modules:/workspace/node_modules
+      - gotrs_runtime:/workspace/runtime
     working_dir: /workspace
     networks:
       - gotrs-network
@@ -320,6 +342,11 @@ volumes:
   mariadb_data:
   # postgres_data:     # Commented out - using MariaDB instead
   valkey_data:
+  gotrs_node_modules:
+  gotrs_go_build_cache:
+  gotrs_go_mod_cache:
+  gotrs_golangci_cache:
+  gotrs_runtime:
   # zinc_data:         # Commented out - zinc service disabled
   # temporal_data:     # Commented out - temporal service disabled
   # ldap_data:         # Commented out - openldap service disabled

@@ -1,3 +1,25 @@
+# Explicit default goal
+.DEFAULT_GOAL := help
+
+# Route manifest governance
+.PHONY: routes-verify routes-baseline-update routes-generate
+routes-generate:
+	@echo "Generating routes manifest..."
+	@mkdir -p runtime && chmod 777 runtime 2>/dev/null || true
+	@chmod +x scripts/generate_routes_manifest.sh
+	@$(MAKE) toolbox-exec ARGS='bash scripts/generate_routes_manifest.sh'
+	@[ -f runtime/routes-manifest.json ] && echo "routes-manifest.json generated." || (echo "Failed to generate routes manifest" && exit 1)
+
+routes-verify:
+	@if [ ! -f runtime/routes-manifest.json ]; then \
+		$(MAKE) routes-generate; \
+	fi
+	@sh ./scripts/check_routes_manifest.sh
+
+routes-baseline-update:
+	@[ -f runtime/routes-manifest.json ] || (echo "manifest missing; run server/tests first" && exit 1)
+	cp runtime/routes-manifest.json runtime/routes-manifest.baseline.json
+	@echo "Updated route manifest baseline."
 # GOTRS Makefile - Docker/Podman compatible development
 
 # Detect container runtime and compose command
@@ -5,22 +27,41 @@
 CONTAINER_CMD := $(shell command -v podman 2> /dev/null || command -v docker 2> /dev/null || echo docker)
 
 # Detect compose command - try multiple variants in order of preference
-# 1. podman-compose (for podman users)
-# 2. podman compose (newer podman plugin style)
-# 3. docker compose (modern docker plugin style)
-# 4. docker-compose (legacy docker-compose)
+# Priority based on detected container runtime
+ifeq ($(findstring podman,$(CONTAINER_CMD)),podman)
 COMPOSE_CMD := $(shell \
 	if command -v podman-compose > /dev/null 2>&1; then \
 		echo "podman-compose"; \
-	elif command -v podman > /dev/null 2>&1 && podman compose version > /dev/null 2>&1; then \
-		echo "podman compose"; \
-	elif command -v docker > /dev/null 2>&1 && docker compose version > /dev/null 2>&1; then \
+	else \
+		echo "MISSING: podman-compose not found - install with: sudo apt install podman-compose"; \
+	fi)
+else
+COMPOSE_CMD := $(shell \
+	if command -v docker > /dev/null 2>&1 && docker compose version > /dev/null 2>&1; then \
 		echo "docker compose"; \
 	elif command -v docker-compose > /dev/null 2>&1; then \
 		echo "docker-compose"; \
 	else \
-		echo "docker compose"; \
+		echo "MISSING: no docker compose found - install docker-compose-plugin"; \
 	fi)
+endif
+
+# Image naming abstraction
+IMAGE_PREFIX := $(if $(findstring podman,$(CONTAINER_CMD)),localhost/,docker.io/)
+
+# Runtime-specific flags
+COMPOSE_UP_FLAGS := $(if $(findstring podman-compose,$(COMPOSE_CMD)),--remove-orphans,--remove-orphans)
+COMPOSE_BUILD_FLAGS := $(if $(findstring podman-compose,$(COMPOSE_CMD)),,--no-cache)
+CONTAINER_EXEC_FLAGS := $(if $(findstring podman-compose,$(COMPOSE_CMD)),,--user 1000)
+
+# Validate compose command is available
+define check_compose
+@if echo "$(COMPOSE_CMD)" | grep -q "^MISSING:"; then \
+	echo "ERROR: $(COMPOSE_CMD)"; \
+	echo "Please install the required compose tool and try again."; \
+	exit 1; \
+fi
+endef
 
 # Auto-select backend host port if 8080 is busy (only when not explicitly set)
 ifeq ($(origin BACKEND_PORT), undefined)
@@ -36,7 +77,7 @@ endif
 
 # Ensure Go caches exist for toolbox runs
 define ensure_caches
-@mkdir -p .cache/go-build .cache/go-mod
+@mkdir -p .cache/go-build .cache/go-mod >/dev/null 2>&1 || true
 endef
 
 # Common run flags
@@ -87,8 +128,38 @@ DB_HOST ?= postgres
 DB_PORT ?= 5432
 endif
 
-.PHONY: help up down logs logs-follow restart clean setup test build debug-env build-cached toolbox-build toolbox-run toolbox-exec toolbox-compile toolbox-compile-api \
+.PHONY: help up down logs logs-follow restart clean setup test build debug-env build-cached toolbox-build toolbox-run toolbox-exec api-call toolbox-compile toolbox-compile-api \
 	toolbox-test-api toolbox-test toolbox-test-all toolbox-test-run toolbox-run-file toolbox-staticcheck test-actions-dropdown
+
+.PHONY: go-cache-info go-cache-clean
+go-cache-info:
+	@echo "Go cache directories (inside toolbox):";
+	@$(MAKE) toolbox-exec ARGS='bash -lc "echo GOCACHE=$$GOCACHE; echo GOMODCACHE=$$GOMODCACHE; du -sh $$GOCACHE 2>/dev/null || true; du -sh $$GOMODCACHE 2>/dev/null || true"'
+
+go-cache-clean:
+	@echo "Cleaning Go build/module caches (named volumes persist but contents cleared)"
+	@$(MAKE) toolbox-exec ARGS='bash -lc "rm -rf $$GOCACHE/* $$GOMODCACHE/pkg/mod/cache/download 2>/dev/null || true"'
+	@echo "Done"
+
+# GolangCI-Lint cache management
+.PHONY: lint-cache-info lint-cache-clean
+lint-cache-info:
+	@echo "golangci-lint cache (inside toolbox):";
+	@$(MAKE) toolbox-exec ARGS='bash -lc "echo $$GOLANGCI_LINT_CACHE; du -sh $$GOLANGCI_LINT_CACHE 2>/dev/null || true"'
+
+lint-cache-clean:
+	@echo "Cleaning golangci-lint cache"
+	@$(MAKE) toolbox-exec ARGS='bash -lc "rm -rf $$GOLANGCI_LINT_CACHE/* 2>/dev/null || true"'
+	@echo "Done"
+
+# Aggregate cache clean (Go + lint + node_modules optional purge)
+.PHONY: cache-clean-all
+cache-clean-all:
+	@echo "🚿 Purging all development caches (Go build/mod, golangci-lint)."
+	@$(MAKE) go-cache-clean
+	@$(MAKE) lint-cache-clean
+	@echo "(node_modules untouched; run 'make node-modules-clean' if you add such a target later)"
+	@echo "✅ All caches purged"
 
 # Default target
 help:
@@ -106,6 +177,8 @@ help:
 	@printf "  \033[0;32mmake clean\033[0m                        🧹 Clean everything (including volumes)\n"
 	@printf "  \033[0;32mmake setup\033[0m                        🎯 Initial project setup with secure secrets\n"
 	@printf "  \033[0;32mmake build\033[0m                        🔨 Build production images\n"
+	@printf "  \033[0;32mmake debug-env\033[0m                    🔍 Show container runtime detection\n"
+	@printf "  \033[0;32mmake otrs-import SQL=/path/to/dump.sql\033[0m   📥 Import OTRS database dump\n"
 	@printf "\n"
 	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
 	@printf "  \033[1;33m🧪 TDD Workflow (Quality Gates Enforced)\033[0m\n"
@@ -119,6 +192,7 @@ help:
 	@printf "  \033[0;32mmake tdd-status\033[0m                   📊 Show workflow status\n"
 	@printf "  \033[0;32mmake quality-gates\033[0m                🚦 Run quality checks\n"
 	@printf "  \033[0;32mmake evidence-report\033[0m              📄 Generate evidence\n"
+	@printf "  \033[0;32mmake tdd-comprehensive-quick\033[0m       ⚡ Quick comprehensive TDD run\n"
 	@printf "\n"
 	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
 	@printf "  \033[1;33m🎨 CSS/Frontend Build\033[0m\n"
@@ -167,8 +241,18 @@ help:
 	@printf "\n"
 	@printf "  \033[0;32mmake toolbox-build\033[0m                🔨 Build toolbox container\n"
 	@printf "  \033[0;32mmake toolbox-run\033[0m                  🐚 Interactive shell\n"
+	@printf "  \033[0;32mmake toolbox-exec ARGS='go version'\033[0m   ⚡ Execute commands in toolbox\n"
+	@printf "  \033[0;32mmake api-call METHOD=GET ENDPOINT=/api/lookups/statuses\033[0m   🌐 Authenticated API calls\n"
+	@printf "  \033[0;32mmake toolbox-compile\033[0m               🔨 Compile all Go packages\n"
+	@printf "  \033[0;32mmake toolbox-compile-api\033[0m           🚀 Compile API/goats only (faster)\n"
+	@printf "  \033[0;32mmake compile\033[0m                       🔨 Compile goats binary\n"
+	@printf "  \033[0;32mmake compile-safe\033[0m                 🔒 Compile in isolated container\n"
 	@printf "  \033[0;32mmake toolbox-test\033[0m                 🧪 Run core tests quickly\n"
+	@printf "  \033[0;32mmake toolbox-test-api\033[0m             🧪 Run API tests only\n"
+	@printf "  \033[0;32mmake toolbox-test-all\033[0m             🧪 Run broad test suite\n"
+	@printf "  \033[0;32mmake toolbox-staticcheck\033[0m           🔎 Run static analysis\n"
 	@printf "  \033[0;32mmake openapi-lint\033[0m                 📜 Lint OpenAPI spec (Node 22)\n"
+	@printf "  \033[0;32mmake yaml-lint\033[0m                     📄 Lint YAML files\n"
 	@printf "  \033[0;32mmake openapi-bundle\033[0m               📦 Bundle OpenAPI spec\n"
 	@printf "  \033[0;32mmake tdd-comprehensive\033[0m            📋 Run comprehensive TDD gates\n"
 	@printf "  \033[0;32mmake toolbox-test-run\033[0m             🎯 Run specific test\n"
@@ -195,6 +279,7 @@ help:
 	@printf "  \033[0;32mmake test-safe\033[0m                    🏃 Race/deadlock detection\n"
 	@printf "  \033[0;32mmake test-html\033[0m                    🌐 HTML test report\n"
 	@printf "  \033[0;32mmake test-actions-dropdown\033[0m         🎯 Test Actions dropdown components\n"
+	@printf "  \033[0;32mmake test-containerized\033[0m            🐳 Run tests in containers\n"
 	@printf "\n"
 	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
 	@printf "  \033[1;33m🐠 i18n (Babel fish) Commands\033[0m\n"
@@ -259,7 +344,7 @@ help:
 	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
 	@printf "\n"
 	@printf "  \033[0;90m🐐 Happy coding with GOTRS!\033[0m\n"
-	@printf "  \033[0;90mContainer: $(CONTAINER_CMD) | Compose: $(COMPOSE_CMD)\033[0m\n"
+	@printf "  \033[0;90mContainer Runtime: $(CONTAINER_CMD) | Compose Tool: $(COMPOSE_CMD) | Image Prefix: $(IMAGE_PREFIX)\033[0m\n"
 	@printf "\n"
 #########################################
 # TDD WORKFLOW COMMANDS
@@ -455,19 +540,44 @@ k8s-secrets:
 # Build toolbox image
 toolbox-build:
 	@printf "\n🔧 Building GOTRS toolbox container...\n"
-	@$(COMPOSE_CMD) --profile toolbox build toolbox
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) build $(COMPOSE_BUILD_FLAGS) toolbox; \
+	else \
+		$(COMPOSE_CMD) --profile toolbox build $(COMPOSE_BUILD_FLAGS) toolbox; \
+	fi
 	@printf "✅ Toolbox container ready\n"
 
 # Interactive toolbox shell (non-root, with SELinux-friendly mounts)
 toolbox-run:
 	@printf "\n🔧 Starting toolbox shell...\n"
+	@printf "💡 Type 'exit' or Ctrl+D to exit the shell\n"
 	@$(call ensure_caches)
-	$(COMPOSE_CMD) --profile toolbox run --rm toolbox $(if $(ARGS),$(ARGS),/bin/bash)
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm -it toolbox $(if $(ARGS),$(ARGS),/bin/bash); \
+	else \
+		$(COMPOSE_CMD) --profile toolbox run --rm -it toolbox $(if $(ARGS),$(ARGS),/bin/bash); \
+	fi
 
 # Non-interactive toolbox exec
 toolbox-exec:
 	@$(call ensure_caches)
-	$(COMPOSE_CMD) --profile toolbox run --rm toolbox $(ARGS)
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox $(ARGS); \
+	else \
+		$(COMPOSE_CMD) --profile toolbox run --rm toolbox $(ARGS); \
+	fi
+
+# API testing with automatic authentication
+api-call:
+	@if [ -z "$(METHOD)" ]; then echo "❌ METHOD required. Usage: make api-call METHOD=GET ENDPOINT=/api/v1/tickets [BODY='{}']"; exit 1; fi
+	@if [ -z "$(ENDPOINT)" ]; then echo "❌ ENDPOINT required. Usage: make api-call METHOD=GET ENDPOINT=/api/v1/tickets [BODY='{}']"; exit 1; fi
+	@printf "\n🔧 Making API call: $(METHOD) $(ENDPOINT)\n"
+	@$(call ensure_caches)
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox bash scripts/api-test.sh "$(METHOD)" "$(ENDPOINT)" "$(BODY)"; \
+	else \
+		$(COMPOSE_CMD) --profile toolbox run --rm toolbox bash scripts/api-test.sh "$(METHOD)" "$(ENDPOINT)" "$(BODY)"; \
+	fi
 
 # Compile everything (bind mounts + caches)
 toolbox-compile:
@@ -549,7 +659,7 @@ toolbox-test-api: toolbox-build
         -e DB_DRIVER=mariadb \
         -e DB_NAME=otrs -e DB_USER=otrs -e DB_PASSWORD=LetClaude.1n \
 		gotrs-toolbox:latest \
-		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go test -v ./internal/api -run "^Test(Queue|Article|Search|Priority|User)"'
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go test -v ./internal/api -run "^Test(BuildRoutesManifest|Queue|Article|Search|Priority|User)"'
 
 # Run core tests (cmd/goats + internal/api + generated/tdd-comprehensive)
 toolbox-test:
@@ -800,6 +910,17 @@ toolbox-lint:
 		gotrs-toolbox:latest \
 		golangci-lint run ./...
 
+# Run YAML linting with toolbox
+yaml-lint:
+	@$(MAKE) toolbox-build
+	@printf "📄 Linting YAML files...\n"
+	@$(CONTAINER_CMD) run --rm \
+		-v "$$(pwd):/workspace" \
+		-w /workspace \
+		-u "$$(id -u):$$(id -g)" \
+		gotrs-toolbox:latest \
+		yamllint routes/*.yaml config/*.yaml docker-compose*.yml .github/**/*.yaml 2>/dev/null || echo "⚠️  yamllint found issues or no YAML files found"
+
 # Run security scan with toolbox
 toolbox-security:
 	@$(MAKE) toolbox-build
@@ -849,10 +970,11 @@ schema-table:
 
 # Start all services (and clean host binaries after build)
 up:
+	$(call check_compose)
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
-		$(COMPOSE_CMD) up --build postgres valkey backend; \
+		$(COMPOSE_CMD) up $(COMPOSE_UP_FLAGS) --build postgres valkey backend; \
 	else \
-		$(COMPOSE_CMD) up --build mariadb valkey backend; \
+		$(COMPOSE_CMD) up $(COMPOSE_UP_FLAGS) --build mariadb valkey backend; \
 	fi
 	@printf "🧹 Cleaning host binaries after container build...\n"
 	@rm -f bin/goats bin/gotrs bin/server bin/migrate bin/generator bin/gotrs-migrate bin/schema-discovery 2>/dev/null || true
@@ -869,6 +991,7 @@ up-d:
 	@printf "✅ Host binaries cleaned - containers have the only copies\n"
 # Stop all services
 down:
+	$(call check_compose)
 	$(COMPOSE_CMD) down
 
 # Restart services
@@ -876,6 +999,7 @@ restart: down up-d
 	@printf "🔄 Restarted all services\n"
 # View logs
 logs:
+	$(call check_compose)
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
 		$(COMPOSE_CMD) logs postgres valkey backend; \
 	else \
@@ -1370,6 +1494,25 @@ playwright-build:
 	@printf "Building Playwright test container...\n"
 	@$(COMPOSE_CMD) -f docker-compose.playwright.yml build playwright
 
+.PHONY: test-e2e-playwright-go
+test-e2e-playwright-go:
+	@printf "\n🎭 Running Go Playwright-tagged e2e tests in dedicated container...\n"
+	$(CONTAINER_CMD) build -f Dockerfile.playwright-go -t gotrs-playwright-go:latest . >/dev/null
+	# Prefer explicit BASE_URL provided on invocation; ignore .env for this target
+	@if [ -n "$(BASE_URL)" ]; then echo "[playwright-go] (explicit) BASE_URL=$(BASE_URL)"; else echo "[playwright-go] (default) BASE_URL=$${BASE_URL:-http://localhost:8080}"; fi
+	# Allow overriding network (e.g. PLAYWRIGHT_NETWORK=gotrs-ce_default) to access compose service DNS
+	@if [ -n "$(PLAYWRIGHT_NETWORK)" ]; then echo "[playwright-go] Using network '$(PLAYWRIGHT_NETWORK)'"; else echo "[playwright-go] Using host network (override with PLAYWRIGHT_NETWORK=...)"; fi
+	$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		-w /workspace \
+		$$( [ -n "$(PLAYWRIGHT_NETWORK)" ] && printf -- "--network $(PLAYWRIGHT_NETWORK)" || printf -- "--network host" ) \
+		-e BASE_URL=$(BASE_URL) \
+		-e RAW_BASE_URL=$(BASE_URL) \
+		-e DEMO_ADMIN_EMAIL=$(DEMO_ADMIN_EMAIL) \
+		-e DEMO_ADMIN_PASSWORD=$(DEMO_ADMIN_PASSWORD) \
+		 gotrs-playwright-go:latest bash -lc "go test -v ./tests/e2e/playwright $${ARGS}"
+
 # Run E2E tests
 test-e2e-playwright: playwright-build
 	@printf "Running E2E tests with Playwright...\n"
@@ -1459,12 +1602,30 @@ scan-vulnerabilities:
 security-scan: scan-secrets scan-vulnerabilities
 	@printf "Security scanning completed!\n"
 # Build for production (includes CSS, JS and container build)
-build: frontend-build
-	@printf "🔨 Building backend container...\n"	$(CONTAINER_CMD) build -f Dockerfile -t gotrs:latest .
+build: pre-build frontend-build
+	@printf "🔨 Building backend container...\n" \
+		&& $(CONTAINER_CMD) build -f Dockerfile -t gotrs:latest .
 	@printf "🧹 Cleaning host binaries...\n"
 	@rm -f goats gotrs gotrs-* generator migrate server  # Clean root directory
 	@rm -f bin/* 2>/dev/null || true  # Clean bin directory
 	@printf "✅ Build complete - CSS and JS compiled, containers ready\n"
+
+.PHONY: pre-build generate-route-map validate-routes
+
+# Pre-build chain: ensure API map + static route audit executed every build
+pre-build: generate-route-map validate-routes
+
+generate-route-map:
+	@printf "📡 Generating API map artifacts...\n"
+	@$(CONTAINER_CMD) run --rm -v "$$PWD:/workspace" -w /workspace --user 1000 alpine:3.19 \
+		sh -c 'apk add --no-cache jq graphviz >/dev/null 2>&1 || true; sh scripts/api_map.sh >/dev/null 2>&1 || true'
+	@printf "   API map complete (runtime/api-map.*)\n"
+
+validate-routes:
+	@printf "🔍 Validating no new static routes...\n"
+	@$(CONTAINER_CMD) run --rm -v "$$PWD:/workspace" -w /workspace --user 1000 alpine:3.19 \
+		sh -c 'sh scripts/validate_routes.sh' || { echo "Route validation failed"; exit 1; }
+	@printf "   Route validation passed\n"
 # ============================================
 # Enhanced Build Targets with BuildKit
 # ============================================
@@ -1577,6 +1738,9 @@ ps:
 # Execute commands in containers
 exec-backend:
 	$(COMPOSE_CMD) exec backend sh
+
+exec-backend-run:
+	$(COMPOSE_CMD) exec backend $(if $(ARGS),$(ARGS),echo "No command specified - use ARGS='command'")
 
 exec-frontend:
 	$(COMPOSE_CMD) exec frontend sh
@@ -1712,34 +1876,96 @@ include task-coordination.mk
 
 npm-updates:
 	@printf "📦 Updating NPM dependencies...\n"
-	@$(CONTAINER_CMD) run --rm --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine sh -c "npx npm-check-updates -u && npm install"
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox sh -c 'cd /workspace && npx npm-check-updates -u && npm install'; \
+	else \
+		$(COMPOSE_CMD) --profile toolbox run --rm toolbox sh -c 'cd /workspace && npx npm-check-updates -u && npm install'; \
+	fi
 	@printf "✅ NPM dependencies updated\n"
 # Install CSS build dependencies (in container with user permissions)
 css-deps:
 	@printf "📦 Installing CSS build dependencies...\n"
-	@$(CONTAINER_CMD) run --rm --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm install
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox sh -c 'cd /workspace && export NPM_CONFIG_CACHE=/tmp/npm-cache && mkdir -p $$NPM_CONFIG_CACHE && npm install && touch .frontend_deps_installed || true'; \
+	else \
+		$(COMPOSE_CMD) --profile toolbox run --rm toolbox sh -c 'cd /workspace && export NPM_CONFIG_CACHE=/tmp/npm-cache && mkdir -p $$NPM_CONFIG_CACHE && npm install && touch .frontend_deps_installed || true'; \
+	fi
 	@printf "✅ CSS dependencies installed\n"
 # Install CSS dependencies without upgrading (preserves pinned versions)
 css-deps-stable:
 	@printf "📦 Installing CSS build dependencies (stable versions)...\n"
-	@$(CONTAINER_CMD) run --rm --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine sh -c "npm install"
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox sh -c 'cd /workspace && if [ ! -d node_modules/tailwindcss ]; then echo "🧹 Cleaning existing node_modules (fresh install)"; rm -rf node_modules 2>/dev/null || true; fi; export NPM_CONFIG_CACHE=/tmp/npm-cache && mkdir -p $$NPM_CONFIG_CACHE && cp package-lock.json /tmp/lock.json 2>/dev/null || true && npm install --no-audit --no-fund --no-save && touch .frontend_deps_installed || true'; \
+	else \
+		$(COMPOSE_CMD) --profile toolbox run --rm toolbox sh -c 'cd /workspace && if [ ! -d node_modules/tailwindcss ]; then echo "🧹 Cleaning existing node_modules (fresh install)"; rm -rf node_modules 2>/dev/null || true; fi; export NPM_CONFIG_CACHE=/tmp/npm-cache && mkdir -p $$NPM_CONFIG_CACHE && cp package-lock.json /tmp/lock.json 2>/dev/null || true && npm install --no-audit --no-fund --no-save && touch .frontend_deps_installed || true'; \
+	fi
 	@printf "✅ CSS dependencies installed\n"
 # Build production CSS (in container with user permissions)
 css-build:
 	@printf "🎨 Building production CSS...\n"
-	@if [ ! -d "node_modules" ]; then \
-		echo "📦 Installing CSS dependencies first..."; \
+	@if [ ! -d "node_modules/tailwindcss" ]; then \
+		echo "📦 Installing CSS dependencies first (tailwindcss not present)..."; \
 		$(MAKE) css-deps-stable; \
 	fi
-	@$(CONTAINER_CMD) run --rm --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm run build-css
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox sh -c 'cd /workspace && npm run build-css'; \
+	else \
+		$(COMPOSE_CMD) --profile toolbox run --rm toolbox sh -c 'cd /workspace && npm run build-css'; \
+	fi
 	@printf "✅ CSS built to static/css/output.css\n"
 js-build: css-deps-stable
-	@printf "🔨 Building JavaScript bundles...\n"
-	@$(CONTAINER_CMD) run --rm --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm run build-js
-	@printf "✅ JavaScript built to static/js/tiptap.min.js\n"
+	@printf "🔨 Building JavaScript bundles (rootless)...\n"
+	@[ -d static/js ] || mkdir -p static/js
+	@# Probe write as container user (touch). If fails, repair ownership.
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox sh -c 'cd /workspace && touch static/js/.permcheck 2>/dev/null || exit 23'; status=$$?; \
+	else \
+		$(COMPOSE_CMD) --profile toolbox run --rm toolbox sh -c 'cd /workspace && touch static/js/.permcheck 2>/dev/null || exit 23'; status=$$?; \
+	fi; \
+	if [ $$status -eq 23 ]; then \
+		printf "⚠️  static/js not writable by uid 1000 – fixing...\n"; \
+		$(MAKE) frontend-fix-js-dir; \
+	else \
+		rm -f static/js/.permcheck || true; \
+	fi
+	@# Run build (produces static/js/tiptap.min.js via esbuild --outfile)
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox sh -c 'cd /workspace && npm run build-tiptap'; \
+	else \
+		$(COMPOSE_CMD) --profile toolbox run --rm toolbox sh -c 'cd /workspace && npm run build-tiptap'; \
+	fi
+	@# Validate artifact exists and non-empty; show size
+	@if [ ! -s static/js/tiptap.min.js ]; then \
+		echo "❌ Build failed: tiptap.min.js missing or empty"; exit 1; \
+	fi
+	@ls -lh static/js/tiptap.min.js | awk '{print "✅ JavaScript built:" $$9 " (" $$5 ")"}'
+
+.PHONY: frontend-fix-js-dir
+frontend-fix-js-dir:
+	@printf "🩹 Fixing static/js ownership inside container (one-time)...\n"
+	@$(CONTAINER_CMD) run --rm -v "$$PWD:/workspace:Z" -w /workspace --user 0 alpine:3.19 sh -c 'chown -R 1000:1000 static/js'
+	@printf "✅ static/js now owned by uid 1000 (container view)\n"
 # Build all frontend assets
 frontend-build: css-build js-build
 	@printf "✅ All frontend assets built\n"
+
+.PHONY: frontend-clean-cache
+frontend-clean-cache:
+	@printf "🧹 Removing node_modules named volume (gotrs_node_modules)...\n"
+	@$(CONTAINER_CMD) volume rm -f gotrs_node_modules >/dev/null 2>&1 || true
+	@rm -f .frontend_deps_installed 2>/dev/null || true
+	@printf "✅ Volume removed. Next build will reinstall dependencies.\n"
+
+.PHONY: frontend-reset-deps
+frontend-reset-deps: frontend-clean-cache
+	@printf "🔄 Forcing fresh dependency install next build (volume + sentinel cleared)\\n"
+
+.PHONY: frontend-perms-fix
+frontend-perms-fix:
+	@printf "🔧 Normalizing frontend file permissions...\n"
+	@find static/js -maxdepth 1 -type f -name 'tiptap.min.js' -exec $(CONTAINER_CMD) run --rm -v "$$PWD:/workspace" -w /workspace --user 0 alpine:3.19 sh -c 'chown 1000:1000 /workspace/{} || true' \;
+	@chmod ug+rw static/js 2>/dev/null || true
+	@printf "✅ Permissions normalized (owner=uid 1000 for built assets where possible)\n"
 # Watch and rebuild CSS on changes (in container with user permissions)
 css-watch: css-deps
 	@printf "👁️  Watching for CSS changes...\n"

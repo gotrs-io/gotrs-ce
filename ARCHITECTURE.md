@@ -9,6 +9,7 @@ GoatKit is the underlying platform that powers GOTRS, providing:
 
 - **YAML-First Configuration**: All routing and configuration in YAML files
 - **Dynamic Route Loading**: Hot-reload capable route system
+- **Route Manifest Governance**: YAML → generated manifest with drift detection & structured diff tooling
 - **Unified Binary**: Single `goats` binary (44.7MB) runs everything
 - **Template Flexibility**: Support for multiple template engines
 - **Container Optimization**: Multi-stage builds with caching
@@ -199,6 +200,39 @@ DB_USER=gotrs_user
 DB_NAME=gotrs
 DB_PORT=5432
 ```
+
+## Routing (YAML-Driven UI + Governance)
+
+The application now sources most UI/HTMX and several transitional API & alias routes from declarative YAML files in `routes/`:
+
+* Each file: `apiVersion: v1`, `kind: RouteGroup`, with `metadata` (name, description, enabled) and `spec` (`prefix`, `middleware`, `routes`).
+* Route fields: `path`, `method`, `handler`, optional `template`, `middleware` (tokens), extended: `redirectTo` (+ optional `status`), `websocket` (boolean upgrade hint).
+* Loader: `internal/api/yaml_router_loader.go` scans `./routes` on startup (called inside `setupHTMXRoutesWithAuth`) and registers groups in lexicographic filename order. Redirects and websocket endpoints receive special handling; others resolve handler names via a small registry map.
+* Hard-coded HTMX routes in `htmx_routes.go` have been reduced to only those needing dynamic or pre-initialization logic. Governance script `scripts/validate_routes.sh` flags newly added static route registrations under protected groups.
+* API reference mapping: `scripts/api_map.sh` generates `runtime/api-map.json|dot|mmd|svg` linking templates & JS assets to `/api/...` endpoints for drift & dead endpoint detection.
+* Manifest drift: `scripts/check_routes_manifest.sh` compares current `runtime/routes-manifest.json` to baseline `runtime/routes-manifest.baseline.json` to detect unintended changes.
+
+Implemented additions:
+* Middleware tokens (`auth`, `admin`) enforced with real `AuthMiddleware` (fallback guard only in tests/dev without middleware context).
+* Consolidated manifest emitted at `runtime/routes-manifest.json` (timestamp + route metadata) for tooling.
+* Handler registry (`internal/api/handler_registry.go`) replaces static map; core handlers registered via `ensureCoreHandlers()`.
+* Poll watcher (`ROUTES_WATCH=1`) regenerates manifest; optional hot reload (`ROUTES_HOT_RELOAD=1`) atomically swaps a YAML-only engine for rapid iteration.
+* Governance Make targets: `make routes-verify` (drift check) and `make routes-baseline-update` (accept changes) maintaining baseline file.
+ * Fast bootstrap: `make routes-generate` runs a lightweight generator (no DB, no full server) that loads YAML and writes the manifest. `make routes-verify` will auto-run this if the manifest is missing, so a fresh clone can immediately verify route drift without first starting the full stack or running all tests.
+ * Selective reload mode (`ROUTES_SELECTIVE=1` + `ROUTES_WATCH=1`) mounts a dynamic sub-engine for YAML routes only; changes rebuild just that engine without touching static/legacy routes, offering lower-risk iterative updates.
+
+Planned improvements:
+1. Selective hot reload preserving full middleware stack & legacy routes.
+2. Optional reflection-based auto-registration to remove manual list in `ensureCoreHandlers()`.
+3. Route coverage metrics (hit counts) for unused/dead route detection.
+4. Structured manifest diff (added/removed/changed middleware/status/template) with severity.
+ 5. Merge selective + full hot reload strategies (fallback to selective when only YAML changed, escalate to full when core code changes detected via checksum).
+
+Migration Guidance:
+* New UI endpoints: add to an existing logical YAML file or create a new `*.yaml` with `enabled: true`.
+* Avoid reintroducing hard-coded `protected.GET/POST` lines—tests & validation will fail CI if detected.
+* Use `redirects.yaml` for simple aliases instead of inline handlers.
+
 
 **Critical Success**: System now connects to live OTRS MySQL databases with zero placeholder errors.
 

@@ -115,6 +115,22 @@ Demo credentials are shown on the demo instance login page.
 
 *Note: Demo data resets daily at 2 AM UTC*
 
+### Browser E2E (Go + Playwright)
+
+We separate backend/API tests from full browser automation:
+
+- Toolbox targets (`make toolbox-test`, `make toolbox-test-api`) intentionally skip heavy browser tests.
+- Browser-driven Go tests are tagged with `playwright` (see `//go:build playwright`).
+- Run them in a dedicated Playwright image (Ubuntu base) to avoid glibc/musl issues:
+
+```bash
+make test-e2e-playwright-go        # Builds Dockerfile.playwright-go and runs go test -tags playwright ./tests/e2e
+```
+
+Standard JavaScript-based Playwright tests (if present) continue to use `make test-e2e-playwright` which wraps `docker-compose.playwright.yml`.
+
+Rationale: the lightweight Alpine toolbox keeps feedback fast; heavyweight Chromium dependencies stay isolated.
+
 ## Architecture
 
 GOTRS uses a modern, hypermedia-driven architecture that scales from single-server deployments to large enterprise clusters:

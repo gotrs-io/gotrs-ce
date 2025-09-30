@@ -184,6 +184,14 @@ func main() {
 		"HandleReindexAPI":           api.HandleReindexAPI,
 		"HandleSearchHealthAPI":      api.HandleSearchHealthAPI,
 
+		// Lookup handlers
+		"HandleGetQueues":             api.HandleGetQueues,
+		"HandleGetPriorities":         api.HandleGetPriorities,
+		"HandleGetTypes":              api.HandleGetTypes,
+		"HandleGetStatuses":           api.HandleGetStatuses,
+		"HandleGetFormData":           api.HandleGetFormData,
+		"HandleInvalidateLookupCache": api.HandleInvalidateLookupCache,
+
 		// Dev handlers
 		"HandleDevDashboard":  api.HandleDevDashboard,
 		"HandleClaudeTickets": api.HandleClaudeTickets,
@@ -195,6 +203,7 @@ func main() {
 		"handleLoginPage": api.HandleLoginPage,
 		"handleAuthLogin": api.HandleAuthLogin,
 		"handleLogout":    api.HandleLogout,
+		"HandleLoginAPI":  api.HandleLoginAPI,
 
 		// Admin handlers
 		"handleAdminUsers":            api.HandleAdminUsers,
@@ -444,6 +453,26 @@ func main() {
 	}
 
 	log.Println("✅ YAML routes loaded successfully")
+
+	// Runtime audit: verify critical API endpoints were registered (multi-doc safety)
+	func() {
+		needed := []string{"/api/v1/states", "/api/lookups/statuses", "/api/lookups/queues"}
+		present := make(map[string]bool)
+		for _, ri := range r.Routes() { // gin.RouteInfo
+			present[ri.Path] = true
+		}
+		missing := []string{}
+		for _, p := range needed {
+			if !present[p] {
+				missing = append(missing, p)
+			}
+		}
+		if len(missing) > 0 {
+			log.Printf("⚠️  Route audit: missing expected routes: %v (check multi-doc YAML parsing)", missing)
+		} else {
+			log.Printf("✅ Route audit passed: core endpoints present")
+		}
+	}()
 
 	log.Println("✅ Backend initialized successfully")
 

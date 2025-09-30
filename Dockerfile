@@ -5,7 +5,7 @@
 # ============================================
 # Stage 1: Dependencies (cached separately)
 # ============================================
-FROM golang:1.23-alpine AS deps
+FROM docker.io/golang:1.23-alpine AS deps
 
 # Set shell for better error handling
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
@@ -66,7 +66,7 @@ RUN gosec -fmt json -out /tmp/security.json ./... || true && \
 # ============================================
 # Stage 5: Final minimal runtime
 # ============================================
-FROM alpine:3.19 AS runtime
+FROM docker.io/alpine:3.19 AS runtime
 
 # Install runtime dependencies
 RUN apk add --no-cache \

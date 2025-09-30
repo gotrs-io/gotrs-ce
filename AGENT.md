@@ -149,6 +149,19 @@ Avoid `FormData` for checkbox matrices when the backend expects `application/x-w
 
 **Note**: `css-deps` uses `npm-check-updates` which may upgrade Tailwind CSS to v4, causing build failures. Pin Tailwind to `^3.4.0` in package.json and avoid `npm-check-updates` for frontend dependencies.
 
+### Container-First Enforcement Helpers
+To keep drift from reintroducing host `go` usage low:
+
+- Macro: `TOOLBOX_GO` (defined in `Makefile`) wraps commands: `$(MAKE) toolbox-exec ARGS=`. Use it only in simple targets; avoid nesting it inside already long `podman run` invocations.
+- Verification: `make verify-container-first` runs `scripts/tools/check-container-go.sh` and fails if raw host `go` or `golangci-lint` lines are detected (tab-prefixed) in the `Makefile`.
+- Acceptable exceptions: Inside a single explicit `gotrs-toolbox:latest` container run block (already containerized), direct `go build/test` is fine—do not wrap again.
+- Add new Go-related targets by default via `toolbox-exec` pattern; if performance requires a single large container run, keep all `go` invocations inside that one block.
+
+Checklist before committing new Go targets:
+1. No plain `\tgo test` or `\tgo build` lines unless inside an existing `podman/docker run gotrs-toolbox` block.
+2. `make verify-container-first` returns green.
+3. For multi-step script-like flows prefer a dedicated script invoked via `toolbox-exec` instead of many Makefile inline commands.
+
 ## Troubleshooting Checklist
 - **Go command fails**: Go is not installed on host. Use `make toolbox-exec ARGS="go <command>"` instead
 - **Database connection fails**: Database clients not installed on host. Use `make db-shell` for interactive access or pipe SQL to it

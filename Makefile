@@ -245,6 +245,7 @@ help:
 	@printf "  \033[0;32mmake toolbox-build\033[0m                🔨 Build toolbox container\n"
 	@printf "  \033[0;32mmake toolbox-run\033[0m                  🐚 Interactive shell\n"
 	@printf "  \033[0;32mmake toolbox-exec ARGS='go version'\033[0m   ⚡ Execute commands in toolbox\n"
+	@printf "  \033[0;32mmake verify-container-first\033[0m      🔒 Check for raw host Go commands\n"
 	@printf "  \033[0;32mmake api-call METHOD=GET ENDPOINT=/api/lookups/statuses\033[0m   🌐 Authenticated API calls\n"
 	@printf "  \033[0;32mmake toolbox-compile\033[0m               🔨 Compile all Go packages\n"
 	@printf "  \033[0;32mmake toolbox-compile-api\033[0m           🚀 Compile API/goats only (faster)\n"
@@ -2074,6 +2075,11 @@ test-specific:
 # Show TDD dashboard with current status and metrics
 tdd-dashboard:
 	@./scripts/comprehensive-tdd-integration.sh dashboard
+
+.PHONY: verify-container-first
+verify-container-first:
+	@chmod +x scripts/tools/check-container-go.sh 2>/dev/null || true
+	@./scripts/tools/check-container-go.sh
 
 # Enhanced test command that integrates with comprehensive TDD
 test-comprehensive:

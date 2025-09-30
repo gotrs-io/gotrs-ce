@@ -144,7 +144,7 @@ func TestCreateInternalNote(t *testing.T) {
 				c.Set("user_name", "Test User")
 				c.Next()
 			})
-			router.POST("/api/tickets/:id/internal-notes", handleCreateInternalNote)
+			router.POST("/api/tickets/:id/internal-notes", HandleCreateInternalNote)
 
 			body, _ := json.Marshal(tt.payload)
 			w := httptest.NewRecorder()
@@ -268,7 +268,7 @@ func TestGetInternalNotes(t *testing.T) {
 				c.Set("user_role", tt.userRole)
 				c.Next()
 			})
-			router.GET("/api/tickets/:id/internal-notes", handleGetInternalNotes)
+			router.GET("/api/tickets/:id/internal-notes", HandleGetInternalNotes)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest("GET", fmt.Sprintf("/api/tickets/%s/internal-notes%s", tt.ticketID, tt.query), nil)
@@ -380,7 +380,7 @@ func TestUpdateInternalNote(t *testing.T) {
 				c.Set("user_role", tt.userRole)
 				c.Next()
 			})
-			router.PUT("/api/tickets/:id/internal-notes/:note_id", handleUpdateInternalNote)
+			router.PUT("/api/tickets/:id/internal-notes/:note_id", HandleUpdateInternalNote)
 
 			body, _ := json.Marshal(tt.payload)
 			w := httptest.NewRecorder()
@@ -462,7 +462,7 @@ func TestDeleteInternalNote(t *testing.T) {
 				c.Set("user_role", tt.userRole)
 				c.Next()
 			})
-			router.DELETE("/api/tickets/:id/internal-notes/:note_id", handleDeleteInternalNote)
+			router.DELETE("/api/tickets/:id/internal-notes/:note_id", HandleDeleteInternalNote)
 
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest("DELETE", fmt.Sprintf("/api/tickets/%s/internal-notes/%s", tt.ticketID, tt.noteID), nil)
@@ -544,7 +544,7 @@ func TestInternalNoteMentions(t *testing.T) {
 				c.Set("user_name", "Test User")
 				c.Next()
 			})
-			router.POST("/api/tickets/:id/internal-notes", handleCreateInternalNote)
+			router.POST("/api/tickets/:id/internal-notes", HandleCreateInternalNote)
 
 			body, _ := json.Marshal(tt.payload)
 			w := httptest.NewRecorder()

@@ -71,7 +71,7 @@ func TestGetTypes(t *testing.T) {
 			tt.setupMock(mock)
 			
 			router := gin.New()
-			router.GET("/api/types", handleGetTypes)
+			router.GET("/api/types", HandleGetTypes)
 			
 			req, _ := http.NewRequest("GET", "/api/types", nil)
 			w := httptest.NewRecorder()

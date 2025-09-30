@@ -105,10 +105,14 @@ func (router *APIRouter) handleListTickets(c *gin.Context) {
 		var queueRow struct {
 			Name string
 		}
-		db := database.GetDB()
-		err := db.QueryRow(database.ConvertPlaceholders("SELECT name FROM queue WHERE id = $1"), t.QueueID).Scan(&queueRow.Name)
-		if err == nil {
-			queueName = queueRow.Name
+		db, err := database.GetDB()
+		if err != nil {
+			// Handle error or continue with default queue name
+		} else {
+			err := db.QueryRow(database.ConvertPlaceholders("SELECT name FROM queue WHERE id = $1"), t.QueueID).Scan(&queueRow.Name)
+			if err == nil {
+				queueName = queueRow.Name
+			}
 		}
 
 		ticket := gin.H{
@@ -1469,11 +1473,14 @@ func (router *APIRouter) handleBulkMoveQueue(c *gin.Context) {
 // Helper functions for mapping ticket states and priorities
 
 func mapTicketState(stateID int) string {
-	db := database.GetDB()
+	db, err := database.GetDB()
+	if err != nil {
+		return "unknown"
+	}
 	var stateRow struct {
 		Name string
 	}
-	err := db.QueryRow(database.ConvertPlaceholders("SELECT name FROM ticket_state WHERE id = $1"), stateID).Scan(&stateRow.Name)
+	err = db.QueryRow(database.ConvertPlaceholders("SELECT name FROM ticket_state WHERE id = $1"), stateID).Scan(&stateRow.Name)
 	if err == nil {
 		return stateRow.Name
 	}
@@ -1481,11 +1488,14 @@ func mapTicketState(stateID int) string {
 }
 
 func mapTicketPriority(priorityID int) string {
-	db := database.GetDB()
+	db, err := database.GetDB()
+	if err != nil {
+		return "unknown"
+	}
 	var priorityRow struct {
 		Name string
 	}
-	err := db.QueryRow(database.ConvertPlaceholders("SELECT name FROM ticket_priority WHERE id = $1"), priorityID).Scan(&priorityRow.Name)
+	err = db.QueryRow(database.ConvertPlaceholders("SELECT name FROM ticket_priority WHERE id = $1"), priorityID).Scan(&priorityRow.Name)
 	if err == nil {
 		return priorityRow.Name
 	}

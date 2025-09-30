@@ -117,6 +117,7 @@ var mockTickets = map[int]bool{
 
 // RenderMarkdown converts markdown content to HTML with Tailwind styling
 func RenderMarkdown(content string) string {
+
 	// Create a Goldmark instance with extensions
 	md := goldmark.New(
 		goldmark.WithExtensions(
@@ -173,13 +174,13 @@ func addTailwindClasses(html string) string {
 	// Code blocks
 	html = strings.ReplaceAll(html, "<pre>", `<pre class="bg-gray-100 dark:bg-gray-800 p-3 rounded mb-2 overflow-x-auto">`)
 
-	// Tables
-	html = strings.ReplaceAll(html, "<table>", `<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 mb-2">`)
-	html = strings.ReplaceAll(html, "<thead>", `<thead class="bg-gray-50 dark:bg-gray-800">`)
-	html = strings.ReplaceAll(html, "<tbody>", `<tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">`)
-	html = strings.ReplaceAll(html, "<tr>", `<tr class="text-gray-700 dark:text-gray-300">`)
-	html = strings.ReplaceAll(html, "<th>", `<th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">`)
-	html = strings.ReplaceAll(html, "<td>", `<td class="px-3 py-2 whitespace-nowrap text-sm">`)
+	// Tables - let CSS handle the styling completely
+	html = strings.ReplaceAll(html, "<table>", `<table>`)
+	html = strings.ReplaceAll(html, "<thead>", `<thead>`)
+	html = strings.ReplaceAll(html, "<tbody>", `<tbody>`)
+	html = strings.ReplaceAll(html, "<tr>", `<tr>`)
+	html = strings.ReplaceAll(html, "<th>", `<th>`)
+	html = strings.ReplaceAll(html, "<td>", `<td>`)
 
 	return html
 }

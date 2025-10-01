@@ -196,6 +196,8 @@ help:
 	@printf "  \033[0;32mmake quality-gates\033[0m                🚦 Run quality checks\n"
 	@printf "  \033[0;32mmake evidence-report\033[0m              📄 Generate evidence\n"
 	@printf "  \033[0;32mmake tdd-comprehensive-quick\033[0m       ⚡ Quick comprehensive TDD run\n"
+	@printf "  \033[0;32mmake tdd-diff\033[0m                     🔍 Diff last two comprehensive evidence runs\n"
+	@printf "  \033[0;32mmake tdd-diff-serve\033[0m              🌐 Serve evidence diffs on http://localhost:3456/\n"
 	@printf "\n"
 	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
 	@printf "  \033[1;33m🎨 CSS/Frontend Build\033[0m\n"
@@ -2003,6 +2005,34 @@ tdd-comprehensive:
 	fi
 	@bash scripts/tdd-comprehensive.sh comprehensive || true
 	@echo "See generated/evidence for report"
+
+.PHONY: tdd-diff evidence-diff
+tdd-diff:
+	@echo "🔍 Diffing last two evidence runs..."
+	@bash scripts/tdd-comprehensive.sh diff || true
+	@latest_html=$$(ls -1t generated/evidence/diff_*.html 2>/dev/null | head -n1); \
+	if [ -n "$$latest_html" ]; then \
+	  echo "✅ Diff HTML: $$latest_html"; \
+	else \
+	  echo "⚠ No diff produced (need at least two evidence JSON files)"; \
+	fi
+
+evidence-diff: tdd-diff
+
+.PHONY: tdd-diff-serve evidence-serve
+# Serve the evidence directory over HTTP on port 3456 (container-first; uses toolbox python)
+tdd-diff-serve:
+	@echo "🌐 Serving generated/evidence on http://localhost:3456 (Ctrl+C to stop)"
+	@mkdir -p generated/evidence || true
+	@# Prefer toolbox container python for consistency; fall back to system python if toolbox not available
+	@if $(CONTAINER_CMD) image inspect gotrs-toolbox:latest >/dev/null 2>&1; then \
+	  $(CONTAINER_CMD) run --rm -it -p 3456:3456 -v $$PWD/generated/evidence:/workspace/evidence -w /workspace/evidence gotrs-toolbox:latest bash -lc 'python3 -m http.server 3456'; \
+	else \
+	  echo "(Toolbox image missing - attempting host python3)"; \
+	  python3 -m http.server 3456 --directory generated/evidence; \
+	fi
+
+evidence-serve: tdd-diff-serve
 
 # Anti-gaslighting detection - prevents false success claims
 anti-gaslighting:

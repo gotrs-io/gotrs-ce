@@ -1287,6 +1287,131 @@ EOF
     echo "$report_file"
 }
 
+# Evidence diff utility: compare two evidence JSON files and produce delta report
+diff_evidence() {
+    # Temporarily allow unset to handle optional args
+    set +u
+    local old_file="$1"
+    local new_file="$2"
+    set -u
+        if [ -z "$old_file" ] || [ -z "$new_file" ]; then
+                # Auto-discover last two evidence files
+                local files
+                files=($(ls -1t "$EVIDENCE_DIR"/comprehensive_*.json 2>/dev/null | head -n 2))
+                if [ "${#files[@]}" -lt 2 ]; then
+                        echo "Need at least two evidence files to diff" >&2
+                        return 1
+                fi
+                new_file="${files[0]}"
+                old_file="${files[1]}"
+        fi
+        if [ ! -f "$old_file" ] || [ ! -f "$new_file" ]; then
+                echo "Evidence files not found: $old_file $new_file" >&2
+                return 1
+        fi
+        echo "Diffing evidence: OLD=$old_file NEW=$new_file" >&2
+        local diff_ts
+        diff_ts=$(date +%Y%m%d_%H%M%S)
+        local diff_json="$EVIDENCE_DIR/diff_${diff_ts}.json"
+        local diff_html="$EVIDENCE_DIR/diff_${diff_ts}.html"
+
+        # Helper to get status field
+        local jq_gate='.evidence.compilation.status as $c |
+            .evidence.unit_tests.status as $u |
+            .evidence.integration_tests.status as $i |
+            .evidence.security_tests.status as $s |
+            .evidence.service_health.status as $h |
+            .evidence.database_tests.status as $d |
+            .evidence.template_tests.status as $t |
+            .evidence.api_tests.status as $a |
+            .evidence.browser_tests.status as $b |
+            .evidence.performance_tests.status as $p |
+            .evidence.regression_tests.status as $r |
+            {compilation:$c,unit:$u,integration:$i,security:$s,service_health:$h,database:$d,template:$t,api:$a,browser:$b,performance:$p,regression:$r}'
+
+        local old_hash new_hash
+        old_hash=$(jq -r '.evidence_hash // ""' "$old_file" 2>/dev/null)
+        new_hash=$(jq -r '.evidence_hash // ""' "$new_file" 2>/dev/null)
+
+        local old_gates new_gates
+        old_gates=$(jq "$jq_gate" "$old_file")
+        new_gates=$(jq "$jq_gate" "$new_file")
+
+        # API diffs
+        local old_nf new_nf old_se new_se
+        old_nf=$(jq -c '.evidence.api_tests.not_found_endpoints // []' "$old_file")
+        new_nf=$(jq -c '.evidence.api_tests.not_found_endpoints // []' "$new_file")
+        old_se=$(jq -c '.evidence.api_tests.server_error_endpoints // []' "$old_file")
+        new_se=$(jq -c '.evidence.api_tests.server_error_endpoints // []' "$new_file")
+
+        # Gosec diff counts
+        local old_gosec new_gosec
+        old_gosec=$(jq -c '.evidence.security_tests.gosec // {}' "$old_file")
+        new_gosec=$(jq -c '.evidence.security_tests.gosec // {}' "$new_file")
+
+        # Build diff JSON via jq
+        jq -n \
+            --arg old_file "$old_file" \
+            --arg new_file "$new_file" \
+            --arg old_hash "$old_hash" \
+            --arg new_hash "$new_hash" \
+            --argjson old_gates "$old_gates" \
+            --argjson new_gates "$new_gates" \
+            --argjson old_nf "$old_nf" \
+            --argjson new_nf "$new_nf" \
+            --argjson old_se "$old_se" \
+            --argjson new_se "$new_se" \
+            --argjson old_gosec "$old_gosec" \
+            --argjson new_gosec "$new_gosec" \
+            'def toarr(x): if (x|type)=="array" then x else [x] end; def arrdiff(a;b): ((toarr(b)|unique) - (toarr(a)|unique)); def arrremoved(a;b): ((toarr(a)|unique) - (toarr(b)|unique));
+             {
+                 meta:{generated: now|todate, old_file:$old_file, new_file:$new_file, old_hash:$old_hash, new_hash:$new_hash},
+                 gates:{old:$old_gates,new:$new_gates, delta: [
+                         "compilation","unit","integration","security","service_health","database","template","api","browser","performance","regression"
+                     ] | map({gate:., old:$old_gates[.], new:$new_gates[.], changed: ($old_gates[.] != $new_gates[.])})},
+                 api:{
+                     not_found:{old:$old_nf, new:$new_nf, added: arrdiff($old_nf;$new_nf), removed: arrremoved($old_nf;$new_nf)},
+                     server_errors:{old:$old_se, new:$new_se, added: arrdiff($old_se;$new_se), removed: arrremoved($old_se;$new_se)}
+                 },
+                 security:{
+                     gosec:{old:$old_gosec, new:$new_gosec,
+                         high_delta: ((($new_gosec.high // 0) - ($old_gosec.high // 0))),
+                         medium_delta: ((($new_gosec.medium // 0) - ($old_gosec.medium // 0))),
+                         low_delta: ((($new_gosec.low // 0) - ($old_gosec.low // 0)))
+                     }
+                 }
+             }' > "$diff_json"
+
+        # Generate HTML summary
+        cat > "$diff_html" <<EOF
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Evidence Diff $diff_ts</title>
+<style>body{font-family:Arial;margin:20px}table{border-collapse:collapse;width:100%;margin:15px 0}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background:#eee}.chg{background:#fff3cd}.add{color:#28a745}.rem{color:#dc3545}.sec{background:#f8f9fa;padding:10px;border-left:4px solid #007bff;margin:10px 0}</style></head><body>
+<h1>Evidence Diff Report</h1>
+<p><strong>Old:</strong> $old_file<br/><strong>New:</strong> $new_file</p>
+<h2>Quality Gate Status Changes</h2>
+<table><tr><th>Gate</th><th>Old</th><th>New</th><th>Changed</th></tr>
+$(jq -r '.gates.delta[] | "<tr class=\"" + (if .changed then "chg" else "" end) + "\"><td>" + .gate + "</td><td>" + (.old|tostring) + "</td><td>" + (.new|tostring) + "</td><td>" + (if .changed then "✔" else "" end) + "</td></tr>"' "$diff_json")
+</table>
+<h2>API Endpoint 404 Changes</h2>
+<div class=sec>
+<p><strong>Added 404s:</strong> $(jq -r '.api.not_found.added|join(", ")' "$diff_json")<br/>
+<strong>Removed 404s:</strong> $(jq -r '.api.not_found.removed|join(", ")' "$diff_json")</p></div>
+<h2>API Server Error Endpoint Changes</h2>
+<div class=sec>
+<p><strong>Added 500s:</strong> $(jq -r '.api.server_errors.added|join(", ")' "$diff_json")<br/>
+<strong>Removed 500s:</strong> $(jq -r '.api.server_errors.removed|join(", ")' "$diff_json")</p></div>
+<h2>Security (Gosec) Delta</h2>
+<div class=sec>
+<p>High Δ: $(jq -r '.security.gosec.high_delta' "$diff_json") | Medium Δ: $(jq -r '.security.gosec.medium_delta' "$diff_json") | Low Δ: $(jq -r '.security.gosec.low_delta' "$diff_json")</p></div>
+<h2>Raw Diff JSON</h2><pre>$(jq . "$diff_json")</pre>
+<footer style="margin-top:40px;font-size:12px;color:#666">Generated $(date -Iseconds)</footer>
+</body></html>
+EOF
+
+        echo "Diff JSON: $diff_json" >&2
+        echo "Diff HTML: $diff_html" >&2
+}
+
 # Main comprehensive verification function
 run_comprehensive_verification() {
     local test_phase="${1:-full}"
@@ -1502,6 +1627,11 @@ case "${1:-}" in
         # Quick verification (subset of tests for development)
         run_comprehensive_verification "quick"
         ;;
+    "diff")
+        # Diff last two evidence files or specified pair
+        shift || true
+        diff_evidence "$@"
+        ;;
     *)
         echo "Comprehensive TDD Test Automation"
         echo "Zero tolerance for false positives and premature success claims"
@@ -1511,6 +1641,7 @@ case "${1:-}" in
         echo "Commands:"
         echo "  comprehensive [phase]  - Run all comprehensive quality gates"
         echo "  quick                  - Run subset of tests for development"
+        echo "  diff [old new]         - Diff last two evidence JSON files (or specify two paths)"
         echo ""
         echo "This tool implements evidence-based verification to prevent:"
         echo "  - False positive test results"

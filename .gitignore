@@ -238,7 +238,7 @@ files/
 generated/
 tmp/
 temp/
-cache/
+# Removed generic 'cache/' to allow tracking internal/cache Go sources. If you need a runtime cache dir, use /cache/ separately.
 
 # Logs
 logs/
@@ -423,8 +423,7 @@ cmd/example-*/
 # Schema and Migration Development
 # ============================================
 schemas/
-schema/
-internal/database/schema/
+/private-otrs-import/
 
 # ============================================
 # Fix Scripts (May Contain Real Data)

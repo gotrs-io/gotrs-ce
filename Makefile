@@ -77,7 +77,8 @@ endif
 
 # Ensure Go caches exist for toolbox runs
 define ensure_caches
-@mkdir -p .cache/go-build .cache/go-mod >/dev/null 2>&1 || true
+@mkdir -p .cache .cache/go-build .cache/go-mod >/dev/null 2>&1 || true
+@chmod 777 .cache .cache/go-build .cache/go-mod >/dev/null 2>&1 || true
 endef
 
 # Common run flags
@@ -155,6 +156,17 @@ lint-cache-clean:
 	@$(MAKE) toolbox-exec ARGS='bash -lc "rm -rf $$GOLANGCI_LINT_CACHE/* 2>/dev/null || true"'
 	@echo "Done"
 
+# One-off fix to adjust ownership/permissions of named Go cache volumes
+.PHONY: toolbox-fix-cache
+toolbox-fix-cache:
+	@echo "🔧 Fixing permissions on Go cache volumes..."
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm --user 0 toolbox bash -lc 'chown -R 1000:1000 /workspace/.cache/go-build /workspace/.cache/go-mod /workspace/.cache/golangci-lint 2>/dev/null || true; chmod -R 777 /workspace/.cache/go-build /workspace/.cache/go-mod /workspace/.cache/golangci-lint 2>/dev/null || true'; \
+	else \
+		$(COMPOSE_CMD) --profile toolbox run --rm --user 0 toolbox bash -lc 'chown -R 1000:1000 /workspace/.cache/go-build /workspace/.cache/go-mod /workspace/.cache/golangci-lint 2>/dev/null || true; chmod -R 777 /workspace/.cache/go-build /workspace/.cache/go-mod /workspace/.cache/golangci-lint 2>/dev/null || true'; \
+	fi
+	@echo "✅ Cache volume permissions adjusted"
+
 # Aggregate cache clean (Go + lint + node_modules optional purge)
 .PHONY: cache-clean-all
 cache-clean-all:
@@ -163,6 +175,32 @@ cache-clean-all:
 	@$(MAKE) lint-cache-clean
 	@echo "(node_modules untouched; run 'make node-modules-clean' if you add such a target later)"
 	@echo "✅ All caches purged"
+
+# Aggregate Go security scan (container-first)
+.PHONY: security-scan
+security-scan:
+	@echo "🔐 Running Go security & quality scan (govulncheck, gosec, vet, golangci-lint)" 
+	@$(MAKE) toolbox-exec ARGS='bash -lc "go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./..."'
+	@$(MAKE) toolbox-exec ARGS='bash -lc "go install github.com/securego/gosec/v2/cmd/gosec@v2.21.0 && gosec -conf .gosec.json -fmt json -out gosec-results.json ./... || true"'
+	@$(MAKE) toolbox-exec ARGS='bash -lc "gosec -conf .gosec.json -fmt text ./... || true"'
+	@$(MAKE) toolbox-exec ARGS='bash -lc "go vet ./..."'
+	@$(MAKE) toolbox-exec ARGS='bash -lc "curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$GOPATH/bin v1.55.2 && golangci-lint run --timeout=5m"'
+	@echo "✅ Security scan complete"
+
+# Extended security scan capturing artifacts similar to CI script
+.PHONY: security-scan-artifacts
+security-scan-artifacts:
+	@echo "🔐 Running Go security scan with artifact capture"
+	@rm -rf security-artifacts && mkdir -p security-artifacts
+	@$(MAKE) toolbox-exec ARGS='bash -lc "go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./... | tee security-artifacts/govulncheck.txt || true"'
+	@$(MAKE) toolbox-exec ARGS='bash -lc "govulncheck -json ./... > security-artifacts/govulncheck.json 2>/dev/null || true"'
+	@$(MAKE) toolbox-exec ARGS='bash -lc "go install github.com/securego/gosec/v2/cmd/gosec@v2.21.0 && gosec -conf .gosec.json -fmt json -out security-artifacts/gosec-results.json ./... || true"'
+	@$(MAKE) toolbox-exec ARGS='bash -lc "gosec -conf .gosec.json -fmt text ./... | tee security-artifacts/gosec.txt || true"'
+	@$(MAKE) toolbox-exec ARGS='bash -lc "go vet ./... > security-artifacts/go-vet.txt 2>&1 || true"'
+	@$(MAKE) toolbox-exec ARGS='bash -lc "curl -sSfL https://raw.githubusercontent.com/golangci-lint/master/install.sh | sh -s -- -b $$GOPATH/bin v1.55.2"'
+	@$(MAKE) toolbox-exec ARGS='bash -lc "golangci-lint run --timeout=5m -out-format json > security-artifacts/golangci-lint.json || true"'
+	@$(MAKE) toolbox-exec ARGS='bash -lc "golangci-lint run --timeout=5m > security-artifacts/golangci-lint.txt || true"'
+	@echo "Artifacts written to security-artifacts/:" && ls -1 security-artifacts || true
 
 # Default target
 help:
@@ -546,10 +584,16 @@ k8s-secrets:
 # Build toolbox image
 toolbox-build:
 	@printf "\n🔧 Building GOTRS toolbox container...\n"
-	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
-		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) build $(COMPOSE_BUILD_FLAGS) toolbox; \
+	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
+		echo "⚠️  compose not available; falling back to direct docker build"; \
+		command -v docker >/dev/null 2>&1 || (echo "docker not installed" && exit 1); \
+		docker build -f Dockerfile.toolbox -t gotrs-toolbox:latest .; \
 	else \
-		$(COMPOSE_CMD) --profile toolbox build $(COMPOSE_BUILD_FLAGS) toolbox; \
+		if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+			COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) build $(COMPOSE_BUILD_FLAGS) toolbox; \
+		else \
+			$(COMPOSE_CMD) --profile toolbox build $(COMPOSE_BUILD_FLAGS) toolbox; \
+		fi; \
 	fi
 	@printf "✅ Toolbox container ready\n"
 
@@ -563,9 +607,9 @@ toolbox-run:
 toolbox-exec:
 	@$(call ensure_caches)
 	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
-		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox bash -c 'export GOFLAGS="-buildvcs=false $$GOFLAGS"; export PATH="/usr/local/go/bin:$$PATH"; $(ARGS)'; \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox bash -c 'mkdir -p /workspace/.cache/go-build /workspace/.cache/go-mod; chmod 777 /workspace/.cache /workspace/.cache/go-build /workspace/.cache/go-mod 2>/dev/null || true; export GOCACHE=/workspace/.cache/go-build; export GOMODCACHE=/workspace/.cache/go-mod; export GOFLAGS="-buildvcs=false $$GOFLAGS"; export PATH="/usr/local/go/bin:$$PATH"; $(ARGS)'; \
 	else \
-		$(COMPOSE_CMD) --profile toolbox run --rm toolbox bash -c 'export GOFLAGS="-buildvcs=false $$GOFLAGS"; export PATH="/usr/local/go/bin:$$PATH"; $(ARGS)'; \
+		$(COMPOSE_CMD) --profile toolbox run --rm toolbox bash -c 'mkdir -p /workspace/.cache/go-build /workspace/.cache/go-mod; chmod 777 /workspace/.cache /workspace/.cache/go-build /workspace/.cache/go-mod 2>/dev/null || true; export GOCACHE=/workspace/.cache/go-build; export GOMODCACHE=/workspace/.cache/go-mod; export GOFLAGS="-buildvcs=false $$GOFLAGS"; export PATH="/usr/local/go/bin:$$PATH"; $(ARGS)'; \
 	fi
 
 # API testing with automatic authentication

@@ -4605,7 +4605,6 @@ func handleActivityStream(c *gin.Context) {
 				return
 			}
 		}
-		return
 	}
 
 	// Send real activity updates from ticket_history

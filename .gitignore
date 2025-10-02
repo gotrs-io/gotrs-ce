@@ -267,7 +267,6 @@ demo-data/
 docs/_build/
 docs/.docusaurus/
 site/
-
 # ============================================
 # Testing & Quality
 # ============================================
@@ -281,7 +280,6 @@ test.sqlite3
 e2e/screenshots/
 cypress/screenshots/
 cypress/videos/
-playwright-report/
 test-results/
 
 # Benchmarks
@@ -297,17 +295,11 @@ benchmarks/*.json
 # ============================================
 
 # Private keys
-*.pem
-*.key
-id_rsa
-id_rsa.pub
-id_dsa
 id_dsa.pub
 id_ecdsa
 id_ecdsa.pub
 id_ed25519
 id_ed25519.pub
-
 # Secrets
 secrets/
 .secrets/
@@ -363,7 +355,6 @@ development.sqlite3
 .claude/*.local.json
 CLAUDE.local.md
 *.local.md
-internal/api/storage/
 
 # ============================================
 # OTRS Legal Compliance
@@ -376,8 +367,7 @@ local/
 # Development artifacts and temporary files
 # ============================================
 
-# Test output directories
-tests/
+# Test output directories (retain only results, not sources)
 test-results/
 
 # Docker test configs
@@ -401,11 +391,9 @@ test_*.js
 test_*.html
 test-results*.html
 *_debug.go
-*_test_*.go
 browser_test.py
 
 # Internal test storage
-internal/api/storage/
 
 # ============================================
 # Task Status Tracking (Temporary)
@@ -445,7 +433,7 @@ static-*.txt
 cookies.txt
 
 # Temporary test files
-test_*.go
+# (keep optional scratch patterns below – removed test_*.go to allow tracking helper sources)
 debug_*.go
 *_test_init.go
 *_test_db.go

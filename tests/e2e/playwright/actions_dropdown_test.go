@@ -1,0 +1,39 @@
+package playwright
+
+import (
+    "testing"
+    "github.com/gotrs-io/gotrs-ce/tests/e2e/helpers"
+    "github.com/playwright-community/playwright-go"
+    "github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/require"
+)
+
+func TestActionsDropdownVisibility(t *testing.T) {
+    browser := helpers.NewBrowserHelper(t)
+    if browser.Config.AdminEmail == "" || browser.Config.AdminPassword == "" {
+        t.Skip("Admin credentials not configured")
+    }
+    err := browser.Setup()
+    require.NoError(t, err)
+    defer browser.TearDown()
+
+    auth := helpers.NewAuthHelper(browser)
+
+    t.Run("Actions dropdown is visible on ticket detail page", func(t *testing.T) {
+        err := auth.Login(browser.Config.AdminEmail, browser.Config.AdminPassword)
+        require.NoError(t, err)
+        err = browser.NavigateTo("/tickets/1")
+        require.NoError(t, err)
+        currentURL := browser.Page.URL()
+        assert.Contains(t, currentURL, "/tickets/1")
+        _ = browser.Page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateNetworkidle})
+        actionsButton := browser.Page.Locator("button:has-text('Actions')")
+        count, err := actionsButton.Count()
+        require.NoError(t, err)
+        if count == 0 { t.Error("Actions dropdown button not found") }
+        actionsDropdown := browser.Page.Locator("#actionsDropdown")
+        isVisible, err := actionsDropdown.IsVisible()
+        require.NoError(t, err)
+        assert.False(t, isVisible)
+    })
+}

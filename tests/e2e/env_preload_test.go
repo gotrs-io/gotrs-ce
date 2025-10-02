@@ -1,0 +1,14 @@
+package e2e
+
+// This file ensures the .env loader in config runs before any tests access os.Getenv directly.
+// It deliberately triggers config.GetConfig() which performs a one-time .env parse.
+
+import (
+    _ "github.com/gotrs-io/gotrs-ce/tests/e2e/config" // import for side-effect: init + GetConfig invocation below
+    "github.com/gotrs-io/gotrs-ce/tests/e2e/config"
+)
+
+func init() {
+    // Trigger configuration load (and .env parsing) as early as possible.
+    config.GetConfig()
+}

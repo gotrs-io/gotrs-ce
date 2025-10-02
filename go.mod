@@ -1,8 +1,6 @@
 module github.com/gotrs-io/gotrs-ce
 
-go 1.23.0
-
-toolchain go1.24.6
+go 1.24
 
 require (
 	github.com/99designs/gqlgen v0.17.78

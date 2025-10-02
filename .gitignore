@@ -232,7 +232,7 @@ $RECYCLE.BIN/
 uploads/
 attachments/
 files/
-storage/
+# Removed 'storage/' to allow tracking internal/storage Go sources
 
 # Generated files
 generated/

@@ -470,6 +470,29 @@ No further action needed on numbering unless hot reload requirement emerges.
 
 ---
 
+### ✅ Update: October 5, 2025 – Admin Dashboard Dedup & Queue Overview Stats
+
+Status since Oct 4:
+- Refactored admin dashboard to reuse exported handler (removed duplicated inline implementation) – stabilizes navigation context injection (commit: `1f41701`).
+- Ensured persistent visibility of Admin & Dev tabs across admin routes (nav condition relaxation).
+- Agent Queues overview page upgraded with per-queue state counts (new/open/pending/closed/total) + search filter (commit: `ba20161`).
+- Dark mode contrast & UI polish adjustments applied to totals column.
+- No additional ticket vertical slice capabilities landed yet (creation, articles, status changes still pending).
+
+Next Immediate Focus (unchanged priority): Ticket Creation Vertical Slice
+1. Implement ticket creation API handler (persist ticket + initial article, redirect to real zoom).
+2. HTMX create form (agent) with validation (queue, title, priority).
+3. Real ticket zoom (replace fallback) rendering ticket + (empty) articles list.
+4. Begin article (public/internal) add path.
+
+Risk Watch:
+- Scope creep into articles before create path is stable – enforce sequence above.
+- Template drift – add new templates to startup validation once create + zoom land.
+
+No roadmap timeline adjustments required; proceeding with vertical slice execution next.
+
+---
+
 ## 🧩 Planned: Ticket Number Generator Integration & Config Wiring (October 2025)
 
 This section captures the precise, minimal, non-duplicative plan to wire the existing unified YAML configuration platform to the already implemented ticket number generators in `internal/ticketnumber/` without recreating solved components.

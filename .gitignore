@@ -449,3 +449,7 @@ runtime/routes-manifest.json
 runtime/.manifest.tmp
 runtime/testfile
 static/js/test_write
+
+# TDD ephemeral state
+.tdd-state
+.tdd-state.tmp

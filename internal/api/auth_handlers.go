@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"time"
+	"strings"
 
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
@@ -17,6 +18,14 @@ var HandleAuthLogin = func(c *gin.Context) {
 	// Get form data (not JSON since it's coming from an HTML form)
 	username := c.PostForm("username")
 	password := c.PostForm("password")
+	if username == "" { username = c.PostForm("login") }
+	if username == "" { username = c.PostForm("email") }
+	if username == "" { username = c.PostForm("user") }
+	provider := c.PostForm("provider")
+	if provider == "" {
+		provider = c.Query("provider")
+	}
+	provider = strings.ToLower(provider)
 
 	if username == "" || password == "" {
 		// Return error that HTMX can display
@@ -42,6 +51,8 @@ var HandleAuthLogin = func(c *gin.Context) {
 	defer cancel()
 
 	// Use the real auth service for production-grade authentication
+	// NOTE: provider ordering currently controlled via config Auth::Providers.
+	// Explicit provider field is advisory; future: route to single-provider auth path.
 	user, accessToken, refreshToken, err := authService.Login(ctx, username, password)
 	if err != nil {
 		// Check if this is an HTMX request
@@ -94,6 +105,7 @@ var HandleAuthLogin = func(c *gin.Context) {
 	// Store user in session (use "user_id" to match middleware)
 	c.Set("user", user)
 	c.Set("user_id", user.ID)
+	if provider != "" { c.Set("auth_provider", provider) }
 
 	// Check if this is an HTMX request or regular form submission
 	if c.GetHeader("HX-Request") == "true" {

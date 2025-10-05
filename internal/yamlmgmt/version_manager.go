@@ -24,6 +24,11 @@ type VersionManager struct {
 	schemas     map[YAMLKind]*Schema
 }
 
+var globalVersionManager *VersionManager
+
+// GetVersionManager returns the last created version manager (best-effort singleton).
+func GetVersionManager() *VersionManager { return globalVersionManager }
+
 // NewVersionManager creates a new version manager
 func NewVersionManager(storageDir string) *VersionManager {
 	vm := &VersionManager{
@@ -40,6 +45,7 @@ func NewVersionManager(storageDir string) *VersionManager {
 	// Load existing versions
 	vm.loadAllVersions()
 	
+	globalVersionManager = vm
 	return vm
 }
 

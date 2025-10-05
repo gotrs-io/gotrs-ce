@@ -2,8 +2,16 @@
 # Copy this file to config.yaml for local development overrides
 # These values override default.yaml
 # DO NOT commit config.yaml to version control
+# Typical local uses: set secrets, adjust timezone, tweak logging.
 
-# Example overrides for local development:
+# Example overrides:
+# app:
+#   timezone: Europe/London
+# database:
+#   password: my_secure_password   # or rely on DB_PASSWORD env var
+# auth:
+#   jwt:
+#     secret: my-local-dev-secret-key
 
 app:
   debug: true
@@ -11,6 +19,7 @@ app:
 
 database:
   host: localhost
+  # Provide local dev password here OR export DB_PASSWORD; leave blank to force env usage.
   password: my_secure_password
 
 valkey:
@@ -18,6 +27,7 @@ valkey:
 
 auth:
   jwt:
+    # Local-only secret; production should set GOTRS_JWT_SECRET env var.
     secret: "my-local-development-secret-key-change-in-production"
 
 email:

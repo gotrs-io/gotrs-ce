@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/constants"
@@ -77,31 +75,7 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 			priorityID = "5"
 		}
 
-		// Generate ticket number
-		tn := fmt.Sprintf("%d%02d%02d%02d%02d%02d",
-			time.Now().Year(),
-			time.Now().Month(),
-			time.Now().Day(),
-			time.Now().Hour(),
-			time.Now().Minute(),
-			time.Now().Second())
-
-		// Test-mode fallback for when database is not available
-		if os.Getenv("APP_ENV") == "test" && db == nil {
-			// Return mock success response
-			c.JSON(http.StatusCreated, gin.H{
-				"success": true,
-				"data": gin.H{
-					"id":          fmt.Sprintf("%d", time.Now().Unix()),
-					"tn":          tn,
-					"title":       title,
-					"queue_id":    queueID,
-					"priority_id": priorityID,
-					"state_id":    stateID,
-				},
-			})
-			return
-		}
+		// Manual TN generation removed; repository handles ticket number based on configured generator
 
 		// Get database connection
 		if db == nil {
@@ -179,58 +153,35 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 			}
 		}
 
-		// Create ticket (schema requires explicit NOT NULL fields)
-		insertQuery := `
-			INSERT INTO ticket (
-								tn, title, queue_id, ticket_lock_id, type_id,
-								user_id, responsible_user_id,
-								ticket_priority_id, ticket_state_id,
-								customer_id, customer_user_id,
-								timeout, until_time, escalation_time, escalation_update_time,
-								escalation_response_time, escalation_solution_time,
-								archive_flag, create_time, create_by, change_time, change_by
-							) VALUES (
-								$1,$2,$3,$4,$5,
-								$6,$7,
-								$8,$9,
-								$10,$11,
-								$12,$13,$14,$15,
-								$16,$17,
-								$18,NOW(),$19,NOW(),$20
-							) RETURNING id
-			`
-		insertQuery = database.ConvertQuery(insertQuery)
-		adapter := database.GetAdapter()
-		id64, err := adapter.InsertWithReturning(
-			db,
-			insertQuery,
-			tn,                  // $1 tn
-			title,               // $2 title
-			queueIDInt,          // $3 queue_id
-			1,                   // $4 ticket_lock_id (unlocked)
-			typeIDInt,           // $5 type_id
-			int(userID),         // $6 user_id (owner)
-			int(userID),         // $7 responsible_user_id
-			priorityIDInt,       // $8 ticket_priority_id
-			stateIDInt,          // $9 ticket_state_id
-			customerIDValue,     // $10 customer_id
-			customerUserIDValue, // $11 customer_user_id
-			0,                   // $12 timeout
-			0,                   // $13 until_time
-			0,                   // $14 escalation_time
-			0,                   // $15 escalation_update_time
-			0,                   // $16 escalation_response_time
-			0,                   // $17 escalation_solution_time
-			0,                   // $18 archive_flag
-			int(userID),         // $19 create_by
-			int(userID),         // $20 change_by
-		)
-		if err != nil {
-			log.Printf("Error creating ticket: %v", err)
+		// Build ticket model and use repository (central generator + logging)
+		var typePtr *int
+		if typeIDInt != 0 { typePtr = &typeIDInt }
+		var custIDPtr *string
+		if customerIDValue.Valid { v := customerIDValue.String; custIDPtr = &v }
+		var custUserPtr *string
+		if customerUserIDValue.Valid { v := customerUserIDValue.String; custUserPtr = &v }
+		var userIDInt = int(userID)
+		ticketModel := &models.Ticket{
+			Title:            title,
+			QueueID:          queueIDInt,
+			TicketLockID:     1,
+			TypeID:           typePtr,
+			UserID:           &userIDInt,
+			ResponsibleUserID:&userIDInt,
+			TicketPriorityID: priorityIDInt,
+			TicketStateID:    stateIDInt,
+			CustomerID:       custIDPtr,
+			CustomerUserID:   custUserPtr,
+			CreateBy:         userIDInt,
+			ChangeBy:         userIDInt,
+		}
+		tRepo := repository.NewTicketRepository(db)
+		if err := tRepo.Create(ticketModel); err != nil {
+			log.Printf("Error creating ticket via repository: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create ticket"})
 			return
 		}
-		ticketID := int(id64)
+		ticketID := ticketModel.ID
 
 		// Determine interaction / article type
 		interaction := c.PostForm("interaction_type")
@@ -273,8 +224,8 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 			}
 		}
 
-		// Redirect to ticket view using the generated ticket number (TN)
-		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/tickets/%s", tn))
+		// Redirect to ticket view using repository-assigned ticket number
+		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/tickets/%s", ticketModel.TicketNumber))
 	}
 }
 

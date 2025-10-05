@@ -79,13 +79,13 @@ settings:
     default: "Date"
     options:
       - value: "Date"
-        label: "Date-based (YYYYMMDDhhmmss)"
+        label: "Date-based (YYYYMMDD + SystemID + counter)"
       - value: "DateChecksum"
-        label: "Date with checksum"
+        label: "Date + checksum digit"
       - value: "Random"
-        label: "Random number"
+        label: "Random (SystemID + 10 digits)"
       - value: "Increment"
-        label: "Incremental"
+        label: "Increment (SystemID + 0 + counter)"
     required: true
     readonly: false
     invisible: false
@@ -262,6 +262,23 @@ settings:
     readonly: false
     invisible: false
     has_config_level: 100
+    user_modification_possible: false
+
+  # ============================================
+  # Authentication Settings
+  # ============================================
+
+  - name: "Auth::Providers"
+    navigation: "Core::Auth"
+    description: "Ordered list of auth providers to attempt (database, ldap, static)"
+    group: "Framework"
+    type: "array"
+    default:
+      - "database"
+    required: true
+    readonly: false
+    invisible: false
+    has_config_level: 150
     user_modification_possible: false
 
   # ============================================

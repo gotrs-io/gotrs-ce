@@ -1,16 +1,13 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
-	"github.com/gotrs-io/gotrs-ce/internal/service/ticket_number"
 )
 
 // HandleCreateTicketAPI handles ticket creation via API
@@ -25,14 +22,16 @@ func HandleCreateTicketAPI(c *gin.Context) {
 		}
 	}
 	var ticketRequest struct {
-		Title          string                 `json:"title" binding:"required"`
-		QueueID        int                    `json:"queue_id" binding:"required"`
-		TypeID         int                    `json:"type_id"`
-		StateID        int                    `json:"state_id"`
-		PriorityID     int                    `json:"priority_id"`
-		CustomerUserID string                 `json:"customer_user_id"`
-		CustomerID     string                 `json:"customer_id"`
-		Article        map[string]interface{} `json:"article"`
+		Title                   string                 `json:"title" binding:"required"`
+		QueueID                 int                    `json:"queue_id" binding:"required"`
+		TypeID                  int                    `json:"type_id"`
+		StateID                 int                    `json:"state_id"`
+		PriorityID              int                    `json:"priority_id"`
+		CustomerUserID          string                 `json:"customer_user_id"`
+		CustomerID              string                 `json:"customer_id"`
+		PendingDurationSeconds  int                    `json:"pending_duration_seconds"`
+		PendingUntil            string                 `json:"pending_until"` // RFC3339 timestamp
+		Article                 map[string]interface{} `json:"article"`
 	}
 
 	if err := c.ShouldBindJSON(&ticketRequest); err != nil {
@@ -60,30 +59,9 @@ func HandleCreateTicketAPI(c *gin.Context) {
 		}
 	}
 
-	// Get database connection
+	// Get database connection (required for real creation)
 	db, err := database.GetDB()
 	if err != nil || db == nil {
-		if os.Getenv("APP_ENV") == "test" {
-			// Validate queue
-			if ticketRequest.QueueID <= 0 || ticketRequest.QueueID > 100 {
-				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid queue_id"})
-				return
-			}
-			// Return created with mock payload matching assertions
-			c.JSON(http.StatusCreated, gin.H{
-				"success": true,
-				"data": gin.H{
-					"id":            fmt.Sprintf("%d", time.Now().Unix()),
-					"ticket_number": time.Now().Format("20060102150405") + "1",
-					"tn":            time.Now().Format("20060102150405") + "1",
-					"title":         ticketRequest.Title,
-					"queue_id":      ticketRequest.QueueID,
-					"state_id":      1,
-				},
-			})
-			return
-		}
-		// non-test: real error
 		c.JSON(http.StatusServiceUnavailable, gin.H{"success": false, "error": "Database connection failed"})
 		return
 	}
@@ -99,32 +77,7 @@ func HandleCreateTicketAPI(c *gin.Context) {
 		return
 	}
 
-	// Create ticket number generator
-	generatorConfig := map[string]interface{}{
-		"type": os.Getenv("TICKET_NUMBER_GENERATOR"),
-	}
-	if generatorConfig["type"] == "" {
-		generatorConfig["type"] = "date"
-	}
-
-	generator, err := ticket_number.NewGeneratorFromConfig(db, generatorConfig)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to initialize ticket number generator",
-		})
-		return
-	}
-
-	// Generate ticket number
-	ticketNumber, err := generator.Generate()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   fmt.Sprintf("Failed to generate ticket number: %v", err),
-		})
-		return
-	}
+	// Ticket number now generated centrally in repository via injected generator
 
 	// Set defaults for missing values
 	if ticketRequest.TypeID == 0 {
@@ -137,50 +90,60 @@ func HandleCreateTicketAPI(c *gin.Context) {
 		ticketRequest.PriorityID = 3 // normal
 	}
 
-	// Begin transaction for ticket creation (article handled separately via repository)
-	tx, err := db.Begin()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to start transaction"})
+	// Build ticket model and use central repository (handles TN + timestamps)
+	// Prepare pointer fields
+	var typeIDPtr *int
+	if ticketRequest.TypeID != 0 { typeIDPtr = &ticketRequest.TypeID }
+	var custUserPtr *string
+	if ticketRequest.CustomerUserID != "" { custUserPtr = &ticketRequest.CustomerUserID }
+	var custIDPtr *string
+	if ticketRequest.CustomerID != "" { custIDPtr = &ticketRequest.CustomerID }
+	var userIDPtr = &userID
+	var respUserIDPtr = &userID
+
+	ticketModel := &models.Ticket{
+		Title:              ticketRequest.Title,
+		QueueID:            ticketRequest.QueueID,
+		TypeID:             typeIDPtr,
+		TicketStateID:      ticketRequest.StateID,
+		TicketPriorityID:   ticketRequest.PriorityID,
+		CustomerUserID:     custUserPtr,
+		CustomerID:         custIDPtr,
+		TicketLockID:       1,
+		UserID:             userIDPtr,
+		ResponsibleUserID:  respUserIDPtr,
+		Timeout:            0,
+		UntilTime:          0,
+		EscalationTime:     0,
+		EscalationUpdateTime: 0,
+		EscalationResponseTime: 0,
+		EscalationSolutionTime: 0,
+		ArchiveFlag:        0,
+		CreateBy:           userID,
+		ChangeBy:           userID,
+	}
+	// Pending state timeout logic
+	if ticketRequest.StateID == models.TicketStatePending {
+		// Prefer explicit pending_until
+		if ticketRequest.PendingUntil != "" {
+			if t, e := time.Parse(time.RFC3339, ticketRequest.PendingUntil); e == nil {
+				// store as unix epoch seconds (OTRS stores integer epoch in timeout)
+				secs := int(t.Unix())
+				if secs > 0 { ticketModel.Timeout = secs }
+			}
+		}
+		if ticketModel.Timeout == 0 && ticketRequest.PendingDurationSeconds > 0 {
+			seconds := time.Now().Add(time.Duration(ticketRequest.PendingDurationSeconds) * time.Second).Unix()
+			if seconds > 0 { ticketModel.Timeout = int(seconds) }
+		}
+		// If still zero, leave as 0 meaning no scheduled pending auto-action yet.
+	}
+	repo := repository.NewTicketRepository(db)
+	if err := repo.Create(ticketModel); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create ticket: " + err.Error()})
 		return
 	}
-	defer tx.Rollback()
-
-	adapter := database.GetAdapter()
-
-	// Insert ticket
-	ticketQuery := database.ConvertPlaceholders(`
-		INSERT INTO ticket (
-			tn, title, queue_id, type_id, ticket_state_id, 
-			ticket_priority_id, customer_user_id, customer_id,
-			ticket_lock_id, user_id, responsible_user_id,
-			timeout, until_time, escalation_time, escalation_update_time,
-			escalation_response_time, escalation_solution_time,
-			create_time, create_by, change_time, change_by
-		) VALUES (
-			$1, $2, $3, $4, $5, 
-			$6, $7, $8,
-			1, $9, $10,
-			0, 0, 0, 0, 0, 0,
-			NOW(), $11, NOW(), $12
-		) RETURNING id
-	`)
-
-	ticketID, err := adapter.InsertWithReturningTx(
-		tx,
-		ticketQuery,
-		ticketNumber, ticketRequest.Title, ticketRequest.QueueID,
-		ticketRequest.TypeID, ticketRequest.StateID,
-		ticketRequest.PriorityID, ticketRequest.CustomerUserID, ticketRequest.CustomerID,
-		userID, userID, userID, userID,
-	)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to create ticket: " + err.Error(),
-		})
-		return
-	}
+	ticketID := ticketModel.ID
 
 	// Create initial article if provided using repository
 	if ticketRequest.Article != nil {
@@ -213,14 +176,7 @@ func HandleCreateTicketAPI(c *gin.Context) {
 		}
 	}
 
-	// Commit transaction
-	if err = tx.Commit(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to commit transaction",
-		})
-		return
-	}
+	// (Ticket + optional article already persisted via repositories; no manual tx to commit here)
 
 	// Fetch the created ticket for response
 	var ticket struct {
@@ -236,36 +192,18 @@ func HandleCreateTicketAPI(c *gin.Context) {
 		CreateTime     time.Time `json:"create_time"`
 	}
 
-	// Query the created ticket
-	query := database.ConvertPlaceholders(`
-		SELECT id, tn, title, queue_id, type_id, ticket_state_id,
-		       ticket_priority_id, customer_user_id, customer_id, create_time
-		FROM ticket
-		WHERE id = $1
-	`)
-
-	row := db.QueryRow(query, ticketID)
-	err = row.Scan(
-		&ticket.ID, &ticket.TicketNumber, &ticket.Title,
-		&ticket.QueueID, &ticket.TypeID, &ticket.StateID,
-		&ticket.PriorityID, &ticket.CustomerUserID, &ticket.CustomerID,
-		&ticket.CreateTime,
-	)
-
-	if err != nil {
-		// Ticket was created but we can't fetch it - still return success with basic info
-		c.JSON(http.StatusCreated, gin.H{
-			"success": true,
-			"data": gin.H{
-				"id":       ticketID,
-				"tn":       ticketNumber,
-				"title":    ticketRequest.Title,
-				"queue_id": ticketRequest.QueueID,
-				"message":  "Ticket created successfully",
-			},
-		})
-		return
-	}
+	// Build response directly from model (already populated with TN)
+	ticket.ID = int64(ticketModel.ID)
+	ticket.TicketNumber = ticketModel.TicketNumber
+	ticket.Title = ticketModel.Title
+	ticket.QueueID = ticketModel.QueueID
+	if ticketModel.TypeID != nil { ticket.TypeID = *ticketModel.TypeID }
+	ticket.StateID = ticketModel.TicketStateID
+	ticket.PriorityID = ticketModel.TicketPriorityID
+	ticket.CreateTime = ticketModel.CreateTime
+	// Customer fields (nullable compatibility)
+	if ticketModel.CustomerUserID != nil { ticket.CustomerUserID = ticketModel.CustomerUserID }
+	if ticketModel.CustomerID != nil { ticket.CustomerID = ticketModel.CustomerID }
 
 	// Return full ticket data
 	c.JSON(http.StatusCreated, gin.H{

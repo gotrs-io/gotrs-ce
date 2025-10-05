@@ -168,7 +168,6 @@ EOF
             mkdir -p "$PROJECT_ROOT/tests/integration"
             cat > "$test_file" << EOF
 //go:build integration
-// +build integration
 
 package integration
 

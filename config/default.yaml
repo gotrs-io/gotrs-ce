@@ -1,6 +1,15 @@
 # GOTRS Default Configuration
-# This file contains default values for all configuration options.
-# Override these in config.yaml (for local development) or via environment variables.
+# Non-secret baseline defaults shipped with the project.
+# Precedence (low→high): default.yaml < config/config.yaml (gitignored) < environment vars.
+# Do not put real passwords, tokens, or production secrets here.
+# Example local override (config/config.yaml):
+#   app:
+#     timezone: Europe/London
+#   database:
+#     password: ${DEV_DB_PASSWORD}
+#   auth:
+#     jwt:
+#       secret: ${DEV_JWT_SECRET}
 
 app:
   name: GOTRS
@@ -36,8 +45,8 @@ database:
   host: postgres
   port: 5432
   name: gotrs
-  user: gotrs
-  password: gotrs_dev_password
+  user: gotrs            # Non-secret default username
+  password: ""           # Blank: supply via config/config.yaml or env DB_PASSWORD
   ssl_mode: disable
   max_open_conns: 25
   max_idle_conns: 25
@@ -64,7 +73,8 @@ valkey:
 
 auth:
   jwt:
-    secret: "change-me-in-production"
+    # Placeholder only; override with GOTRS_JWT_SECRET or config/config.yaml
+    secret: "development-placeholder-not-for-production"
     issuer: gotrs
     audience: gotrs-api
     access_token_ttl: 15m
@@ -128,43 +138,9 @@ storage:
       - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 
 ticket:
-  # Ticket number generator configuration (OTRS-compatible)
-  number_generator:
-    # Generator type: date, date_checksum, auto_increment, random
-    type: date  # Default matches OTRS DateChecksum format
-    
-    # Date-based generator (OTRS Date format)
-    # Produces: 2025082814000001 (YYYYMMDDHHnnnnnn)
-    date:
-      include_hour: true     # Include hour in format
-      counter_digits: 6      # Counter padding (000001)
-      reset_daily: true      # Reset counter each day
-      
-    # Auto-increment generator (Simple sequential)
-    # Produces: T-0000001, T-0000002
-    auto_increment:
-      prefix: "T-"           # Ticket prefix
-      min_digits: 7          # Minimum digit padding
-      start_from: 1000       # Starting counter value
-      
-    # Random generator (Non-sequential)
-    # Produces: TKT-A3X9K2M8
-    random:
-      length: 8              # Random string length
-      charset: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-      prefix: "TKT-"         # Optional prefix
-      
-    # Date with checksum (OTRS DateChecksum)
-    # Produces: 20250828-000001-42 (date-counter-checksum)
-    date_checksum:
-      separator: "-"         # Separator character
-      counter_digits: 6      # Counter padding
-      checksum_length: 2     # Checksum digits
-      reset_daily: true      # Reset counter each day
-  
-  # Default ticket settings
+  # Ticket settings (OTRS-compatible defaults)
   default_priority: 3        # 3 = normal (OTRS priority IDs)
-  default_state: 1           # 1 = new (OTRS state IDs) 
+  default_state: 1           # 1 = new (OTRS state IDs)
   default_queue: 1           # 1 = Raw (OTRS queue IDs)
   default_lock: 1            # 1 = unlock (OTRS lock IDs)
   auto_assign: false

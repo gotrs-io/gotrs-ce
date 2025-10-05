@@ -137,10 +137,17 @@ func (ca *ConfigAdapter) GetConfigValue(settingName string) (interface{}, error)
 	for _, setting := range settings {
 		if s, ok := setting.(map[string]interface{}); ok {
 			if name, ok := s["name"].(string); ok && name == settingName {
-				if value, exists := s["default"]; exists {
-					return value, nil
+				// Precedence: explicit 'value' overrides 'default' when present and non-empty
+				if v, exists := s["value"]; exists {
+					// Treat zero-values (empty string) as intentional override; only ignore if nil
+					if v != nil {
+						return v, nil
+					}
 				}
-				return nil, fmt.Errorf("setting '%s' has no default value", settingName)
+				if d, exists := s["default"]; exists {
+					return d, nil
+				}
+				return nil, fmt.Errorf("setting '%s' has no value or default", settingName)
 			}
 		}
 	}

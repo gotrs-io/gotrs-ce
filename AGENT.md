@@ -188,6 +188,16 @@ Environment paths (inside toolbox):
 
 Do not manually delete these inside containers; prefer the Make targets to keep workflow consistent.
 
+### Cache Ownership & Guard Policy
+- Canonical cache roots live under `/workspace/.cache/*` (build, mod, golangci-lint).
+- The `cache_guard` runs automatically on major targets; it warns if any entries are owned by a UID/GID other than the invoking developer (UID 1000 inside containers by convention).
+- Use `make cache-audit` to list ownership anomalies (foreign UID/GID first, then full listing).
+- Use `make toolbox-fix-cache` to conditionally normalize ownership (only runs chown/chmod when mismatches exist).
+- Avoid running ad hoc root containers that write into bind-mounted cache directories; if unavoidable, run `make toolbox-fix-cache` afterward.
+- Do not rely on `chmod 777`; we now prefer `775` after normalization for least‑permissive collaborative access.
+- If a workflow needs to bypass the guard (e.g. diagnosing container image layers), set `CACHE_GUARD_DISABLE=1` when invoking the Make target (e.g. `CACHE_GUARD_DISABLE=1 make toolbox-test`).
+
+
 ## Legal & Compliance
 - GOTRS-CE is an original implementation; maintain compatibility without copying upstream code
 - Keep all secrets in environment variables; generate via project tooling; do not commit

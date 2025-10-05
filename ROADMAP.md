@@ -202,7 +202,7 @@ gotrs-migrate --source postgres://user:pass@host/db \
 - [ ] Create ticket submission form UI
 - [x] Display ticket list (agent view) — minimal fallback for tests
 - [x] Basic ticket detail view (Ticket Zoom test-mode fallback, handler wiring)
-- [ ] Generate proper ticket numbers
+- [x] Generate proper ticket numbers
 
 ### Week 2: Ticket Management (Sep 5-11, 2025)
 - [ ] Article/comment system (add replies to tickets)
@@ -457,3 +457,228 @@ Given slippage past original Sept 30 MVP, set a realistic 0.4.0 target: **Octobe
 - Testing README: how to run contract + snapshot suites
 
 *Last updated: October 2, 2025 – Added MVP focus sequence and anti-regression strategy. No new core ticket features since prior update; execution pivots to ticket vertical slice.*
+
+---
+
+### ✅ Update: October 4, 2025 – Ticket Number Generator Live
+Successfully created first real ticket via new generator path (example ID: `20251004094740`).
+- Roadmap item "Generate proper ticket numbers" marked complete.
+- Legacy `generateTicketNumber()` fully removed; repository/service use injected `ticketnumber.Generator`.
+- Next focus: real ticket creation handler + zoom view (replace test-mode fallback) and article system.
+
+No further action needed on numbering unless hot reload requirement emerges.
+
+---
+
+## 🧩 Planned: Ticket Number Generator Integration & Config Wiring (October 2025)
+
+This section captures the precise, minimal, non-duplicative plan to wire the existing unified YAML configuration platform to the already implemented ticket number generators in `internal/ticketnumber/` without recreating solved components.
+
+### Current State (Baseline)
+* Generators implemented & tested: AutoIncrement (Increment), Date, DateChecksum, Random.
+* Counter abstraction (`DBStore`) present; concurrency tests green.
+* Unified YAML platform (versioning, lint, schema, hot reload) fully operational (`internal/yamlmgmt`).
+* `ConfigAdapter` can import legacy `config/Config.yaml` and expose settings (slice-based `settings` list).
+* Schema defines settings `SystemID` and `Ticket::NumberGenerator` but runtime server code does not consume them.
+* Ticket creation path still uses legacy daily counting logic (not generator interface).
+
+### Goals
+1. Resolve generator name from config (`Ticket::NumberGenerator`) at startup.
+2. Obtain `SystemID` from config (int → string) and feed to generator config.
+3. Inject a `ticketnumber.Generator` into ticket creation workflow (repository/service) instead of legacy function.
+4. Provide safe fallback & logging on invalid configuration.
+5. Enable (optional) hot reload of generator if config changes, without destabilizing in-flight operations.
+6. Add targeted integration tests (config → generator → produced number shape) without duplicating existing unit tests.
+
+### Non-Goals (Avoid Rework)
+* Do NOT re-implement YAML parsing / version management / lint / schema.
+* Do NOT convert `settings` slice to a map prematurely (optimize later if needed).
+* Do NOT build a second configuration loader.
+* Do NOT change generator algorithms (already parity tested).
+* Do NOT expand schema yet (reuse existing names exactly: `Increment`, `Date`, `DateChecksum`, `Random`).
+
+### Implementation Steps (Minimal Surface)
+1. Bootstrap at server startup:
+   * Instantiate `yamlmgmt.VersionManager` pointing to config dir (if not already).
+   * If no current `system-config`, call `ConfigAdapter.ImportConfigYAML("./config/Config.yaml")` (idempotent guard).
+2. Create lightweight runtime accessor (optional helper) or reuse `ConfigAdapter` directly for `GetConfigValue`.
+3. Add `internal/ticketnumber/registry.go`:
+   * `func Resolve(name string, sysID string, store CounterStore, clk Clock) (Generator, error)`.
+   * Internal map: `Increment -> AutoIncrement`, `Date -> Date`, `DateChecksum -> DateChecksum`, `Random -> Random`.
+   * Case-sensitive match (exact per schema); return error if unknown.
+4. Retrieve values:
+   * `sysIDVal, _ := adapter.GetConfigValue("SystemID")` (int or string) → normalize to string.
+   * `genNameVal, _ := adapter.GetConfigValue("Ticket::NumberGenerator")` → string.
+5. Instantiate `DBStore` with `SystemID` once (share among generators requiring counters).
+6. Resolve generator; on error log warning & fallback (policy below).
+7. Refactor ticket creation path:
+   * Inject `Generator` into repository/service struct (constructor parameter).
+   * Replace legacy `generateTicketNumber()` with `g.Generate(ctx)`. (DONE – legacy function removed from repository & service)
+8. (Deferred Optional) Register hot reload handler for `KindConfig`:
+   * On changed settings: if either `SystemID` or `Ticket::NumberGenerator` changed, rebuild generator under mutex swap.
+9. Add integration tests:
+   * Table: generator name → regex pattern assert (e.g., DateChecksum: `^\d{8}\d{2}\d{5}\d$`).
+   * Invalid name scenario: set to `Bogus` → expect fallback + logged warning.
+10. Documentation updates:
+   * Add brief “Ticket Number Generator Selection” subsection referencing config keys (in this ROADMAP + maybe a dedicated doc later).
+
+### Fallback & Error Policy
+* Unknown `Ticket::NumberGenerator` → log warning once at startup; fallback order: prefer `DateChecksum` (checksum safety) then `Date` if that somehow fails.
+* Missing `SystemID` → default to `10` (current examples) with warning.
+* Hot reload invalid change: keep existing generator; emit warning event.
+
+### Hot Reload Strategy (Initial)
+* Phase 1: No live swap (static at startup) – simplest path to delivery.
+* Phase 2 (optional): Add handler; atomic pointer swap of `Generator`; maintain metrics (reload count, last change time).
+* Guard: if generator type switches between counter-based and random, reuse existing `DBStore`; safe as interface doesn’t retain state besides config.
+
+### Testing Strategy
+* Reuse existing unit/concurrency tests (no duplication).
+* New integration test harness builds minimal in-memory config version via `VersionManager` (no filesystem dependency if feasible) OR uses temp dir inside `tmp/` (ignored by git) consistent with project rules.
+* Patterns asserted, not concrete numbers (avoid flakiness for date/time).
+* Log capture for invalid name fallback test.
+
+### Risk & Mitigations
+| Risk | Mitigation |
+|------|------------|
+| Config adapter returns unexpected type (int vs float64 from YAML decode) | Normalize via type switch utility |
+| Concurrent ticket creation during generator swap (future hot reload) | Atomic pointer + RW mutex; not needed Phase 1 |
+| Legacy code paths still call old function | Grep & remove/redirect `generateTicketNumber` usages | DONE |
+| Performance regression on each number generation (re-reading config) | Resolve once; generator holds config values |
+| Fallback masking real config errors | Emit structured warning (once) + metric counter |
+
+### Minimal PR Sequencing
+1. Registry + startup wiring (static resolution) + repository injection (no hot reload).
+2. Replace all legacy calls & remove dead code; add integration tests.
+3. Optional: hot reload handler + swap logic.
+4. Docs + metrics (if desired) – small follow-up.
+
+### Done Criteria
+* Startup logs chosen generator and SystemID.
+* Ticket creation path exclusively uses `ticketnumber.Generator`.
+* Changing config (manual edit + re-import) and restarting picks new format.
+* All existing tests still green; new integration tests pass.
+* No duplicated config parsing logic introduced.
+* ROADMAP & (optional) docs mention configuration keys clearly.
+
+### Deferred (Explicitly)
+* Runtime hot reload of generator (Phase 2).
+* Exposure of generator choice in an admin UI.
+* Metrics (counter collisions, generation latency).
+* Alternative legacy daily counter compatibility layer (only if required later).
+
+---
+
+## 🐐 Platform vs Product Executables (GoatKit vs GoTRS) – Draft Plan (Captured Oct 4, 2025)
+
+Purpose: Preserve intent to evolve a reusable platform (GoatKit) while continuing product (GoTRS) feature delivery without losing focus on current A-path work (ticket number integration & ticket vertical slice).
+
+### Current Executable Inventory (cmd/)
+Platform‑leaning tools (can be generalized):
+- route-docs, route-lint, route-version, routes-diff, routes-manifest
+- gotrs-config, gk (config manager / alias)
+- schema-discovery
+- contract-runner
+- generator (code/resource generation)
+- xlat-extract, test_xlat, test_i18n, add-translations (i18n tooling)
+
+Product / domain-specific (GoTRS / OTRS compatibility):
+- gotrs (CLI with synthesize/reset-user)
+- goats (likely current server runtime – confirm before refactor)
+- gotrs-db, gotrs-migrate, gotrs-babelfish, import-otrs
+- gotrs-storage
+- add-ticket-translations (ticket-domain i18n)
+
+Ambiguous / needs review:
+- services/ (entrypoints pending inspection)
+- generator (scope clarity required)
+
+### Gap Summary
+- No namespace separation (all under gotrs-ce).
+- Platform identity “GoatKit” not yet codified (no `kit-` binaries).
+- Platform code lives in product-centric package paths; prevents external adopters.
+
+### Incremental Extraction Strategy
+Phase 1 (Documentation Only – low risk):
+1. Classify executables (DONE here – persist in repo).
+2. Add Makefile groups: PLATFORM_BINARIES / PRODUCT_BINARIES (future task).
+
+Phase 2 (Aliases & Identity):
+1. Introduce alias wrappers: `kit-config` (calls gotrs-config), `kit-routes` (multiplexer for route-* tools), `kit-i18n`.
+2. Help text prints deprecation notice for old names once aliases stable.
+
+Phase 3 (Package Boundary):
+1. Create `pkg/kit/...` (public) or `internal/kit/...` (staging) for: config versioning facade, route versioning, i18n extract, ticket number generator interface.
+2. Move thin adapters in product layer referencing reused core.
+
+Phase 4 (Module Split – optional later):
+1. New module `github.com/gotrs-io/goatkit`.
+2. Migrate packages; keep replace directive locally during transition.
+
+### Non-Goals Now
+- No immediate renaming of existing binaries; avoid churn while ticket vertical slice incomplete.
+- No premature module split before core ticket creation + generator wiring are stable.
+
+### Risks & Mitigations
+| Risk | Mitigation |
+|------|------------|
+| Distraction from MVP | Timebox platform work after ticket slice milestones |
+| User scripts break with new names | Provide aliases + deprecation period |
+| Over-extraction before API stabilizes | Defer module split; start with doc + alias |
+
+### Action Backlog (To Revisit Post Ticket Slice)
+1. Add Makefile groups & echo in help target.
+2. Introduce alias binaries (tiny main wrappers).
+3. Draft `pkg/kit` README (scope + stability promises).
+4. Identify minimal stable interfaces (ConfigVersioning, RouteVersioning, IdentifierGenerator, I18NExtractor).
+5. Prepare migration guide for adopting GoatKit separately.
+
+---
+## 🧩 Service Registry Evolution (Aspirational) – Added Oct 5, 2025
+
+File: `config/services.yaml.disabled`
+
+Status: Prototype / not loaded. Represents a future declarative multi‑service registry (DB primary/replica, cache, search, queue, storage) with bindings and migration strategies.
+
+Current Reality:
+- Runtime today only auto‑configures a single database (`primary-db`) from environment variables via `internal/services/adapter/database_adapter.go`.
+- No YAML ingestion path; the disabled file is inert.
+- Other declared services (cache, search, queue, storage) are not provisioned through a unified loader.
+
+Why It Matters (Future Value):
+- Centralize connection definitions (credentials via env interpolation) for portability.
+- Enable blue/green + canary migration orchestration (already sketched in file under `migrations:`).
+- Provide consistent binding model across apps (`gotrs`, future analytics workers) instead of ad‑hoc env wiring.
+
+Phase Placement:
+- Target implementation window: **Phase 2: Enhancement (Q1–Q2 2026)**, after core ticket vertical slice and stabilization are complete.
+
+Planned Minimal Increment (Phase 2 Early):
+1. Define loader: parse `config/services.yaml` (if present) → validate schema → register services & bindings.
+2. Environment interpolation `${VAR}` with required/optional semantics and startup validation.
+3. Fallback: if file absent, retain current env auto-config path.
+4. Expose `/admin/debug/services` endpoint enumerating registered services & health.
+
+Deferred (Later in Phase 2 or Phase 3):
+- Live migration orchestrator (blue‑green/canary execution engine) with progress events.
+- Health monitoring + automatic failover for replica → primary promotion.
+- Secret resolution via external vault provider abstraction.
+
+Risks & Mitigations:
+| Risk | Mitigation |
+|------|------------|
+| Overcomplicates early MVP | Keep loader optional; ignore if file missing |
+| Stale credentials cached | Short TTL or on-demand refresh for credentialed services |
+| Divergent config sources | Single authoritative registry when file present; disable env auto-config except overrides |
+
+Exit Criteria (Phase 2 milestone):
+- Loader activated when `config/services.yaml` exists (renamed from `.disabled`).
+- All currently hard-coded DB init paths refactored to registry consumption.
+- Admin debug endpoint lists at least primary-db + replica-db with health state.
+- Documentation section added describing format & precedence.
+
+Action (Before Phase 2 Starts):
+- Keep the file disabled to avoid confusion; no partial loader implementation.
+- Revisit once ticket system + core admin modules are stable and Viper integration settled.
+
+---

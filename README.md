@@ -145,6 +145,29 @@ GOTRS uses a modern, hypermedia-driven architecture that scales from single-serv
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical documentation.
 
+### Pluggable Authentication
+
+Authentication supports an ordered provider list configured via the `Auth::Providers` setting in `Config.yaml` (default: `[database]`). Implemented providers:
+
+- `database` (agents + customer users from the database)
+- `ldap` (optional; enable with environment variables `LDAP_ENABLED=true` and related LDAP settings)
+- `static` (in-memory users for demos/tests)
+
+Static users are enabled by setting the environment variable `GOTRS_STATIC_USERS` at runtime (NOT committed). Format:
+
+```
+GOTRS_STATIC_USERS="alice:password:Agent,bob:secret:Customer,carol:adminpass:Admin"
+```
+
+Notes:
+- Do not add this variable (or sample secrets) to committed `.env` files to avoid GitLeaks false positives.
+- Passwords may be plain or pre-hashed (bcrypt / legacy SHA from OTRS). The verifier auto-detects.
+- Omit the variable entirely to disable the static provider silently.
+
+Provider resolution order: the system attempts each provider in the configured list until one authenticates or all fail.
+
+Implementation note: the `Auth::Providers` list is read at startup via the unified configuration adapter; the main process wires this adapter into the auth service so changes to the list (after a restart) alter provider selection order without code changes.
+
 ### Development Policies
 
 - Database access: This project uses `database/sql` with a thin `database.ConvertPlaceholders` wrapper to support PostgreSQL and MySQL. All SQL must be wrapped. See `DATABASE_ACCESS_PATTERNS.md`.
@@ -206,6 +229,12 @@ For production deployments, see our comprehensive guides:
 - [Bare Metal Installation](docs/deployment/bare-metal.md)
 
 ## Documentation
+
+- Configuration System: `docs/configuration.md`
+- Ticket Number Generators: `docs/ticket_number_generators.md`
+- YAML Platform: `docs/YAML_PLATFORM.md`
+- Architecture: `ARCHITECTURE.md`
+- Roadmap: `ROADMAP.md`
 
 - [Getting Started Guide](docs/getting-started/quickstart.md)
 - [Administrator Manual](docs/admin-guide/README.md)

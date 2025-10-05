@@ -92,10 +92,9 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *CreateTicketReque
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	// Create ticket entity
+	// Create ticket entity (number assigned by repository generator path)
 	ticket := &Ticket{
 		ID:          generateTicketID(),
-		Number:      generateTicketNumber(),
 		Title:       req.Title,
 		Description: req.Description,
 		Priority:    req.Priority,
@@ -433,9 +432,6 @@ func generateTicketID() string {
 	return fmt.Sprintf("TKT-%d", time.Now().UnixNano())
 }
 
-func generateTicketNumber() string {
-	return fmt.Sprintf("T-%d-%06d", time.Now().Year(), time.Now().UnixNano()%1000000)
-}
 
 func generateEventID() string {
 	return fmt.Sprintf("EVT-%d", time.Now().UnixNano())

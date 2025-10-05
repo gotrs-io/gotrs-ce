@@ -13,6 +13,13 @@ func RegisterExistingHandlers(registry *HandlerRegistry) {
 	// Register middleware only - all route handlers are now in YAML
 	middlewares := map[string]gin.HandlerFunc{
 		"auth": func(c *gin.Context) {
+			// Public (unauthenticated) paths bypass auth
+			path := c.Request.URL.Path
+			if path == "/login" || path == "/api/auth/login" || path == "/health" || path == "/metrics" || path == "/favicon.ico" || strings.HasPrefix(path, "/static/") {
+				c.Next()
+				return
+			}
+
 			// Check for token in cookie (auth_token) or Authorization header
 			token, err := c.Cookie("auth_token")
 			if err != nil || token == "" {

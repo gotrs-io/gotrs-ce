@@ -64,6 +64,7 @@ type Ticket struct {
 	CustomerUserID         *string    `json:"customer_user_id,omitempty" db:"customer_user_id"`
 	TicketStateID          int        `json:"ticket_state_id" db:"ticket_state_id"`
 	TicketPriorityID       int        `json:"ticket_priority_id" db:"ticket_priority_id"`
+	Timeout                int        `json:"timeout,omitempty" db:"timeout"`
 	UntilTime              int        `json:"until_time" db:"until_time"`
 	EscalationTime         int        `json:"escalation_time" db:"escalation_time"`
 	EscalationUpdateTime   int        `json:"escalation_update_time" db:"escalation_update_time"`

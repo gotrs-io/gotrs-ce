@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"context"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -11,7 +13,7 @@ import (
 type seqGen struct{ mu sync.Mutex; i int }
 func (g *seqGen) Name() string { return "Increment" }
 func (g *seqGen) IsDateBased() bool { return false }
-func (g *seqGen) Next(ctx interface{}, store interface{}) (string, error) { g.mu.Lock(); defer g.mu.Unlock(); g.i++; return fmt.Sprintf("TN%05d", g.i), nil }
+func (g *seqGen) Next(ctx context.Context, store noopStore) (string, error) { g.mu.Lock(); defer g.mu.Unlock(); g.i++; return fmt.Sprintf("TN%05d", g.i), nil }
 
 type noopStore struct{}
 func (noopStore) NextCounter(scope, date string) (int64, error) { return 1, nil }

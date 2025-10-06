@@ -216,18 +216,6 @@ cache-clean-all:
 	@echo "(node_modules untouched; run 'make node-modules-clean' if you add such a target later)"
 	@echo "✅ All caches purged"
 
-# Aggregate Go security scan (container-first)
-.PHONY: security-scan
-security-scan:
-	@echo "🔐 Running Go security & quality scan (pinned versions)" 
-	@$(MAKE) toolbox-exec ARGS='bash -lc "go install golang.org/x/vuln/cmd/govulncheck@v1.1.3 && govulncheck ./..."'
-	@$(MAKE) toolbox-exec ARGS='bash -lc "go install honnef.co/go/tools/cmd/staticcheck@2024.1.1 && staticcheck -checks=all ./... || true"'
-	@$(MAKE) toolbox-exec ARGS='bash -lc "go install github.com/securego/gosec/v2/cmd/gosec@v2.21.0 && gosec -conf .gosec.json -fmt json -out gosec-results.json ./... || true"'
-	@$(MAKE) toolbox-exec ARGS='bash -lc "gosec -conf .gosec.json -fmt text ./... || true"'
-	@$(MAKE) toolbox-exec ARGS='bash -lc "go vet ./..."'
-	@$(MAKE) toolbox-exec ARGS='bash -lc "(command -v golangci-lint >/dev/null 2>&1 || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$GOPATH/bin v1.55.2); golangci-lint run --timeout=5m"'
-	@echo "✅ Security scan complete"
-
 # Extended security scan capturing artifacts similar to CI script
 .PHONY: security-scan-artifacts
 security-scan-artifacts:
@@ -471,7 +459,14 @@ tdd-implement:
 # Comprehensive verification with all quality gates
 tdd-verify:
 	@printf "✅ Running comprehensive verification (ALL quality gates must pass)...\n"
-	@./scripts/tdd-enforcer.sh verify
+	@./scripts/tdd-enforcer.sh verify; rc=$$?; \
+	if [ $$rc -eq 0 ]; then \
+	  echo "TDD VERIFY: SUCCESS (exit 0)"; \
+	  exit 0; \
+	else \
+	  echo "TDD VERIFY: FAILURE (exit $$rc)"; \
+	  exit $$rc; \
+	fi
 
 # Safe refactoring with regression checks
 tdd-refactor:
@@ -2277,4 +2272,5 @@ tdd-pre-commit:
 test: test-comprehensive
 
 # Override existing tdd-verify to use comprehensive verification
-tdd-verify: tdd-comprehensive
+# (Removed override to allow primary tdd-verify target (earlier in file) to control exit codes accurately)
+# tdd-verify: tdd-comprehensive

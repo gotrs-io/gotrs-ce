@@ -3446,8 +3446,16 @@ func handleCreateTicket(c *gin.Context) {
 		return
 	}
 
-	// Parse the request
-	var req service.CreateTicketRequest
+    // Parse the request into CreateTicketInput semantics
+	var req struct {
+		Subject       string
+		Body          string
+		Priority      string
+		QueueID       int
+		TypeID        int
+		CustomerEmail string
+		CustomerName  string
+	}
 
 	contentType := c.GetHeader("Content-Type")
 	if strings.Contains(contentType, "application/json") {
@@ -3536,8 +3544,15 @@ func handleCreateTicket(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
 		return
 	}
-	ticketService := service.NewTicketService(db)
-	result, err := ticketService.CreateTicket(&req, createBy)
+	repo := repository.NewTicketRepository(db)
+	ticketService := service.NewTicketService(repo)
+	createInput := service.CreateTicketInput{
+		Title:   req.Subject,
+		QueueID: req.QueueID,
+		UserID:  createBy,
+		Body:    req.Body,
+	}
+	result, err := ticketService.Create(c, createInput)
 	if err != nil {
 		log.Printf("Error creating ticket: %v", err)
 		// Provide more specific error messages

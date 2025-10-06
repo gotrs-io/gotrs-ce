@@ -2,8 +2,6 @@ package v1
 
 import (
 	"log"
-	"os"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/auth"

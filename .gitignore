@@ -456,3 +456,4 @@ static/js/test_write
 
 # Frontend install sentinel
 .frontend_deps_installed
+docker-compose.yml

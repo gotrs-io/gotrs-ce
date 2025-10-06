@@ -106,6 +106,7 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       VALKEY_HOST: valkey
       VALKEY_PORT: 6379
+      # JWT secret must be provided via environment (.env or shell); no unsafe default here
       JWT_SECRET: ${JWT_SECRET}
       PASSWORD_HASH_TYPE: ${PASSWORD_HASH_TYPE:-sha256}
       MIGRATE_PASSWORD_HASHES: ${MIGRATE_PASSWORD_HASHES:-false}

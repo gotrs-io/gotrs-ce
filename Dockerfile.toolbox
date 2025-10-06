@@ -79,6 +79,15 @@ COPY --from=toolbox-builder /go/bin/* /usr/local/bin/
 # Copy Go toolchain from builder (match go.mod toolchain)
 COPY --from=toolbox-builder /usr/local/go /usr/local/go
 
+# Verify go toolchain present; fallback install via apk + curl if copy failed (defensive)
+RUN if [ ! -x /usr/local/go/bin/go ]; then \
+            echo 'Go toolchain copy missing, installing fallback'; \
+            apk add --no-cache curl tar bash ca-certificates; \
+            curl -fsSL https://go.dev/dl/go1.24.6.linux-amd64.tar.gz -o /tmp/go.tgz; \
+            tar -C /usr/local -xzf /tmp/go.tgz; \
+            rm /tmp/go.tgz; \
+        fi && /usr/local/go/bin/go version || (echo 'Go toolchain unavailable after fallback' && exit 1)
+
 # Copy workspace files for development
 COPY --chown=appuser:appgroup . /workspace/
 

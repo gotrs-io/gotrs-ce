@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"regexp"
 	"testing"
 	"time"
@@ -19,13 +20,9 @@ func (f fakeCounterStore) IncrementCounter(scope string, date string) (int64, er
 // minimal generator fulfilling methods used in repository
 
 type fakeGenerator struct{ name string; seq int }
-
 func (g *fakeGenerator) Name() string { return g.name }
 func (g *fakeGenerator) IsDateBased() bool { return true }
-func (g *fakeGenerator) Next(ctx interface{}, store interface{}) (string, error) {
-	g.seq++
-	return time.Now().Format("20060102150405") + "00", nil
-}
+func (g *fakeGenerator) Next(ctx context.Context, store fakeCounterStore) (string, error) { g.seq++; return time.Now().Format("20060102150405") + "00", nil }
 
 // TestTicketRepositoryCreate_UsesGeneratorAndInserts ensures Create() calls generator and inserts row.
 func TestTicketRepositoryCreate_UsesGeneratorAndInserts(t *testing.T) {

@@ -66,5 +66,11 @@ if [ $# -eq 0 ]; then
     exit 0
 fi
 
-# Execute the compose command with all passed arguments
-exec $COMPOSE_CMD "$@"
+# Execute the compose command with all passed arguments (support multi-word command)
+if echo "$COMPOSE_CMD" | grep -q ' '; then
+    # Split into array so multi-word command executes properly
+    IFS=' ' read -r -a _cmd_parts <<< "$COMPOSE_CMD"
+    exec "${_cmd_parts[@]}" "$@"
+else
+    exec "$COMPOSE_CMD" "$@"
+fi

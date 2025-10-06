@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,20 +12,17 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
-	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
-	"github.com/gotrs-io/gotrs-ce/internal/ticketnumber"
 )
 
 type stubGen struct{ n string }
 func (g stubGen) Name() string { return "Date" }
 func (g stubGen) IsDateBased() bool { return true }
-func (g stubGen) Next(ctx interface{}, store interface{}) (string, error) { return g.n, nil }
+func (g stubGen) Next(ctx context.Context, store repositoryCounterStore) (string, error) { return g.n, nil }
 
-// store stub
+// minimal counter store adapter to satisfy repository expectations via ticketnumber.CounterStore subset
+type repositoryCounterStore interface { }
 type stubStore struct{}
-func (s stubStore) NextCounter(scope, date string) (int64, error) { return 1, nil }
-func (s stubStore) IncrementCounter(scope, date string) (int64, error) { return 1, nil }
 
 // prepareRouter minimal for handler
 func setupCreateRouter() *gin.Engine {

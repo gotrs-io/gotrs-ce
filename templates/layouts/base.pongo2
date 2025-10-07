@@ -39,6 +39,9 @@
     
     <!-- Common utilities -->
     <script src="/static/js/common.js"></script>
+    <!-- GoatKit typeahead enhancement -->
+    <script src="/static/js/goatkit-typeahead.js"></script>
+    <script src="/static/js/goatkit-autocomplete.js"></script>
     
     <!-- Custom styles -->
     <style>

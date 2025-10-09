@@ -1524,22 +1524,63 @@ reset-password:
 valkey-cli:
 	$(COMPOSE_CMD) exec valkey valkey-cli
 
-# i18n Tools
-babelfish:
-	@printf "Building gotrs-babelfish...\n"	$(COMPOSE_CMD) exec backend go build -o /tmp/bin/gotrs-babelfish cmd/gotrs-babelfish/main.go
-	@printf "✨ gotrs-babelfish built successfully!\n"
-	@printf "Run it with: docker exec gotrs-backend /tmp/gotrs-babelfish\n"
-babelfish-run:
-	@$(COMPOSE_CMD) exec backend go run cmd/gotrs-babelfish/main.go $(ARGS)
+# i18n Tools (run via toolbox to ensure Go toolchain is available)
+babelfish: toolbox-build
+	@printf "Building gotrs-babelfish (toolbox)...\n"
+	@$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		-w /workspace \
+		-u "$$UID:$$GID" \
+		-e GOCACHE=/workspace/.cache/go-build \
+		-e GOMODCACHE=/workspace/.cache/go-mod \
+		gotrs-toolbox:latest \
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH && mkdir -p /workspace/tmp/bin && go build -buildvcs=false -o /workspace/tmp/bin/gotrs-babelfish cmd/gotrs-babelfish/main.go'
+	@printf "✨ gotrs-babelfish built at tmp/bin/gotrs-babelfish\n"
+	@printf "Run with: make babelfish-run ARGS='-help'\n"
+babelfish-run: toolbox-build
+	@$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		-w /workspace \
+		-u "$$UID:$$GID" \
+		-e GOCACHE=/workspace/.cache/go-build \
+		-e GOMODCACHE=/workspace/.cache/go-mod \
+		gotrs-toolbox:latest \
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH && go run -buildvcs=false cmd/gotrs-babelfish/main.go $(ARGS)'
 
-babelfish-coverage:
-	@$(COMPOSE_CMD) exec backend go run cmd/gotrs-babelfish/main.go -action=coverage
+babelfish-coverage: toolbox-build
+	@$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		-w /workspace \
+		-u "$$UID:$$GID" \
+		-e GOCACHE=/workspace/.cache/go-build \
+		-e GOMODCACHE=/workspace/.cache/go-mod \
+		gotrs-toolbox:latest \
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH && go run -buildvcs=false cmd/gotrs-babelfish/main.go -action=coverage'
 
-babelfish-validate:
-	@$(COMPOSE_CMD) exec backend go run cmd/gotrs-babelfish/main.go -action=validate -lang=$(LANG)
+babelfish-validate: toolbox-build
+	@$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		-w /workspace \
+		-u "$$UID:$$GID" \
+		-e GOCACHE=/workspace/.cache/go-build \
+		-e GOMODCACHE=/workspace/.cache/go-mod \
+		gotrs-toolbox:latest \
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH && go run -buildvcs=false cmd/gotrs-babelfish/main.go -action=validate -lang=$(LANG)'
 
-babelfish-missing:
-	@$(COMPOSE_CMD) exec backend go run cmd/gotrs-babelfish/main.go -action=missing -lang=$(LANG)
+babelfish-missing: toolbox-build
+	@$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		-w /workspace \
+		-u "$$UID:$$GID" \
+		-e GOCACHE=/workspace/.cache/go-build \
+		-e GOMODCACHE=/workspace/.cache/go-mod \
+		gotrs-toolbox:latest \
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH && go run -buildvcs=false cmd/gotrs-babelfish/main.go -action=missing -lang=$(LANG)'
 
 test-short:
 	$(COMPOSE_CMD) exec -e DB_NAME=$${DB_NAME:-gotrs}_test -e APP_ENV=test backend go test -short ./...

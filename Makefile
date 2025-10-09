@@ -1521,10 +1521,12 @@ reset-password:
 
 
 # Valkey CLI
+
 valkey-cli:
 	$(COMPOSE_CMD) exec valkey valkey-cli
 
 # i18n Tools (run via toolbox to ensure Go toolchain is available)
+BF_FLAGS ?= -v
 babelfish: toolbox-build
 	@printf "Building gotrs-babelfish (toolbox)...\n"
 	@$(CONTAINER_CMD) run --rm \
@@ -1569,7 +1571,7 @@ babelfish-validate: toolbox-build
 		-e GOCACHE=/workspace/.cache/go-build \
 		-e GOMODCACHE=/workspace/.cache/go-mod \
 		gotrs-toolbox:latest \
-		bash -lc 'export PATH=/usr/local/go/bin:$$PATH && go run -buildvcs=false cmd/gotrs-babelfish/main.go -action=validate -lang=$(LANG)'
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH && go run -buildvcs=false cmd/gotrs-babelfish/main.go -action=validate -lang=$(LANG) $(BF_FLAGS)'
 
 babelfish-missing: toolbox-build
 	@$(CONTAINER_CMD) run --rm \
@@ -1580,7 +1582,7 @@ babelfish-missing: toolbox-build
 		-e GOCACHE=/workspace/.cache/go-build \
 		-e GOMODCACHE=/workspace/.cache/go-mod \
 		gotrs-toolbox:latest \
-		bash -lc 'export PATH=/usr/local/go/bin:$$PATH && go run -buildvcs=false cmd/gotrs-babelfish/main.go -action=missing -lang=$(LANG)'
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH && go run -buildvcs=false cmd/gotrs-babelfish/main.go -action=missing -lang=$(LANG) $(BF_FLAGS)'
 
 test-short:
 	$(COMPOSE_CMD) exec -e DB_NAME=$${DB_NAME:-gotrs}_test -e APP_ENV=test backend go test -short ./...

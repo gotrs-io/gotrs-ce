@@ -357,6 +357,7 @@ help:
 	@printf "  \033[0;32mmake toolbox-exec ARGS='go version'\033[0m   ⚡ Execute commands in toolbox\n"
 	@printf "  \033[0;32mmake verify-container-first\033[0m      🔒 Check for raw host Go commands\n"
 	@printf "  \033[0;32mmake api-call METHOD=GET ENDPOINT=/api/lookups/statuses\033[0m   🌐 Authenticated API calls\n"
+	@printf "  \033[0;32mmake api-call-form METHOD=PUT ENDPOINT=/admin/users/1 DATA='login=...&groups_submitted=1'\033[0m  🌐 Auth'd form-url-encoded call\n"
 	@printf "  \033[0;32mmake toolbox-compile\033[0m               🔨 Compile all Go packages\n"
 	@printf "  \033[0;32mmake toolbox-compile-api\033[0m           🚀 Compile API/goats only (faster)\n"
 	@printf "  \033[0;32mmake compile\033[0m                       🔨 Compile goats binary\n"
@@ -700,6 +701,19 @@ api-call:
 		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox bash scripts/api-test.sh "$$METHOD" "$(ENDPOINT)" "$(BODY)"; \
 	else \
 		$(COMPOSE_CMD) --profile toolbox run --rm toolbox bash scripts/api-test.sh "$$METHOD" "$(ENDPOINT)" "$(BODY)"; \
+	fi
+
+# API testing for form-urlencoded bodies with automatic authentication
+.PHONY: api-call-form
+api-call-form:
+	@if [ -z "$(ENDPOINT)" ]; then echo "❌ ENDPOINT required. Usage: make api-call-form [METHOD=PUT] ENDPOINT=/admin/users/1 [DATA='a=b&c=d']"; exit 1; fi
+	@if [ -z "$(METHOD)" ]; then METHOD=PUT; fi; \
+	printf "\n🔧 Making form API call: $$METHOD $(ENDPOINT)\n"; \
+	$(call ensure_caches); \
+	if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox bash scripts/api-form.sh "$$METHOD" "$(ENDPOINT)" "$(DATA)"; \
+	else \
+		$(COMPOSE_CMD) --profile toolbox run --rm toolbox bash scripts/api-form.sh "$$METHOD" "$(ENDPOINT)" "$(DATA)"; \
 	fi
 
 # Compile everything (bind mounts + caches)

@@ -28,11 +28,13 @@ if [[ -f ".env" ]]; then
     fi
 fi
 
-echo "DEBUG: BACKEND_URL=${BACKEND_URL:-<not set>}"
-echo "DEBUG: ADMIN_USER=${ADMIN_USER:-<not set>}"
-echo "DEBUG: ADMIN_PASSWORD=${ADMIN_PASSWORD:-<not set>}"
-echo "DEBUG: TEST_USERNAME=${TEST_USERNAME:-<not set>}"
-echo "DEBUG: TEST_PASSWORD=${TEST_PASSWORD:-<not set>}"
+if [[ "${GOTRS_DEBUG:-}" == "1" || "${VERBOSE:-}" == "1" ]]; then
+    echo "DEBUG: BACKEND_URL=${BACKEND_URL:-<not set>}"
+    echo "DEBUG: ADMIN_USER=${ADMIN_USER:-<not set>}"
+    echo "DEBUG: ADMIN_PASSWORD=${ADMIN_PASSWORD:-<not set>}"
+    echo "DEBUG: TEST_USERNAME=${TEST_USERNAME:-<not set>}"
+    echo "DEBUG: TEST_PASSWORD=${TEST_PASSWORD:-<not set>}"
+fi
 
 # Default test credentials if not set in .env
 # Prefer ADMIN_USER/ADMIN_PASSWORD, fall back to TEST_USERNAME/TEST_PASSWORD, then defaults
@@ -73,7 +75,9 @@ auth_json() {
     for e in "${endpoints[@]}"; do
         response=$(curl -k -s -w '\n%{http_code}' -X POST "$BACKEND_URL$e" -H 'Content-Type: application/json' -H 'Accept: application/json' -d "$payload" || true)
         body="${response%$'\n'*}"; http_code="${response##*$'\n'}"
-        echo "DEBUG: (POST $e) HTTP $http_code body: $body" >&2
+                if [[ "${GOTRS_DEBUG:-}" == "1" || "${VERBOSE:-}" == "1" ]]; then
+                    echo "DEBUG: (POST $e) HTTP $http_code body: $body" >&2
+                fi
         if [[ "$http_code" != "200" ]]; then continue; fi
         token=$(echo "$body" | jq -r '.access_token // .token // empty')
         if [[ -n "$token" && "$token" != "null" ]]; then
@@ -89,17 +93,25 @@ make_api_call() {
     local method="$1" endpoint="$2" body="${3:-}" attempts=0 max_attempts=2 token csrf header_args response status_line resp_body http_code
     while (( attempts < max_attempts )); do
         attempts=$((attempts+1))
-        echo "DEBUG: Auth attempt $attempts" >&2
+                if [[ "${GOTRS_DEBUG:-}" == "1" || "${VERBOSE:-}" == "1" ]]; then
+                    echo "DEBUG: Auth attempt $attempts" >&2
+                fi
         token=$(auth_json) || { echo "DEBUG: auth failed" >&2; return 1; }
     header_args=(-H "Authorization: Bearer $token" -H 'Content-Type: application/json' -H 'Accept: application/json')
-    echo "DEBUG: Using token=$token" >&2
+        if [[ "${GOTRS_DEBUG:-}" == "1" || "${VERBOSE:-}" == "1" ]]; then
+            echo "DEBUG: Using token=$token" >&2
+        fi
         local curl_parts=(-k -s -w '\n%{http_code}' -X "$method" "$BACKEND_URL$endpoint" "${header_args[@]}")
         if [[ -n "$body" ]]; then curl_parts+=(-d "$body"); fi
         status_line=$(curl "${curl_parts[@]}") || true
         resp_body="${status_line%$'\n'*}"; http_code="${status_line##*$'\n'}"
-        echo "DEBUG: ($method $endpoint) HTTP $http_code body: $resp_body" >&2
+                if [[ "${GOTRS_DEBUG:-}" == "1" || "${VERBOSE:-}" == "1" ]]; then
+                    echo "DEBUG: ($method $endpoint) HTTP $http_code body: $resp_body" >&2
+                fi
         if [[ "$http_code" == "401" && $attempts -lt $max_attempts ]]; then
-            echo "DEBUG: 401 received, retrying auth" >&2
+                        if [[ "${GOTRS_DEBUG:-}" == "1" || "${VERBOSE:-}" == "1" ]]; then
+                            echo "DEBUG: 401 received, retrying auth" >&2
+                        fi
             continue
         fi
         if echo "$resp_body" | jq . >/dev/null 2>&1; then
@@ -114,7 +126,9 @@ make_api_call() {
 }
 
 # Main script
-echo "DEBUG: Starting main script"
+if [[ "${GOTRS_DEBUG:-}" == "1" || "${VERBOSE:-}" == "1" ]]; then
+    echo "DEBUG: Starting main script"
+fi
 if [[ $# -lt 2 ]]; then
     log_error "Usage: $0 <METHOD> <ENDPOINT> [BODY]"
     log_error "Example: $0 GET /api/v1/tickets"
@@ -127,6 +141,8 @@ ENDPOINT="$2"
 if [[ -z "$METHOD" ]]; then METHOD="GET"; fi
 BODY="${3:-}"
 
-echo "DEBUG: METHOD=$METHOD, ENDPOINT=$ENDPOINT, BODY=$BODY"
+if [[ "${GOTRS_DEBUG:-}" == "1" || "${VERBOSE:-}" == "1" ]]; then
+    echo "DEBUG: METHOD=$METHOD, ENDPOINT=$ENDPOINT, BODY=$BODY"
+fi
 
 make_api_call "$METHOD" "$ENDPOINT" "$BODY"

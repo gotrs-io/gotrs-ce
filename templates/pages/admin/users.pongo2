@@ -158,9 +158,6 @@
                                 <div class="text-sm font-medium text-gray-900 dark:text-white">
                                     {% if user.Title %}{{ user.Title }} {% endif %}{{ user.FirstName }} {{ user.LastName }}
                                 </div>
-                                <div class="text-sm text-gray-500 dark:text-gray-400">
-                                    ID: {{ user.ID }}
-                                </div>
                             </div>
                         </div>
                     </td>
@@ -524,6 +521,8 @@ function submitUserForm(event) {
     selectedGroups.forEach(groupName => {
         formData.append('groups', groupName);
     });
+    // Signal that the groups field was intentionally submitted
+    formData.set('groups_submitted', '1');
     
     const url = userId ? `/admin/users/${userId}` : '/admin/users';
     const method = userId ? 'PUT' : 'POST';

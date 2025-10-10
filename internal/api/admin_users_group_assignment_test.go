@@ -121,6 +121,8 @@ func TestGroupAssignmentEdgeCases(t *testing.T) {
 		formData.Set("first_name", testUser.FirstName) 
 		formData.Set("last_name", testUser.LastName)
 		formData.Set("valid_id", "1")
+		// Explicitly indicate that groups was submitted with an empty selection
+		formData.Set("groups_submitted", "1")
 		// No groups added = should clear all memberships
 
 		req, err := http.NewRequest("PUT", "/admin/users/"+strconv.Itoa(testUser.ID),

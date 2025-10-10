@@ -211,6 +211,7 @@ func main() {
 
 	// Admin handlers
 	// Users handled by dynamic module system and specific admin user handlers
+		"handleAdminUsers":          api.HandleAdminUsers,
 		"handleAdminUserGet":          api.HandleAdminUserGet,
 		"handleAdminUserEdit":         api.HandleAdminUserEdit,
 		"handleAdminUserUpdate":       api.HandleAdminUserUpdate,

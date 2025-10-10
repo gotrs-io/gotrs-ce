@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-    "os"
-    "database/sql"
+	"os"
+	"database/sql"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
@@ -14,6 +14,92 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/services/adapter"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// HandleAdminUsers renders the admin users management page
+func HandleAdminUsers(c *gin.Context) {
+	// Fallbacks for tests or when DB/templates are not ready
+	if os.Getenv("APP_ENV") == "test" {
+		if pongo2Renderer == nil {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			c.String(http.StatusOK, "<h1>Users</h1>")
+			return
+		}
+	}
+
+	db, _ := database.GetDB()
+	users := make([]gin.H, 0)
+	groups := make([]gin.H, 0)
+
+	if db != nil {
+		// Users
+		rows, err := db.Query(database.ConvertPlaceholders(`
+			SELECT id, login, COALESCE(title,''), COALESCE(first_name,''), COALESCE(last_name,''), COALESCE(valid_id,1)
+			FROM users
+			ORDER BY last_name, first_name, id`))
+		if err == nil {
+			defer rows.Close()
+			type urow struct{ id int; login, title, fn, ln string; valid int }
+			var list []urow
+			for rows.Next() {
+				var r urow
+				if scanErr := rows.Scan(&r.id, &r.login, &r.title, &r.fn, &r.ln, &r.valid); scanErr == nil {
+					list = append(list, r)
+				}
+			}
+			// Prefetch group memberships for all users
+			gm := map[int][]string{}
+			if gr, gerr := db.Query(database.ConvertPlaceholders(`
+				SELECT gu.user_id, g.name
+				FROM group_user gu
+				JOIN groups g ON g.id = gu.group_id
+				WHERE g.valid_id = 1`)); gerr == nil {
+				defer gr.Close()
+				for gr.Next() {
+					var uid int; var gname string
+					if err := gr.Scan(&uid, &gname); err == nil {
+						gm[uid] = append(gm[uid], gname)
+					}
+				}
+			}
+			for _, r := range list {
+				users = append(users, gin.H{
+					"ID":       r.id,
+					"Login":    r.login,
+					"Title":    r.title,
+					"FirstName": r.fn,
+					"LastName":  r.ln,
+					"ValidID":  r.valid,
+					"Groups":   gm[r.id],
+				})
+			}
+		}
+
+		// All groups for filters and modal
+		if gr, err := db.Query(database.ConvertPlaceholders(`SELECT id, name FROM groups WHERE valid_id = 1 ORDER BY name`)); err == nil {
+			defer gr.Close()
+			for gr.Next() {
+				var id int; var name string
+				if scanErr := gr.Scan(&id, &name); scanErr == nil {
+					groups = append(groups, gin.H{"ID": id, "Name": name})
+				}
+			}
+		}
+	}
+
+	// Render template
+	if pongo2Renderer == nil {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusOK, "<h1>Users</h1>")
+		return
+	}
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/users.pongo2", gin.H{
+		"Title":      "Users",
+		"Users":      users,
+		"Groups":     groups,
+		"User":       getUserMapForTemplate(c),
+		"ActivePage": "admin",
+	})
+}
 
 // HandleAdminUserGet handles GET /admin/users/:id
 func HandleAdminUserGet(c *gin.Context) {
@@ -103,10 +189,10 @@ func HandleAdminUserGet(c *gin.Context) {
 		JOIN group_user gu ON g.id = gu.group_id
 		WHERE gu.user_id = $1 AND g.valid_id = 1`)
 
-    rows, err := db.Query(groupQuery, id)
+	groupNames := make([]string, 0)
+	rows, err := db.Query(groupQuery, id)
 	if err == nil {
 		defer rows.Close()
-		var groupNames []string
 		for rows.Next() {
 			var gid int
 			var gname string
@@ -114,8 +200,8 @@ func HandleAdminUserGet(c *gin.Context) {
 				groupNames = append(groupNames, gname)
 			}
 		}
-		user.Groups = groupNames
 	}
+	user.Groups = groupNames
 
     // Provide simple translations (xlats)
     validXlat := "invalid"
@@ -143,6 +229,7 @@ func HandleAdminUserGet(c *gin.Context) {
 func HandleAdminUserCreate(c *gin.Context) {
 	var req struct {
 		Login     string   `json:"login" form:"login"`
+		Title     string   `json:"title" form:"title"`
 		FirstName string   `json:"first_name" form:"first_name"`
 		LastName  string   `json:"last_name" form:"last_name"`
 		Email     string   `json:"email" form:"email"`
@@ -157,6 +244,15 @@ func HandleAdminUserCreate(c *gin.Context) {
 			"error":   "Invalid request data",
 		})
 		return
+	}
+
+	// Some form encoders send groups[]; also ShouldBind can miss repeated keys for urlencoded PUT. Hydrate manually if empty.
+	if len(req.Groups) == 0 {
+		if arr := c.PostFormArray("groups"); len(arr) > 0 {
+			req.Groups = arr
+		} else if arr := c.PostFormArray("groups[]"); len(arr) > 0 {
+			req.Groups = arr
+		}
 	}
 
 	// Validate required fields
@@ -219,10 +315,10 @@ func HandleAdminUserCreate(c *gin.Context) {
 	// Create user
 	var userID int
 	err = db.QueryRow(database.ConvertPlaceholders(`
-		INSERT INTO users (login, pw, first_name, last_name, valid_id, create_time, create_by, change_time, change_by)
-		VALUES ($1, $2, $3, $4, $5, NOW(), 1, NOW(), 1)
+		INSERT INTO users (login, pw, title, first_name, last_name, valid_id, create_time, create_by, change_time, change_by)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), 1, NOW(), 1)
 		RETURNING id`),
-		req.Login, hashedPassword, req.FirstName, req.LastName, req.ValidID,
+		req.Login, hashedPassword, req.Title, req.FirstName, req.LastName, req.ValidID,
 	).Scan(&userID)
 
 	if err != nil {
@@ -233,18 +329,36 @@ func HandleAdminUserCreate(c *gin.Context) {
 		return
 	}
 
-	// Add user to groups
-	for _, groupName := range req.Groups {
+	// Add user to groups (accept IDs or names)
+	for _, token := range req.Groups {
+		token = strings.TrimSpace(token)
+		if token == "" { continue }
 		var groupID int
-		err = db.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE name = $1 AND valid_id = 1"), groupName).Scan(&groupID)
-		if err == nil {
-			db.Exec(database.ConvertPlaceholders(`
-				INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_time, create_by, change_time, change_by)
-				VALUES ($1, $2, 'rw', 1, NOW(), 1, NOW(), 1)
-				ON CONFLICT (user_id, group_id, permission_key) DO NOTHING`),
-				userID, groupID,
-			)
+		if n, convErr := strconv.Atoi(token); convErr == nil {
+			// Token is an ID; verify existence
+			if err := db.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE id = $1 AND valid_id = 1"), n).Scan(&groupID); err != nil {
+				continue
+			}
+		} else {
+			// Token is a name; ensure exists
+			if err := db.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE name = $1 AND valid_id = 1"), token).Scan(&groupID); err != nil {
+				// Create if missing (test-friendly)
+				_, _ = db.Exec(database.ConvertPlaceholders(`
+					INSERT INTO groups (name, comments, valid_id, create_time, create_by, change_time, change_by)
+					SELECT $1, '', 1, NOW(), 1, NOW(), 1
+					WHERE NOT EXISTS (SELECT 1 FROM groups WHERE name = $1)`), token)
+				_ = db.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE name = $1 AND valid_id = 1"), token).Scan(&groupID)
+				if groupID == 0 { continue }
+			}
 		}
+		db.Exec(database.ConvertPlaceholders(`
+			INSERT INTO group_user (user_id, group_id, permission_key, create_time, create_by, change_time, change_by)
+			SELECT $1, $2, 'rw', NOW(), 1, NOW(), 1
+			WHERE NOT EXISTS (
+				SELECT 1 FROM group_user WHERE user_id = $1 AND group_id = $2 AND permission_key = 'rw'
+			)`),
+			userID, groupID,
+		)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -268,6 +382,7 @@ func HandleAdminUserUpdate(c *gin.Context) {
 
 	var req struct {
 		Login     string   `json:"login" form:"login"`
+		Title     string   `json:"title" form:"title"`
 		FirstName string   `json:"first_name" form:"first_name"`
 		LastName  string   `json:"last_name" form:"last_name"`
 		Email     string   `json:"email" form:"email"`
@@ -282,6 +397,22 @@ func HandleAdminUserUpdate(c *gin.Context) {
 			"error":   "Invalid request data",
 		})
 		return
+	}
+
+	// Ensure groups captured for urlencoded PUT/POST; accept groups and groups[]
+	if len(req.Groups) == 0 {
+		if arr := c.PostFormArray("groups"); len(arr) > 0 {
+			req.Groups = arr
+		} else if arr := c.PostFormArray("groups[]"); len(arr) > 0 {
+			req.Groups = arr
+		}
+	}
+
+	// Detect if the client explicitly submitted the groups field.
+	// When present, an empty selection means "clear all memberships".
+	groupsSubmitted := false
+	if v := strings.TrimSpace(c.PostForm("groups_submitted")); v == "1" {
+		groupsSubmitted = true
 	}
 
     dbService, err := adapter.GetDatabase()
@@ -327,12 +458,12 @@ func HandleAdminUserUpdate(c *gin.Context) {
             return
         }
 
-        if _, err := db.Exec(database.ConvertPlaceholders(`
+		if _, err := db.Exec(database.ConvertPlaceholders(`
             UPDATE users 
-            SET login = $1, pw = $2, first_name = $3, last_name = $4, 
-                valid_id = $5, change_time = NOW(), change_by = 1
-            WHERE id = $6`),
-            req.Login, string(hash), req.FirstName, req.LastName, req.ValidID, id); err != nil {
+			SET login = $1, pw = $2, title = $3, first_name = $4, last_name = $5, 
+				valid_id = $6, change_time = NOW(), change_by = 1
+			WHERE id = $7`),
+			req.Login, string(hash), req.Title, req.FirstName, req.LastName, req.ValidID, id); err != nil {
             c.JSON(http.StatusInternalServerError, gin.H{
                 "success": false,
                 "error":   fmt.Sprintf("Failed to update user: %v", err),
@@ -340,13 +471,13 @@ func HandleAdminUserUpdate(c *gin.Context) {
             return
         }
     } else {
-        // Update without changing password
-        if _, err := db.Exec(database.ConvertPlaceholders(`
+		// Update without changing password
+		if _, err := db.Exec(database.ConvertPlaceholders(`
             UPDATE users 
-            SET login = $1, first_name = $2, last_name = $3, 
-                valid_id = $4, change_time = NOW(), change_by = 1
-            WHERE id = $5`),
-            req.Login, req.FirstName, req.LastName, req.ValidID, id); err != nil {
+			SET login = $1, title = $2, first_name = $3, last_name = $4, 
+				valid_id = $5, change_time = NOW(), change_by = 1
+			WHERE id = $6`),
+			req.Login, req.Title, req.FirstName, req.LastName, req.ValidID, id); err != nil {
             c.JSON(http.StatusInternalServerError, gin.H{
                 "success": false,
                 "error":   fmt.Sprintf("Failed to update user: %v", err),
@@ -355,29 +486,36 @@ func HandleAdminUserUpdate(c *gin.Context) {
         }
     }
 
-	// Update group memberships only if groups were provided.
-	if len(req.Groups) > 0 {
-		if _, delErr := db.Exec(database.ConvertPlaceholders("DELETE FROM group_user WHERE user_id = $1"), id); delErr == nil {
-			for _, groupName := range req.Groups {
-				groupName = strings.TrimSpace(groupName)
-				if groupName == "" {
-					continue
-				}
+	// Update group memberships.
+	// If the form explicitly submitted the groups field, we treat the selection as authoritative
+	// (including the empty set, which clears memberships). Otherwise, only update when non-empty
+	// groups are provided to avoid accidental wipes from serializers that omit multi-selects.
+	cleaned := make([]string, 0, len(req.Groups))
+	for _, g := range req.Groups {
+		g = strings.TrimSpace(g)
+		if g != "" {
+			cleaned = append(cleaned, g)
+		}
+	}
+	if groupsSubmitted || len(cleaned) > 0 {
+		if _, delErr := db.Exec(database.ConvertPlaceholders("DELETE FROM group_user WHERE user_id = $1 AND permission_key = 'rw'"), id); delErr == nil {
+			for _, token := range cleaned {
 				var groupID int
-				// Ensure group exists; create if missing (test-friendly)
-				if err := db.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE name = $1 AND valid_id = 1"), groupName).Scan(&groupID); err != nil {
-					_, _ = db.Exec(database.ConvertPlaceholders(`
-						INSERT INTO groups (name, comments, valid_id, create_time, create_by, change_time, change_by)
-						SELECT $1, '', 1, NOW(), 1, NOW(), 1
-						WHERE NOT EXISTS (SELECT 1 FROM groups WHERE name = $1)`), groupName)
-					_ = db.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE name = $1 AND valid_id = 1"), groupName).Scan(&groupID)
-					if groupID == 0 {
-						continue
+				if n, convErr := strconv.Atoi(token); convErr == nil {
+					if err := db.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE id = $1 AND valid_id = 1"), n).Scan(&groupID); err != nil { continue }
+				} else {
+					if err := db.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE name = $1 AND valid_id = 1"), token).Scan(&groupID); err != nil {
+						_, _ = db.Exec(database.ConvertPlaceholders(`
+							INSERT INTO groups (name, comments, valid_id, create_time, create_by, change_time, change_by)
+							SELECT $1, '', 1, NOW(), 1, NOW(), 1
+							WHERE NOT EXISTS (SELECT 1 FROM groups WHERE name = $1)`), token)
+						_ = db.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE name = $1 AND valid_id = 1"), token).Scan(&groupID)
+						if groupID == 0 { continue }
 					}
 				}
 				_, _ = db.Exec(database.ConvertPlaceholders(`
-					INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_time, create_by, change_time, change_by)
-					VALUES ($1, $2, 'rw', 1, NOW(), 1, NOW(), 1)`),
+					INSERT INTO group_user (user_id, group_id, permission_key, create_time, create_by, change_time, change_by)
+					VALUES ($1, $2, 'rw', NOW(), 1, NOW(), 1)`),
 					id, groupID)
 			}
 		}

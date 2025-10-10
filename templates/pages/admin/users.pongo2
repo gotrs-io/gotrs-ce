@@ -306,7 +306,7 @@
                                 <button type="button" onclick="selectAllGroups(true)" class="text-xs px-2 py-1 border rounded-md text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">Select all</button>
                                 <button type="button" onclick="selectAllGroups(false)" class="text-xs px-2 py-1 border rounded-md text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">Clear</button>
                             </div>
-                            <div id="groupsList" class="mt-2 max-h-48 overflow-auto rounded-md border border-gray-300 dark:border-gray-600 divide-y divide-gray-100 dark:divide-gray-700">
+                            <div id="groupsList" class="mt-2 max-h-64 overflow-y-auto rounded-md border border-gray-300 dark:border-gray-600 divide-y divide-gray-100 dark:divide-gray-700">
                                 {% for group in Groups %}
                                 <label class="flex items-center gap-2 px-3 py-2 cursor-pointer select-none">
                                     <input type="checkbox" name="groups" value="{{ group.Name }}" data-group-id="{{ group.ID }}" class="rounded border-gray-300 dark:border-gray-600 text-gotrs-600 focus:ring-gotrs-500">

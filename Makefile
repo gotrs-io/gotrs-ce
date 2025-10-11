@@ -358,6 +358,7 @@ help:
 	@printf "  \033[0;32mmake verify-container-first\033[0m      🔒 Check for raw host Go commands\n"
 	@printf "  \033[0;32mmake api-call METHOD=GET ENDPOINT=/api/lookups/statuses\033[0m   🌐 Authenticated API calls\n"
 	@printf "  \033[0;32mmake api-call-form METHOD=PUT ENDPOINT=/admin/users/1 DATA='login=...&groups_submitted=1'\033[0m  🌐 Auth'd form-url-encoded call\n"
+	@printf "  \033[0;32mmake http-call ENDPOINT=/login\033[0m        🌐 Public HTTP call (no auth)\n"
 	@printf "  \033[0;32mmake toolbox-compile\033[0m               🔨 Compile all Go packages\n"
 	@printf "  \033[0;32mmake toolbox-compile-api\033[0m           🚀 Compile API/goats only (faster)\n"
 	@printf "  \033[0;32mmake compile\033[0m                       🔨 Compile goats binary\n"
@@ -715,6 +716,22 @@ api-call-form:
 	else \
 		$(COMPOSE_CMD) --profile toolbox run --rm toolbox bash scripts/api-form.sh "$$METHOD" "$(ENDPOINT)" "$(DATA)"; \
 	fi
+
+# Public HTTP call without auth (useful for GET /, redirects, legacy forms)
+.PHONY: http-call
+http-call:
+	@if [ -z "$(ENDPOINT)" ]; then echo "❌ ENDPOINT required. Usage: make http-call [METHOD=GET] ENDPOINT=/ [BODY='...'] [CONTENT_TYPE='text/html']"; exit 1; fi
+	@if [ -z "$(METHOD)" ]; then METHOD=GET; fi; \
+	printf "\n🔧 Making public HTTP call: $$METHOD $(ENDPOINT)\n"; \
+	$(call ensure_caches); \
+	$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		-w /workspace \
+		-u "$$UID:$$GID" \
+		--network gotrs-ce_gotrs-network \
+		gotrs-toolbox:latest \
+		bash -lc 'chmod +x scripts/http-call.sh 2>/dev/null || true; M=$${METHOD:-GET}; CT=$${CONTENT_TYPE:-text/html}; BACKEND_URL=$${BACKEND_URL:-http://backend:8080} scripts/http-call.sh "$$M" '"$(ENDPOINT)"' '"$(BODY)"' "$$CT"'
 
 # Compile everything (bind mounts + caches)
 toolbox-compile:

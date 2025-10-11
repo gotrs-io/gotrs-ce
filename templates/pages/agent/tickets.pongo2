@@ -5,8 +5,17 @@
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Header -->
-    <div class="mb-6">
+    <div class="mb-6 sm:flex sm:items-center sm:justify-between">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Ticket Management</h1>
+        <div class="mt-4 sm:mt-0">
+            <a href="/tickets/new" 
+               class="inline-flex items-center rounded-md bg-gotrs-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gotrs-500">
+                <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                </svg>
+                {{ t("tickets.new_ticket") }}
+            </a>
+        </div>
     </div>
 
     <!-- Filters -->

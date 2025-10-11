@@ -21,7 +21,20 @@
 
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <div class="space-y-6">
-                    {{ macros.forms.i18n_text("subject", "tickets.subject", "", true, "tickets_form.subject_placeholder", "", "3") }}
+                    <div>
+                        <label for="subject" class="block text-sm font-medium text-gray-900 dark:text-white">{{ t("tickets.subject") }} <span class="text-red-500">*</span></label>
+                        <div class="mt-2">
+                            <input type="text"
+                                   name="subject"
+                                   id="subject"
+                                   placeholder="{{ t("tickets_form.subject_placeholder") }}"
+                                   required
+                                   data-min-length="3"
+                                   data-msg-required-key="validation.required"
+                                   data-msg-minlength-key="validation.minlength"
+                                   class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 dark:text-white bg-white dark:bg-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-gotrs-600 dark:focus:ring-gotrs-500 sm:text-sm sm:leading-6" />
+                        </div>
+                    </div>
                     <div>
                         <label for="customer_user_input" class="block text-sm font-medium text-gray-900 dark:text-white">{{ t("tickets_form.customer_user") }} <span class="text-red-500">*</span></label>
                         <div class="mt-2 relative">

@@ -47,6 +47,8 @@ spec:
       method: GET
       handler: HandleQueueDetail
       template: pages/tickets.pongo2
+      middleware:
+        - auth
       description: "Display tickets filtered by specific queue"
 
     # Ticket creation routes

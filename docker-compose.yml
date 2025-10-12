@@ -110,7 +110,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       PASSWORD_HASH_TYPE: ${PASSWORD_HASH_TYPE:-sha256}
       MIGRATE_PASSWORD_HASHES: ${MIGRATE_PASSWORD_HASHES:-false}
-      STORAGE_LOCAL_PATH: ./storage
+      STORAGE_PATH: ${STORAGE_PATH:-/app/storage}
       MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-10MB}
       ALLOWED_FILE_TYPES: ${ALLOWED_FILE_TYPES:-pdf,doc,docx,txt,png,jpg,jpeg,gif,zip}
       # TLS configuration
@@ -119,8 +119,8 @@ services:
     ports:
       - "${BACKEND_PORT:-8081}:8080"
     volumes:
-       - ./storage:/app/storage:Z
-       - ./certs:/app/certs:Z
+      - ./storage:${STORAGE_PATH:-/app/storage}:Z
+      - ./certs:/app/certs:Z
     depends_on:
       # postgres:
       #   condition: service_healthy
@@ -323,13 +323,15 @@ services:
       GOCACHE: /workspace/.cache/go-build
       GOMODCACHE: /workspace/.cache/go-mod
       GOLANGCI_LINT_CACHE: /workspace/.cache/golangci-lint
+      NPM_CONFIG_CACHE: /workspace/.cache/npm
+      XDG_CACHE_HOME: /workspace/.cache/xdg
       GOTOOLCHAIN: local
       PATH: /usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
     volumes:
       - .:/workspace:Z
-      - gotrs_go_build_cache:/workspace/.cache/go-build
-      - gotrs_go_mod_cache:/workspace/.cache/go-mod
-      - gotrs_golangci_cache:/workspace/.cache/golangci-lint
+      - gotrs_cache:/workspace/.cache
+      # Subdirs under /workspace/.cache will be created as-needed by non-root user
+      # Keeping node_modules and runtime as dedicated volumes
       - gotrs_node_modules:/workspace/node_modules
       - gotrs_runtime:/workspace/runtime
     working_dir: /workspace
@@ -350,9 +352,7 @@ volumes:
   # postgres_data:     # Commented out - using MariaDB instead
   valkey_data:
   gotrs_node_modules:
-  gotrs_go_build_cache:
-  gotrs_go_mod_cache:
-  gotrs_golangci_cache:
+  gotrs_cache:
   gotrs_runtime:
   # zinc_data:         # Commented out - zinc service disabled
   # temporal_data:     # Commented out - temporal service disabled

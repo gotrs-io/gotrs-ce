@@ -65,8 +65,8 @@ RUN addgroup -g ${GID} -S appgroup && \
 # Set up workspace
 WORKDIR /workspace
 # Pre-create cache directories for Go, Playwright, and NPM to avoid root-owned creation during first run
-RUN mkdir -p /tmp/.cache/go-build /tmp/.cache/go-mod /home/appuser/.cache/ms-playwright-go /tmp/npm-cache /home/appuser/.cache && \
-    chown -R appuser:appgroup /tmp/.cache /tmp/npm-cache /workspace /home/appuser/.cache
+RUN mkdir -p /workspace/.cache /tmp/.cache/go-build /tmp/.cache/go-mod /home/appuser/.cache/ms-playwright-go /tmp/npm-cache /home/appuser/.cache && \
+    chown -R appuser:appgroup /workspace/.cache /tmp/.cache /tmp/npm-cache /workspace /home/appuser/.cache
 
 # Copy binaries from backend image
 COPY --from=backend --chown=appuser:appgroup /app/goats /usr/local/bin/goats
@@ -102,11 +102,11 @@ RUN if [ -f package.json ]; then \
     fi
 
 # Set environment for Go caching and prevent auto toolchain downloads
-ENV GOCACHE=/tmp/.cache/go-build \
-    GOMODCACHE=/tmp/.cache/go-mod \
+ENV GOCACHE=/workspace/.cache/go-build \
+    GOMODCACHE=/workspace/.cache/go-mod \
     GOTOOLCHAIN=local \
-    NPM_CONFIG_CACHE=/tmp/npm-cache \
-    XDG_CACHE_HOME=/home/appuser/.cache \
+    NPM_CONFIG_CACHE=/workspace/.cache/npm \
+    XDG_CACHE_HOME=/workspace/.cache/xdg \
     PATH=/usr/local/go/bin:/usr/local/bin:$PATH
 
 # Default to bash shell for interactive use

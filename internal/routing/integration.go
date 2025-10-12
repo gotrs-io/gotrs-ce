@@ -85,6 +85,14 @@ func registerExistingHandlers(registry *HandlerRegistry, db *sql.DB, jwtManager 
 
 		"handleStaticFiles": api.HandleStaticFiles,
 
+		// Attachment handlers (needed for YAML /api attachments routes)
+		"HandleGetAttachments": api.HandleGetAttachments,
+		"HandleUploadAttachment": api.HandleUploadAttachment,
+		"HandleDownloadAttachment": api.HandleDownloadAttachment,
+		"HandleDeleteAttachment": api.HandleDeleteAttachment,
+		"HandleGetThumbnail": api.HandleGetThumbnail,
+		"HandleViewAttachment": api.HandleViewAttachment,
+
 		// Authentication handlers would be registered here
 		// "handleLogin": api.HandleLogin(db, jwtManager),
 		// "handleLogout": api.HandleLogout(),

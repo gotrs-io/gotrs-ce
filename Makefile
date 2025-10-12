@@ -1251,6 +1251,14 @@ schema-table:
 	@printf "🔍 Generating YAML module for table: $(TABLE)...\n"
 	@./scripts/schema-discovery.sh --table $(TABLE) --verbose
 
+# Centralized host binary cleanup
+.PHONY: clean-host-binaries
+clean-host-binaries:
+	@printf "🧹 Cleaning host binaries after container build...\n"
+	@rm -f bin/goats bin/gotrs bin/server bin/migrate bin/generator bin/gotrs-migrate bin/schema-discovery 2>/dev/null || true
+	@rm -f goats gotrs gotrs-* generator migrate server 2>/dev/null || true
+	@printf "✅ Host binaries cleaned - containers have the only copies\n"
+
 # Start all services (and clean host binaries after build)
 up:
 	$(call check_compose)
@@ -1259,9 +1267,7 @@ up:
 	else \
 		$(COMPOSE_CMD) up $(COMPOSE_UP_FLAGS) --build mariadb valkey backend; \
 	fi
-	@printf "🧹 Cleaning host binaries after container build...\n"
-	@rm -f bin/goats bin/gotrs bin/server bin/migrate bin/generator bin/gotrs-migrate bin/schema-discovery 2>/dev/null || true
-	@printf "✅ Host binaries cleaned - containers have the only copies\n"
+	@$(MAKE) clean-host-binaries
 # Start in background (and clean host binaries after build)
 up-d:
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
@@ -1269,9 +1275,7 @@ up-d:
 	else \
 		$(COMPOSE_CMD) up -d --build mariadb valkey backend; \
 	fi
-	@printf "🧹 Cleaning host binaries after container build...\n"
-	@rm -f bin/goats bin/gotrs bin/server bin/migrate bin/generator bin/gotrs-migrate bin/schema-discovery 2>/dev/null || true
-	@printf "✅ Host binaries cleaned - containers have the only copies\n"
+	@$(MAKE) clean-host-binaries
 # Stop all services
 down:
 	$(call check_compose)
@@ -1279,6 +1283,7 @@ down:
 
 # Restart services
 restart: down up-d
+	@$(MAKE) clean-host-binaries
 	@printf "🔄 Restarted all services\n"
 # View logs
 logs:

@@ -10,10 +10,11 @@ if [[ -f ".env" ]]; then
   done < .env
 fi
 
-METHOD="${1:-GET}"
-ENDPOINT="${2:-/}"
-BODY="${3:-}"
-CONTENT_TYPE="${4:-text/html}"
+# Prefer environment variables, fall back to positional args
+METHOD="${METHOD:-${1:-GET}}"
+ENDPOINT="${ENDPOINT:-${2:-/}}"
+BODY="${BODY:-${3:-}}"
+CONTENT_TYPE="${CONTENT_TYPE:-${4:-text/html}}"
 
 if [[ -z "${BACKEND_URL:-}" ]]; then
   for host in gotrs-backend backend gotrs-ce-backend-1; do
@@ -26,6 +27,9 @@ fi
 
 # Build curl args
 args=(-k -i -s -X "$METHOD" "$BACKEND_URL$ENDPOINT" -H "Accept: $CONTENT_TYPE")
+if [[ -n "${AUTH_TOKEN:-}" ]]; then
+  args+=(-H "Authorization: Bearer $AUTH_TOKEN")
+fi
 if [[ -n "$BODY" ]]; then
   args+=(-H "Content-Type: $CONTENT_TYPE" -d "$BODY")
 fi

@@ -432,14 +432,17 @@ broken_*.txt
 static-*.txt
 cookies.txt
 
+# ============================================
 # Temporary test files
-# (keep optional scratch patterns below – removed test_*.go to allow tracking helper sources)
+# ============================================
 debug_*.go
 *_test_init.go
 *_test_db.go
 *_test_mysql.go
 
+# ============================================
 # Development notes and temporary docs
+# ============================================
 docs/temp/
 *.temp.md
 *.draft.md
@@ -450,10 +453,20 @@ runtime/.manifest.tmp
 runtime/testfile
 static/js/test_write
 
+# ============================================
 # TDD ephemeral state
+# ============================================
 .tdd-state
 .tdd-state.tmp
 
+# ============================================
 # Frontend install sentinel
+# ============================================
 .frontend_deps_installed
 docker-compose.yml
+internal/api/ticket_attachment_handler.go
+
+# ============================================
+# Filesystem artifacts
+# ============================================
+storage/

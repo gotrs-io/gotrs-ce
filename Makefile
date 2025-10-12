@@ -22,7 +22,7 @@ routes-baseline-update:
 	@echo "Updated route manifest baseline."
 # GOTRS Makefile - Docker/Podman compatible development
 
-# Detect container runtime and compose command
+# Detect container runtime and compose command (single source of truth)
 # First check for podman, then docker
 CONTAINER_CMD := $(shell command -v podman 2> /dev/null || command -v docker 2> /dev/null || echo docker)
 
@@ -80,18 +80,24 @@ else
 VZ :=
 endif
 
+# Export compose/container command so all targets and scripts use the same detection
+export CONTAINER_CMD
+export COMPOSE_CMD
+
 # Ensure Go caches exist for toolbox runs
 define ensure_caches
 @mkdir -p .cache .cache/go-build .cache/go-mod >/dev/null 2>&1 || true
 @chmod 775 .cache .cache/go-build .cache/go-mod >/dev/null 2>&1 || true
 endef
 
-# Rootless cache mounting strategy (default): bind host .cache directories instead of named volumes.
-# Set CACHE_USE_VOLUMES=1 to revert to legacy named volumes (may require ownership fixes if originally created as root).
+# Cache mounting strategy:
+# - Default: bind host .cache directories (developer-visible, good for debugging)
+# - Optional: use a single shared named volume (gotrs_cache) across all services
+#   by setting CACHE_USE_VOLUMES=1 for fully containerized caches (no host perms churn)
 CACHE_USE_VOLUMES ?= 0
 ifeq ($(CACHE_USE_VOLUMES),1)
-MOD_CACHE_MOUNT := -v gotrs_go_mod_cache:/workspace/.cache/go-mod
-BUILD_CACHE_MOUNT := -v gotrs_go_build_cache:/workspace/.cache/go-build
+MOD_CACHE_MOUNT := -v gotrs_cache:/workspace/.cache
+BUILD_CACHE_MOUNT := 
 else
 MOD_CACHE_MOUNT := -v "$$PWD/.cache/go-mod:/workspace/.cache/go-mod$(VZ)"
 BUILD_CACHE_MOUNT := -v "$$PWD/.cache/go-build:/workspace/.cache/go-build$(VZ)"
@@ -112,6 +118,17 @@ define cache_guard
 	fi; \
 fi
 endef
+
+# Helper targets for cache volumes
+.PHONY: cache-prune cache-use-volumes
+cache-prune:
+	@echo "Pruning shared cache volume (gotrs_cache)..."
+	@$(CONTAINER_CMD) volume rm -f gotrs_cache >/dev/null 2>&1 || true
+	@$(CONTAINER_CMD) volume rm -f gotrs_go_build_cache gotrs_go_mod_cache gotrs_golangci_cache >/dev/null 2>&1 || true
+	@echo "Done."
+
+cache-use-volumes:
+	@echo "Enabling shared cache volume via environment: export CACHE_USE_VOLUMES=1"
 
 # Common run flags
 VOLUME_PWD := -v "$$(pwd):/workspace"
@@ -520,18 +537,31 @@ evidence-report:
 # ENHANCED TEST COMMANDS WITH TDD INTEGRATION
 #########################################
 
-# Override test command to use TDD if in TDD cycle
+# Override test command to use TDD if in TDD cycle (Make conditionals avoid shell parsing issues)
 test:
-	@if [ -f .tdd-state ]; then \
-		echo "🧪 TDD workflow active - using TDD test verification..."; \
-		$(MAKE) tdd-verify; \
-	else \
-		echo "Running tests with safety checks..."; \
-		echo "Using test database: $${DB_NAME:-gotrs}_test"; \
-		echo "Checking if backend service is running..."; \
-		$(COMPOSE_CMD) ps --services --filter "status=running" | grep -q "backend" || (echo "Error: Backend service is not running. Please run 'make up' first." && exit 1); \
-		$(COMPOSE_CMD) exec -e DB_NAME=$${DB_NAME:-gotrs}_test -e APP_ENV=test backend go test -v ./...; \
-	fi
+ifeq ($(strip $(wildcard .tdd-state)),)
+	@echo "Running tests in toolbox with cached modules..."
+	@$(call ensure_caches)
+	@echo "📡 Starting dependencies (mariadb, valkey)..."
+	@$(COMPOSE_CMD) up -d mariadb valkey >/dev/null 2>&1 || true
+	@$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		$(MOD_CACHE_MOUNT) \
+		$(BUILD_CACHE_MOUNT) \
+		-w /workspace \
+		--network host \
+		-u "$$UID:$$GID" \
+		-e GOCACHE=/workspace/.cache/go-build \
+		-e GOMODCACHE=/workspace/.cache/go-mod \
+		-e GOFLAGS=-buildvcs=false \
+		-e APP_ENV=test \
+		gotrs-toolbox:latest \
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go test -v ./...'
+else
+	@echo "🧪 TDD workflow active - using TDD test verification..."
+	@$(MAKE) tdd-verify
+endif
 
 # Debug environment detection
 debug-env:
@@ -687,9 +717,9 @@ toolbox-exec:
 	@$(call ensure_caches)
 	@$(call cache_guard)
 	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
-		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox bash -c 'mkdir -p /workspace/.cache/go-build /workspace/.cache/go-mod; chmod 777 /workspace/.cache /workspace/.cache/go-build /workspace/.cache/go-mod 2>/dev/null || true; export GOCACHE=/workspace/.cache/go-build; export GOMODCACHE=/workspace/.cache/go-mod; export GOFLAGS="-buildvcs=false $$GOFLAGS"; export PATH="/usr/local/go/bin:$$PATH"; $(ARGS)'; \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm -u "$$UID:$$GID" toolbox bash -c 'mkdir -p /workspace/.cache/go-build /workspace/.cache/go-mod; export GOCACHE=/workspace/.cache/go-build; export GOMODCACHE=/workspace/.cache/go-mod; export GOFLAGS="-buildvcs=false $$GOFLAGS"; export PATH="/usr/local/go/bin:$$PATH"; $(ARGS)'; \
 	else \
-		$(COMPOSE_CMD) --profile toolbox run --rm toolbox bash -c 'mkdir -p /workspace/.cache/go-build /workspace/.cache/go-mod; chmod 777 /workspace/.cache /workspace/.cache/go-build /workspace/.cache/go-mod 2>/dev/null || true; export GOCACHE=/workspace/.cache/go-build; export GOMODCACHE=/workspace/.cache/go-mod; export GOFLAGS="-buildvcs=false $$GOFLAGS"; export PATH="/usr/local/go/bin:$$PATH"; $(ARGS)'; \
+		$(COMPOSE_CMD) --profile toolbox run --rm -u "$$UID:$$GID" toolbox bash -c 'mkdir -p /workspace/.cache/go-build /workspace/.cache/go-mod; export GOCACHE=/workspace/.cache/go-build; export GOMODCACHE=/workspace/.cache/go-mod; export GOFLAGS="-buildvcs=false $$GOFLAGS"; export PATH="/usr/local/go/bin:$$PATH"; $(ARGS)'; \
 	fi
 
 # API testing with automatic authentication
@@ -730,8 +760,37 @@ http-call:
 		-w /workspace \
 		-u "$$UID:$$GID" \
 		--network gotrs-ce_gotrs-network \
+		-e METHOD="$(METHOD)" \
+		-e ENDPOINT="$(ENDPOINT)" \
+		-e BODY="$(BODY)" \
+		-e CONTENT_TYPE="$(CONTENT_TYPE)" \
+		-e BACKEND_URL="$(BACKEND_URL)" \
+		-e AUTH_TOKEN="$(AUTH_TOKEN)" \
+		-e LOGIN="$(LOGIN)" \
+		-e PASSWORD="$(PASSWORD)" \
 		gotrs-toolbox:latest \
-		bash -lc 'chmod +x scripts/http-call.sh 2>/dev/null || true; M=$${METHOD:-GET}; CT=$${CONTENT_TYPE:-text/html}; BACKEND_URL=$${BACKEND_URL:-http://backend:8080} scripts/http-call.sh "$$M" '"$(ENDPOINT)"' '"$(BODY)"' "$$CT"'
+		bash -lc 'chmod +x scripts/http-call.sh 2>/dev/null || true; scripts/http-call.sh'
+
+# File upload with JWT auth
+.PHONY: api-upload
+api-upload:
+	@if [ -z "$(ENDPOINT)" ]; then echo "❌ ENDPOINT required. Usage: make api-upload ENDPOINT=/api/tickets/<tn>/attachments FILE=/path/to/file"; exit 1; fi
+	@if [ -z "$(FILE)" ]; then echo "❌ FILE required. Usage: make api-upload ENDPOINT=/api/tickets/<tn>/attachments FILE=/path/to/file"; exit 1; fi
+	$(call ensure_caches)
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox bash -lc 'chmod +x scripts/api-upload.sh; BACKEND_URL=$${BACKEND_URL:-http://backend:8080} scripts/api-upload.sh '"$(ENDPOINT)"' '"$(FILE)"''; \
+	else \
+		$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		-w /workspace \
+		-u "$$UID:$$GID" \
+		--network gotrs-ce_gotrs-network \
+		gotrs-toolbox:latest \
+		bash -lc 'chmod +x scripts/api-upload.sh; BACKEND_URL=$${BACKEND_URL:-http://backend:8080} scripts/api-upload.sh '"$(ENDPOINT)"' '"$(FILE)"''; \
+	fi
+
+
 
 # Compile everything (bind mounts + caches)
 toolbox-compile:
@@ -797,6 +856,8 @@ compile-safe: toolbox-build
 # Run internal/api tests (bind mounts + caches; DB-less-safe)
 toolbox-test-api: toolbox-build
 	@printf "\n🧪 Running internal/api tests in toolbox...\n"
+	@# Enforce static route policy during tests
+	@$(MAKE) generate-route-map validate-routes
 	@$(call ensure_caches)
 	@printf "📡 Starting dependencies (mariadb, valkey)...\n"
 	@$(COMPOSE_CMD) up -d mariadb valkey >/dev/null 2>&1 || true
@@ -816,12 +877,14 @@ toolbox-test-api: toolbox-build
         -e DB_DRIVER=mariadb \
         -e DB_NAME=otrs -e DB_USER=otrs -e DB_PASSWORD=LetClaude.1n \
 		gotrs-toolbox:latest \
-		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go test -buildvcs=false -v ./internal/api -run ^Test(BuildRoutesManifest|Queue|Article|Search|Priority|User)'
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go test -buildvcs=false -v ./internal/api -run ^Test\(BuildRoutesManifest\|Queue\|Article\|Search\|Priority\|User\)'
 
 # Run core tests (cmd/goats + internal/api + generated/tdd-comprehensive)
 toolbox-test:
 	@$(MAKE) toolbox-build
 	@printf "\n🧪 Running core test suite in toolbox...\n"
+	@# Enforce static route policy during tests
+	@$(MAKE) generate-route-map validate-routes
 	@$(call ensure_caches)
 	@$(call cache_guard)
 	@printf "📡 Starting dependencies (mariadb, valkey)...\n"
@@ -854,21 +917,13 @@ tdd-comprehensive-quick:
 	@if ! $(CONTAINER_CMD) image inspect gotrs-toolbox:latest >/dev/null 2>&1; then \
 		echo "🔧 Building missing toolbox image (gotrs-toolbox:latest)"; \
 		if [ -f Dockerfile.toolbox ]; then \
-			($(CONTAINER_CMD) compose build toolbox 2>/dev/null || $(CONTAINER_CMD) build -f Dockerfile.toolbox -t gotrs-toolbox:latest .) || { echo "❌ Failed to build toolbox image" >&2; exit 1; }; \
+			($(COMPOSE_CMD) build toolbox 2>/dev/null || $(CONTAINER_CMD) build -f Dockerfile.toolbox -t gotrs-toolbox:latest .) || { echo "❌ Failed to build toolbox image" >&2; exit 1; }; \
 		else \
 			echo "❌ Dockerfile.toolbox not found" >&2; exit 1; \
 		fi; \
 	fi
 	@mkdir -p generated/tdd-comprehensive generated/evidence generated/test-results || true
-	@$(CONTAINER_CMD) run --rm \
-		--security-opt label=disable \
-		-v "$$PWD:/workspace" \
-		-v "$$PWD/generated:/workspace/generated" \
-		-w /workspace \
-		--network host \
-		-u 0 \
-		gotrs-toolbox:latest \
-		bash -lc 'bash scripts/tdd-comprehensive.sh quick || true; echo "See generated/evidence for report"'
+	@bash scripts/tdd-comprehensive.sh quick || true; echo "See generated/evidence for report"
 
 .PHONY: openapi-lint
 openapi-lint:
@@ -1006,6 +1061,66 @@ toolbox-test-run:
 		-e APP_ENV=test \
 		gotrs-toolbox:latest \
 		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go test -v -run "$(TEST)" ./...'
+
+# Tidy Go modules inside toolbox (fetches missing deps and updates go.sum)
+.PHONY: toolbox-mod-tidy
+toolbox-mod-tidy:
+	@$(MAKE) toolbox-build
+	@printf "\n🧹 Running go mod tidy in toolbox...\n"
+	@$(call ensure_caches)
+	@$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		-w /workspace \
+		-u "$$UID:$$GID" \
+		-e GOCACHE=/workspace/.cache/go-build \
+		-e GOMODCACHE=/workspace/.cache/go-mod \
+		gotrs-toolbox:latest \
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go mod tidy && go mod download'
+
+# Run tests for a specific package (PKG=./internal/api) with optional TEST pattern
+.PHONY: toolbox-test-pkg
+toolbox-test-pkg:
+	@[ -n "$(PKG)" ] || (echo "Usage: make toolbox-test-pkg PKG=./internal/api [TEST=^TestName]" && exit 2)
+	@$(MAKE) toolbox-build
+	@printf "\n🧪 Running package tests in toolbox: PKG=$(PKG) TEST=$(TEST)\n"
+	@$(call ensure_caches)
+	@$(call cache_guard)
+	@$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		$(MOD_CACHE_MOUNT) \
+		$(BUILD_CACHE_MOUNT) \
+		-w /workspace \
+		-u "$$UID:$$GID" \
+		--network host \
+		-e GOCACHE=/workspace/.cache/go-build \
+		-e GOMODCACHE=/workspace/.cache/go-mod \
+		-e APP_ENV=test \
+		gotrs-toolbox:latest \
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; if [ -n "$(TEST)" ]; then go test -v -run "$(TEST)" $(PKG); else go test -v $(PKG); fi'
+
+# Run tests for explicit files (FILES="./internal/api/attachment_validation_webp_svg_test.go ./internal/api/attachment_validation_jpeg_test.go")
+.PHONY: toolbox-test-files
+toolbox-test-files:
+	@[ -n "$(FILES)" ] || (echo "Usage: make toolbox-test-files FILES=\"path/to/a_test.go path/to/b_test.go\" [TEST=^Pattern]" && exit 2)
+	@$(MAKE) toolbox-build
+	@printf "\n🧪 Running test files in toolbox: FILES=$(FILES) TEST=$(TEST)\n"
+	@$(call ensure_caches)
+	@$(call cache_guard)
+	@$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		$(MOD_CACHE_MOUNT) \
+		$(BUILD_CACHE_MOUNT) \
+		-w /workspace \
+		-u "$$UID:$$GID" \
+		--network host \
+		-e GOCACHE=/workspace/.cache/go-build \
+		-e GOMODCACHE=/workspace/.cache/go-mod \
+		-e APP_ENV=test \
+		gotrs-toolbox:latest \
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; if [ -n "$(TEST)" ]; then go test -v -run "$(TEST)" $(FILES); else go test -v $(FILES); fi'
 
 # Run static analysis using staticcheck inside toolbox
 toolbox-staticcheck:
@@ -1252,14 +1367,31 @@ db-fix-sequences:
 	fi
 # Run a database query (use QUERY="SELECT ..." make db-query)
 db-query:
-	@if [ -z "$(QUERY)" ]; then \
-		echo "Usage: make db-query QUERY=\"SELECT * FROM table\""; \
+	# Robust query execution: supports STDIN, QUERY_FILE, or QUERY var
+	# Priority: (1) read SQL from STDIN if not a TTY, (2) read from QUERY_FILE, (3) use QUERY variable
+	@if [ -t 0 ] && [ -z "$(QUERY)" ] && [ -z "$(QUERY_FILE)" ]; then \
+		echo "Usage:"; \
+		echo "  echo 'SELECT 1;' | make db-query"; \
+		echo "  make db-query QUERY=\"SELECT * FROM table WHERE name = 'foo';\""; \
+		echo "  make db-query QUERY_FILE=path/to/query.sql"; \
 		exit 1; \
 	fi; \
 	if [ "$(DB_DRIVER)" = "postgres" ]; then \
-		$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox psql -h $(DB_HOST) -U $(DB_USER) -d $(DB_NAME) -t -c "$(QUERY)"; \
+		if [ ! -t 0 ]; then \
+			$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox psql -h $(DB_HOST) -U $(DB_USER) -d $(DB_NAME) -t; \
+		elif [ -n "$(QUERY_FILE)" ]; then \
+			$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox bash -lc "psql -h $(DB_HOST) -U $(DB_USER) -d $(DB_NAME) -t < '$(QUERY_FILE)'"; \
+		else \
+			$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox psql -h $(DB_HOST) -U $(DB_USER) -d $(DB_NAME) -t -c "$(QUERY)"; \
+		fi; \
 	else \
-		$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox mysql -h $(DB_HOST) -u $(DB_USER) -p$(DB_PASSWORD) -D $(DB_NAME) -e "$(QUERY)"; \
+		if [ ! -t 0 ]; then \
+			$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox mysql -h $(DB_HOST) -u $(DB_USER) -p$(DB_PASSWORD) -D $(DB_NAME); \
+		elif [ -n "$(QUERY_FILE)" ]; then \
+			$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox bash -lc "mysql -h $(DB_HOST) -u $(DB_USER) -p$(DB_PASSWORD) -D $(DB_NAME) < '$(QUERY_FILE)'"; \
+		else \
+			$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox mysql -h $(DB_HOST) -u $(DB_USER) -p$(DB_PASSWORD) -D $(DB_NAME) -e "$(QUERY)"; \
+		fi; \
 	fi
 
 db-migrate:
@@ -2196,7 +2328,7 @@ tdd-comprehensive:
 	@if ! $(CONTAINER_CMD) image inspect gotrs-toolbox:latest >/dev/null 2>&1; then \
 		echo "🔧 Building toolbox image (gotrs-toolbox:latest) via compose"; \
 		if [ -f Dockerfile.toolbox ]; then \
-			($(CONTAINER_CMD) compose build toolbox 2>/dev/null || $(CONTAINER_CMD) build -f Dockerfile.toolbox -t gotrs-toolbox:latest .) || { echo "❌ Failed to build toolbox image" >&2; exit 1; }; \
+			($(COMPOSE_CMD) build toolbox 2>/dev/null || $(CONTAINER_CMD) build -f Dockerfile.toolbox -t gotrs-toolbox:latest .) || { echo "❌ Failed to build toolbox image" >&2; exit 1; }; \
 		else \
 			echo "❌ Dockerfile.toolbox not found" >&2; exit 1; \
 		fi; \

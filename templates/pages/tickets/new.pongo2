@@ -137,24 +137,45 @@
     document.getElementById('file-upload').addEventListener('change', function(e) {
         const fileList = document.getElementById('file-list');
         fileList.innerHTML = '';
-        
-        if (e.target.files.length > 0) {
-            const list = document.createElement('ul');
-            list.className = 'text-left space-y-1';
-            
-            for (let i = 0; i < e.target.files.length; i++) {
-                const file = e.target.files[i];
-                const li = document.createElement('li');
-                li.className = 'flex items-center justify-between';
-                li.innerHTML = `
-                    <span>${file.name}</span>
-                    <span class="text-xs text-gray-500">${(file.size / 1024).toFixed(1)} KB</span>
-                `;
-                list.appendChild(li);
+
+        const files = e.target.files || [];
+        if (!files.length) return;
+
+        const list = document.createElement('ul');
+        list.className = 'text-left space-y-2';
+
+        Array.from(files).forEach((file) => {
+            const li = document.createElement('li');
+            li.className = 'flex items-center justify-between gap-3';
+
+            const left = document.createElement('div');
+            left.className = 'flex items-center gap-3 min-w-0';
+
+            // Thumbnail for images
+            if (file.type && file.type.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.className = 'h-10 w-10 rounded object-cover ring-1 ring-gray-200 dark:ring-gray-700 flex-none';
+                const reader = new FileReader();
+                reader.onload = (ev) => { img.src = ev.target.result; };
+                reader.readAsDataURL(file);
+                left.appendChild(img);
             }
-            
-            fileList.appendChild(list);
-        }
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'truncate';
+            nameSpan.textContent = file.name;
+            left.appendChild(nameSpan);
+
+            const sizeSpan = document.createElement('span');
+            sizeSpan.className = 'text-xs text-gray-500 flex-none';
+            sizeSpan.textContent = `${(file.size / 1024).toFixed(1)} KB`;
+
+            li.appendChild(left);
+            li.appendChild(sizeSpan);
+            list.appendChild(li);
+        });
+
+        fileList.appendChild(list);
     });
     
     

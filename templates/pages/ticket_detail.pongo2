@@ -231,7 +231,7 @@ div[id^="note-content-"] table tbody tr {
             <!-- Add Note Form -->
             <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
                 <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">{{ t("tickets.add_note")|default:"Add Note" }}</h2>
-                <form id="noteForm" class="space-y-4">
+                <form id="noteForm" class="space-y-4" data-require-time="{% if RequireNoteTimeUnits %}true{% else %}false{% endif %}">
                     <div>
                         <label for="note_content" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             {{ t("tickets.note_content")|default:"Note Content" }}
@@ -243,13 +243,17 @@ div[id^="note-content-"] table tbody tr {
                     </div>
                     <div>
                         <label for="note_time_units" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            {{ t("tickets.time_units_minutes")|default:"Time Units (minutes)" }}
+                            {{ t("tickets.time_units_minutes")|default:"Time Units (minutes)" }}{% if RequireNoteTimeUnits %}<span class="ml-1 text-red-500">*</span>{% endif %}
                         </label>
-                        <input type="number" id="note_time_units" name="time_units" min="0" step="1"
-                               placeholder="0"
+                        <input type="number" id="note_time_units" name="time_units" min="{% if RequireNoteTimeUnits %}1{% else %}0{% endif %}" step="1"
+                               placeholder="{% if RequireNoteTimeUnits %}1{% else %}0{% endif %}"{% if RequireNoteTimeUnits %} required aria-required="true"{% endif %}
                                class="block w-40 rounded-md border-0 py-1.5 px-3 text-gray-900 dark:text-white bg-white dark:bg-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-gotrs-600 dark:focus:ring-gotrs-500 sm:text-sm" />
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            {{ t("tickets.time_units_help")|default:"Record work minutes to add to this ticket." }}
+                        <p class="mt-1 text-xs {% if RequireNoteTimeUnits %}text-red-600 dark:text-red-400{% else %}text-gray-500 dark:text-gray-400{% endif %}">
+                            {% if RequireNoteTimeUnits %}
+                                {{ t("tickets.time_units_required_help")|default:"Entering work minutes is required for each note." }}
+                            {% else %}
+                                {{ t("tickets.time_units_help")|default:"Record work minutes to add to this ticket." }}
+                            {% endif %}
                         </p>
                     </div>
                     <div class="flex justify-end">
@@ -1074,32 +1078,57 @@ document.getElementById('assignAgentForm').addEventListener('submit', function(e
 // Handle note form submission
 document.getElementById('noteForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    
-    const content = document.getElementById('note_content').value.trim();
-    if (!content) {
-        // Show error message in a div instead of alert
-        const errorDiv = document.getElementById('note-error') || (() => {
+
+    const existingError = document.getElementById('note-error');
+    if (existingError) {
+        existingError.remove();
+    }
+
+    const ensureErrorDiv = () => {
+        return document.getElementById('note-error') || (() => {
             const div = document.createElement('div');
             div.id = 'note-error';
             div.className = 'bg-red-50 text-red-800 p-3 rounded mb-3';
             document.getElementById('note_content').parentElement.prepend(div);
             return div;
         })();
-        errorDiv.textContent = 'Please enter note content.';
+    };
+
+    const content = document.getElementById('note_content').value.trim();
+    if (!content) {
+        ensureErrorDiv().textContent = 'Please enter note content.';
         return;
     }
-    
+
+    const requireTime = this.dataset.requireTime === 'true';
+    const timeInput = document.getElementById('note_time_units');
+    const rawTime = (timeInput?.value || '').trim();
+    let minutes = 0;
+    if (rawTime !== '') {
+        const parsed = parseInt(rawTime, 10);
+        if (Number.isNaN(parsed) || parsed < 0) {
+            ensureErrorDiv().textContent = 'Enter a valid number of minutes.';
+            if (timeInput) { timeInput.focus(); }
+            return;
+        }
+        minutes = parsed;
+    }
+    if (requireTime && minutes <= 0) {
+        ensureErrorDiv().textContent = 'Time units are required for notes.';
+        if (timeInput) { timeInput.focus(); }
+        return;
+    }
+
     const submitBtn = this.querySelector('button[type="submit"]');
     const originalText = submitBtn.textContent;
     submitBtn.textContent = 'Adding Note...';
     submitBtn.disabled = true;
-    
-    const timeUnitsVal = document.getElementById('note_time_units')?.value;
+
     const fd = new FormData();
     fd.append('body', content);
     fd.append('internal', 'true');
-    if (timeUnitsVal && String(timeUnitsVal).trim() !== '') {
-        fd.append('time_units', String(parseInt(timeUnitsVal)));
+    if (minutes > 0) {
+        fd.append('time_units', String(minutes));
     }
     apiFetch(`/agent/tickets/${ticketId}/note`, {
         method: 'POST',
@@ -1125,14 +1154,7 @@ document.getElementById('noteForm').addEventListener('submit', function(e) {
     .catch(error => {
         console.error('Error:', error);
         // Show error message properly
-        const errorDiv = document.getElementById('note-error') || (() => {
-            const div = document.createElement('div');
-            div.id = 'note-error';
-            div.className = 'bg-red-50 text-red-800 p-3 rounded mb-3';
-            document.getElementById('note_content').parentElement.prepend(div);
-            return div;
-        })();
-        errorDiv.textContent = 'Error adding note: ' + (error && error.message ? error.message : 'Network error');
+        ensureErrorDiv().textContent = 'Error adding note: ' + (error && error.message ? error.message : 'Network error');
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
     });

@@ -59,17 +59,17 @@ type CORSConfig struct {
 }
 
 type DatabaseConfig struct {
-	Host           string        `mapstructure:"host"`
-	Port           int           `mapstructure:"port"`
-	Name           string        `mapstructure:"name"`
-	User           string        `mapstructure:"user"`
-	Password       string        `mapstructure:"password"`
-	SSLMode        string        `mapstructure:"ssl_mode"`
-	MaxOpenConns   int           `mapstructure:"max_open_conns"`
-	MaxIdleConns   int           `mapstructure:"max_idle_conns"`
+	Host            string        `mapstructure:"host"`
+	Port            int           `mapstructure:"port"`
+	Name            string        `mapstructure:"name"`
+	User            string        `mapstructure:"user"`
+	Password        string        `mapstructure:"password"`
+	SSLMode         string        `mapstructure:"ssl_mode"`
+	MaxOpenConns    int           `mapstructure:"max_open_conns"`
+	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
 	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"`
-	LogQueries     bool          `mapstructure:"log_queries"`
-	Migrations     struct {
+	LogQueries      bool          `mapstructure:"log_queries"`
+	Migrations      struct {
 		AutoMigrate bool   `mapstructure:"auto_migrate"`
 		Path        string `mapstructure:"path"`
 	} `mapstructure:"migrations"`
@@ -95,11 +95,11 @@ type ValkeyConfig struct {
 
 type AuthConfig struct {
 	JWT struct {
-		Secret           string        `mapstructure:"secret"`
-		Issuer           string        `mapstructure:"issuer"`
-		Audience         string        `mapstructure:"audience"`
-		AccessTokenTTL   time.Duration `mapstructure:"access_token_ttl"`
-		RefreshTokenTTL  time.Duration `mapstructure:"refresh_token_ttl"`
+		Secret          string        `mapstructure:"secret"`
+		Issuer          string        `mapstructure:"issuer"`
+		Audience        string        `mapstructure:"audience"`
+		AccessTokenTTL  time.Duration `mapstructure:"access_token_ttl"`
+		RefreshTokenTTL time.Duration `mapstructure:"refresh_token_ttl"`
 	} `mapstructure:"jwt"`
 	Session struct {
 		CookieName string `mapstructure:"cookie_name"`
@@ -162,12 +162,12 @@ type StorageConfig struct {
 }
 
 type TicketConfig struct {
-	IDPrefix       string `mapstructure:"id_prefix"`
-	IDFormat       string `mapstructure:"id_format"`
+	IDPrefix        string `mapstructure:"id_prefix"`
+	IDFormat        string `mapstructure:"id_format"`
 	DefaultPriority string `mapstructure:"default_priority"`
-	DefaultStatus  string `mapstructure:"default_status"`
-	AutoAssign     bool   `mapstructure:"auto_assign"`
-	SLA            struct {
+	DefaultStatus   string `mapstructure:"default_status"`
+	AutoAssign      bool   `mapstructure:"auto_assign"`
+	SLA             struct {
 		Enabled       bool          `mapstructure:"enabled"`
 		FirstResponse time.Duration `mapstructure:"first_response"`
 		Resolution    time.Duration `mapstructure:"resolution"`
@@ -178,6 +178,11 @@ type TicketConfig struct {
 		AgentAssign    bool `mapstructure:"agent_assign"`
 		AgentMention   bool `mapstructure:"agent_mention"`
 	} `mapstructure:"notifications"`
+	Frontend struct {
+		AgentTicketNote struct {
+			RequiredTimeUnits bool `mapstructure:"required_time_units"`
+		} `mapstructure:"agent_ticket_note"`
+	} `mapstructure:"frontend"`
 }
 
 type LoggingConfig struct {
@@ -211,22 +216,22 @@ type MetricsConfig struct {
 }
 
 type RateLimitingConfig struct {
-	Enabled            bool     `mapstructure:"enabled"`
-	RequestsPerMinute  int      `mapstructure:"requests_per_minute"`
-	Burst              int      `mapstructure:"burst"`
-	ExcludePaths       []string `mapstructure:"exclude_paths"`
+	Enabled           bool     `mapstructure:"enabled"`
+	RequestsPerMinute int      `mapstructure:"requests_per_minute"`
+	Burst             int      `mapstructure:"burst"`
+	ExcludePaths      []string `mapstructure:"exclude_paths"`
 }
 
 type FeaturesConfig struct {
-	Registration           bool `mapstructure:"registration"`
-	SocialLogin           bool `mapstructure:"social_login"`
-	TwoFactorAuth         bool `mapstructure:"two_factor_auth"`
-	APIKeys               bool `mapstructure:"api_keys"`
-	Webhooks              bool `mapstructure:"webhooks"`
-	LDAP                  bool `mapstructure:"ldap"`
-	SAML                  bool `mapstructure:"saml"`
-	KnowledgeBase         bool `mapstructure:"knowledge_base"`
-	CustomerPortal        bool `mapstructure:"customer_portal"`
+	Registration            bool `mapstructure:"registration"`
+	SocialLogin             bool `mapstructure:"social_login"`
+	TwoFactorAuth           bool `mapstructure:"two_factor_auth"`
+	APIKeys                 bool `mapstructure:"api_keys"`
+	Webhooks                bool `mapstructure:"webhooks"`
+	LDAP                    bool `mapstructure:"ldap"`
+	SAML                    bool `mapstructure:"saml"`
+	KnowledgeBase           bool `mapstructure:"knowledge_base"`
+	CustomerPortal          bool `mapstructure:"customer_portal"`
 	AgentCollisionDetection bool `mapstructure:"agent_collision_detection"`
 }
 

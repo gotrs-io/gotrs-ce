@@ -169,6 +169,10 @@ ticket:
     agent_assign: true
     agent_mention: true
 
+  frontend:
+    agent_ticket_note:
+      required_time_units: false
+
 logging:
   level: debug  # debug, info, warn, error
   format: json  # json, text

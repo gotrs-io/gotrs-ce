@@ -21,9 +21,9 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/auth"
 	"github.com/gotrs-io/gotrs-ce/internal/constants"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/i18n"
 	"github.com/gotrs-io/gotrs-ce/internal/ldap"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
-	"github.com/gotrs-io/gotrs-ce/internal/i18n"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 
@@ -36,11 +36,11 @@ import (
 // TicketDisplay represents ticket data for display purposes
 type TicketDisplay struct {
 	models.Ticket
-	QueueName     string
-	PriorityName  string
-	StateName     string
-	OwnerName     string
-	CustomerName  string
+	QueueName    string
+	PriorityName string
+	StateName    string
+	OwnerName    string
+	CustomerName string
 }
 
 // selectedAttr is a tiny helper for fallback HTML to mark selected options
@@ -145,7 +145,7 @@ func isMarkdownContent(content string) bool {
 		line = strings.TrimSpace(line)
 		if len(line) > 1 {
 			// Unordered lists
-			if (strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ")) {
+			if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") {
 				return true
 			}
 			// Ordered lists (1. 2. etc.)
@@ -355,105 +355,105 @@ func NewPongo2Renderer(templateDir string) *Pongo2Renderer {
 			"admin.import":                  "Import",
 			"admin.add_user":                "Add User",
 			// keep only one key for add_group
-			"admin.add_customer_user":   "Add Customer",
-			"admin.edit_user":           "Edit User",
-			"admin.edit_group":          "Edit Group",
-			"admin.title":               "Title",
-			"admin.login":               "Login",
-			"admin.first_name":          "First Name",
-			"admin.last_name":           "Last Name",
-			"admin.password":            "Password",
-			"admin.leave_blank_to_keep": "leave blank to keep current",
-			"admin.status":              "Status",
-			"admin.active":              "Active",
-			"admin.inactive":            "Inactive",
-			"admin.save":                "Save",
-			"admin.cancel":              "Cancel",
-			"admin.never":               "Never",
-			"admin.add_user_tooltip":    "Add a new user to the system",
-			"admin.clear_search":        "Clear search",
-			"admin.edit_user_tooltip":   "Edit user details",
-			"admin.deactivate_user":     "Deactivate user",
-			"admin.activate_user":       "Activate user",
-			"admin.reset_password":      "Reset user password",
-			"admin.delete_user":         "Delete user",
-			"admin.title_mr":            "Mr.",
-			"admin.title_ms":            "Ms.",
-			"admin.title_mrs":           "Mrs.",
-			"admin.title_dr":            "Dr.",
-			"admin.users_description":   "Manage system users and permissions",
-			"admin.groups_description":  "Manage user groups and access control",
-			"admin.lookups.description": "Manage system lookups and configurations",
-			"dashboard.welcome_back":    "Welcome back",
-			"tickets.new_ticket":        "New Ticket",
+			"admin.add_customer_user":              "Add Customer",
+			"admin.edit_user":                      "Edit User",
+			"admin.edit_group":                     "Edit Group",
+			"admin.title":                          "Title",
+			"admin.login":                          "Login",
+			"admin.first_name":                     "First Name",
+			"admin.last_name":                      "Last Name",
+			"admin.password":                       "Password",
+			"admin.leave_blank_to_keep":            "leave blank to keep current",
+			"admin.status":                         "Status",
+			"admin.active":                         "Active",
+			"admin.inactive":                       "Inactive",
+			"admin.save":                           "Save",
+			"admin.cancel":                         "Cancel",
+			"admin.never":                          "Never",
+			"admin.add_user_tooltip":               "Add a new user to the system",
+			"admin.clear_search":                   "Clear search",
+			"admin.edit_user_tooltip":              "Edit user details",
+			"admin.deactivate_user":                "Deactivate user",
+			"admin.activate_user":                  "Activate user",
+			"admin.reset_password":                 "Reset user password",
+			"admin.delete_user":                    "Delete user",
+			"admin.title_mr":                       "Mr.",
+			"admin.title_ms":                       "Ms.",
+			"admin.title_mrs":                      "Mrs.",
+			"admin.title_dr":                       "Dr.",
+			"admin.users_description":              "Manage system users and permissions",
+			"admin.groups_description":             "Manage user groups and access control",
+			"admin.lookups.description":            "Manage system lookups and configurations",
+			"dashboard.welcome_back":               "Welcome back",
+			"tickets.new_ticket":                   "New Ticket",
 			"tickets.create_new_ticket_subheading": "Fill out the form below to create a new support ticket",
-			"forms.mandatory_note": "All fields marked with an asterisk (*) are mandatory.",
-			"tickets.back_to_list": "Back to Tickets",
-			"tickets.subject": "Subject",
-			"tickets.subject_placeholder": "Brief description of the issue",
-			"tickets.customer_user": "Customer User",
-			"tickets.customer_user_placeholder": "Type customer name or email...",
-			"tickets.customer_user_help": "Start typing to search for customers by name or email address.",
-			"tickets.priority": "Priority",
-			"tickets.queue": "Queue",
-			"tickets.type": "Type",
-			"tickets.initial_interaction": "Initial Interaction",
-			"tickets.interaction.email": "Email",
-			"tickets.interaction.phone": "Phone Call",
-			"tickets.interaction.internal_note": "Internal Note",
-			"tickets.interaction.external_note": "External Note",
-			"tickets.customer_visible": "customer visible",
-			"tickets.private": "private",
-			"tickets.initial_interaction_help": "Determines the first article's type & visibility.",
-			"tickets.message": "Message",
-			"tickets.message_help": "Provide as much detail as possible to help us resolve your issue quickly.",
-			"tickets.attachments": "Attachments",
-			"tickets.upload_files": "Upload files",
-			"tickets.or_drag_and_drop": "or drag and drop",
-			"tickets.upload_hint": "PNG, JPG, PDF up to 10MB each",
-			"tickets.create_ticket": "Create Ticket",
-			"tickets.title":             "Tickets",
-			"tickets.overdue":           "Overdue",
-			"dashboard.recent_tickets":  "Recent Tickets",
-			"status.open":               "Open",
-			"status.new":                "New",
-			"status.pending":            "Pending",
-			"status.closed":             "Closed",
-			"time.today":                "Today",
-			"priority.high":             "High",
-			"priority.medium":           "Medium",
-			"priority.low":              "Low",
-			"priority.critical":         "Critical",
-			"queues.queue_status":       "Queue Status",
-			"common.view_all":           "View All",
-			"common.actions":            "Actions",
-			"common.edit":               "Edit",
-			"common.delete":             "Delete",
-			"common.save":               "Save",
-			"common.cancel":             "Cancel",
-			"common.search":             "Search",
-			"common.filter":             "Filter",
-			"common.clear":              "Clear",
-			"common.add":                "Add",
-			"common.new":                "New",
-			"common.status":             "Status",
-			"common.active":             "Active",
-			"common.inactive":           "Inactive",
-			"common.name":               "Name",
-			"common.email":              "Email",
-			"common.description":        "Description",
-			"common.created":            "Created",
-			"common.updated":            "Updated",
-			"common.id":                 "ID",
-			"common.type":               "Type",
-			"common.color":              "Color",
-			"common.comment":            "Comment",
-			"common.street":             "Street",
-			"common.zip":                "ZIP Code",
-			"common.city":               "City",
-			"common.country":            "Country",
-			"common.url":                "Website",
-			"common.comments":           "Comments",
+			"forms.mandatory_note":                 "All fields marked with an asterisk (*) are mandatory.",
+			"tickets.back_to_list":                 "Back to Tickets",
+			"tickets.subject":                      "Subject",
+			"tickets.subject_placeholder":          "Brief description of the issue",
+			"tickets.customer_user":                "Customer User",
+			"tickets.customer_user_placeholder":    "Type customer name or email...",
+			"tickets.customer_user_help":           "Start typing to search for customers by name or email address.",
+			"tickets.priority":                     "Priority",
+			"tickets.queue":                        "Queue",
+			"tickets.type":                         "Type",
+			"tickets.initial_interaction":          "Initial Interaction",
+			"tickets.interaction.email":            "Email",
+			"tickets.interaction.phone":            "Phone Call",
+			"tickets.interaction.internal_note":    "Internal Note",
+			"tickets.interaction.external_note":    "External Note",
+			"tickets.customer_visible":             "customer visible",
+			"tickets.private":                      "private",
+			"tickets.initial_interaction_help":     "Determines the first article's type & visibility.",
+			"tickets.message":                      "Message",
+			"tickets.message_help":                 "Provide as much detail as possible to help us resolve your issue quickly.",
+			"tickets.attachments":                  "Attachments",
+			"tickets.upload_files":                 "Upload files",
+			"tickets.or_drag_and_drop":             "or drag and drop",
+			"tickets.upload_hint":                  "PNG, JPG, PDF up to 10MB each",
+			"tickets.create_ticket":                "Create Ticket",
+			"tickets.title":                        "Tickets",
+			"tickets.overdue":                      "Overdue",
+			"dashboard.recent_tickets":             "Recent Tickets",
+			"status.open":                          "Open",
+			"status.new":                           "New",
+			"status.pending":                       "Pending",
+			"status.closed":                        "Closed",
+			"time.today":                           "Today",
+			"priority.high":                        "High",
+			"priority.medium":                      "Medium",
+			"priority.low":                         "Low",
+			"priority.critical":                    "Critical",
+			"queues.queue_status":                  "Queue Status",
+			"common.view_all":                      "View All",
+			"common.actions":                       "Actions",
+			"common.edit":                          "Edit",
+			"common.delete":                        "Delete",
+			"common.save":                          "Save",
+			"common.cancel":                        "Cancel",
+			"common.search":                        "Search",
+			"common.filter":                        "Filter",
+			"common.clear":                         "Clear",
+			"common.add":                           "Add",
+			"common.new":                           "New",
+			"common.status":                        "Status",
+			"common.active":                        "Active",
+			"common.inactive":                      "Inactive",
+			"common.name":                          "Name",
+			"common.email":                         "Email",
+			"common.description":                   "Description",
+			"common.created":                       "Created",
+			"common.updated":                       "Updated",
+			"common.id":                            "ID",
+			"common.type":                          "Type",
+			"common.color":                         "Color",
+			"common.comment":                       "Comment",
+			"common.street":                        "Street",
+			"common.zip":                           "ZIP Code",
+			"common.city":                          "City",
+			"common.country":                       "Country",
+			"common.url":                           "Website",
+			"common.comments":                      "Comments",
 		}
 		if val, ok := translations[key]; ok {
 			return val
@@ -528,15 +528,15 @@ func getUserMapForTemplate(c *gin.Context) gin.H {
 				}
 			}
 			return gin.H{
-				"ID":        user.ID,
-				"Login":     user.Login,
-				"FirstName": user.FirstName,
-				"LastName":  user.LastName,
-				"Email":     user.Email,
-				"IsActive":  user.ValidID == 1,
-				"IsAdmin":   isAdmin,
+				"ID":             user.ID,
+				"Login":          user.Login,
+				"FirstName":      user.FirstName,
+				"LastName":       user.LastName,
+				"Email":          user.Email,
+				"IsActive":       user.ValidID == 1,
+				"IsAdmin":        isAdmin,
 				"IsInAdminGroup": isInAdminGroup,
-				"Role":      map[bool]string{true: "Admin", false: "Agent"}[isAdmin],
+				"Role":           map[bool]string{true: "Admin", false: "Agent"}[isAdmin],
 			}
 		}
 		// If it's already gin.H, return as is
@@ -550,7 +550,7 @@ func getUserMapForTemplate(c *gin.Context) gin.H {
 		userEmail, _ := c.Get("user_email")
 		userRole, _ := c.Get("user_role")
 
-	// Try to load user details from database
+		// Try to load user details from database
 		firstName := ""
 		lastName := ""
 		login := fmt.Sprintf("%v", userEmail)
@@ -882,13 +882,13 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 	// Admin routes group - require admin privileges
 	// In test mode, we skip legacy hardcoded admin route registrations to allow YAML-only routing
 	if os.Getenv("APP_ENV") != "test" {
-	adminRoutes := protected.Group("/admin")
-	adminRoutes.Use(checkAdmin())
-	{
-		// Admin dashboard and main sections
-				adminRoutes.GET("", func(c *gin.Context) {
-						if os.Getenv("APP_ENV") == "test" && (pongo2Renderer == nil || pongo2Renderer.templateSet == nil) {
-								adminHTML := `<!doctype html>
+		adminRoutes := protected.Group("/admin")
+		adminRoutes.Use(checkAdmin())
+		{
+			// Admin dashboard and main sections
+			adminRoutes.GET("", func(c *gin.Context) {
+				if os.Getenv("APP_ENV") == "test" && (pongo2Renderer == nil || pongo2Renderer.templateSet == nil) {
+					adminHTML := `<!doctype html>
 <html lang="en" class="dark"><head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -907,14 +907,14 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		</section>
 	</main>
 </body></html>`
-								c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(adminHTML))
-								return
-						}
-						handleAdminDashboard(c)
-				})
-				adminRoutes.GET("/dashboard", func(c *gin.Context) {
-						if os.Getenv("APP_ENV") == "test" && (pongo2Renderer == nil || pongo2Renderer.templateSet == nil) {
-								adminHTML := `<!doctype html>
+					c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(adminHTML))
+					return
+				}
+				handleAdminDashboard(c)
+			})
+			adminRoutes.GET("/dashboard", func(c *gin.Context) {
+				if os.Getenv("APP_ENV") == "test" && (pongo2Renderer == nil || pongo2Renderer.templateSet == nil) {
+					adminHTML := `<!doctype html>
 <html lang="en" class="dark"><head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -933,219 +933,219 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		</section>
 	</main>
 </body></html>`
-								c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(adminHTML))
-								return
-						}
-						handleAdminDashboard(c)
-				})
-		// Users now uses the dynamic module system
-		adminRoutes.GET("/users", func(c *gin.Context) {
-			c.Params = append(c.Params, gin.Param{Key: "module", Value: "users"})
-			if dynamicHandler != nil {
-				dynamicHandler.ServeModule(c)
+					c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(adminHTML))
+					return
+				}
+				handleAdminDashboard(c)
+			})
+			// Users now uses the dynamic module system
+			adminRoutes.GET("/users", func(c *gin.Context) {
+				c.Params = append(c.Params, gin.Param{Key: "module", Value: "users"})
+				if dynamicHandler != nil {
+					dynamicHandler.ServeModule(c)
+				} else {
+					c.JSON(500, gin.H{"error": "Dynamic module system not initialized"})
+				}
+			})
+			adminRoutes.GET("/queues", handleAdminQueues)
+			adminRoutes.GET("/priorities", handleAdminPriorities)
+			adminRoutes.GET("/lookups", handleAdminLookups)
+			adminRoutes.GET("/roadmap", handleAdminRoadmap)
+			adminRoutes.GET("/schema-discovery", handleSchemaDiscovery)
+			adminRoutes.GET("/schema-monitoring", handleSchemaMonitoring)
+
+			// User management routes - now handled by dynamic module
+			adminRoutes.GET("/users/new", func(c *gin.Context) {
+				c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: "new"}}
+				if dynamicHandler != nil {
+					dynamicHandler.ServeModule(c)
+				} else {
+					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
+				}
+			})
+			adminRoutes.POST("/users", func(c *gin.Context) {
+				c.Params = append(c.Params, gin.Param{Key: "module", Value: "users"})
+				if dynamicHandler != nil {
+					dynamicHandler.ServeModule(c)
+				} else {
+					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
+				}
+			})
+			adminRoutes.GET("/users/:id", func(c *gin.Context) {
+				id := c.Param("id")
+				c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}}
+				if dynamicHandler != nil {
+					dynamicHandler.ServeModule(c)
+				} else {
+					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
+				}
+			})
+			adminRoutes.GET("/users/:id/edit", func(c *gin.Context) {
+				id := c.Param("id")
+				c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}, {Key: "action", Value: "edit"}}
+				if dynamicHandler != nil {
+					dynamicHandler.ServeModule(c)
+				} else {
+					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
+				}
+			})
+			adminRoutes.PUT("/users/:id", func(c *gin.Context) {
+				id := c.Param("id")
+				c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}}
+				if dynamicHandler != nil {
+					dynamicHandler.ServeModule(c)
+				} else {
+					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
+				}
+			})
+			adminRoutes.DELETE("/users/:id", func(c *gin.Context) {
+				id := c.Param("id")
+				c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}}
+				if dynamicHandler != nil {
+					dynamicHandler.ServeModule(c)
+				} else {
+					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
+				}
+			})
+			adminRoutes.PUT("/users/:id/status", func(c *gin.Context) {
+				id := c.Param("id")
+				c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}, {Key: "action", Value: "status"}}
+				if dynamicHandler != nil {
+					dynamicHandler.ServeModule(c)
+				} else {
+					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
+				}
+			})
+			adminRoutes.POST("/users/:id/reset-password", func(c *gin.Context) {
+				id := c.Param("id")
+				c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}, {Key: "action", Value: "reset-password"}}
+				if dynamicHandler != nil {
+					dynamicHandler.ServeModule(c)
+				} else {
+					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
+				}
+			})
+
+			// Queue management routes (disabled - handlers not implemented)
+			// adminRoutes.GET("/queues/:id", handleGetQueue)
+			// adminRoutes.POST("/queues", handleCreateQueue)
+			// adminRoutes.PUT("/queues/:id", handleUpdateQueue)
+			// adminRoutes.DELETE("/queues/:id", handleDeleteQueue)
+
+			// Priority management routes (disabled - handlers not implemented)
+			// adminRoutes.GET("/priorities/:id", handleGetPriority)
+			// adminRoutes.POST("/priorities", handleCreatePriority)
+			// adminRoutes.PUT("/priorities/:id", handleUpdatePriority)
+			// adminRoutes.DELETE("/priorities/:id", handleDeletePriority)
+
+			// State management routes (disabled - handlers not implemented)
+			// adminRoutes.GET("/states", handleAdminStates)
+			// adminRoutes.POST("/states/create", handleAdminStateCreate)
+			// adminRoutes.POST("/states/:id/update", handleAdminStateUpdate)
+			// adminRoutes.POST("/states/:id/delete", handleAdminStateDelete)
+			// adminRoutes.GET("/states/types", handleGetStateTypes)
+
+			// Type management routes (disabled - handlers not implemented)
+			// adminRoutes.GET("/types", handleAdminTypes)
+			// adminRoutes.POST("/types/create", handleAdminTypeCreate)
+			// adminRoutes.POST("/types/:id/update", handleAdminTypeUpdate)
+			// adminRoutes.POST("/types/:id/delete", handleAdminTypeDelete)
+
+			// Permission management routes (OTRS Role equivalent)
+			adminRoutes.GET("/permissions", handleAdminPermissions)
+			adminRoutes.GET("/permissions/user/:userId", handleGetUserPermissionMatrix)
+			adminRoutes.PUT("/permissions/user/:userId", handleUpdateUserPermissions)
+			adminRoutes.POST("/permissions/user/:userId", handleUpdateUserPermissions) // HTML form support
+			adminRoutes.GET("/permissions/group/:groupId", handleGetGroupPermissionMatrix)
+			// Back-compat for tests expecting group permissions endpoints
+			adminRoutes.GET("/groups/:id/permissions", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"group_id": c.Param("id"), "permissions": gin.H{}}})
+			})
+			adminRoutes.PUT("/groups/:id/permissions", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"success": true})
+			})
+			adminRoutes.POST("/permissions/clone", handleCloneUserPermissions)
+
+			// Group Management (OTRS AdminGroup)
+			adminRoutes.GET("/groups", handleAdminGroups)
+			adminRoutes.GET("/groups/:id", handleGetGroup)
+			adminRoutes.POST("/groups", handleCreateGroup)
+			adminRoutes.PUT("/groups/:id", handleUpdateGroup)
+			adminRoutes.DELETE("/groups/:id", handleDeleteGroup)
+			adminRoutes.GET("/groups/:id/users", handleGetGroupUsers)
+			adminRoutes.POST("/groups/:id/users", handleAddUserToGroup)
+			adminRoutes.DELETE("/groups/:id/users/:userId", handleRemoveUserFromGroup)
+
+			// Role Management (Higher level than groups)
+			adminRoutes.GET("/roles", handleAdminRoles)
+			adminRoutes.GET("/roles/:id", handleAdminRoleGet)
+			adminRoutes.POST("/roles/create", handleAdminRoleCreate)
+			adminRoutes.PUT("/roles/:id", handleAdminRoleUpdate)
+			adminRoutes.DELETE("/roles/:id", handleAdminRoleDelete)
+			adminRoutes.GET("/roles/:id/users", handleAdminRoleUsers)
+			adminRoutes.POST("/roles/:id/users", handleAdminRoleUserAdd)
+			adminRoutes.DELETE("/roles/:id/users/:userId", handleAdminRoleUserRemove)
+			adminRoutes.GET("/roles/:id/permissions", handleAdminRolePermissions)
+			adminRoutes.PUT("/roles/:id/permissions", handleAdminRolePermissions)
+
+			// Customer management routes
+			adminRoutes.GET("/customer-users", underConstruction("Customer Users"))
+			adminRoutes.GET("/customer-companies", underConstruction("Customer Companies"))
+			adminRoutes.GET("/customer-user-group", underConstruction("Customer User Groups"))
+			adminRoutes.GET("/customers", underConstruction("Customer Management"))
+
+			// Ticket configuration routes
+			adminRoutes.GET("/states", handleAdminStates)
+			adminRoutes.POST("/states/create", handleAdminStateCreate)
+			adminRoutes.PUT("/states/:id/update", handleAdminStateUpdate)
+			adminRoutes.DELETE("/states/:id/delete", handleAdminStateDelete)
+			adminRoutes.GET("/states/types", handleGetStateTypes)
+
+			adminRoutes.GET("/types", handleAdminTypes)
+			adminRoutes.POST("/types/create", handleAdminTypeCreate)
+			adminRoutes.POST("/types/:id/update", handleAdminTypeUpdate)
+			adminRoutes.POST("/types/:id/delete", handleAdminTypeDelete)
+			adminRoutes.GET("/services", handleAdminServices)
+			adminRoutes.POST("/services/create", handleAdminServiceCreate)
+			adminRoutes.PUT("/services/:id/update", handleAdminServiceUpdate)
+			adminRoutes.DELETE("/services/:id/delete", handleAdminServiceDelete)
+			adminRoutes.GET("/sla", handleAdminSLA)
+			adminRoutes.POST("/sla/create", handleAdminSLACreate)
+			adminRoutes.PUT("/sla/:id/update", handleAdminSLAUpdate)
+			adminRoutes.DELETE("/sla/:id/delete", handleAdminSLADelete)
+
+			// Attachment management
+			adminRoutes.GET("/attachments", handleAdminAttachment)
+			adminRoutes.POST("/attachments/create", handleAdminAttachmentCreate)
+			adminRoutes.PUT("/attachments/:id/update", handleAdminAttachmentUpdate)
+			adminRoutes.DELETE("/attachments/:id/delete", handleAdminAttachmentDelete)
+			adminRoutes.GET("/attachments/:id/download", handleAdminAttachmentDownload)
+			adminRoutes.PUT("/attachments/:id/toggle", handleAdminAttachmentToggle)
+
+			// Communication templates
+			adminRoutes.GET("/signatures", underConstruction("Email Signatures"))
+			adminRoutes.GET("/salutations", underConstruction("Email Salutations"))
+			adminRoutes.GET("/notifications", underConstruction("Notification Templates"))
+
+			// System configuration
+			adminRoutes.GET("/settings", underConstruction("System Settings"))
+			adminRoutes.GET("/templates", underConstruction("Template Management"))
+			adminRoutes.GET("/reports", underConstruction("Reports"))
+			adminRoutes.GET("/backup", underConstruction("Backup & Restore"))
+
+			// Dynamic Module System for side-by-side testing
+			if os.Getenv("APP_ENV") == "test" {
+				log.Printf("WARNING: Skipping dynamic modules in test without DB")
+			} else if db, err := database.GetDB(); err == nil && db != nil {
+				if err := SetupDynamicModules(adminRoutes, db); err != nil {
+					log.Printf("WARNING: Failed to setup dynamic modules: %v", err)
+				} else {
+					log.Println("✅ Dynamic Module System integrated successfully")
+				}
 			} else {
-				c.JSON(500, gin.H{"error": "Dynamic module system not initialized"})
+				log.Printf("WARNING: Cannot setup dynamic modules without database: %v", err)
 			}
-		})
-		adminRoutes.GET("/queues", handleAdminQueues)
-		adminRoutes.GET("/priorities", handleAdminPriorities)
-		adminRoutes.GET("/lookups", handleAdminLookups)
-		adminRoutes.GET("/roadmap", handleAdminRoadmap)
-		adminRoutes.GET("/schema-discovery", handleSchemaDiscovery)
-		adminRoutes.GET("/schema-monitoring", handleSchemaMonitoring)
-
-		// User management routes - now handled by dynamic module
-		adminRoutes.GET("/users/new", func(c *gin.Context) {
-			c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: "new"}}
-			if dynamicHandler != nil {
-				dynamicHandler.ServeModule(c)
-			} else {
-				c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-			}
-		})
-		adminRoutes.POST("/users", func(c *gin.Context) {
-			c.Params = append(c.Params, gin.Param{Key: "module", Value: "users"})
-			if dynamicHandler != nil {
-				dynamicHandler.ServeModule(c)
-			} else {
-				c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-			}
-		})
-		adminRoutes.GET("/users/:id", func(c *gin.Context) {
-			id := c.Param("id")
-			c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}}
-			if dynamicHandler != nil {
-				dynamicHandler.ServeModule(c)
-			} else {
-				c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-			}
-		})
-		adminRoutes.GET("/users/:id/edit", func(c *gin.Context) {
-			id := c.Param("id")
-			c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}, {Key: "action", Value: "edit"}}
-			if dynamicHandler != nil {
-				dynamicHandler.ServeModule(c)
-			} else {
-				c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-			}
-		})
-		adminRoutes.PUT("/users/:id", func(c *gin.Context) {
-			id := c.Param("id")
-			c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}}
-			if dynamicHandler != nil {
-				dynamicHandler.ServeModule(c)
-			} else {
-				c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-			}
-		})
-		adminRoutes.DELETE("/users/:id", func(c *gin.Context) {
-			id := c.Param("id")
-			c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}}
-			if dynamicHandler != nil {
-				dynamicHandler.ServeModule(c)
-			} else {
-				c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-			}
-		})
-		adminRoutes.PUT("/users/:id/status", func(c *gin.Context) {
-			id := c.Param("id")
-			c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}, {Key: "action", Value: "status"}}
-			if dynamicHandler != nil {
-				dynamicHandler.ServeModule(c)
-			} else {
-				c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-			}
-		})
-		adminRoutes.POST("/users/:id/reset-password", func(c *gin.Context) {
-			id := c.Param("id")
-			c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}, {Key: "action", Value: "reset-password"}}
-			if dynamicHandler != nil {
-				dynamicHandler.ServeModule(c)
-			} else {
-				c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-			}
-		})
-
-		// Queue management routes (disabled - handlers not implemented)
-		// adminRoutes.GET("/queues/:id", handleGetQueue)
-		// adminRoutes.POST("/queues", handleCreateQueue)
-		// adminRoutes.PUT("/queues/:id", handleUpdateQueue)
-		// adminRoutes.DELETE("/queues/:id", handleDeleteQueue)
-
-		// Priority management routes (disabled - handlers not implemented)
-		// adminRoutes.GET("/priorities/:id", handleGetPriority)
-		// adminRoutes.POST("/priorities", handleCreatePriority)
-		// adminRoutes.PUT("/priorities/:id", handleUpdatePriority)
-		// adminRoutes.DELETE("/priorities/:id", handleDeletePriority)
-
-		// State management routes (disabled - handlers not implemented)
-		// adminRoutes.GET("/states", handleAdminStates)
-		// adminRoutes.POST("/states/create", handleAdminStateCreate)
-		// adminRoutes.POST("/states/:id/update", handleAdminStateUpdate)
-		// adminRoutes.POST("/states/:id/delete", handleAdminStateDelete)
-		// adminRoutes.GET("/states/types", handleGetStateTypes)
-
-		// Type management routes (disabled - handlers not implemented)
-		// adminRoutes.GET("/types", handleAdminTypes)
-		// adminRoutes.POST("/types/create", handleAdminTypeCreate)
-		// adminRoutes.POST("/types/:id/update", handleAdminTypeUpdate)
-		// adminRoutes.POST("/types/:id/delete", handleAdminTypeDelete)
-
-		// Permission management routes (OTRS Role equivalent)
-		adminRoutes.GET("/permissions", handleAdminPermissions)
-		adminRoutes.GET("/permissions/user/:userId", handleGetUserPermissionMatrix)
-		adminRoutes.PUT("/permissions/user/:userId", handleUpdateUserPermissions)
-		adminRoutes.POST("/permissions/user/:userId", handleUpdateUserPermissions) // HTML form support
-		adminRoutes.GET("/permissions/group/:groupId", handleGetGroupPermissionMatrix)
-		// Back-compat for tests expecting group permissions endpoints
-		adminRoutes.GET("/groups/:id/permissions", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"group_id": c.Param("id"), "permissions": gin.H{}}})
-		})
-		adminRoutes.PUT("/groups/:id/permissions", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{"success": true})
-		})
-		adminRoutes.POST("/permissions/clone", handleCloneUserPermissions)
-
-		// Group Management (OTRS AdminGroup)
-		adminRoutes.GET("/groups", handleAdminGroups)
-		adminRoutes.GET("/groups/:id", handleGetGroup)
-		adminRoutes.POST("/groups", handleCreateGroup)
-		adminRoutes.PUT("/groups/:id", handleUpdateGroup)
-		adminRoutes.DELETE("/groups/:id", handleDeleteGroup)
-		adminRoutes.GET("/groups/:id/users", handleGetGroupUsers)
-		adminRoutes.POST("/groups/:id/users", handleAddUserToGroup)
-		adminRoutes.DELETE("/groups/:id/users/:userId", handleRemoveUserFromGroup)
-
-		// Role Management (Higher level than groups)
-		adminRoutes.GET("/roles", handleAdminRoles)
-		adminRoutes.GET("/roles/:id", handleAdminRoleGet)
-		adminRoutes.POST("/roles/create", handleAdminRoleCreate)
-		adminRoutes.PUT("/roles/:id", handleAdminRoleUpdate)
-		adminRoutes.DELETE("/roles/:id", handleAdminRoleDelete)
-		adminRoutes.GET("/roles/:id/users", handleAdminRoleUsers)
-		adminRoutes.POST("/roles/:id/users", handleAdminRoleUserAdd)
-		adminRoutes.DELETE("/roles/:id/users/:userId", handleAdminRoleUserRemove)
-		adminRoutes.GET("/roles/:id/permissions", handleAdminRolePermissions)
-		adminRoutes.PUT("/roles/:id/permissions", handleAdminRolePermissions)
-
-		// Customer management routes
-		adminRoutes.GET("/customer-users", underConstruction("Customer Users"))
-		adminRoutes.GET("/customer-companies", underConstruction("Customer Companies"))
-		adminRoutes.GET("/customer-user-group", underConstruction("Customer User Groups"))
-		adminRoutes.GET("/customers", underConstruction("Customer Management"))
-
-		// Ticket configuration routes
-		adminRoutes.GET("/states", handleAdminStates)
-		adminRoutes.POST("/states/create", handleAdminStateCreate)
-		adminRoutes.PUT("/states/:id/update", handleAdminStateUpdate)
-		adminRoutes.DELETE("/states/:id/delete", handleAdminStateDelete)
-		adminRoutes.GET("/states/types", handleGetStateTypes)
-
-		adminRoutes.GET("/types", handleAdminTypes)
-		adminRoutes.POST("/types/create", handleAdminTypeCreate)
-		adminRoutes.POST("/types/:id/update", handleAdminTypeUpdate)
-		adminRoutes.POST("/types/:id/delete", handleAdminTypeDelete)
-		adminRoutes.GET("/services", handleAdminServices)
-		adminRoutes.POST("/services/create", handleAdminServiceCreate)
-		adminRoutes.PUT("/services/:id/update", handleAdminServiceUpdate)
-		adminRoutes.DELETE("/services/:id/delete", handleAdminServiceDelete)
-		adminRoutes.GET("/sla", handleAdminSLA)
-		adminRoutes.POST("/sla/create", handleAdminSLACreate)
-		adminRoutes.PUT("/sla/:id/update", handleAdminSLAUpdate)
-		adminRoutes.DELETE("/sla/:id/delete", handleAdminSLADelete)
-
-		// Attachment management
-		adminRoutes.GET("/attachments", handleAdminAttachment)
-		adminRoutes.POST("/attachments/create", handleAdminAttachmentCreate)
-		adminRoutes.PUT("/attachments/:id/update", handleAdminAttachmentUpdate)
-		adminRoutes.DELETE("/attachments/:id/delete", handleAdminAttachmentDelete)
-		adminRoutes.GET("/attachments/:id/download", handleAdminAttachmentDownload)
-		adminRoutes.PUT("/attachments/:id/toggle", handleAdminAttachmentToggle)
-
-		// Communication templates
-		adminRoutes.GET("/signatures", underConstruction("Email Signatures"))
-		adminRoutes.GET("/salutations", underConstruction("Email Salutations"))
-		adminRoutes.GET("/notifications", underConstruction("Notification Templates"))
-
-		// System configuration
-		adminRoutes.GET("/settings", underConstruction("System Settings"))
-		adminRoutes.GET("/templates", underConstruction("Template Management"))
-		adminRoutes.GET("/reports", underConstruction("Reports"))
-		adminRoutes.GET("/backup", underConstruction("Backup & Restore"))
-
-		// Dynamic Module System for side-by-side testing
-		if os.Getenv("APP_ENV") == "test" {
-			log.Printf("WARNING: Skipping dynamic modules in test without DB")
-		} else if db, err := database.GetDB(); err == nil && db != nil {
-			if err := SetupDynamicModules(adminRoutes, db); err != nil {
-				log.Printf("WARNING: Failed to setup dynamic modules: %v", err)
-			} else {
-				log.Println("✅ Dynamic Module System integrated successfully")
-			}
-		} else {
-			log.Printf("WARNING: Cannot setup dynamic modules without database: %v", err)
 		}
-	}
 	} else {
 		log.Printf("Test mode: skipping legacy admin route registrations; YAML routes will provide admin pages")
 	}
@@ -1274,7 +1274,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		protectedAPI.GET("/tickets/:id", handleGetTicket)
 		protectedAPI.PUT("/tickets/:id", handleUpdateTicket)
 		protectedAPI.DELETE("/tickets/:id", handleDeleteTicket)
-	protectedAPI.POST("/tickets/:id/notes", handleAddTicketNote)
+		protectedAPI.POST("/tickets/:id/notes", handleAddTicketNote)
 		protectedAPI.GET("/tickets/:id/history", handleGetTicketHistory)
 		protectedAPI.GET("/tickets/:id/available-agents", handleGetAvailableAgents)
 		if os.Getenv("APP_ENV") != "test" {
@@ -1445,11 +1445,11 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		// protectedAPI.GET("/templates/modal", handleTemplateSelectionModal)
 	}
 
-        // SSE endpoints (Server-Sent Events for real-time updates)
-        // {
-        //         protectedAPI.GET("/tickets/stream", handleTicketStream)
-        //         protectedAPI.GET("/dashboard/activity-stream", handleActivityStream)
-        // }	// Setup API v1 routes with existing services
+	// SSE endpoints (Server-Sent Events for real-time updates)
+	// {
+	//         protectedAPI.GET("/tickets/stream", handleTicketStream)
+	//         protectedAPI.GET("/dashboard/activity-stream", handleActivityStream)
+	// }	// Setup API v1 routes with existing services
 	SetupAPIv1Routes(r, jwtManager, ldapProvider, i18nSvc)
 
 	// Catch-all for undefined routes
@@ -1631,9 +1631,9 @@ func handleLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 			}
 		}
 
-	// Set cookies (support both names for YAML vs legacy paths)
-	c.SetCookie("access_token", token, sessionTimeout, "/", "", false, true)
-	c.SetCookie("auth_token", token, sessionTimeout, "/", "", false, true)
+		// Set cookies (support both names for YAML vs legacy paths)
+		c.SetCookie("access_token", token, sessionTimeout, "/", "", false, true)
+		c.SetCookie("auth_token", token, sessionTimeout, "/", "", false, true)
 
 		// For HTMX requests, send redirect header
 		if c.GetHeader("HX-Request") == "true" {
@@ -1649,7 +1649,6 @@ func handleLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 		c.Redirect(http.StatusFound, "/dashboard")
 	}
 }
-
 
 // handleHTMXLogin handles HTMX login requests
 func handleHTMXLogin(c *gin.Context) {
@@ -1976,8 +1975,8 @@ func handleTickets(c *gin.Context) {
 				}
 				return "User Unknown"
 			}(),
-			"created":  t.CreateTime.Format("2006-01-02 15:04"),
-			"updated":  t.ChangeTime.Format("2006-01-02 15:04"),
+			"created": t.CreateTime.Format("2006-01-02 15:04"),
+			"updated": t.ChangeTime.Format("2006-01-02 15:04"),
 		})
 	}
 
@@ -2098,10 +2097,19 @@ func handleQueues(c *gin.Context) {
 			var cnt int
 			if err := rows.Scan(&qid, &stateName, &cnt); err == nil {
 				m, ok := stats[qid]
-				if !ok { m = map[string]int{}; stats[qid] = m }
+				if !ok {
+					m = map[string]int{}
+					stats[qid] = m
+				}
 				cat := "open"
 				lname := strings.ToLower(stateName)
-				if lname == "new" { cat = "new" } else if strings.Contains(lname, "pending") { cat = "pending" } else if strings.Contains(lname, "closed") || strings.Contains(lname, "resolved") { cat = "closed" }
+				if lname == "new" {
+					cat = "new"
+				} else if strings.Contains(lname, "pending") {
+					cat = "pending"
+				} else if strings.Contains(lname, "closed") || strings.Contains(lname, "resolved") {
+					cat = "closed"
+				}
 				m[cat] += cnt
 				m["total"] += cnt
 			}
@@ -2116,15 +2124,15 @@ func handleQueues(c *gin.Context) {
 		}
 		m := stats[uint(q.ID)]
 		viewQueues = append(viewQueues, gin.H{
-			"ID":     q.ID,
-			"Name":   q.Name,
+			"ID":      q.ID,
+			"Name":    q.Name,
 			"Comment": q.Comment,
 			"ValidID": q.ValidID,
-			"New":    m["new"],
-			"Open":   m["open"],
+			"New":     m["new"],
+			"Open":    m["open"],
 			"Pending": m["pending"],
-			"Closed": m["closed"],
-			"Total":  m["total"],
+			"Closed":  m["closed"],
+			"Total":   m["total"],
 		})
 	}
 
@@ -2358,8 +2366,8 @@ func handleQueueDetail(c *gin.Context) {
 				}
 				return "User Unknown"
 			}(),
-			"created":  t.CreateTime.Format("2006-01-02 15:04"),
-			"updated":  t.ChangeTime.Format("2006-01-02 15:04"),
+			"created": t.CreateTime.Format("2006-01-02 15:04"),
+			"updated": t.ChangeTime.Format("2006-01-02 15:04"),
 		})
 	}
 
@@ -2482,16 +2490,18 @@ func handleNewTicket(c *gin.Context) {
 		if db != nil {
 			var cnt int
 			_ = db.QueryRow(database.ConvertPlaceholders(`SELECT COUNT(*) FROM group_user ug JOIN groups g ON ug.group_id = g.id WHERE ug.user_id = $1 AND g.name = 'admin'`), userMap).Scan(&cnt)
-			if cnt > 0 { isInAdminGroup = true }
+			if cnt > 0 {
+				isInAdminGroup = true
+			}
 		}
 	}
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets/new.pongo2", pongo2.Context{
-		"User":          getUserMapForTemplate(c),
+		"User":           getUserMapForTemplate(c),
 		"IsInAdminGroup": isInAdminGroup,
-		"ActivePage":    "tickets",
-		"Queues":        queues,
-		"Priorities":    priorities,
-		"Types":         types,
+		"ActivePage":     "tickets",
+		"Queues":         queues,
+		"Priorities":     priorities,
+		"Types":          types,
 	})
 }
 
@@ -2564,12 +2574,12 @@ func handleNewEmailTicket(c *gin.Context) {
 	// Render unified Pongo2 new ticket form
 	if pongo2Renderer != nil {
 		pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets/new.pongo2", pongo2.Context{
-			"User":        getUserMapForTemplate(c),
-			"ActivePage":  "tickets",
-			"Queues":      queues,
-			"Priorities":  priorities,
-			"Types":       types,
-			"TicketType":  "email",
+			"User":       getUserMapForTemplate(c),
+			"ActivePage": "tickets",
+			"Queues":     queues,
+			"Priorities": priorities,
+			"Types":      types,
+			"TicketType": "email",
 		})
 		return
 	}
@@ -2645,12 +2655,12 @@ func handleNewPhoneTicket(c *gin.Context) {
 	// Render unified Pongo2 new ticket form
 	if pongo2Renderer != nil {
 		pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets/new.pongo2", pongo2.Context{
-			"User":        getUserMapForTemplate(c),
-			"ActivePage":  "tickets",
-			"Queues":      queues,
-			"Priorities":  priorities,
-			"Types":       types,
-			"TicketType":  "phone",
+			"User":       getUserMapForTemplate(c),
+			"ActivePage": "tickets",
+			"Queues":     queues,
+			"Priorities": priorities,
+			"Types":      types,
+			"TicketType": "phone",
 		})
 		return
 	}
@@ -2770,9 +2780,9 @@ func handleTicketDetail(c *gin.Context) {
 			if bodyStr, ok := article.Body.(string); ok {
 				contentType := article.MimeType
 				return strings.Contains(contentType, "text/html") ||
-					   (strings.Contains(bodyStr, "<") && strings.Contains(bodyStr, ">")) ||
-					   contentType == "text/markdown" ||
-					   isMarkdownContent(bodyStr)
+					(strings.Contains(bodyStr, "<") && strings.Contains(bodyStr, ">")) ||
+					contentType == "text/markdown" ||
+					isMarkdownContent(bodyStr)
 			}
 			return false
 		})()
@@ -2787,15 +2797,15 @@ func handleTicketDetail(c *gin.Context) {
 		noteBodiesJSON = append(noteBodiesJSON, bodyJSON)
 
 		notes = append(notes, gin.H{
-			"id":             article.ID,
-			"author":         fmt.Sprintf("User %d", article.CreateBy),
-			"time":           article.CreateTime.Format("2006-01-02 15:04"),
-			"body":           bodyContent,
-			"sender_type":    senderType,
-			"create_time":    article.CreateTime.Format("2006-01-02 15:04"),
-			"subject":        article.Subject,
-			"has_html":       hasHTMLContent,
-			"attachments":    []gin.H{}, // Empty attachments for now
+			"id":          article.ID,
+			"author":      fmt.Sprintf("User %d", article.CreateBy),
+			"time":        article.CreateTime.Format("2006-01-02 15:04"),
+			"body":        bodyContent,
+			"sender_type": senderType,
+			"create_time": article.CreateTime.Format("2006-01-02 15:04"),
+			"subject":     article.Subject,
+			"has_html":    hasHTMLContent,
+			"attachments": []gin.H{}, // Empty attachments for now
 		})
 	}
 
@@ -2898,7 +2908,7 @@ func handleTicketDetail(c *gin.Context) {
 	var descriptionJSON string
 	if len(articles) > 0 {
 		// debug removed: first article body dump
-		
+
 		// First try to get HTML body content from attachment
 		htmlContent, err := articleRepo.GetHTMLBodyContent(uint(articles[0].ID))
 		if err != nil {
@@ -2931,7 +2941,7 @@ func handleTicketDetail(c *gin.Context) {
 				// debug removed: non-string body
 			}
 		}
-		
+
 		// JSON encode the description for safe JavaScript consumption
 		if jsonBytes, err := json.Marshal(description); err == nil {
 			descriptionJSON = string(jsonBytes)
@@ -2967,7 +2977,9 @@ func handleTicketDetail(c *gin.Context) {
 		d := time.Since(ticket.CreateTime)
 		if d < time.Hour {
 			m := int(d.Minutes())
-			if m < 1 { return "<1 minute" }
+			if m < 1 {
+				return "<1 minute"
+			}
 			return fmt.Sprintf("%d minutes", m)
 		}
 		if d < 24*time.Hour {
@@ -2982,7 +2994,11 @@ func handleTicketDetail(c *gin.Context) {
 	timeEntries := make([]gin.H, 0, len(taEntries))
 	for _, e := range taEntries {
 		var aid interface{}
-		if e.ArticleID != nil { aid = *e.ArticleID } else { aid = nil }
+		if e.ArticleID != nil {
+			aid = *e.ArticleID
+		} else {
+			aid = nil
+		}
 		timeEntries = append(timeEntries, gin.H{
 			"minutes":     e.TimeUnit,
 			"create_time": e.CreateTime.Format("2006-01-02 15:04"),
@@ -2993,19 +3009,24 @@ func handleTicketDetail(c *gin.Context) {
 	// Expose per-article minutes for client/template consumption
 	// We'll add a helper that returns the chip minutes by article id
 	ticketData := gin.H{
-		"id":        ticket.ID,
-		"tn":        ticket.TicketNumber,
-		"subject":   ticket.Title,
-		"status":    stateName,
-		"state_type": strings.ToLower(strings.Fields(stateName)[0]), // First word of state for badge colors
-		"is_closed": isClosed,
-		"priority":  priorityName,
-		"priority_id": ticket.TicketPriorityID,
-		"queue":     queueName,
-		"queue_id":  ticket.QueueID,
-		"customer_name": customerName,
+		"id":               ticket.ID,
+		"tn":               ticket.TicketNumber,
+		"subject":          ticket.Title,
+		"status":           stateName,
+		"state_type":       strings.ToLower(strings.Fields(stateName)[0]), // First word of state for badge colors
+		"is_closed":        isClosed,
+		"priority":         priorityName,
+		"priority_id":      ticket.TicketPriorityID,
+		"queue":            queueName,
+		"queue_id":         ticket.QueueID,
+		"customer_name":    customerName,
 		"customer_user_id": ticket.CustomerUserID,
-		"customer_id": func() string { if ticket.CustomerID != nil { return *ticket.CustomerID }; return "" }(),
+		"customer_id": func() string {
+			if ticket.CustomerID != nil {
+				return *ticket.CustomerID
+			}
+			return ""
+		}(),
 		"customer": gin.H{
 			"name":  customerName,
 			"email": customerEmail,
@@ -3015,24 +3036,24 @@ func handleTicketDetail(c *gin.Context) {
 			"name":  agentName,
 			"email": agentEmail,
 		},
-		"assigned_to": assignedTo,
-		"owner":       assignedTo,
-		"type":      typeName,
-		"service":   "-",            // TODO: Get from service table
-		"sla":       "-",            // TODO: Get from SLA table
-		"created":   ticket.CreateTime.Format("2006-01-02 15:04"),
-		"updated":   ticket.ChangeTime.Format("2006-01-02 15:04"),
-		"description": description,  // Raw description for display
-		"description_json": descriptionJSON, // JSON-encoded for JavaScript
-		"notes":       notes,        // Pass notes array directly
-		"note_bodies_json": noteBodiesJSON, // JSON-encoded note bodies for JavaScript
+		"assigned_to":         assignedTo,
+		"owner":               assignedTo,
+		"type":                typeName,
+		"service":             "-", // TODO: Get from service table
+		"sla":                 "-", // TODO: Get from SLA table
+		"created":             ticket.CreateTime.Format("2006-01-02 15:04"),
+		"updated":             ticket.ChangeTime.Format("2006-01-02 15:04"),
+		"description":         description,     // Raw description for display
+		"description_json":    descriptionJSON, // JSON-encoded for JavaScript
+		"notes":               notes,           // Pass notes array directly
+		"note_bodies_json":    noteBodiesJSON,  // JSON-encoded note bodies for JavaScript
 		"description_is_html": strings.Contains(description, "<") && strings.Contains(description, ">"),
-		"time_total_minutes": totalMinutes,
-		"time_entries":       timeEntries,
-		"time_by_article":    perArticleMinutes,
-		"first_article_id":   firstArticleID,
-		"age":                age,
-		"status_id":          ticket.TicketStateID,
+		"time_total_minutes":  totalMinutes,
+		"time_entries":        timeEntries,
+		"time_by_article":     perArticleMinutes,
+		"first_article_id":    firstArticleID,
+		"age":                 age,
+		"status_id":           ticket.TicketStateID,
 	}
 
 	// Customer panel (DRY: same details as ticket creation selection panel)
@@ -3080,13 +3101,16 @@ func handleTicketDetail(c *gin.Context) {
 		}
 	}
 
+	requireTimeUnits := isTimeUnitsRequired(db)
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/ticket_detail.pongo2", pongo2.Context{
-		"Ticket":              ticketData,
-		"User":                getUserMapForTemplate(c),
-		"ActivePage":          "tickets",
-		"CustomerPanelUser":   panelUser,
+		"Ticket":               ticketData,
+		"User":                 getUserMapForTemplate(c),
+		"ActivePage":           "tickets",
+		"CustomerPanelUser":    panelUser,
 		"CustomerPanelCompany": panelCompany,
-		"CustomerPanelOpen":   panelOpen,
+		"CustomerPanelOpen":    panelOpen,
+		"RequireNoteTimeUnits": requireTimeUnits,
 	})
 }
 
@@ -3597,7 +3621,7 @@ func handleActivity(c *gin.Context) {
 		{
 			"id":     "2",
 			"type":   "ticket_updated",
-			"user":    "Alice Agent",
+			"user":   "Alice Agent",
 			"action": "updated ticket T-2024-002",
 			"time":   "10 minutes ago",
 		},
@@ -3707,23 +3731,54 @@ func handleAPITickets(c *gin.Context) {
 			title := "Tickets"
 			if len(statusVals) == 1 {
 				sv := strings.ToLower(strings.TrimSpace(statusVals[0]))
-				if sv == "open" { title = "Open Tickets" }
-				if sv == "closed" { title = "Closed Tickets" }
+				if sv == "open" {
+					title = "Open Tickets"
+				}
+				if sv == "closed" {
+					title = "Closed Tickets"
+				}
 			}
 			var b strings.Builder
 			b.WriteString("<h1>" + title + "</h1>")
 			b.WriteString("<div class=\"badges\">")
-			for _, s := range statusVals { if s != "" { b.WriteString("<span class=\"badge\">"+s+"</span>") } }
-			for _, p := range priorityVals { if p != "" { if strings.ToLower(p) == "high" { b.WriteString("<span class=\"badge\">High Priority</span>") } else if strings.ToLower(p) == "low" { b.WriteString("<span class=\"badge\">Low Priority</span>") }; b.WriteString("<span class=\"badge\">"+p+"</span>") } }
-			for _, q := range queueVals { if q == "1" { b.WriteString("<span class=\"badge\">General Support</span>") } else if q == "2" { b.WriteString("<span class=\"badge\">Technical Support</span>") } }
+			for _, s := range statusVals {
+				if s != "" {
+					b.WriteString("<span class=\"badge\">" + s + "</span>")
+				}
+			}
+			for _, p := range priorityVals {
+				if p != "" {
+					if strings.ToLower(p) == "high" {
+						b.WriteString("<span class=\"badge\">High Priority</span>")
+					} else if strings.ToLower(p) == "low" {
+						b.WriteString("<span class=\"badge\">Low Priority</span>")
+					}
+					b.WriteString("<span class=\"badge\">" + p + "</span>")
+				}
+			}
+			for _, q := range queueVals {
+				if q == "1" {
+					b.WriteString("<span class=\"badge\">General Support</span>")
+				} else if q == "2" {
+					b.WriteString("<span class=\"badge\">Technical Support</span>")
+				}
+			}
 			b.WriteString("</div>")
 			assigned := strings.ToLower(strings.TrimSpace(c.Query("assigned")))
 			assignee := strings.TrimSpace(c.Query("assignee"))
-			if assigned == "false" { b.WriteString("<div>Unassigned</div>") }
-			if assigned == "true" { b.WriteString("<div>Agent</div>") }
-			if assignee == "1" { b.WriteString("<div>Agent Smith</div>") }
+			if assigned == "false" {
+				b.WriteString("<div>Unassigned</div>")
+			}
+			if assigned == "true" {
+				b.WriteString("<div>Agent</div>")
+			}
+			if assignee == "1" {
+				b.WriteString("<div>Agent Smith</div>")
+			}
 			b.WriteString("<div id=\"ticket-list\">")
-			if len(result) == 0 { b.WriteString("<div>No tickets found</div>") }
+			if len(result) == 0 {
+				b.WriteString("<div>No tickets found</div>")
+			}
 			for _, t := range result {
 				subj := t["subject"].(string)
 				pr := t["priority_label"].(string)
@@ -3855,7 +3910,7 @@ func handleCreateTicket(c *gin.Context) {
 		return
 	}
 
-    // Parse the request into CreateTicketInput semantics
+	// Parse the request into CreateTicketInput semantics
 	var req struct {
 		Subject       string
 		Body          string
@@ -3886,9 +3941,9 @@ func handleCreateTicket(c *gin.Context) {
 		if req.Body == "" {
 			req.Body = c.PostForm("body")
 		}
-	req.Priority = c.PostForm("priority")
-	req.NextState = c.PostForm("next_state")
-	req.PendingUntil = c.PostForm("pending_until")
+		req.Priority = c.PostForm("priority")
+		req.NextState = c.PostForm("next_state")
+		req.PendingUntil = c.PostForm("pending_until")
 
 		// Parse queue ID (support both queue_id and legacy queue)
 		if queueStr := c.PostForm("queue_id"); queueStr != "" {
@@ -4186,7 +4241,9 @@ func handleAddTicketNote(c *gin.Context) {
 		}
 		noteData.Internal = c.PostForm("internal") == "true" || c.PostForm("internal") == "1"
 		if tu := strings.TrimSpace(c.PostForm("time_units")); tu != "" {
-			if v, err := strconv.Atoi(tu); err == nil && v >= 0 { noteData.TimeUnits = v }
+			if v, err := strconv.Atoi(tu); err == nil && v >= 0 {
+				noteData.TimeUnits = v
+			}
 		}
 		if noteData.Content == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Note content is required"})
@@ -4198,6 +4255,12 @@ func handleAddTicketNote(c *gin.Context) {
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+		return
+	}
+
+	requireTimeUnits := isTimeUnitsRequired(db)
+	if requireTimeUnits && noteData.TimeUnits <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Time units are required for notes"})
 		return
 	}
 
@@ -4229,7 +4292,7 @@ func handleAddTicketNote(c *gin.Context) {
 		Subject:                "Note",
 		Body:                   noteData.Content,
 		SenderTypeID:           1, // Agent
-		CommunicationChannelID:  7, // Note
+		CommunicationChannelID: 7, // Note
 		IsVisibleForCustomer:   0, // Internal note by default
 		CreateBy:               userID,
 		ChangeBy:               userID,
@@ -4282,7 +4345,9 @@ func handleAddTicketTime(c *gin.Context) {
 	} else {
 		tu := strings.TrimSpace(c.PostForm("time_units"))
 		if tu != "" {
-			if v, err := strconv.Atoi(tu); err == nil && v >= 0 { payload.TimeUnits = v }
+			if v, err := strconv.Atoi(tu); err == nil && v >= 0 {
+				payload.TimeUnits = v
+			}
 		}
 		log.Printf("addTicketTime: parsed FORM payload for ticket %s -> time_units=%d (raw='%s')", ticketID, payload.TimeUnits, tu)
 	}
@@ -4330,7 +4395,9 @@ func handleAddTicketTime(c *gin.Context) {
 	// Return updated total
 	entries, _ := taRepo.ListByTicket(ticketIDInt)
 	total := 0
-	for _, e := range entries { total += e.TimeUnit }
+	for _, e := range entries {
+		total += e.TimeUnit
+	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "time_total_minutes": total})
 }
@@ -4352,8 +4419,8 @@ func handleGetTicketHistory(c *gin.Context) {
 		},
 		{
 			"id":      "2",
-				"action":  "assigned",
-				"user":    "Admin",
+			"action":  "assigned",
+			"user":    "Admin",
 			"time":    "2024-01-10 09:05",
 			"details": "Assigned to Alice Agent",
 		},
@@ -4522,7 +4589,9 @@ func handleTicketReply(c *gin.Context) {
 	timeUnitsStr := strings.TrimSpace(c.PostForm("time_units"))
 	timeUnits := 0
 	if timeUnitsStr != "" {
-		if v, err := strconv.Atoi(timeUnitsStr); err == nil && v >= 0 { timeUnits = v }
+		if v, err := strconv.Atoi(timeUnitsStr); err == nil && v >= 0 {
+			timeUnits = v
+		}
 	}
 
 	if strings.TrimSpace(replyText) == "" {
@@ -4584,7 +4653,10 @@ func handleUpdateTicketPriority(c *gin.Context) {
 		return
 	}
 	db, err := database.GetDB()
-	if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"}); return }
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"})
+		return
+	}
 	repo := repository.NewTicketRepository(db)
 	tid, _ := strconv.Atoi(ticketID)
 	if err := repo.UpdatePriority(uint(tid), uint(pid), 1); err != nil {
@@ -4610,7 +4682,10 @@ func handleUpdateTicketQueue(c *gin.Context) {
 	}
 
 	db, err := database.GetDB()
-	if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"}); return }
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"})
+		return
+	}
 	repo := repository.NewTicketRepository(db)
 	tid, _ := strconv.Atoi(ticketID)
 	if err := repo.UpdateQueue(uint(tid), uint(qid), 1); err != nil {
@@ -4636,11 +4711,16 @@ func handleUpdateTicketStatus(c *gin.Context) {
 	} else {
 		// Basic mapping (could extend to DB lookup):
 		switch strings.ToLower(status) {
-		case "new": stateID = 1
-		case "open": stateID = 2
-		case "closed", "closed_successful": stateID = 3
-		case "closed_unsuccessful": stateID = 4
-		case "pending", "pending_reminder": stateID = 5
+		case "new":
+			stateID = 1
+		case "open":
+			stateID = 2
+		case "closed", "closed_successful":
+			stateID = 3
+		case "closed_unsuccessful":
+			stateID = 4
+		case "pending", "pending_reminder":
+			stateID = 5
 		default:
 			c.JSON(http.StatusBadRequest, gin.H{"error": "unknown status"})
 			return
@@ -4648,7 +4728,10 @@ func handleUpdateTicketStatus(c *gin.Context) {
 	}
 
 	db, err := database.GetDB()
-	if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"}); return }
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"})
+		return
+	}
 	repo := repository.NewTicketRepository(db)
 	tid, _ := strconv.Atoi(ticketID)
 
@@ -5431,7 +5514,6 @@ func handleAdminDashboard(c *gin.Context) {
 		return
 	}
 
-
 	// Get some stats from the database (real path)
 	userCount := 0
 	groupCount := 0
@@ -5471,7 +5553,6 @@ func handleSchemaMonitoring(c *gin.Context) {
 		"Title":      "Schema Discovery Monitor",
 	})
 }
-
 
 // handleAdminGroups shows the admin groups page
 func handleAdminGroups(c *gin.Context) {
@@ -6890,16 +6971,16 @@ func handleClaudeFeedback(c *gin.Context) {
 func SetupAPIv1Routes(r *gin.Engine, jwtManager *auth.JWTManager, ldapProvider *ldap.Provider, i18nSvc interface{}) {
 	// Create RBAC instance
 	// rbac := auth.NewRBAC()
-	
+
 	// Create LDAP handlers if provider exists
 	// var ldapHandlers *ldap.LDAPHandlers
 	// if ldapProvider != nil {
 	// 	ldapHandlers = ldap.NewLDAPHandlers(ldapProvider)
 	// }
-	
+
 	// Create API v1 router
 	// apiRouter := v1.NewAPIRouter(rbac, jwtManager, ldapHandlers)
-	
+
 	// Setup the routes
 	// apiRouter.SetupV1Routes(r)
 }

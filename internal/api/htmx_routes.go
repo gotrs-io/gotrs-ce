@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
@@ -43,153 +44,8 @@ type TicketDisplay struct {
 	CustomerName string
 }
 
-// selectedAttr is a tiny helper for fallback HTML to mark selected options
-func selectedAttr(current, expected string) string {
-	if strings.TrimSpace(strings.ToLower(current)) == strings.ToLower(expected) {
-		return " selected"
-	}
-	return ""
-}
-
-// hashPasswordSHA256 hashes a password using SHA256 (compatible with OTRS)
-func hashPasswordSHA256(password string) string {
-	hash := sha256.Sum256([]byte(password))
-	return hex.EncodeToString(hash[:])
-}
-
-// generateSalt generates a random salt for password hashing
-func generateSalt() string {
-	// Generate 16 random bytes
-	salt := make([]byte, 16)
-	_, err := rand.Read(salt)
-	if err != nil {
-		// Fallback to timestamp-based salt if crypto/rand fails
-		data := fmt.Sprintf("%d", time.Now().UnixNano())
-		hash := sha256.Sum256([]byte(data))
-		return hex.EncodeToString(hash[:16])
-	}
-	return hex.EncodeToString(salt)
-}
-
-// verifyPassword checks if a password matches a hashed password (with or without salt)
-func verifyPassword(password, hashedPassword string) bool {
-	// Check if it's a bcrypt hash (starts with $2a$, $2b$, or $2y$)
-	if strings.HasPrefix(hashedPassword, "$2a$") || strings.HasPrefix(hashedPassword, "$2b$") || strings.HasPrefix(hashedPassword, "$2y$") {
-		// Use bcrypt to compare
-		err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
-		return err == nil
-	}
-
-	// Check if it's a salted SHA256 hash (format: sha256$salt$hash)
-	parts := strings.Split(hashedPassword, "$")
-	if len(parts) == 3 && parts[0] == "sha256" {
-		// Extract salt and hash
-		salt := parts[1]
-		expectedHash := parts[2]
-
-		// Hash the password with the salt
-		combined := password + salt
-		hash := sha256.Sum256([]byte(combined))
-		actualHash := hex.EncodeToString(hash[:])
-
-		return actualHash == expectedHash
-	}
-
-	// Otherwise, treat as unsalted SHA256 hash (legacy)
-	return hashPasswordSHA256(password) == hashedPassword
-}
-
-// isMarkdownContent checks if content contains common markdown syntax patterns
-func isMarkdownContent(content string) bool {
-	lines := strings.Split(content, "\n")
-
-	// Check for headers (# ## ### etc.)
-	if strings.Contains(content, "#") {
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "#") {
-				// Find where the # sequence ends
-				i := 0
-				for i < len(line) && line[i] == '#' {
-					i++
-				}
-				// Check if there's a space after the # sequence
-				if i < len(line) && line[i] == ' ' {
-					return true
-				}
-			}
-		}
-	}
-
-	// Check for tables (| and - separators)
-	if strings.Contains(content, "|") {
-		tableLines := 0
-		separatorFound := false
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if strings.Contains(line, "|") {
-				tableLines++
-				// Check for table separator line (contains | and -)
-				if strings.Contains(line, "|") && strings.Contains(line, "-") {
-					separatorFound = true
-				}
-			}
-		}
-		if tableLines >= 2 && separatorFound {
-			return true
-		}
-	}
-
-	// Check for lists (- or * or numbers at start of line)
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if len(line) > 1 {
-			// Unordered lists
-			if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") {
-				return true
-			}
-			// Ordered lists (1. 2. etc.)
-			if len(line) > 2 && line[0] >= '0' && line[0] <= '9' && line[1] == '.' && line[2] == ' ' {
-				return true
-			}
-		}
-	}
-
-	// Check for links [text](url)
-	if strings.Contains(content, "](") && strings.Contains(content, ")") {
-		return true
-	}
-
-	// Check for bold/italic (**text** or *text*)
-	if strings.Contains(content, "**") || (strings.Contains(content, "*") && strings.Count(content, "*") >= 2) {
-		return true
-	}
-
-	// Check for inline code (`code`)
-	if strings.Contains(content, "`") {
-		return true
-	}
-
-	// Check for blockquotes (> at start of line)
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, ">") {
-			return true
-		}
-	}
-
-	// Check for code blocks (```)
-	if strings.Contains(content, "```") {
-		return true
-	}
-
-	return false
-}
-
-// Global variable to store pongo2 renderer
 var pongo2Renderer *Pongo2Renderer
 
-// Pongo2Renderer is a custom gin HTML renderer using pongo2
 type Pongo2Renderer struct {
 	templateSet *pongo2.TemplateSet
 }
@@ -211,26 +67,7 @@ func (r *Pongo2Renderer) HTML(c *gin.Context, code int, name string, data interf
 	lang := middleware.GetLanguage(c)
 	i18nInst := i18n.GetInstance()
 	ctx["t"] = func(key string, args ...interface{}) string {
-		val := i18nInst.T(lang, key, args...)
-		if val != key {
-			return val
-		}
-		// Try English fallback
-		enVal := i18nInst.T("en", key, args...)
-		if enVal != key {
-			return enVal
-		}
-		// Humanize as last resort
-		last := key
-		if strings.Contains(key, ".") {
-			parts := strings.Split(key, ".")
-			last = parts[len(parts)-1]
-		}
-		last = strings.ReplaceAll(last, "_", " ")
-		if len(last) > 0 {
-			last = strings.ToUpper(last[:1]) + last[1:]
-		}
-		return last
+		return translateWithFallback(i18nInst, lang, key, args...)
 	}
 	ctx["getLang"] = func() string { return lang }
 	ctx["getDirection"] = func() string { return string(i18n.GetDirection(lang)) }
@@ -262,6 +99,118 @@ func (r *Pongo2Renderer) HTML(c *gin.Context, code int, name string, data interf
 	c.Data(code, "text/html; charset=utf-8", []byte(output))
 }
 
+func selectedAttr(current, expected string) string {
+	if strings.TrimSpace(strings.ToLower(current)) == strings.ToLower(expected) {
+		return " selected"
+	}
+	return ""
+}
+
+func hashPasswordSHA256(password string) string {
+	hash := sha256.Sum256([]byte(password))
+	return hex.EncodeToString(hash[:])
+}
+
+func generateSalt() string {
+	salt := make([]byte, 16)
+	_, err := rand.Read(salt)
+	if err != nil {
+		data := fmt.Sprintf("%d", time.Now().UnixNano())
+		hash := sha256.Sum256([]byte(data))
+		return hex.EncodeToString(hash[:16])
+	}
+	return hex.EncodeToString(salt)
+}
+
+func verifyPassword(password, hashedPassword string) bool {
+	if strings.HasPrefix(hashedPassword, "$2a$") || strings.HasPrefix(hashedPassword, "$2b$") || strings.HasPrefix(hashedPassword, "$2y$") {
+		return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password)) == nil
+	}
+
+	parts := strings.Split(hashedPassword, "$")
+	if len(parts) == 3 && parts[0] == "sha256" {
+		salt := parts[1]
+		expectedHash := parts[2]
+		hash := sha256.Sum256([]byte(password + salt))
+		return hex.EncodeToString(hash[:]) == expectedHash
+	}
+
+	return hashPasswordSHA256(password) == hashedPassword
+}
+
+func isMarkdownContent(content string) bool {
+	lines := strings.Split(content, "\n")
+
+	if strings.Contains(content, "#") {
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "#") {
+				i := 0
+				for i < len(line) && line[i] == '#' {
+					i++
+				}
+				if i < len(line) && line[i] == ' ' {
+					return true
+				}
+			}
+		}
+	}
+
+	if strings.Contains(content, "|") {
+		tableLines := 0
+		separatorFound := false
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.Contains(line, "|") {
+				tableLines++
+				if strings.Contains(line, "|") && strings.Contains(line, "-") {
+					separatorFound = true
+				}
+			}
+		}
+		if tableLines >= 2 && separatorFound {
+			return true
+		}
+	}
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if len(line) > 1 {
+			if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") {
+				return true
+			}
+			if len(line) > 2 && line[0] >= '0' && line[0] <= '9' && line[1] == '.' && line[2] == ' ' {
+				return true
+			}
+		}
+	}
+
+	if strings.Contains(content, "](") && strings.Contains(content, ")") {
+		return true
+	}
+
+	if strings.Contains(content, "**") || (strings.Contains(content, "*") && strings.Count(content, "*") >= 2) {
+		return true
+	}
+
+	if strings.Contains(content, "`") {
+		return true
+	}
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, ">") {
+			return true
+		}
+	}
+
+	if strings.Contains(content, "```") {
+		return true
+	}
+
+	return false
+}
+
 // NewPongo2Renderer creates a new Pongo2Renderer with the given template directory
 func NewPongo2Renderer(templateDir string) *Pongo2Renderer {
 	loader := pongo2.MustNewLocalFileSystemLoader(templateDir)
@@ -276,206 +225,15 @@ func NewPongo2Renderer(templateDir string) *Pongo2Renderer {
 		return value
 	}
 
-	// Add a translation function stub
-	templateSet.Globals["t"] = func(key string) string {
-		// For now, just return the key
-		// Later this can be replaced with actual translation
-		translations := map[string]string{
-			"app.name":                      "GOTRS",
-			"app.description":               "GOTRS - Open Ticket Request System",
-			"app.tagline":                   "Open Ticket Request System",
-			"navigation.dashboard":          "Dashboard",
-			"navigation.tickets":            "Tickets",
-			"navigation.profile":            "Profile",
-			"navigation.settings":           "Settings",
-			"nav.dashboard":                 "Dashboard",
-			"nav.tickets":                   "Tickets",
-			"nav.queues":                    "Queues",
-			"nav.profile":                   "Profile",
-			"nav.settings":                  "Settings",
-			"auth.login":                    "Login",
-			"auth.logout":                   "Logout",
-			"auth.signup":                   "Sign Up",
-			"auth.signin":                   "Sign In",
-			"auth.not_member":               "Not a member?",
-			"auth.forgot_password":          "Forgot your password?",
-			"auth.password":                 "Password",
-			"auth.username":                 "Username",
-			"auth.username_placeholder":     "Enter your username",
-			"auth.username_tooltip":         "Your login username",
-			"auth.email_placeholder":        "Enter your email address",
-			"auth.email_tooltip":            "Your registered email address",
-			"auth.password_placeholder":     "Enter your password",
-			"auth.password_tooltip":         "Your account password",
-			"auth.or":                       "Or",
-			"user.email":                    "Email Address",
-			"admin.dashboard":               "Admin Dashboard",
-			"admin.dashboard_description":   "System administration and configuration",
-			"admin.total_users":             "Total Users",
-			"admin.total_groups":            "Total Groups",
-			"admin.active_tickets":          "Active Tickets",
-			"admin.total_queues":            "Total Queues",
-			"admin.system_health":           "System Health",
-			"admin.healthy":                 "Healthy",
-			"admin.user_management":         "User Management",
-			"admin.user_management_desc":    "Manage agents and customer users",
-			"admin.group_management":        "Group Management",
-			"admin.group_management_desc":   "Manage user groups and permissions",
-			"admin.system_settings":         "System Settings",
-			"admin.system_settings_desc":    "Configure system preferences",
-			"admin.lookups":                 "Lookups",
-			"admin.lookups_desc":            "Manage system lookups and configurations",
-			"admin.email_templates":         "Email Templates",
-			"admin.email_templates_desc":    "Customize email notifications",
-			"admin.reports":                 "Reports",
-			"admin.reports_desc":            "View system reports and analytics",
-			"admin.backup_restore":          "Backup & Restore",
-			"admin.backup_restore_desc":     "Manage system backups",
-			"admin.users":                   "Users",
-			"admin.groups":                  "Groups",
-			"admin.group_name":              "Group Name",
-			"admin.description":             "Description",
-			"admin.members":                 "Members",
-			"admin.created":                 "Created",
-			"admin.add_group":               "Add Group",
-			"admin.no_groups_found":         "No groups found",
-			"admin.permissions":             "Permissions",
-			"admin.queues":                  "Queues",
-			"admin.priorities":              "Priorities",
-			"admin.states":                  "States",
-			"admin.types":                   "Types",
-			"admin.add_priority":            "Add Priority",
-			"admin.add_state":               "Add State",
-			"admin.add_type":                "Add Type",
-			"admin.customer_users":          "Customer Users",
-			"admin.customer_users_desc":     "Manage customer accounts and access",
-			"admin.customer_companies":      "Customer Companies",
-			"admin.customer_companies_desc": "Manage customer company information",
-			"admin.add_company":             "Add Company",
-			"admin.import":                  "Import",
-			"admin.add_user":                "Add User",
-			// keep only one key for add_group
-			"admin.add_customer_user":              "Add Customer",
-			"admin.edit_user":                      "Edit User",
-			"admin.edit_group":                     "Edit Group",
-			"admin.title":                          "Title",
-			"admin.login":                          "Login",
-			"admin.first_name":                     "First Name",
-			"admin.last_name":                      "Last Name",
-			"admin.password":                       "Password",
-			"admin.leave_blank_to_keep":            "leave blank to keep current",
-			"admin.status":                         "Status",
-			"admin.active":                         "Active",
-			"admin.inactive":                       "Inactive",
-			"admin.save":                           "Save",
-			"admin.cancel":                         "Cancel",
-			"admin.never":                          "Never",
-			"admin.add_user_tooltip":               "Add a new user to the system",
-			"admin.clear_search":                   "Clear search",
-			"admin.edit_user_tooltip":              "Edit user details",
-			"admin.deactivate_user":                "Deactivate user",
-			"admin.activate_user":                  "Activate user",
-			"admin.reset_password":                 "Reset user password",
-			"admin.delete_user":                    "Delete user",
-			"admin.title_mr":                       "Mr.",
-			"admin.title_ms":                       "Ms.",
-			"admin.title_mrs":                      "Mrs.",
-			"admin.title_dr":                       "Dr.",
-			"admin.users_description":              "Manage system users and permissions",
-			"admin.groups_description":             "Manage user groups and access control",
-			"admin.lookups.description":            "Manage system lookups and configurations",
-			"dashboard.welcome_back":               "Welcome back",
-			"tickets.new_ticket":                   "New Ticket",
-			"tickets.create_new_ticket_subheading": "Fill out the form below to create a new support ticket",
-			"forms.mandatory_note":                 "All fields marked with an asterisk (*) are mandatory.",
-			"tickets.back_to_list":                 "Back to Tickets",
-			"tickets.subject":                      "Subject",
-			"tickets.subject_placeholder":          "Brief description of the issue",
-			"tickets.customer_user":                "Customer User",
-			"tickets.customer_user_placeholder":    "Type customer name or email...",
-			"tickets.customer_user_help":           "Start typing to search for customers by name or email address.",
-			"tickets.priority":                     "Priority",
-			"tickets.queue":                        "Queue",
-			"tickets.type":                         "Type",
-			"tickets.initial_interaction":          "Initial Interaction",
-			"tickets.interaction.email":            "Email",
-			"tickets.interaction.phone":            "Phone Call",
-			"tickets.interaction.internal_note":    "Internal Note",
-			"tickets.interaction.external_note":    "External Note",
-			"tickets.customer_visible":             "customer visible",
-			"tickets.private":                      "private",
-			"tickets.initial_interaction_help":     "Determines the first article's type & visibility.",
-			"tickets.message":                      "Message",
-			"tickets.message_help":                 "Provide as much detail as possible to help us resolve your issue quickly.",
-			"tickets.attachments":                  "Attachments",
-			"tickets.upload_files":                 "Upload files",
-			"tickets.or_drag_and_drop":             "or drag and drop",
-			"tickets.upload_hint":                  "PNG, JPG, PDF up to 10MB each",
-			"tickets.create_ticket":                "Create Ticket",
-			"tickets.title":                        "Tickets",
-			"tickets.overdue":                      "Overdue",
-			"dashboard.recent_tickets":             "Recent Tickets",
-			"status.open":                          "Open",
-			"status.new":                           "New",
-			"status.pending":                       "Pending",
-			"status.closed":                        "Closed",
-			"time.today":                           "Today",
-			"priority.high":                        "High",
-			"priority.medium":                      "Medium",
-			"priority.low":                         "Low",
-			"priority.critical":                    "Critical",
-			"queues.queue_status":                  "Queue Status",
-			"common.view_all":                      "View All",
-			"common.actions":                       "Actions",
-			"common.edit":                          "Edit",
-			"common.delete":                        "Delete",
-			"common.save":                          "Save",
-			"common.cancel":                        "Cancel",
-			"common.search":                        "Search",
-			"common.filter":                        "Filter",
-			"common.clear":                         "Clear",
-			"common.add":                           "Add",
-			"common.new":                           "New",
-			"common.status":                        "Status",
-			"common.active":                        "Active",
-			"common.inactive":                      "Inactive",
-			"common.name":                          "Name",
-			"common.email":                         "Email",
-			"common.description":                   "Description",
-			"common.created":                       "Created",
-			"common.updated":                       "Updated",
-			"common.id":                            "ID",
-			"common.type":                          "Type",
-			"common.color":                         "Color",
-			"common.comment":                       "Comment",
-			"common.street":                        "Street",
-			"common.zip":                           "ZIP Code",
-			"common.city":                          "City",
-			"common.country":                       "Country",
-			"common.url":                           "Website",
-			"common.comments":                      "Comments",
-		}
-		if val, ok := translations[key]; ok {
-			return val
-		}
-		// Fallback: derive label from key (e.g., admin.group_name -> Group Name)
-		if strings.Contains(key, ".") {
-			parts := strings.Split(key, ".")
-			last := parts[len(parts)-1]
-			last = strings.ReplaceAll(last, "_", " ")
-			if len(last) > 0 {
-				// Title case
-				words := strings.Split(last, " ")
-				for i, w := range words {
-					if len(w) == 0 {
-						continue
-					}
-					words[i] = strings.ToUpper(w[:1]) + strings.ToLower(w[1:])
-				}
-				return strings.Join(words, " ")
-			}
-		}
-		return key
+	// Provide translation helper when rendering without a request context.
+	i18nInst := i18n.GetInstance()
+	defaultLang := "en"
+	if i18nInst != nil && i18nInst.GetDefaultLanguage() != "" {
+		defaultLang = i18nInst.GetDefaultLanguage()
+	}
+
+	templateSet.Globals["t"] = func(key string, args ...interface{}) string {
+		return translateWithFallback(i18nInst, defaultLang, key, args...)
 	}
 
 	// Validate that critical templates can be loaded
@@ -499,6 +257,53 @@ func NewPongo2Renderer(templateDir string) *Pongo2Renderer {
 	return &Pongo2Renderer{
 		templateSet: templateSet,
 	}
+}
+
+func translateWithFallback(i18nInst *i18n.I18n, lang, key string, args ...interface{}) string {
+	if i18nInst != nil {
+		if translated := i18nInst.Translate(lang, key, args...); translated != "" && translated != key {
+			return translated
+		}
+
+		if defaultLang := i18nInst.GetDefaultLanguage(); defaultLang != "" && defaultLang != lang {
+			if fallback := i18nInst.Translate(defaultLang, key, args...); fallback != "" && fallback != key {
+				return fallback
+			}
+		}
+	}
+
+	return humanizeTranslationKey(key)
+}
+
+func humanizeTranslationKey(key string) string {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return ""
+	}
+
+	if idx := strings.LastIndex(key, "."); idx >= 0 && idx+1 < len(key) {
+		key = key[idx+1:]
+	}
+
+	key = strings.ReplaceAll(key, "_", " ")
+	key = strings.ReplaceAll(key, "-", " ")
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return ""
+	}
+
+	words := strings.Fields(key)
+	for i, w := range words {
+		lower := strings.ToLower(w)
+		runes := []rune(lower)
+		if len(runes) == 0 {
+			continue
+		}
+		runes[0] = unicode.ToUpper(runes[0])
+		words[i] = string(runes)
+	}
+
+	return strings.Join(words, " ")
 }
 
 // GetUserMapForTemplate exposes the internal user-context builder for reuse
@@ -2733,11 +2538,13 @@ func handleTicketDetail(c *gin.Context) {
 	// Convert articles to template format - skip the first article (it's the description)
 	notes := make([]gin.H, 0, len(articles))
 	firstArticleID := 0
+	firstArticleVisibleForCustomer := false
 	noteBodiesJSON := make([]string, 0, len(articles))
 	for i, article := range articles {
 		// Skip the first article as it's already shown in the description section
 		if i == 0 {
 			firstArticleID = int(article.ID)
+			firstArticleVisibleForCustomer = article.IsVisibleForCustomer == 1
 			continue
 		}
 		// Determine sender type based on CreateBy (simplified logic)
@@ -2797,15 +2604,16 @@ func handleTicketDetail(c *gin.Context) {
 		noteBodiesJSON = append(noteBodiesJSON, bodyJSON)
 
 		notes = append(notes, gin.H{
-			"id":          article.ID,
-			"author":      fmt.Sprintf("User %d", article.CreateBy),
-			"time":        article.CreateTime.Format("2006-01-02 15:04"),
-			"body":        bodyContent,
-			"sender_type": senderType,
-			"create_time": article.CreateTime.Format("2006-01-02 15:04"),
-			"subject":     article.Subject,
-			"has_html":    hasHTMLContent,
-			"attachments": []gin.H{}, // Empty attachments for now
+			"id":                      article.ID,
+			"author":                  fmt.Sprintf("User %d", article.CreateBy),
+			"time":                    article.CreateTime.Format("2006-01-02 15:04"),
+			"body":                    bodyContent,
+			"sender_type":             senderType,
+			"is_visible_for_customer": article.IsVisibleForCustomer == 1,
+			"create_time":             article.CreateTime.Format("2006-01-02 15:04"),
+			"subject":                 article.Subject,
+			"has_html":                hasHTMLContent,
+			"attachments":             []gin.H{}, // Empty attachments for now
 		})
 	}
 
@@ -2910,6 +2718,50 @@ func handleTicketDetail(c *gin.Context) {
 	err = db.QueryRow(database.ConvertPlaceholders("SELECT name FROM queue WHERE id = $1"), ticket.QueueID).Scan(&queueRow.Name)
 	if err == nil {
 		queueName = queueRow.Name
+	}
+
+	// Load all valid ticket states for the "Next State" selector
+	stateRows, stateErr := db.Query(database.ConvertPlaceholders(`
+		SELECT ts.id, ts.name, ts.type_id, COALESCE(tst.name, '')
+		FROM ticket_state ts
+		LEFT JOIN ticket_state_type tst ON ts.type_id = tst.id
+		WHERE ts.valid_id = 1
+		ORDER BY ts.name
+	`))
+	var (
+		ticketStates    []gin.H
+		pendingStateIDs []int
+	)
+	if stateErr == nil {
+		defer stateRows.Close()
+		for stateRows.Next() {
+			var (
+				stateID   int
+				stateName string
+				typeID    int
+				typeName  string
+			)
+			if scanErr := stateRows.Scan(&stateID, &stateName, &typeID, &typeName); scanErr != nil {
+				log.Printf("Error scanning ticket state: %v", scanErr)
+				continue
+			}
+
+			state := gin.H{
+				"id":        stateID,
+				"name":      stateName,
+				"type_id":   typeID,
+				"type_name": typeName,
+			}
+			ticketStates = append(ticketStates, state)
+
+			nameLower := strings.ToLower(stateName)
+			typeLower := strings.ToLower(typeName)
+			if strings.Contains(nameLower, "pending") || strings.Contains(typeLower, "pending") {
+				pendingStateIDs = append(pendingStateIDs, stateID)
+			}
+		}
+	} else {
+		log.Printf("Error loading ticket states: %v", stateErr)
 	}
 
 	// Get ticket description from first article
@@ -3051,28 +2903,29 @@ func handleTicketDetail(c *gin.Context) {
 			"email": customerEmail,
 			"phone": customerPhone,
 		},
-		"agent":                        agent,
-		"assigned_to":                  assignedTo,
-		"owner":                        ownerName,
-		"type":                         typeName,
-		"service":                      "-", // TODO: Get from service table
-		"sla":                          "-", // TODO: Get from SLA table
-		"created":                      ticket.CreateTime.Format("2006-01-02 15:04"),
-		"updated":                      ticket.ChangeTime.Format("2006-01-02 15:04"),
-		"description":                  description,     // Raw description for display
-		"description_json":             descriptionJSON, // JSON-encoded for JavaScript
-		"notes":                        notes,           // Pass notes array directly
-		"note_bodies_json":             noteBodiesJSON,  // JSON-encoded note bodies for JavaScript
-		"description_is_html":          strings.Contains(description, "<") && strings.Contains(description, ">"),
-		"time_total_minutes":           totalMinutes,
-		"time_total_hours":             timeTotalHours,
-		"time_total_remaining_minutes": timeTotalRemainder,
-		"time_total_has_hours":         hasTimeHours,
-		"time_entries":                 timeEntries,
-		"time_by_article":              perArticleMinutes,
-		"first_article_id":             firstArticleID,
-		"age":                          age,
-		"status_id":                    ticket.TicketStateID,
+		"agent":                              agent,
+		"assigned_to":                        assignedTo,
+		"owner":                              ownerName,
+		"type":                               typeName,
+		"service":                            "-", // TODO: Get from service table
+		"sla":                                "-", // TODO: Get from SLA table
+		"created":                            ticket.CreateTime.Format("2006-01-02 15:04"),
+		"updated":                            ticket.ChangeTime.Format("2006-01-02 15:04"),
+		"description":                        description,     // Raw description for display
+		"description_json":                   descriptionJSON, // JSON-encoded for JavaScript
+		"notes":                              notes,           // Pass notes array directly
+		"note_bodies_json":                   noteBodiesJSON,  // JSON-encoded note bodies for JavaScript
+		"description_is_html":                strings.Contains(description, "<") && strings.Contains(description, ">"),
+		"time_total_minutes":                 totalMinutes,
+		"time_total_hours":                   timeTotalHours,
+		"time_total_remaining_minutes":       timeTotalRemainder,
+		"time_total_has_hours":               hasTimeHours,
+		"time_entries":                       timeEntries,
+		"time_by_article":                    perArticleMinutes,
+		"first_article_id":                   firstArticleID,
+		"first_article_visible_for_customer": firstArticleVisibleForCustomer,
+		"age":                                age,
+		"status_id":                          ticket.TicketStateID,
 	}
 
 	// Customer panel (DRY: same details as ticket creation selection panel)
@@ -3130,6 +2983,8 @@ func handleTicketDetail(c *gin.Context) {
 		"CustomerPanelCompany": panelCompany,
 		"CustomerPanelOpen":    panelOpen,
 		"RequireNoteTimeUnits": requireTimeUnits,
+		"TicketStates":         ticketStates,
+		"PendingStateIDs":      pendingStateIDs,
 	})
 }
 

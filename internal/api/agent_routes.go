@@ -657,7 +657,7 @@ func handleAgentTicketView(db *sql.DB) gin.HandlerFunc {
 				"customer_name":    customerName,
 				"customer_email":   customerEmail,
 				"customer_company": customerCompany,
-				"assigned_to": responsibleUserName,
+				"assigned_to":      responsibleUserName,
 				"queue_id":         ticket.QueueID,
 				"state_id":         ticket.TicketStateID,
 				"priority_id":      ticket.TicketPriorityID,
@@ -859,7 +859,12 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 			body = c.PostForm("body")
 		}
 
-		subject := c.PostForm("subject")
+		if strings.TrimSpace(body) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Note body required"})
+			return
+		}
+
+		subject := strings.TrimSpace(c.PostForm("subject"))
 
 		// Parse optional time units (minutes) from form; accept both snake and camel case
 		timeUnits := 0
@@ -886,6 +891,9 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 			isVisibleForCustomer = 1
 		}
 
+		nextStateIDRaw := strings.TrimSpace(c.PostForm("next_state_id"))
+		pendingUntilRaw := strings.TrimSpace(c.PostForm("pending_until"))
+
 		// Test-mode, DB-less fallback with validation
 		if os.Getenv("APP_ENV") == "test" && db == nil {
 			if _, parseErr := strconv.Atoi(ticketID); parseErr != nil {
@@ -909,6 +917,41 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		var (
+			nextStateID      int
+			pendingUntilUnix int64
+			stateChanged     bool
+		)
+		if nextStateIDRaw != "" {
+			id, err := strconv.Atoi(nextStateIDRaw)
+			if err != nil || id <= 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid next state selection"})
+				return
+			}
+			nextStateID = id
+			stateRepo := repository.NewTicketStateRepository(db)
+			nextState, err := stateRepo.GetByID(uint(id))
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid next state selection"})
+				return
+			}
+			if nextState.TypeID == 5 {
+				if pendingUntilRaw == "" {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Pending time required for pending states"})
+					return
+				}
+				parsed, err := time.Parse("2006-01-02T15:04", pendingUntilRaw)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pending time format"})
+					return
+				}
+				pendingUntilUnix = parsed.Unix()
+			} else {
+				pendingUntilUnix = 0
+			}
+			stateChanged = true
+		}
+
 		// Get user info
 		userID := c.GetUint("user_id")
 
@@ -918,6 +961,10 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 			sanitizer := utils.NewHTMLSanitizer()
 			body = sanitizer.Sanitize(body)
 			contentType = "text/html"
+		}
+		if strings.TrimSpace(body) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Note body required"})
+			return
 		}
 
 		// Filter Unicode characters if Unicode support is disabled (OTRS compatibility mode)
@@ -977,10 +1024,24 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Update ticket change time
-		_, err = tx.Exec("UPDATE ticket SET change_time = CURRENT_TIMESTAMP, change_by = $1 WHERE id = $2", userID, ticketID)
-		if err != nil {
-			log.Printf("Error updating ticket: %v", err)
+		if stateChanged {
+			if _, err := tx.Exec(database.ConvertPlaceholders(`
+				UPDATE ticket
+				SET ticket_state_id = $1, until_time = $2, change_time = CURRENT_TIMESTAMP, change_by = $3
+				WHERE id = $4
+			`), nextStateID, pendingUntilUnix, userID, ticketID); err != nil {
+				log.Printf("Error updating ticket state from note: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update ticket state"})
+				return
+			}
+		} else {
+			if _, err = tx.Exec(database.ConvertPlaceholders(`
+				UPDATE ticket
+				SET change_time = CURRENT_TIMESTAMP, change_by = $1
+				WHERE id = $2
+			`), userID, ticketID); err != nil {
+				log.Printf("Error updating ticket: %v", err)
+			}
 		}
 
 		// Commit transaction
@@ -1108,7 +1169,7 @@ func handleAgentTicketStatus(db *sql.DB) gin.HandlerFunc {
 			if pendingUntil == "" {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Pending time is required for pending states"})
 				return
-			}			// Parse the datetime-local format: 2006-01-02T15:04
+			} // Parse the datetime-local format: 2006-01-02T15:04
 			if t, err := time.Parse("2006-01-02T15:04", pendingUntil); err == nil {
 				untilTime = t.Unix()
 				log.Printf("Setting pending time for ticket %s to %v (unix: %d)", ticketID, t, t.Unix())
@@ -1501,12 +1562,12 @@ func handleAgentQueues(db *sql.DB) gin.HandlerFunc {
 		queues := []map[string]interface{}{}
 		for rows.Next() {
 			var queue struct {
-				ID               int
-				Name             string
-				Comments         sql.NullString
-				ValidID          int
-				TicketCount      int
-				OpenTicketCount  int
+				ID              int
+				Name            string
+				Comments        sql.NullString
+				ValidID         int
+				TicketCount     int
+				OpenTicketCount int
 			}
 
 			err := rows.Scan(&queue.ID, &queue.Name, &queue.Comments, &queue.ValidID, &queue.TicketCount, &queue.OpenTicketCount)

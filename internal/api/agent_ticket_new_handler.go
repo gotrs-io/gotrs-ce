@@ -20,11 +20,13 @@ func HandleAgentNewTicket(db *sql.DB) gin.HandlerFunc {
 			if renderer != nil {
 				user := GetUserMapForTemplate(c)
 				isInAdminGroup := false
-				if v, ok := user["IsInAdminGroup"].(bool); ok { isInAdminGroup = v }
+				if v, ok := user["IsInAdminGroup"].(bool); ok {
+					isInAdminGroup = v
+				}
 				renderer.HTML(c, http.StatusOK, "pages/tickets/new.pongo2", gin.H{
-					"Title":      "New Ticket - GOTRS",
-					"User":       user,
-					"ActivePage": "tickets",
+					"Title":          "New Ticket - GOTRS",
+					"User":           user,
+					"ActivePage":     "tickets",
 					"IsInAdminGroup": isInAdminGroup,
 					"Queues": []gin.H{
 						{"ID": 1, "Name": "Raw"},
@@ -93,21 +95,34 @@ func HandleAgentNewTicket(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		stateOptions := []gin.H{}
+		stateLookup := map[string]gin.H{}
+		if opts, lookup, stateErr := LoadTicketStatesForForm(db); stateErr != nil {
+			log.Printf("agent new ticket: failed to load ticket states: %v", stateErr)
+		} else {
+			stateOptions = opts
+			stateLookup = lookup
+		}
+
 		// Render the form with data
 		renderer := GetPongo2Renderer()
 		if renderer != nil {
 			user := GetUserMapForTemplate(c)
 			isInAdminGroup := false
-			if v, ok := user["IsInAdminGroup"].(bool); ok { isInAdminGroup = v }
+			if v, ok := user["IsInAdminGroup"].(bool); ok {
+				isInAdminGroup = v
+			}
 			renderer.HTML(c, http.StatusOK, "pages/tickets/new.pongo2", gin.H{
-				"Title":         "New Ticket - GOTRS",
-				"User":          user,
-				"ActivePage":    "tickets",
-				"IsInAdminGroup": isInAdminGroup,
-				"Queues":        queues,
-				"Types":         types,
-				"Priorities":    priorities,
-				"CustomerUsers": customerUsers,
+				"Title":             "New Ticket - GOTRS",
+				"User":              user,
+				"ActivePage":        "tickets",
+				"IsInAdminGroup":    isInAdminGroup,
+				"Queues":            queues,
+				"Types":             types,
+				"Priorities":        priorities,
+				"CustomerUsers":     customerUsers,
+				"TicketStates":      stateOptions,
+				"TicketStateLookup": stateLookup,
 			})
 		} else {
 			// Fallback when template renderer is not available
@@ -195,7 +210,7 @@ func getPrioritiesForAgent(db *sql.DB) ([]gin.H, error) {
 // getCustomerUsersForAgent gets customer users available for agent ticket creation
 func getCustomerUsersForAgent(db *sql.DB) ([]gin.H, error) {
 	rows, err := db.Query(database.ConvertPlaceholders(`
-		SELECT login, email, first_name, last_name
+		SELECT login, email, first_name, last_name, customer_id
 		FROM customer_user
 		WHERE valid_id = 1
 		ORDER BY first_name, last_name, email
@@ -207,15 +222,16 @@ func getCustomerUsersForAgent(db *sql.DB) ([]gin.H, error) {
 
 	var customerUsers []gin.H
 	for rows.Next() {
-		var login, email, firstName, lastName string
-		if err := rows.Scan(&login, &email, &firstName, &lastName); err != nil {
+		var login, email, firstName, lastName, customerID string
+		if err := rows.Scan(&login, &email, &firstName, &lastName, &customerID); err != nil {
 			return nil, err
 		}
 		customerUsers = append(customerUsers, gin.H{
-			"Login":     login,
-			"Email":     email,
-			"FirstName": firstName,
-			"LastName":  lastName,
+			"Login":      login,
+			"Email":      email,
+			"FirstName":  firstName,
+			"LastName":   lastName,
+			"CustomerID": customerID,
 		})
 	}
 	return customerUsers, nil

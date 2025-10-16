@@ -10,14 +10,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/api"
-	"github.com/gotrs-io/gotrs-ce/internal/service"
 	"github.com/gotrs-io/gotrs-ce/internal/config"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	"github.com/gotrs-io/gotrs-ce/internal/routing"
+	"github.com/gotrs-io/gotrs-ce/internal/service"
 	"github.com/gotrs-io/gotrs-ce/internal/services/adapter"
 	"github.com/gotrs-io/gotrs-ce/internal/services/k8s"
+	"github.com/gotrs-io/gotrs-ce/internal/services/scheduler"
 	"github.com/gotrs-io/gotrs-ce/internal/ticketnumber"
 	"github.com/gotrs-io/gotrs-ce/internal/yamlmgmt"
 )
@@ -74,7 +75,6 @@ func main() {
 
 		// Agent handlers
 		"handleAgentTickets":         api.AgentHandlerExports.HandleAgentTickets,
-		"handleAgentTicketView":      api.AgentHandlerExports.HandleAgentTicketView,
 		"handleAgentTicketReply":     api.AgentHandlerExports.HandleAgentTicketReply,
 		"handleAgentTicketNote":      api.AgentHandlerExports.HandleAgentTicketNote,
 		"handleAgentTicketPhone":     api.AgentHandlerExports.HandleAgentTicketPhone,
@@ -209,7 +209,7 @@ func main() {
 
 		// Legacy compatibility handlers (redirects)
 		"HandleLegacyAgentTicketViewRedirect": api.HandleLegacyAgentTicketViewRedirect,
-		"HandleLegacyTicketsViewRedirect":    api.HandleLegacyTicketsViewRedirect,
+		"HandleLegacyTicketsViewRedirect":     api.HandleLegacyTicketsViewRedirect,
 
 		// Dev handlers
 		"HandleDevDashboard":  api.HandleDevDashboard,
@@ -224,9 +224,9 @@ func main() {
 		"handleLogout":    api.HandleLogout,
 		"HandleLoginAPI":  api.HandleLoginAPI,
 
-	// Admin handlers
-	// Users handled by dynamic module system and specific admin user handlers
-		"handleAdminUsers":          api.HandleAdminUsers,
+		// Admin handlers
+		// Users handled by dynamic module system and specific admin user handlers
+		"handleAdminUsers":            api.HandleAdminUsers,
 		"handleAdminUserGet":          api.HandleAdminUserGet,
 		"handleAdminUserEdit":         api.HandleAdminUserEdit,
 		"handleAdminUserUpdate":       api.HandleAdminUserUpdate,
@@ -458,16 +458,25 @@ func main() {
 	// Config duplicate key audit (best-effort; non-fatal)
 	func() {
 		vm := yamlmgmt.GetVersionManager()
-		if vm == nil { return }
+		if vm == nil {
+			return
+		}
 		adapter := yamlmgmt.NewConfigAdapter(vm)
 		settings, err := adapter.GetConfigSettings()
-		if err != nil || len(settings) == 0 { return }
+		if err != nil || len(settings) == 0 {
+			return
+		}
 		seen := make(map[string]bool)
 		dups := []string{}
 		for _, s := range settings {
 			name, _ := s["name"].(string)
-			if name == "" { continue }
-			if seen[name] { dups = append(dups, name); continue }
+			if name == "" {
+				continue
+			}
+			if seen[name] {
+				dups = append(dups, name)
+				continue
+			}
 			seen[name] = true
 		}
 		if len(dups) > 0 {
@@ -477,6 +486,28 @@ func main() {
 
 	log.Println("✅ Backend initialized successfully")
 
+	var schedulerCancel context.CancelFunc
+	if db, dbErr := database.GetDB(); dbErr != nil || db == nil {
+		log.Printf("scheduler: disabled (database unavailable: %v)", dbErr)
+	} else {
+		loc := time.UTC
+		if cfg := config.Get(); cfg != nil && cfg.App.Timezone != "" {
+			if tz, err := time.LoadLocation(cfg.App.Timezone); err != nil {
+				log.Printf("scheduler: invalid timezone %q, falling back to UTC: %v", cfg.App.Timezone, err)
+			} else {
+				loc = tz
+			}
+		}
+		sched := scheduler.NewService(db, scheduler.WithLocation(loc))
+		ctx, cancel := context.WithCancel(context.Background())
+		schedulerCancel = cancel
+		go func() {
+			if err := sched.Run(ctx); err != nil {
+				log.Printf("scheduler: stopped: %v", err)
+			}
+		}()
+		log.Println("scheduler: background job runner started")
+	}
 	// Ensure /api/v1 i18n endpoints are registered (after YAML so we can augment)
 	v1Group := r.Group("/api/v1")
 	i18nHandlers := api.NewI18nHandlers()
@@ -512,5 +543,13 @@ func main() {
 	fmt.Println("  POST /api/v1/ldap/sync/users -> Sync users")
 	fmt.Println("  GET  /api/v1/ldap/config -> Get LDAP config")
 
-	log.Fatal(r.Run(":" + port))
+	if err := r.Run(":" + port); err != nil {
+		if schedulerCancel != nil {
+			schedulerCancel()
+		}
+		log.Fatalf("server failed: %v", err)
+	}
+	if schedulerCancel != nil {
+		schedulerCancel()
+	}
 }

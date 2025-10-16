@@ -11,64 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTicketZoomHandler(t *testing.T) {
-	tests := []struct {
-		name           string
-		ticketID       string
-		expectedStatus int
-		expectedInBody []string
-		notInBody      []string
-	}{
-		{
-			name:           "Valid ticket ID shows ticket zoom page",
-			ticketID:       "1",
-			expectedStatus: http.StatusOK,
-			expectedInBody: []string{
-				"ticket_zoom.pongo2", // Template should render
-				"Ticket #",           // Ticket header
-				"Articles",           // Article section
-			},
-		},
-		{
-			name:           "Invalid ticket ID returns 404",
-			ticketID:       "99999",
-			expectedStatus: http.StatusNotFound,
-		},
-		{
-			name:           "Non-numeric ticket ID returns 400",
-			ticketID:       "invalid",
-			expectedStatus: http.StatusBadRequest,
-		},
-	}
-
-	gin.SetMode(gin.TestMode)
-    r := gin.New()
-    // Use the real handler so we exercise view logic
-    r.GET("/agent/tickets/:id", HandleAgentTicketView)
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/agent/tickets/"+tt.ticketID, nil)
-			w := httptest.NewRecorder()
-
-			r.ServeHTTP(w, req)
-
-			assert.Equal(t, tt.expectedStatus, w.Code)
-
-			if tt.expectedStatus == http.StatusOK {
-				for _, expected := range tt.expectedInBody {
-					assert.Contains(t, w.Body.String(), expected, 
-						"Response should contain: %s", expected)
-				}
-				for _, notExpected := range tt.notInBody {
-					assert.NotContains(t, w.Body.String(), notExpected, 
-						"Response should not contain: %s", notExpected)
-				}
-			}
-		})
-	}
-}
-
 func TestTicketNoteCreation(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -118,7 +60,7 @@ func TestTicketNoteCreation(t *testing.T) {
 				formData.Set(key, value)
 			}
 
-			req := httptest.NewRequest("POST", "/agent/tickets/"+tt.ticketID+"/note", 
+			req := httptest.NewRequest("POST", "/agent/tickets/"+tt.ticketID+"/note",
 				strings.NewReader(formData.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			w := httptest.NewRecorder()
@@ -191,7 +133,7 @@ func TestTicketReplyCreation(t *testing.T) {
 				formData.Set(key, value)
 			}
 
-			req := httptest.NewRequest("POST", "/agent/tickets/"+tt.ticketID+"/reply", 
+			req := httptest.NewRequest("POST", "/agent/tickets/"+tt.ticketID+"/reply",
 				strings.NewReader(formData.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			w := httptest.NewRecorder()
@@ -240,7 +182,7 @@ func TestTicketPhoneNoteCreation(t *testing.T) {
 				formData.Set(key, value)
 			}
 
-			req := httptest.NewRequest("POST", "/agent/tickets/"+tt.ticketID+"/phone", 
+			req := httptest.NewRequest("POST", "/agent/tickets/"+tt.ticketID+"/phone",
 				strings.NewReader(formData.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			w := httptest.NewRecorder()
@@ -262,19 +204,19 @@ func TestTicketZoomJavaScriptFunctions(t *testing.T) {
 	t.Run("Template contains required JavaScript functions", func(t *testing.T) {
 		// This would be an integration test that checks the rendered template
 		// For now, we'll just document what functions should exist
-		
+
 		requiredFunctions := []string{
 			"openNoteModal()",
-			"openReplyModal()", 
+			"openReplyModal()",
 			"openPhoneModal()",
 			"showArticleModal(type, title)",
 			"submitArticle(event, type)",
 			"closeModal()",
 		}
-		
+
 		// TODO: Add template rendering test that verifies these functions exist
 		// This test should fail initially if any functions are missing
-		
+
 		for _, funcName := range requiredFunctions {
 			t.Logf("TODO: Verify function exists in template: %s", funcName)
 		}
@@ -286,16 +228,16 @@ func TestTicketZoomTranslations(t *testing.T) {
 	t.Run("Translation keys resolve to text not object.attribute notation", func(t *testing.T) {
 		// TODO: Add test that renders template and verifies no translation keys
 		// are showing as "object.attribute" format
-		
+
 		translationKeys := []string{
 			"agent.ticket.zoom.title",
 			"tickets.note",
-			"tickets.reply", 
+			"tickets.reply",
 			"tickets.phone",
 			"navigation.dashboard",
 			"navigation.tickets",
 		}
-		
+
 		for _, key := range translationKeys {
 			t.Logf("TODO: Verify translation key resolves: %s", key)
 		}
@@ -307,7 +249,7 @@ func TestTicketArticleDisplay(t *testing.T) {
 	t.Run("Article MIME content displays correctly", func(t *testing.T) {
 		// TODO: Add test that verifies articles from article_data_mime table
 		// are properly rendered in the ticket zoom view
-		
+
 		t.Log("TODO: Verify article content loads from article_data_mime table")
 		t.Log("TODO: Verify article sender, subject, body display correctly")
 		t.Log("TODO: Verify article timestamps display correctly")
@@ -320,7 +262,7 @@ func TestCustomerEmailPrePopulation(t *testing.T) {
 	t.Run("Customer email pre-populates in reply modal", func(t *testing.T) {
 		// TODO: Add test that verifies customer email from ticket data
 		// is automatically filled in reply form
-		
+
 		t.Log("TODO: Verify customer email loads from ticket customer_user data")
 		t.Log("TODO: Verify email appears in 'To' field of reply modal")
 		t.Log("TODO: Verify email is not editable text field but proper lookup")
@@ -332,17 +274,17 @@ func TestTicketZoomIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
-	
+
 	t.Run("Complete ticket zoom workflow", func(t *testing.T) {
 		// TODO: Add integration test that:
 		// 1. Creates a test ticket in database
 		// 2. Loads ticket zoom page
 		// 3. Adds a note via POST
 		// 4. Verifies note appears in article list
-		// 5. Adds a reply via POST  
+		// 5. Adds a reply via POST
 		// 6. Verifies reply is saved to article_data_mime
 		// 7. Cleans up test data
-		
+
 		t.Log("TODO: Create full integration test workflow")
 	})
 }

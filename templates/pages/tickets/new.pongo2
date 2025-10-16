@@ -124,13 +124,14 @@
                     <label for="next_state" class="block text-sm font-medium text-gray-900 dark:text-white">{{ t("tickets_form.next_state")|default:"Next Ticket State" }}</label>
                     <div class="mt-2">
                         <select name="next_state" id="next_state" class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 dark:text-white bg-white dark:bg-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 focus:ring-2 focus:ring-inset focus:ring-gotrs-600 dark:focus:ring-gotrs-500 sm:text-sm sm:leading-6">
-                            <option value="" selected>{{ t("tickets_form.state.keep_open")|default:"(leave as open)" }}</option>
-                            <option value="pending_reminder">{{ t("tickets_form.state.pending_reminder")|default:"Pending reminder" }}</option>
-                            <option value="pending_auto_close+">{{ t("tickets_form.state.pending_auto_close_plus")|default:"Pending auto close+" }}</option>
-                            <option value="pending_auto_close-">{{ t("tickets_form.state.pending_auto_close_minus")|default:"Pending auto close-" }}</option>
-                            <option value="closed_successful">{{ t("tickets_form.state.closed_successful")|default:"Closed successful" }}</option>
-                            <option value="closed_unsuccessful">{{ t("tickets_form.state.closed_unsuccessful")|default:"Closed unsuccessful" }}</option>
+                            <option value="" data-state-id="" data-state-type="" selected>{{ t("tickets_form.state.keep_open")|default:"(leave as open)" }}</option>
+                            {% if TicketStates %}
+                                {% for state in TicketStates %}
+                                    <option value="{{ state.Slug }}" data-state-id="{{ state.ID }}" data-state-type="{{ state.TypeID }}">{{ state.Name }}</option>
+                                {% endfor %}
+                            {% endif %}
                         </select>
+                        <input type="hidden" name="next_state_id" id="next_state_id" value="">
                     </div>
                     <div class="mt-4" id="pending_until_wrap" style="display:none;">
                         <label for="pending_until" class="block text-sm font-medium text-gray-900 dark:text-white">{{ t("tickets_form.pending_until")|default:"Pending date (for pending states)" }}</label>
@@ -338,16 +339,32 @@
             console.warn('Customer seed parse failed', e);
         }
 
-        // Toggle pending date visibility based on next state
+        // Handle next state metadata (pending visibility + numeric ID binding)
         var nextStateSel = document.getElementById('next_state');
         var pendingWrap = document.getElementById('pending_until_wrap');
-        if (nextStateSel && pendingWrap) {
-            var togglePending = function(){
-                var v = nextStateSel.value || '';
-                pendingWrap.style.display = (v.startsWith('pending')) ? '' : 'none';
+        var nextStateIdInput = document.getElementById('next_state_id');
+        if (nextStateSel) {
+            var updateStateBindings = function(){
+                var option = nextStateSel.options[nextStateSel.selectedIndex];
+                var slug = nextStateSel.value || '';
+                var stateId = option ? option.getAttribute('data-state-id') : '';
+                var typeIdAttr = option ? option.getAttribute('data-state-type') : '';
+                if (nextStateIdInput) {
+                    nextStateIdInput.value = stateId || '';
+                }
+                if (pendingWrap) {
+                    var typeId = parseInt(typeIdAttr || '', 10);
+                    var shouldShow = false;
+                    if (!isNaN(typeId) && (typeId === 4 || typeId === 5)) {
+                        shouldShow = true;
+                    } else if (slug && slug.toLowerCase().startsWith('pending')) {
+                        shouldShow = true;
+                    }
+                    pendingWrap.style.display = shouldShow ? '' : 'none';
+                }
             };
-            nextStateSel.addEventListener('change', togglePending);
-            togglePending();
+            nextStateSel.addEventListener('change', updateStateBindings);
+            updateStateBindings();
         }
     });
 </script>

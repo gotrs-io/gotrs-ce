@@ -86,12 +86,12 @@ func registerExistingHandlers(registry *HandlerRegistry, db *sql.DB, jwtManager 
 		"handleStaticFiles": api.HandleStaticFiles,
 
 		// Attachment handlers (needed for YAML /api attachments routes)
-		"HandleGetAttachments": api.HandleGetAttachments,
-		"HandleUploadAttachment": api.HandleUploadAttachment,
+		"HandleGetAttachments":     api.HandleGetAttachments,
+		"HandleUploadAttachment":   api.HandleUploadAttachment,
 		"HandleDownloadAttachment": api.HandleDownloadAttachment,
-		"HandleDeleteAttachment": api.HandleDeleteAttachment,
-		"HandleGetThumbnail": api.HandleGetThumbnail,
-		"HandleViewAttachment": api.HandleViewAttachment,
+		"HandleDeleteAttachment":   api.HandleDeleteAttachment,
+		"HandleGetThumbnail":       api.HandleGetThumbnail,
+		"HandleViewAttachment":     api.HandleViewAttachment,
 
 		// Authentication handlers would be registered here
 		// "handleLogin": api.HandleLogin(db, jwtManager),
@@ -198,7 +198,6 @@ func registerAgentHandlers(handlers map[string]gin.HandlerFunc, db *sql.DB) {
 	// These would come from agent_routes.go
 	handlers["handleAgentDashboard"] = wrapHandler(db, "handleAgentDashboard")
 	handlers["handleAgentTickets"] = wrapHandler(db, "handleAgentTickets")
-	handlers["handleAgentTicketView"] = wrapHandler(db, "handleAgentTicketView")
 	handlers["handleAgentTicketUpdate"] = wrapHandler(db, "handleAgentTicketUpdate")
 	handlers["handleAgentAddNote"] = wrapHandler(db, "handleAgentAddNote")
 	handlers["handleAgentTicketReply"] = wrapHandler(db, "handleAgentTicketReply")

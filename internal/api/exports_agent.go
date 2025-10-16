@@ -8,7 +8,6 @@ import (
 // AgentHandlerExports provides exported handler functions for agent routes
 var AgentHandlerExports = struct {
 	HandleAgentTickets         gin.HandlerFunc
-	HandleAgentTicketView      gin.HandlerFunc
 	HandleAgentTicketReply     gin.HandlerFunc
 	HandleAgentTicketNote      gin.HandlerFunc
 	HandleAgentTicketPhone     gin.HandlerFunc
@@ -32,10 +31,6 @@ var AgentHandlerExports = struct {
 	HandleAgentTickets: func(c *gin.Context) {
 		db, _ := database.GetDB()
 		handleAgentTickets(db)(c)
-	},
-	HandleAgentTicketView: func(c *gin.Context) {
-		db, _ := database.GetDB()
-		handleAgentTicketView(db)(c)
 	},
 	HandleAgentTicketReply: func(c *gin.Context) {
 		db, _ := database.GetDB()
@@ -118,7 +113,6 @@ var AgentHandlerExports = struct {
 // Provide package-level handler variables for tests and direct routing
 var (
 	HandleAgentTickets        = AgentHandlerExports.HandleAgentTickets
-	HandleAgentTicketView     = AgentHandlerExports.HandleAgentTicketView
 	HandleAgentTicketReply    = AgentHandlerExports.HandleAgentTicketReply
 	HandleAgentTicketNote     = AgentHandlerExports.HandleAgentTicketNote
 	HandleAgentTicketPhone    = AgentHandlerExports.HandleAgentTicketPhone

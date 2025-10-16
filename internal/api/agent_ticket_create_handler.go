@@ -6,29 +6,29 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
-    "path/filepath"
-    "time"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/config"
 	"github.com/gotrs-io/gotrs-ce/internal/constants"
 	"github.com/gotrs-io/gotrs-ce/internal/core"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
-    "github.com/gotrs-io/gotrs-ce/internal/service"
-    "github.com/gotrs-io/gotrs-ce/internal/config"
+	"github.com/gotrs-io/gotrs-ce/internal/service"
 )
 
 // HandleAgentCreateTicket creates a new ticket from the agent interface
 func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-        // Ensure multipart form is parsed (for attachments)
-        if err := c.Request.ParseMultipartForm(10 << 20); err != nil && err != http.ErrNotMultipart {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form"})
-            return
-        }
+		// Ensure multipart form is parsed (for attachments)
+		if err := c.Request.ParseMultipartForm(10 << 20); err != nil && err != http.ErrNotMultipart {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form"})
+			return
+		}
 		// Get agent user info from context
 		userID := c.GetUint("user_id")
 		if userID == 0 {
@@ -43,16 +43,27 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 		queueID := c.PostForm("queue_id")
 		priorityID := c.PostForm("priority")
 		typeID := c.PostForm("type_id")
-		stateID := c.PostForm("state_id")
+		stateID := strings.TrimSpace(c.PostForm("next_state_id"))
+		nextStateName := strings.TrimSpace(c.PostForm("next_state"))
+		if stateID == "" {
+			stateID = strings.TrimSpace(c.PostForm("state_id"))
+		}
+		pendingUntil := strings.TrimSpace(c.PostForm("pending_until"))
 		customerUserID := c.PostForm("customer_user_id")
 		customerEmail := c.PostForm("customer_email")
 		// customerName := c.PostForm("customer_name")
 		customerID := c.PostForm("customer_id")
 		// Optional time accounting (minutes)
 		timeUnitsStr := strings.TrimSpace(c.PostForm("time_units"))
-		if timeUnitsStr == "" { timeUnitsStr = strings.TrimSpace(c.PostForm("timeUnits")) }
+		if timeUnitsStr == "" {
+			timeUnitsStr = strings.TrimSpace(c.PostForm("timeUnits"))
+		}
 		timeUnits := 0
-		if timeUnitsStr != "" { if n, err := strconv.Atoi(timeUnitsStr); err == nil && n > 0 { timeUnits = n } }
+		if timeUnitsStr != "" {
+			if n, err := strconv.Atoi(timeUnitsStr); err == nil && n > 0 {
+				timeUnits = n
+			}
+		}
 
 		// Validate required fields
 		if title == "" || message == "" {
@@ -120,6 +131,52 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		tRepo := repository.NewTicketRepository(db)
+
+		resolvedStateID := stateIDInt
+		var resolvedState *models.TicketState
+		if id, st, rerr := resolveTicketState(tRepo, nextStateName, stateIDInt); rerr != nil {
+			log.Printf("HandleAgentCreateTicket: state resolution failed: %v", rerr)
+			if id > 0 {
+				resolvedStateID = id
+				resolvedState = st
+			}
+		} else if id > 0 {
+			resolvedStateID = id
+			resolvedState = st
+		}
+		if resolvedState == nil && resolvedStateID > 0 {
+			st, lerr := loadTicketState(tRepo, resolvedStateID)
+			if lerr != nil {
+				log.Printf("HandleAgentCreateTicket: load state %d failed: %v", resolvedStateID, lerr)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load ticket state"})
+				return
+			}
+			if st == nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid state selection"})
+				return
+			}
+			resolvedState = st
+		}
+		stateIDInt = resolvedStateID
+
+		pendingUnix := 0
+		if pendingUntil != "" {
+			pendingUnix = parsePendingUntil(pendingUntil)
+			if pendingUnix <= 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pending until value"})
+				return
+			}
+		}
+		if isPendingState(resolvedState) {
+			if pendingUnix <= 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "pending_until is required for pending states"})
+				return
+			}
+		} else {
+			pendingUnix = 0
+		}
+
 		// Handle customer assignment
 		var customerIDValue sql.NullString
 		var customerUserIDValue sql.NullString
@@ -170,27 +227,37 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 
 		// Build ticket model and use repository (central generator + logging)
 		var typePtr *int
-		if typeIDInt != 0 { typePtr = &typeIDInt }
+		if typeIDInt != 0 {
+			typePtr = &typeIDInt
+		}
 		var custIDPtr *string
-		if customerIDValue.Valid { v := customerIDValue.String; custIDPtr = &v }
+		if customerIDValue.Valid {
+			v := customerIDValue.String
+			custIDPtr = &v
+		}
 		var custUserPtr *string
-		if customerUserIDValue.Valid { v := customerUserIDValue.String; custUserPtr = &v }
+		if customerUserIDValue.Valid {
+			v := customerUserIDValue.String
+			custUserPtr = &v
+		}
 		var userIDInt = int(userID)
 		ticketModel := &models.Ticket{
-			Title:            title,
-			QueueID:          queueIDInt,
-			TicketLockID:     1,
-			TypeID:           typePtr,
-			UserID:           &userIDInt,
-			ResponsibleUserID:&userIDInt,
-			TicketPriorityID: priorityIDInt,
-			TicketStateID:    stateIDInt,
-			CustomerID:       custIDPtr,
-			CustomerUserID:   custUserPtr,
-			CreateBy:         userIDInt,
-			ChangeBy:         userIDInt,
+			Title:             title,
+			QueueID:           queueIDInt,
+			TicketLockID:      1,
+			TypeID:            typePtr,
+			UserID:            &userIDInt,
+			ResponsibleUserID: &userIDInt,
+			TicketPriorityID:  priorityIDInt,
+			TicketStateID:     stateIDInt,
+			CustomerID:        custIDPtr,
+			CustomerUserID:    custUserPtr,
+			CreateBy:          userIDInt,
+			ChangeBy:          userIDInt,
 		}
-		tRepo := repository.NewTicketRepository(db)
+		if pendingUnix > 0 {
+			ticketModel.UntilTime = pendingUnix
+		}
 		if err := tRepo.Create(ticketModel); err != nil {
 			log.Printf("Error creating ticket via repository: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create ticket"})
@@ -243,37 +310,62 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 		// Process attachments from the new ticket form using unified storage
 		if c.Request.MultipartForm != nil && c.Request.MultipartForm.File != nil && articleModel != nil && articleModel.ID > 0 {
 			files := c.Request.MultipartForm.File["attachments"]
-			if files == nil { files = c.Request.MultipartForm.File["attachment"] }
-			if files == nil { files = c.Request.MultipartForm.File["file"] }
+			if files == nil {
+				files = c.Request.MultipartForm.File["attachment"]
+			}
+			if files == nil {
+				files = c.Request.MultipartForm.File["file"]
+			}
 
 			// Limits and type allowlist from config
 			var maxSize int64 = 10 * 1024 * 1024
 			allowed := map[string]struct{}{}
 			if cfg := config.Get(); cfg != nil {
-				if cfg.Storage.Attachments.MaxSize > 0 { maxSize = cfg.Storage.Attachments.MaxSize }
-				for _, t := range cfg.Storage.Attachments.AllowedTypes { allowed[strings.ToLower(t)] = struct{}{} }
+				if cfg.Storage.Attachments.MaxSize > 0 {
+					maxSize = cfg.Storage.Attachments.MaxSize
+				}
+				for _, t := range cfg.Storage.Attachments.AllowedTypes {
+					allowed[strings.ToLower(t)] = struct{}{}
+				}
 			}
 
 			// Blocked extensions
-			blocked := map[string]bool{ ".exe":true, ".bat":true, ".cmd":true, ".sh":true, ".vbs":true, ".js":true, ".com":true, ".scr":true }
+			blocked := map[string]bool{".exe": true, ".bat": true, ".cmd": true, ".sh": true, ".vbs": true, ".js": true, ".com": true, ".scr": true}
 
 			storageSvc := GetStorageService()
 			for _, fh := range files {
-				if fh == nil { continue }
-				if fh.Size > maxSize { log.Printf("attachment too large: %s", fh.Filename); continue }
-				if blocked[strings.ToLower(filepath.Ext(fh.Filename))] { log.Printf("blocked file type: %s", fh.Filename); continue }
-				f, err := fh.Open(); if err != nil { log.Printf("open attachment failed: %v", err); continue }
+				if fh == nil {
+					continue
+				}
+				if fh.Size > maxSize {
+					log.Printf("attachment too large: %s", fh.Filename)
+					continue
+				}
+				if blocked[strings.ToLower(filepath.Ext(fh.Filename))] {
+					log.Printf("blocked file type: %s", fh.Filename)
+					continue
+				}
+				f, err := fh.Open()
+				if err != nil {
+					log.Printf("open attachment failed: %v", err)
+					continue
+				}
 				func() {
 					defer f.Close()
 					// Determine content type with fallback
 					contentType := fh.Header.Get("Content-Type")
 					if contentType == "" || contentType == "application/octet-stream" {
 						buf := make([]byte, 512)
-						if n, _ := f.Read(buf); n > 0 { contentType = detectContentType(fh.Filename, buf[:n]) }
+						if n, _ := f.Read(buf); n > 0 {
+							contentType = detectContentType(fh.Filename, buf[:n])
+						}
 						f.Seek(0, 0)
 					}
 					if len(allowed) > 0 && contentType != "" && contentType != "application/octet-stream" {
-						if _, ok := allowed[strings.ToLower(contentType)]; !ok { log.Printf("type not allowed: %s %s", fh.Filename, contentType); return }
+						if _, ok := allowed[strings.ToLower(contentType)]; !ok {
+							log.Printf("type not allowed: %s %s", fh.Filename, contentType)
+							return
+						}
 					}
 
 					// Store via service; attach article_id and user_id in context
@@ -289,8 +381,12 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 					if _, isDB := storageSvc.(*service.DatabaseStorageService); !isDB {
 						if f2, e2 := fh.Open(); e2 == nil {
 							defer f2.Close()
-							bytes, rerr := io.ReadAll(f2); if rerr == nil {
-								ct := contentType; if ct == "" { ct = "application/octet-stream" }
+							bytes, rerr := io.ReadAll(f2)
+							if rerr == nil {
+								ct := contentType
+								if ct == "" {
+									ct = "application/octet-stream"
+								}
 								_, ierr := db.Exec(database.ConvertPlaceholders(`
 									INSERT INTO article_data_mime_attachment (
 										article_id, filename, content_type, content_size, content,
@@ -304,7 +400,9 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 									"attachment",
 									time.Now(), int(userID), time.Now(), int(userID),
 								)
-								if ierr != nil { log.Printf("attachment metadata insert failed: %v", ierr) }
+								if ierr != nil {
+									log.Printf("attachment metadata insert failed: %v", ierr)
+								}
 							}
 						}
 					}
@@ -340,12 +438,12 @@ func detectTicketContentType(content string) string {
 			}
 		}
 	}
-	
+
 	// Check for markdown syntax
 	if strings.Contains(content, "#") || strings.Contains(content, "**") || strings.Contains(content, "*") || strings.Contains(content, "`") {
 		return "text/markdown"
 	}
-	
+
 	// Default to plain text
 	return "text/plain"
 }

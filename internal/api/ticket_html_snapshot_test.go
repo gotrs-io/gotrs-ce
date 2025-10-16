@@ -5,7 +5,6 @@ import (
 	"net/http/httptest"
 	"regexp"
 	"testing"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,15 +16,8 @@ func ginTestEngine() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	// Minimal template renderer not wired; create-form placeholder remains.
-	r.GET("/tickets/new", func(c *gin.Context) { c.String(200, "Create New Ticket<form name=\"create-ticket\"></form> queue priority") })
-	// Zoom route proxies to new handler (template rendering requires renderer in full app; here we just assert handler reachable). If renderer absent we skip.
-	r.GET("/tickets/:id", func(c *gin.Context) {
-		// call underlying handler which depends on renderer; for test fallback we just emit placeholder if renderer missing
-		if GetPongo2Renderer() == nil {
-			c.String(200, "Ticket "+c.Param("id")+"\nNo articles yet")
-			return
-		}
-		HandleTicketZoom(c)
+	r.GET("/tickets/new", func(c *gin.Context) {
+		c.String(200, "Create New Ticket<form name=\"create-ticket\"></form> queue priority")
 	})
 	return r
 }
@@ -38,7 +30,9 @@ func TestTicketCreateForm_HTMLStructure(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		// If this fails now it's expected until route wiring done; keep failing state for TDD
-		if w.Code == http.StatusNotFound { t.Fatalf("expected 200 form page got 404 (route not wired yet)") }
+		if w.Code == http.StatusNotFound {
+			t.Fatalf("expected 200 form page got 404 (route not wired yet)")
+		}
 		t.Fatalf("expected 200 got %d body=%s", w.Code, w.Body.String())
 	}
 	body := w.Body.String()
@@ -48,15 +42,4 @@ func TestTicketCreateForm_HTMLStructure(t *testing.T) {
 			t.Fatalf("expected body to contain %s", s)
 		}
 	}
-}
-
-func TestTicketZoom_HTMLOrPlaceholder(t *testing.T) {
-    r := ginTestEngine()
-    req := httptest.NewRequest(http.MethodGet, "/tickets/1", nil)
-    w := httptest.NewRecorder()
-    r.ServeHTTP(w, req)
-    if w.Code != http.StatusOK { t.Fatalf("expected 200 got %d", w.Code) }
-    body := w.Body.String()
-    if !strings.Contains(body, "Ticket") { t.Fatalf("expected Ticket header body=%s", body) }
-    if !strings.Contains(body, "No articles yet") { t.Fatalf("expected empty state body=%s", body) }
 }

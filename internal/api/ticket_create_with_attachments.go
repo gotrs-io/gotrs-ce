@@ -1,46 +1,46 @@
 package api
 
 import (
-    "context"
+	"context"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"path/filepath"
 	"strconv"
-    "time"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/config"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
-	"log"
-    "strings"
-
-    "github.com/gotrs-io/gotrs-ce/internal/service"
-    "github.com/gotrs-io/gotrs-ce/internal/config"
+	"github.com/gotrs-io/gotrs-ce/internal/service"
 )
 
 // handleCreateTicketWithAttachments is an enhanced version that properly handles file attachments
 // This fixes the 500 error when users try to create tickets with attachments
 func handleCreateTicketWithAttachments(c *gin.Context) {
 	var req struct {
-		Title         string `json:"title" form:"title"`
-		Subject       string `json:"subject" form:"subject"`
-		CustomerEmail string `json:"customer_email" form:"customer_email" binding:"omitempty,email"`
+		Title          string `json:"title" form:"title"`
+		Subject        string `json:"subject" form:"subject"`
+		CustomerEmail  string `json:"customer_email" form:"customer_email" binding:"omitempty,email"`
 		CustomerUserID string `json:"customer_user_id" form:"customer_user_id"`
-		CustomerName  string `json:"customer_name" form:"customer_name"`
-		Priority      string `json:"priority" form:"priority"`
-		QueueID       string `json:"queue_id" form:"queue_id"`
-		TypeID        string `json:"type_id" form:"type_id"`
-		Body          string `json:"body" form:"body" binding:"required"`
+		CustomerName   string `json:"customer_name" form:"customer_name"`
+		Priority       string `json:"priority" form:"priority"`
+		QueueID        string `json:"queue_id" form:"queue_id"`
+		TypeID         string `json:"type_id" form:"type_id"`
+		Body           string `json:"body" form:"body" binding:"required"`
+		NextState      string `json:"next_state" form:"next_state"`
+		NextStateID    string `json:"next_state_id" form:"next_state_id"`
+		PendingUntil   string `json:"pending_until" form:"pending_until"`
 		// Optional time accounting minutes provided on the new ticket form
-		TimeUnits     string `json:"time_units" form:"time_units"`
+		TimeUnits string `json:"time_units" form:"time_units"`
 	}
 
 	// Parse multipart form first to handle both fields and files
-	// This is CRITICAL - without this, file uploads cause errors
-	if err := c.Request.ParseMultipartForm(10 << 20); // 10 MB max memory
-		err != nil && err != http.ErrNotMultipart {
+	if err := c.Request.ParseMultipartForm(10 << 20); err != nil && err != http.ErrNotMultipart {
 		log.Printf("ERROR: Failed to parse multipart form: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form: " + err.Error()})
 		return
@@ -82,7 +82,7 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 		}
 	}
 	log.Printf("CreateTicketWithAttachments: raw time_units='%s'", req.TimeUnits)
-	
+
 	// Use title if provided, otherwise use subject
 	ticketTitle := req.Title
 	if ticketTitle == "" {
@@ -94,38 +94,76 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 	}
 
 	// Convert string values to integers with defaults
-	queueID := uint(1) // Default to General Support
+	queueID := uint(1)
 	if req.QueueID != "" {
 		if id, err := strconv.Atoi(req.QueueID); err == nil {
 			queueID = uint(id)
 		}
 	}
 
-	typeID := uint(1) // Default to Incident
+	typeID := uint(1)
 	if req.TypeID != "" {
 		if id, err := strconv.Atoi(req.TypeID); err == nil {
 			typeID = uint(id)
 		}
 	}
 
-	// Set default priority if not provided
 	if req.Priority == "" {
 		req.Priority = "normal"
 	}
 
-	// Parse optional time units (minutes)
 	minutes := 0
 	if v := strings.TrimSpace(req.TimeUnits); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
 			minutes = n
 		}
 	}
-    log.Printf("CreateTicketWithAttachments: parsed minutes=%d", minutes)
+	log.Printf("CreateTicketWithAttachments: parsed minutes=%d", minutes)
 
-	// For demo purposes, use a fixed user ID (admin)
 	createdBy := uint(1)
 
-	// Create the ticket model
+	db, err := database.GetDB()
+	if err != nil {
+		log.Printf("ERROR: Database connection failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+		return
+	}
+
+	ticketRepo := repository.NewTicketRepository(db)
+
+	nextStateID := 0
+	if v := strings.TrimSpace(req.NextStateID); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil {
+			nextStateID = parsed
+		}
+	}
+
+	stateID := getStateID("new")
+	var resolvedState *models.TicketState
+	if id, st, err := resolveTicketState(ticketRepo, req.NextState, nextStateID); err != nil {
+		log.Printf("CreateTicketWithAttachments: state resolution failed: %v", err)
+		if id > 0 {
+			stateID = id
+			resolvedState = st
+		}
+	} else if id > 0 {
+		stateID = id
+		resolvedState = st
+	}
+	if resolvedState == nil && stateID > 0 {
+		if st, err := loadTicketState(ticketRepo, stateID); err != nil {
+			log.Printf("CreateTicketWithAttachments: load state %d failed: %v", stateID, err)
+		} else {
+			resolvedState = st
+		}
+	}
+
+	pendingUnix := parsePendingUntil(req.PendingUntil)
+	if isPendingState(resolvedState) && pendingUnix <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "pending_until is required for pending states"})
+		return
+	}
+
 	customerEmail := req.CustomerEmail
 	typeIDInt := int(typeID)
 	ticket := &models.Ticket{
@@ -133,23 +171,16 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 		QueueID:          int(queueID),
 		TypeID:           &typeIDInt,
 		TicketPriorityID: getPriorityID(req.Priority),
-		TicketStateID:    getStateID("new"),
-		TicketLockID:     1, // Unlocked
+		TicketStateID:    stateID,
+		TicketLockID:     1,
 		CustomerUserID:   &customerEmail,
 		CreateBy:         int(createdBy),
 		ChangeBy:         int(createdBy),
 	}
-
-	// Get database connection
-	db, err := database.GetDB()
-	if err != nil {
-		log.Printf("ERROR: Database connection failed: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
-		return
+	if pendingUnix > 0 && isPendingState(resolvedState) {
+		ticket.UntilTime = pendingUnix
 	}
-	
-	// Create the ticket
-	ticketRepo := repository.NewTicketRepository(db)
+
 	if err := ticketRepo.Create(ticket); err != nil {
 		log.Printf("ERROR: Failed to create ticket: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create ticket: " + err.Error()})
@@ -161,17 +192,17 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 	// Create the first article (ticket body)
 	articleRepo := repository.NewArticleRepository(db)
 	article := &models.Article{
-		TicketID:             ticket.ID,
-		Subject:              ticketTitle,
-		Body:                 req.Body,
-		SenderTypeID:         3, // Customer
+		TicketID:               ticket.ID,
+		Subject:                ticketTitle,
+		Body:                   req.Body,
+		SenderTypeID:           3, // Customer
 		CommunicationChannelID: 1, // Email
-		IsVisibleForCustomer: 1,
-		ArticleTypeID:        models.ArticleTypeNoteExternal,
-		CreateBy:            int(createdBy),
-		ChangeBy:            int(createdBy),
+		IsVisibleForCustomer:   1,
+		ArticleTypeID:          models.ArticleTypeNoteExternal,
+		CreateBy:               int(createdBy),
+		ChangeBy:               int(createdBy),
 	}
-	
+
 	if err := articleRepo.Create(article); err != nil {
 		log.Printf("ERROR: Failed to add initial article: %v", err)
 		// Without an article we cannot safely attach files; continue ticket creation
@@ -181,33 +212,37 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 
 	// Process file attachments if present
 	attachmentInfo := []map[string]interface{}{}
-	
+
 	if c.Request.MultipartForm != nil && c.Request.MultipartForm.File != nil {
 		// Check both singular and plural field names for compatibility
 		files := c.Request.MultipartForm.File["attachments"]
-		if files == nil { files = c.Request.MultipartForm.File["attachment"] }
-		if files == nil { files = c.Request.MultipartForm.File["file"] }
+		if files == nil {
+			files = c.Request.MultipartForm.File["attachment"]
+		}
+		if files == nil {
+			files = c.Request.MultipartForm.File["file"]
+		}
 		log.Printf("Processing %d attachment(s) for ticket %d", len(files), ticket.ID)
-		
+
 		for _, fileHeader := range files {
 			// Validate file size (10MB max)
 			if fileHeader.Size > 10*1024*1024 {
 				log.Printf("WARNING: File %s too large (%d bytes), skipping", fileHeader.Filename, fileHeader.Size)
 				continue
 			}
-			
+
 			// Validate file type (basic security check)
 			ext := filepath.Ext(fileHeader.Filename)
 			blockedExtensions := map[string]bool{
 				".exe": true, ".bat": true, ".sh": true, ".cmd": true,
 				".com": true, ".scr": true, ".vbs": true, ".js": true,
 			}
-			
+
 			if blockedExtensions[ext] {
 				log.Printf("WARNING: File type %s not allowed, skipping %s", ext, fileHeader.Filename)
 				continue
 			}
-			
+
 			// Open the uploaded file
 			file, err := fileHeader.Open()
 			if err != nil {
@@ -237,7 +272,9 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 					}
 					if len(cfg.Storage.Attachments.AllowedTypes) > 0 && contentType != "" && contentType != "application/octet-stream" {
 						allowed := map[string]struct{}{}
-						for _, t := range cfg.Storage.Attachments.AllowedTypes { allowed[strings.ToLower(t)] = struct{}{} }
+						for _, t := range cfg.Storage.Attachments.AllowedTypes {
+							allowed[strings.ToLower(t)] = struct{}{}
+						}
 						if _, ok := allowed[strings.ToLower(contentType)]; !ok {
 							log.Printf("WARNING: %s type %s not allowed, skipping", fileHeader.Filename, contentType)
 							return
@@ -249,12 +286,18 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 				uploaderID := int(createdBy)
 				if v, ok := c.Get("user_id"); ok {
 					switch t := v.(type) {
-					case int: uploaderID = t
-					case int64: uploaderID = int(t)
-					case uint: uploaderID = int(t)
-					case uint64: uploaderID = int(t)
+					case int:
+						uploaderID = t
+					case int64:
+						uploaderID = int(t)
+					case uint:
+						uploaderID = int(t)
+					case uint64:
+						uploaderID = int(t)
 					case string:
-						if n, e := strconv.Atoi(t); e == nil { uploaderID = n }
+						if n, e := strconv.Atoi(t); e == nil {
+							uploaderID = n
+						}
 					}
 				}
 
@@ -279,7 +322,9 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 							b, rerr := io.ReadAll(f2)
 							if rerr == nil {
 								ct := contentType
-								if ct == "" { ct = "application/octet-stream" }
+								if ct == "" {
+									ct = "application/octet-stream"
+								}
 								_, ierr := db.Exec(database.ConvertPlaceholders(`
 									INSERT INTO article_data_mime_attachment (
 										article_id, filename, content_type, content_size, content,
@@ -293,7 +338,9 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 									"attachment",
 									time.Now(), uploaderID, time.Now(), uploaderID,
 								)
-								if ierr != nil { log.Printf("ERROR: attachment metadata insert failed: %v", ierr) }
+								if ierr != nil {
+									log.Printf("ERROR: attachment metadata insert failed: %v", ierr)
+								}
 							}
 						}
 					}
@@ -313,7 +360,7 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 			}()
 		}
 	}
-	
+
 	// Prepare response
 	response := gin.H{
 		"id":            ticket.ID,
@@ -326,24 +373,24 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 	if ticket.TypeID != nil {
 		response["type_id"] = float64(*ticket.TypeID)
 	}
-	
+
 	// Include attachment info if any were processed
 	if len(attachmentInfo) > 0 {
 		response["attachments"] = attachmentInfo
 		response["attachment_count"] = len(attachmentInfo)
 	}
 
-		// Persist time accounting entry if minutes were provided on creation
-		if minutes > 0 {
-			log.Printf("CreateTicketWithAttachments: attempting to save time entry ticket_id=%d minutes=%d", ticket.ID, minutes)
-			if err := saveTimeEntry(db, ticket.ID, nil, minutes, int(createdBy)); err != nil {
-				// Non-fatal: log and proceed with success response
-				log.Printf("WARNING: Failed to save initial time entry for ticket %d: %v", ticket.ID, err)
-			} else {
-				log.Printf("Saved initial time entry for ticket %d: %d minutes", ticket.ID, minutes)
-			}
+	// Persist time accounting entry if minutes were provided on creation
+	if minutes > 0 {
+		log.Printf("CreateTicketWithAttachments: attempting to save time entry ticket_id=%d minutes=%d", ticket.ID, minutes)
+		if err := saveTimeEntry(db, ticket.ID, nil, minutes, int(createdBy)); err != nil {
+			// Non-fatal: log and proceed with success response
+			log.Printf("WARNING: Failed to save initial time entry for ticket %d: %v", ticket.ID, err)
+		} else {
+			log.Printf("Saved initial time entry for ticket %d: %d minutes", ticket.ID, minutes)
 		}
-	
+	}
+
 	// For HTMX, set the redirect header to the ticket detail page
 	c.Header("HX-Redirect", fmt.Sprintf("/tickets/%d", ticket.ID))
 	c.JSON(http.StatusCreated, response)

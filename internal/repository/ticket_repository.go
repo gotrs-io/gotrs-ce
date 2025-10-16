@@ -32,7 +32,9 @@ func SetTicketNumberGenerator(gen ticketnumber.Generator, store ticketnumber.Cou
 
 // TicketNumberGeneratorInfo returns current generator name and date-based flag.
 func TicketNumberGeneratorInfo() (string, bool) {
-	if defaultTicketNumberGen == nil { return "", false }
+	if defaultTicketNumberGen == nil {
+		return "", false
+	}
 	return defaultTicketNumberGen.Name(), defaultTicketNumberGen.IsDateBased()
 }
 
@@ -52,6 +54,33 @@ func (r *TicketRepository) QueueExists(queueID int) (bool, error) {
 	return exists, nil
 }
 
+// GetTicketStateByID returns the ticket state row for a given ID if it exists.
+func (r *TicketRepository) GetTicketStateByID(stateID int) (*models.TicketState, error) {
+	row := r.db.QueryRow(database.ConvertPlaceholders(`
+		SELECT id, name, type_id, valid_id,
+		       create_time, create_by, change_time, change_by
+		FROM ticket_state
+		WHERE id = $1
+	`), stateID)
+	var state models.TicketState
+	if err := row.Scan(
+		&state.ID,
+		&state.Name,
+		&state.TypeID,
+		&state.ValidID,
+		&state.CreateTime,
+		&state.CreateBy,
+		&state.ChangeTime,
+		&state.ChangeBy,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &state, nil
+}
+
 // GetDB returns the database connection
 func (r *TicketRepository) GetDB() *sql.DB {
 	return r.db
@@ -65,7 +94,9 @@ func (r *TicketRepository) Create(ticket *models.Ticket) error {
 		r.store = defaultTicketNumberStore
 		log.Printf("DEBUG: late-binding ticket number generator=%s", r.generator.Name())
 	}
-	if r.generator == nil || r.store == nil { return fmt.Errorf("ticket number generator not initialized") }
+	if r.generator == nil || r.store == nil {
+		return fmt.Errorf("ticket number generator not initialized")
+	}
 
 	const randomRetries = 5
 	try := 0
@@ -74,13 +105,17 @@ func (r *TicketRepository) Create(ticket *models.Ticket) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		n, err := r.generator.Next(ctx, r.store)
 		cancel()
-		if err != nil { return fmt.Errorf("ticket number generation failed: %w", err) }
+		if err != nil {
+			return fmt.Errorf("ticket number generation failed: %w", err)
+		}
 		ticket.TicketNumber = n
 		ticket.CreateTime = time.Now()
 		ticket.ChangeTime = time.Now()
 
 		err = r.insertTicket(ticket)
-		if err == nil { return nil }
+		if err == nil {
+			return nil
+		}
 
 		if r.generator.Name() == "Random" && isUniqueTNError(err) && try < randomRetries {
 			log.Printf("⚠️  Random TN collision on %s (attempt %d) retrying", n, try)
@@ -140,17 +175,25 @@ func (r *TicketRepository) insertTicket(ticket *models.Ticket) error {
 		ticket.ChangeTime,
 		ticket.ChangeBy,
 	)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	ticket.ID = int(ticketID)
 	return nil
 }
 
 // isUniqueTNError detects a unique constraint violation on the ticket number.
 func isUniqueTNError(err error) bool {
-	if err == nil { return false }
+	if err == nil {
+		return false
+	}
 	msg := err.Error()
-	if strings.Contains(msg, "unique") && strings.Contains(msg, "tn") { return true }
-	if errors.Is(err, sql.ErrNoRows) { return false }
+	if strings.Contains(msg, "unique") && strings.Contains(msg, "tn") {
+		return true
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return false
+	}
 	return false
 }
 
@@ -801,7 +844,6 @@ func (r *TicketRepository) UpdateQueue(ticketID uint, queueID uint, userID uint)
 	_, err := r.db.Exec(query, ticketID, queueID, time.Now(), userID)
 	return err
 }
-
 
 // GetQueues retrieves all active queues
 func (r *TicketRepository) GetQueues() ([]models.Queue, error) {

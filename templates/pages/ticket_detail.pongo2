@@ -111,6 +111,27 @@ div[id^="note-content-"] table tbody tr {
     <!-- Add hidden queue ID, priority ID, and status ID for JavaScript -->
     <div data-queue-id="{{ Ticket.queue_id }}" data-priority-id="{{ Ticket.priority_id }}" data-status-id="{{ Ticket.status_id }}" style="display: none;"></div>
 
+    {% if Ticket.auto_close_at %}
+    <div class="mb-6">
+        <div class="rounded-md border p-4 text-sm {% if Ticket.auto_close_overdue %}border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/30 text-red-900 dark:text-red-100{% else %}border-amber-200 bg-amber-50 dark:border-amber-600 dark:bg-amber-900/30 text-amber-900 dark:text-amber-100{% endif %}">
+            <div class="font-medium">
+                {% if Ticket.auto_close_overdue %}
+                    Auto-close overdue
+                {% else %}
+                    Auto-close scheduled
+                {% endif %}
+            </div>
+            <p class="mt-1">
+                {% if Ticket.auto_close_overdue %}
+                    Ticket should have auto-closed at <span class="font-semibold">{{ Ticket.auto_close_at }}</span> ({{ Ticket.auto_close_relative }} ago).
+                {% else %}
+                    Ticket will auto-close{% if Ticket.auto_close_pending %} while in pending auto close state{% endif %} at <span class="font-semibold">{{ Ticket.auto_close_at }}</span> (in {{ Ticket.auto_close_relative }}).
+                {% endif %}
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Meta grid like OTRS top info bar -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">

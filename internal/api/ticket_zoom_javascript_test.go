@@ -9,16 +9,16 @@ import (
 func TestTicketZoomJavaScriptFunctionsTDD(t *testing.T) {
 	// Test that all required JavaScript functions are defined in the frontend
 	// These tests will fail initially (TDD approach) until we implement the functions
-	
+
 	expectedFunctions := []string{
 		"addNote",
-		"composeReply", 
+		"composeReply",
 		"composePhone",
 		"changeStatus",
 		"assignAgent",
 		"changePriority",
 	}
-	
+
 	for _, functionName := range expectedFunctions {
 		t.Run(functionName+" function exists", func(t *testing.T) {
 			// This test documents that the function MUST exist in ticket-zoom.js
@@ -35,11 +35,11 @@ func TestTicketZoomTemplateIntegration(t *testing.T) {
 	t.Run("template includes ticket-zoom.js script", func(t *testing.T) {
 		t.Skip("Template integration not implemented - TDD failing test")
 	})
-	
+
 	t.Run("buttons call correct JavaScript functions", func(t *testing.T) {
-		t.Skip("Button integration not implemented - TDD failing test")  
+		t.Skip("Button integration not implemented - TDD failing test")
 	})
-	
+
 	t.Run("ticket ID passed to JavaScript functions", func(t *testing.T) {
 		t.Skip("Parameter passing not implemented - TDD failing test")
 	})
@@ -48,14 +48,13 @@ func TestTicketZoomTemplateIntegration(t *testing.T) {
 // TestTicketZoomHandlerRequirements documents required handlers
 func TestTicketZoomHandlerRequirements(t *testing.T) {
 	requiredHandlers := []string{
-		"HandleAgentTicketView",
 		"HandleAgentTicketReply",
-		"HandleAgentTicketNote", 
+		"HandleAgentTicketNote",
 		"HandleAgentTicketPhone",
-		"HandleAgentTicketStatus",   // MISSING - needs implementation
-		"HandleAgentTicketAssign",   // MISSING - needs implementation
+		"HandleAgentTicketStatus", // MISSING - needs implementation
+		"HandleAgentTicketAssign", // MISSING - needs implementation
 	}
-	
+
 	for _, handlerName := range requiredHandlers {
 		t.Run(handlerName+" handler exists", func(t *testing.T) {
 			t.Logf("TODO: Verify %s handler is implemented and registered", handlerName)

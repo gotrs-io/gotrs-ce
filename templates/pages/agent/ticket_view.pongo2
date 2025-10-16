@@ -124,6 +124,27 @@
     <!-- Add hidden queue ID for JavaScript -->
     <div data-queue-id="{{ ticket.queue_id }}" style="display: none;"></div>
 
+    {% if ticket.auto_close_at %}
+    <div class="mb-6">
+        <div class="rounded-md border p-4 text-sm {% if ticket.auto_close_overdue %}border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/30 text-red-900 dark:text-red-100{% else %}border-amber-200 bg-amber-50 dark:border-amber-600 dark:bg-amber-900/30 text-amber-900 dark:text-amber-100{% endif %}">
+            <div class="font-medium">
+                {% if ticket.auto_close_overdue %}
+                    Auto-close overdue
+                {% else %}
+                    Auto-close scheduled
+                {% endif %}
+            </div>
+            <p class="mt-1">
+                {% if ticket.auto_close_overdue %}
+                    Ticket should have auto-closed at <span class="font-semibold">{{ ticket.auto_close_at }}</span> ({{ ticket.auto_close_relative }} ago).
+                {% else %}
+                    Ticket will auto-close{% if ticket.auto_close_pending %} while in pending auto close state{% endif %} at <span class="font-semibold">{{ ticket.auto_close_at }}</span> (in {{ ticket.auto_close_relative }}).
+                {% endif %}
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Main Content -->
         <div class="lg:col-span-2">

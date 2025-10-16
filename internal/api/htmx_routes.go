@@ -50,6 +50,30 @@ type Pongo2Renderer struct {
 	templateSet *pongo2.TemplateSet
 }
 
+func humanizeDuration(d time.Duration) string {
+	d = d.Round(time.Second)
+	if d == 0 {
+		return "0s"
+	}
+	if d < 0 {
+		d = -d
+	}
+	hours := int(d / time.Hour)
+	minutes := int(d%time.Hour) / int(time.Minute)
+	seconds := int(d%time.Minute) / int(time.Second)
+	parts := make([]string, 0, 3)
+	if hours > 0 {
+		parts = append(parts, fmt.Sprintf("%dh", hours))
+	}
+	if minutes > 0 {
+		parts = append(parts, fmt.Sprintf("%dm", minutes))
+	}
+	if seconds > 0 && hours == 0 {
+		parts = append(parts, fmt.Sprintf("%ds", seconds))
+	}
+	return strings.Join(parts, " ")
+}
+
 // HTML implements gin's HTMLRender interface
 func (r *Pongo2Renderer) HTML(c *gin.Context, code int, name string, data interface{}) {
 	// Convert gin.H to pongo2.Context
@@ -2222,6 +2246,91 @@ func handleQueueDetail(c *gin.Context) {
 	})
 }
 
+// LoadTicketStatesForForm fetches valid ticket states and builds alias lookup data for forms.
+func LoadTicketStatesForForm(db *sql.DB) ([]gin.H, map[string]gin.H, error) {
+	if db == nil {
+		return nil, nil, fmt.Errorf("nil database connection")
+	}
+	rows, err := db.Query(database.ConvertPlaceholders(`
+			SELECT id, name, type_id
+			FROM ticket_state
+			WHERE valid_id = 1
+			ORDER BY name
+		`))
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+
+	states := make([]gin.H, 0)
+	lookup := make(map[string]gin.H)
+	for rows.Next() {
+		var (
+			id     int
+			name   string
+			typeID int
+		)
+		if scanErr := rows.Scan(&id, &name, &typeID); scanErr != nil {
+			continue
+		}
+		slug := buildTicketStateSlug(name)
+		state := gin.H{
+			"ID":     id,
+			"Name":   name,
+			"TypeID": typeID,
+			"Slug":   slug,
+		}
+		states = append(states, state)
+		for _, key := range ticketStateLookupKeys(name) {
+			if key != "" {
+				lookup[key] = state
+			}
+		}
+	}
+
+	return states, lookup, nil
+}
+
+func buildTicketStateSlug(name string) string {
+	base := strings.ToLower(strings.TrimSpace(name))
+	if base == "" {
+		return ""
+	}
+	collapsed := strings.Join(strings.Fields(base), " ")
+	return strings.ReplaceAll(collapsed, " ", "_")
+}
+
+func ticketStateLookupKeys(name string) []string {
+	base := strings.ToLower(strings.TrimSpace(name))
+	if base == "" {
+		return nil
+	}
+	collapsed := strings.Join(strings.Fields(base), " ")
+	slugUnderscore := strings.ReplaceAll(collapsed, " ", "_")
+	slugDash := strings.ReplaceAll(collapsed, " ", "-")
+	slugSpace := collapsed
+	slugPlus := strings.ReplaceAll(slugUnderscore, "+", "_plus")
+	slugMinus := strings.ReplaceAll(slugUnderscore, "-", "_")
+
+	variants := map[string]struct{}{
+		slugUnderscore: {},
+		slugDash:       {},
+		slugSpace:      {},
+	}
+	if slugPlus != slugUnderscore {
+		variants[slugPlus] = struct{}{}
+	}
+	if slugMinus != slugUnderscore {
+		variants[slugMinus] = struct{}{}
+	}
+
+	keys := make([]string, 0, len(variants))
+	for k := range variants {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // handleNewTicket shows the new ticket form
 func handleNewTicket(c *gin.Context) {
 	db, err := database.GetDB()
@@ -2288,6 +2397,22 @@ func handleNewTicket(c *gin.Context) {
 		}
 	}
 
+	stateOptions := []gin.H{}
+	stateLookup := map[string]gin.H{}
+	if opts, lookup, stateErr := LoadTicketStatesForForm(db); stateErr != nil {
+		log.Printf("new ticket: failed to load ticket states: %v", stateErr)
+	} else {
+		stateOptions = opts
+		stateLookup = lookup
+	}
+
+	customerUsers := []gin.H{}
+	if cu, cuErr := getCustomerUsersForAgent(db); cuErr != nil {
+		log.Printf("new ticket: failed to load customer users: %v", cuErr)
+	} else {
+		customerUsers = cu
+	}
+
 	// Derive IsInAdminGroup for nav consistency (mirrors earlier context builder logic)
 	isInAdminGroup := false
 	if userMap, ok := getUserMapForTemplate(c)["ID"]; ok {
@@ -2301,12 +2426,15 @@ func handleNewTicket(c *gin.Context) {
 		}
 	}
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets/new.pongo2", pongo2.Context{
-		"User":           getUserMapForTemplate(c),
-		"IsInAdminGroup": isInAdminGroup,
-		"ActivePage":     "tickets",
-		"Queues":         queues,
-		"Priorities":     priorities,
-		"Types":          types,
+		"User":              getUserMapForTemplate(c),
+		"IsInAdminGroup":    isInAdminGroup,
+		"ActivePage":        "tickets",
+		"Queues":            queues,
+		"Priorities":        priorities,
+		"Types":             types,
+		"TicketStates":      stateOptions,
+		"TicketStateLookup": stateLookup,
+		"CustomerUsers":     customerUsers,
 	})
 }
 
@@ -2376,15 +2504,34 @@ func handleNewEmailTicket(c *gin.Context) {
 		}
 	}
 
+	stateOptions := []gin.H{}
+	stateLookup := map[string]gin.H{}
+	if opts, lookup, stateErr := LoadTicketStatesForForm(db); stateErr != nil {
+		log.Printf("new email ticket: failed to load ticket states: %v", stateErr)
+	} else {
+		stateOptions = opts
+		stateLookup = lookup
+	}
+
+	customerUsers := []gin.H{}
+	if cu, cuErr := getCustomerUsersForAgent(db); cuErr != nil {
+		log.Printf("new email ticket: failed to load customer users: %v", cuErr)
+	} else {
+		customerUsers = cu
+	}
+
 	// Render unified Pongo2 new ticket form
 	if pongo2Renderer != nil {
 		pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets/new.pongo2", pongo2.Context{
-			"User":       getUserMapForTemplate(c),
-			"ActivePage": "tickets",
-			"Queues":     queues,
-			"Priorities": priorities,
-			"Types":      types,
-			"TicketType": "email",
+			"User":              getUserMapForTemplate(c),
+			"ActivePage":        "tickets",
+			"Queues":            queues,
+			"Priorities":        priorities,
+			"Types":             types,
+			"TicketType":        "email",
+			"TicketStates":      stateOptions,
+			"TicketStateLookup": stateLookup,
+			"CustomerUsers":     customerUsers,
 		})
 		return
 	}
@@ -2457,15 +2604,34 @@ func handleNewPhoneTicket(c *gin.Context) {
 		}
 	}
 
+	stateOptions := []gin.H{}
+	stateLookup := map[string]gin.H{}
+	if opts, lookup, stateErr := LoadTicketStatesForForm(db); stateErr != nil {
+		log.Printf("new phone ticket: failed to load ticket states: %v", stateErr)
+	} else {
+		stateOptions = opts
+		stateLookup = lookup
+	}
+
+	customerUsers := []gin.H{}
+	if cu, cuErr := getCustomerUsersForAgent(db); cuErr != nil {
+		log.Printf("new phone ticket: failed to load customer users: %v", cuErr)
+	} else {
+		customerUsers = cu
+	}
+
 	// Render unified Pongo2 new ticket form
 	if pongo2Renderer != nil {
 		pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets/new.pongo2", pongo2.Context{
-			"User":       getUserMapForTemplate(c),
-			"ActivePage": "tickets",
-			"Queues":     queues,
-			"Priorities": priorities,
-			"Types":      types,
-			"TicketType": "phone",
+			"User":              getUserMapForTemplate(c),
+			"ActivePage":        "tickets",
+			"Queues":            queues,
+			"Priorities":        priorities,
+			"Types":             types,
+			"TicketType":        "phone",
+			"TicketStates":      stateOptions,
+			"TicketStateLookup": stateLookup,
+			"CustomerUsers":     customerUsers,
 		})
 		return
 	}
@@ -2879,19 +3045,36 @@ func handleTicketDetail(c *gin.Context) {
 			"login": responsibleLogin,
 		}
 	}
+	autoClosePending := strings.Contains(strings.ToLower(stateName), "pending auto close")
+	var autoCloseAtDisplay string
+	var autoCloseRelative string
+	autoCloseOverdue := false
+
+	if ticket.UntilTime > 0 {
+		autoCloseAt := time.Unix(int64(ticket.UntilTime), 0).UTC()
+		now := time.Now().UTC()
+		diff := autoCloseAt.Sub(now)
+		autoCloseOverdue = diff < 0
+		autoCloseRelative = humanizeDuration(diff)
+		if autoCloseOverdue {
+			autoCloseRelative = humanizeDuration(-diff)
+		}
+		autoCloseAtDisplay = autoCloseAt.Format("2006-01-02 15:04:05 UTC")
+	}
 	ticketData := gin.H{
-		"id":               ticket.ID,
-		"tn":               ticket.TicketNumber,
-		"subject":          ticket.Title,
-		"status":           stateName,
-		"state_type":       strings.ToLower(strings.Fields(stateName)[0]), // First word of state for badge colors
-		"is_closed":        isClosed,
-		"priority":         priorityName,
-		"priority_id":      ticket.TicketPriorityID,
-		"queue":            queueName,
-		"queue_id":         ticket.QueueID,
-		"customer_name":    customerName,
-		"customer_user_id": ticket.CustomerUserID,
+		"id":                 ticket.ID,
+		"tn":                 ticket.TicketNumber,
+		"subject":            ticket.Title,
+		"status":             stateName,
+		"state_type":         strings.ToLower(strings.Fields(stateName)[0]), // First word of state for badge colors
+		"auto_close_pending": autoClosePending,
+		"is_closed":          isClosed,
+		"priority":           priorityName,
+		"priority_id":        ticket.TicketPriorityID,
+		"queue":              queueName,
+		"queue_id":           ticket.QueueID,
+		"customer_name":      customerName,
+		"customer_user_id":   ticket.CustomerUserID,
 		"customer_id": func() string {
 			if ticket.CustomerID != nil {
 				return *ticket.CustomerID
@@ -2926,6 +3109,12 @@ func handleTicketDetail(c *gin.Context) {
 		"first_article_visible_for_customer": firstArticleVisibleForCustomer,
 		"age":                                age,
 		"status_id":                          ticket.TicketStateID,
+	}
+
+	if autoCloseAtDisplay != "" {
+		ticketData["auto_close_at"] = autoCloseAtDisplay
+		ticketData["auto_close_overdue"] = autoCloseOverdue
+		ticketData["auto_close_relative"] = autoCloseRelative
 	}
 
 	// Customer panel (DRY: same details as ticket creation selection panel)
@@ -3786,16 +3975,17 @@ func handleCreateTicket(c *gin.Context) {
 
 	// Parse the request into CreateTicketInput semantics
 	var req struct {
-		Subject       string
-		Body          string
-		Priority      string
-		QueueID       int
-		TypeID        int
-		CustomerEmail string
-		CustomerName  string
-		NextState     string
-		PendingUntil  string
-		TimeUnits     int
+		Subject       string `json:"subject"`
+		Body          string `json:"body"`
+		Priority      string `json:"priority"`
+		QueueID       int    `json:"queue_id"`
+		TypeID        int    `json:"type_id"`
+		CustomerEmail string `json:"customer_email"`
+		CustomerName  string `json:"customer_name"`
+		NextState     string `json:"next_state"`
+		NextStateID   int    `json:"next_state_id"`
+		PendingUntil  string `json:"pending_until"`
+		TimeUnits     int    `json:"time_units"`
 	}
 
 	contentType := c.GetHeader("Content-Type")
@@ -3818,6 +4008,11 @@ func handleCreateTicket(c *gin.Context) {
 		req.Priority = c.PostForm("priority")
 		req.NextState = c.PostForm("next_state")
 		req.PendingUntil = c.PostForm("pending_until")
+		if v := strings.TrimSpace(c.PostForm("next_state_id")); v != "" {
+			if parsed, err := strconv.Atoi(v); err == nil {
+				req.NextStateID = parsed
+			}
+		}
 
 		// Parse queue ID (support both queue_id and legacy queue)
 		if queueStr := c.PostForm("queue_id"); queueStr != "" {
@@ -3904,22 +4099,18 @@ func handleCreateTicket(c *gin.Context) {
 	}
 	repo := repository.NewTicketRepository(db)
 	ticketService := service.NewTicketService(repo)
-	// Map next_state string to a TicketStateID; treat any value starting with "pending" as pending
-	stateID := 0
-	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(req.NextState)), "pending") {
-		stateID = models.TicketStatePending
+
+	stateID := req.NextStateID
+	if resolvedID, _, err := resolveTicketState(repo, req.NextState, req.NextStateID); err != nil {
+		log.Printf("create ticket: state resolution failed: %v", err)
+		if resolvedID > 0 {
+			stateID = resolvedID
+		}
+	} else if resolvedID > 0 {
+		stateID = resolvedID
 	}
 
-	// Parse pending_until if provided (expect RFC3339 or HTML datetime-local yyyy-MM-ddTHH:mm)
-	pendingUnix := 0
-	if v := strings.TrimSpace(req.PendingUntil); v != "" {
-		// Try time.Parse with seconds then without
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			pendingUnix = int(t.Unix())
-		} else if t, err2 := time.Parse("2006-01-02T15:04", v); err2 == nil {
-			pendingUnix = int(t.Unix())
-		}
-	}
+	pendingUnix := parsePendingUntil(req.PendingUntil)
 
 	createInput := service.CreateTicketInput{
 		Title:        req.Subject,

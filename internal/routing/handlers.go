@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/api"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
-    "github.com/gotrs-io/gotrs-ce/internal/models"
+	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/shared"
 )
 
@@ -24,6 +24,13 @@ func buildUserContext(c *gin.Context) (gin.H, bool) {
 		isAdminGroup = v
 	}
 	return user, isAdminGroup
+}
+
+func nullable(val sql.NullString) string {
+	if val.Valid {
+		return val.String
+	}
+	return ""
 }
 
 // RegisterExistingHandlers registers existing handlers with the registry
@@ -57,35 +64,35 @@ func RegisterExistingHandlers(registry *HandlerRegistry) {
 				}
 			}
 
-            // If no token found, redirect for HTML requests, JSON for APIs
-            if token == "" {
-                accept := strings.ToLower(c.GetHeader("Accept"))
-                if strings.Contains(accept, "text/html") || accept == "" {
-                    // Browser navigation -> redirect to login
-                    c.Redirect(http.StatusSeeOther, "/login")
-                } else {
-                    c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing authorization token"})
-                }
-                c.Abort()
-                return
-            }
+			// If no token found, redirect for HTML requests, JSON for APIs
+			if token == "" {
+				accept := strings.ToLower(c.GetHeader("Accept"))
+				if strings.Contains(accept, "text/html") || accept == "" {
+					// Browser navigation -> redirect to login
+					c.Redirect(http.StatusSeeOther, "/login")
+				} else {
+					c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing authorization token"})
+				}
+				c.Abort()
+				return
+			}
 
 			// Validate token
 			jwtManager := shared.GetJWTManager()
 			claims, err := jwtManager.ValidateToken(token)
-            if err != nil {
-                // Clear invalid cookie
+			if err != nil {
+				// Clear invalid cookie
 				c.SetCookie("auth_token", "", -1, "/", "", false, true)
 				c.SetCookie("access_token", "", -1, "/", "", false, true)
-                accept := strings.ToLower(c.GetHeader("Accept"))
-                if strings.Contains(accept, "text/html") || accept == "" {
-                    c.Redirect(http.StatusSeeOther, "/login")
-                } else {
-                    c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
-                }
-                c.Abort()
-                return
-            }
+				accept := strings.ToLower(c.GetHeader("Accept"))
+				if strings.Contains(accept, "text/html") || accept == "" {
+					c.Redirect(http.StatusSeeOther, "/login")
+				} else {
+					c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
+				}
+				c.Abort()
+				return
+			}
 
 			// Store user info in context (normalize and enrich)
 			c.Set("user_email", claims.Email)
@@ -213,19 +220,42 @@ func RegisterAPIHandlers(registry *HandlerRegistry, apiHandlers map[string]gin.H
 // HandleCustomerInfoPanel returns partial with customer details or unregistered notice
 func HandleCustomerInfoPanel(c *gin.Context) {
 	login := c.Param("login")
-	if strings.TrimSpace(login) == "" { c.String(http.StatusBadRequest, "missing login"); return }
+	if strings.TrimSpace(login) == "" {
+		c.String(http.StatusBadRequest, "missing login")
+		return
+	}
 	orig := login
-	if i := strings.Index(login, "("); i != -1 && strings.HasSuffix(login, ")") { inner := login[i+1:len(login)-1]; if strings.Contains(inner, "@") { login = inner } }
-	if strings.Contains(login, "<") && strings.Contains(login, ">") { s := strings.Index(login, "<"); e := strings.LastIndex(login, ">"); if s!=-1 && e> s { inner:=login[s+1:e]; if strings.Contains(inner,"@") { login=inner } } }
-	if login!=orig && os.Getenv("GOTRS_DEBUG") == "1" { log.Printf("customer-info: normalized '%s' -> '%s'", orig, login) }
+	if i := strings.Index(login, "("); i != -1 && strings.HasSuffix(login, ")") {
+		inner := login[i+1 : len(login)-1]
+		if strings.Contains(inner, "@") {
+			login = inner
+		}
+	}
+	if strings.Contains(login, "<") && strings.Contains(login, ">") {
+		s := strings.Index(login, "<")
+		e := strings.LastIndex(login, ">")
+		if s != -1 && e > s {
+			inner := login[s+1 : e]
+			if strings.Contains(inner, "@") {
+				login = inner
+			}
+		}
+	}
+	if login != orig && os.Getenv("GOTRS_DEBUG") == "1" {
+		log.Printf("customer-info: normalized '%s' -> '%s'", orig, login)
+	}
 
-	db, err := database.GetDB(); if err != nil || db == nil { c.String(http.StatusInternalServerError, "db not ready"); return }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		c.String(http.StatusInternalServerError, "db not ready")
+		return
+	}
 
 	// Exact OTRS schema (customer_user + customer_company) join by customer_id
 	// We look up by login first, falling back to email if no login match.
 	var user struct {
 		Login, Title, FirstName, LastName, Email, Phone, Mobile, Street, Zip, City, Country, CustomerID, Comment sql.NullString
-		CompanyName, CompanyStreet, CompanyZip, CompanyCity, CompanyCountry, CompanyURL, CompanyComment sql.NullString
+		CompanyName, CompanyStreet, CompanyZip, CompanyCity, CompanyCountry, CompanyURL, CompanyComment          sql.NullString
 	}
 	q := `SELECT cu.login, cu.title, cu.first_name, cu.last_name, cu.email, cu.phone, cu.mobile,
 				 cu.street, cu.zip, cu.city, cu.country, cu.customer_id, cu.comments,
@@ -257,12 +287,24 @@ func HandleCustomerInfoPanel(c *gin.Context) {
 
 	// Map into structures expected by template (keep legacy names user/company fields)
 	var tmplUser = map[string]interface{}{
-		"Login": user.Login, "Title": user.Title, "FirstName": user.FirstName, "LastName": user.LastName,
-		"Email": user.Email, "Phone": user.Phone, "Mobile": user.Mobile, "CompanyID": user.CustomerID, "Comment": user.Comment,
+		"Login":     nullable(user.Login),
+		"Title":     nullable(user.Title),
+		"FirstName": nullable(user.FirstName),
+		"LastName":  nullable(user.LastName),
+		"Email":     nullable(user.Email),
+		"Phone":     nullable(user.Phone),
+		"Mobile":    nullable(user.Mobile),
+		"CompanyID": nullable(user.CustomerID),
+		"Comment":   nullable(user.Comment),
 	}
 	var tmplCompany = map[string]interface{}{
-		"Name": user.CompanyName, "Street": user.CompanyStreet, "Postcode": user.CompanyZip, "City": user.CompanyCity,
-		"Country": user.CompanyCountry, "URL": user.CompanyURL, "Comment": user.CompanyComment,
+		"Name":     nullable(user.CompanyName),
+		"Street":   nullable(user.CompanyStreet),
+		"Postcode": nullable(user.CompanyZip),
+		"City":     nullable(user.CompanyCity),
+		"Country":  nullable(user.CompanyCountry),
+		"URL":      nullable(user.CompanyURL),
+		"Comment":  nullable(user.CompanyComment),
 	}
 
 	var openCount int
@@ -287,53 +329,102 @@ func HandleAgentNewTicket(c *gin.Context) {
 	if rows, err := db.QueryContext(c.Request.Context(), `SELECT id, name FROM queue WHERE valid_id = 1 ORDER BY name`); err == nil {
 		defer rows.Close()
 		for rows.Next() {
-			var id int; var name string
-			if err := rows.Scan(&id, &name); err == nil { queues = append(queues, gin.H{"ID": id, "Name": name}) }
+			var id int
+			var name string
+			if err := rows.Scan(&id, &name); err == nil {
+				queues = append(queues, gin.H{"ID": id, "Name": name})
+			}
 		}
 	}
 	// Priorities
 	priorities := []gin.H{}
 	if rows, err := db.QueryContext(c.Request.Context(), `SELECT id, name FROM ticket_priority WHERE valid_id = 1 ORDER BY id`); err == nil {
 		defer rows.Close()
-		for rows.Next() { var id int; var name string; if err := rows.Scan(&id,&name); err==nil { priorities=append(priorities, gin.H{"ID": id, "Name": name}) } }
+		for rows.Next() {
+			var id int
+			var name string
+			if err := rows.Scan(&id, &name); err == nil {
+				priorities = append(priorities, gin.H{"ID": id, "Name": name})
+			}
+		}
 	}
 	// Types
 	types := []gin.H{}
 	if rows, err := db.QueryContext(c.Request.Context(), `SELECT id, name FROM ticket_type WHERE valid_id = 1 ORDER BY name`); err == nil {
 		defer rows.Close()
-		for rows.Next() { var id int; var name string; if err := rows.Scan(&id,&name); err==nil { types=append(types, gin.H{"ID": id, "Name": name}) } }
+		for rows.Next() {
+			var id int
+			var name string
+			if err := rows.Scan(&id, &name); err == nil {
+				types = append(types, gin.H{"ID": id, "Name": name})
+			}
+		}
 	}
 	// Customer users seed (limited)
 	customerUsers := []gin.H{}
-	if rows, err := db.QueryContext(c.Request.Context(), `SELECT login, email, first_name, last_name FROM customer_user ORDER BY last_name, first_name LIMIT 250`); err == nil {
+	if rows, err := db.QueryContext(c.Request.Context(), `SELECT login, email, first_name, last_name, customer_id FROM customer_user WHERE valid_id = 1 ORDER BY last_name, first_name, email LIMIT 250`); err == nil {
 		defer rows.Close()
-		for rows.Next() { var login, email, fn, ln sql.NullString; if err := rows.Scan(&login,&email,&fn,&ln); err==nil { customerUsers=append(customerUsers, gin.H{"Login": login.String, "Email": email.String, "FirstName": fn.String, "LastName": ln.String}) } }
+		for rows.Next() {
+			var login, email, fn, ln, cid sql.NullString
+			if err := rows.Scan(&login, &email, &fn, &ln, &cid); err == nil {
+				customerUsers = append(customerUsers, gin.H{"Login": login.String, "Email": email.String, "FirstName": fn.String, "LastName": ln.String, "CustomerID": cid.String})
+			}
+		}
+	}
+	// Ticket states
+	ticketStates := []gin.H{}
+	ticketStateLookup := map[string]gin.H{}
+	if opts, lookup, stateErr := api.LoadTicketStatesForForm(db); stateErr != nil {
+		log.Printf("agent route new ticket: failed to load ticket states: %v", stateErr)
+	} else {
+		ticketStates = opts
+		ticketStateLookup = lookup
 	}
 
 	// Render template set by YAML (pages/tickets/new.pongo2)
 	// Derive admin role similar to getUserMapForTemplate for consistency
 	isAdmin := false
 	// From group membership
-	if isInAdminGroup { isAdmin = true }
+	if isInAdminGroup {
+		isAdmin = true
+	}
 	// From user ID heuristic (1/2)
 	if uid, ok := user["ID"]; ok {
 		switch v := uid.(type) {
 		case int:
-			if v == 1 || v == 2 { isAdmin = true }
+			if v == 1 || v == 2 {
+				isAdmin = true
+			}
 		case int32:
-			if v == 1 || v == 2 { isAdmin = true }
+			if v == 1 || v == 2 {
+				isAdmin = true
+			}
 		case int64:
-			if v == 1 || v == 2 { isAdmin = true }
+			if v == 1 || v == 2 {
+				isAdmin = true
+			}
 		case uint:
-			if v == 1 || v == 2 { isAdmin = true }
+			if v == 1 || v == 2 {
+				isAdmin = true
+			}
 		case uint32:
-			if v == 1 || v == 2 { isAdmin = true }
+			if v == 1 || v == 2 {
+				isAdmin = true
+			}
 		case uint64:
-			if v == 1 || v == 2 { isAdmin = true }
+			if v == 1 || v == 2 {
+				isAdmin = true
+			}
 		case float64:
-			if int(v) == 1 || int(v) == 2 { isAdmin = true }
+			if int(v) == 1 || int(v) == 2 {
+				isAdmin = true
+			}
 		case string:
-			if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil { if n == 1 || n == 2 { isAdmin = true } }
+			if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+				if n == 1 || n == 2 {
+					isAdmin = true
+				}
+			}
 		}
 	}
 	// From login naming
@@ -348,13 +439,15 @@ func HandleAgentNewTicket(c *gin.Context) {
 	user["IsInAdminGroup"] = isInAdminGroup
 	user["Role"] = map[bool]string{true: "Admin", false: "Agent"}[isAdmin]
 	api.GetPongo2Renderer().HTML(c, http.StatusOK, "pages/tickets/new.pongo2", gin.H{
-		"User":           user,
-		"IsInAdminGroup": isInAdminGroup,
-		"ActivePage":     "tickets",
-		"Queues":         queues,
-		"Priorities":     priorities,
-		"Types":          types,
-		"CustomerUsers":  customerUsers,
+		"User":              user,
+		"IsInAdminGroup":    isInAdminGroup,
+		"ActivePage":        "tickets",
+		"Queues":            queues,
+		"Priorities":        priorities,
+		"Types":             types,
+		"CustomerUsers":     customerUsers,
+		"TicketStates":      ticketStates,
+		"TicketStateLookup": ticketStateLookup,
 	})
 }
 

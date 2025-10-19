@@ -34,7 +34,7 @@ func NewTestDataGenerator(synthesizer *Synthesizer) *TestDataGenerator {
 	return &TestDataGenerator{
 		synthesizer: synthesizer,
 		credentials: make([]TestCredential, 0),
-		sqlPath:     "migrations/000004_generated_test_data.up.sql",
+		sqlPath:     "migrations/postgres/000004_generated_test_data.up.sql",
 		csvPath:     "test_credentials.csv",
 	}
 }
@@ -272,7 +272,7 @@ ON CONFLICT DO NOTHING;
 // DEPRECATED: Use 'make show-dev-creds' to extract from SQL comments instead
 func (g *TestDataGenerator) generateCSV() error {
 	// No longer output CSV since credentials are in SQL comments
-	// Use: grep "^-- ||" migrations/000004_generated_test_data.up.sql
+	// Use: grep "^-- ||" migrations/postgres/000004_generated_test_data.up.sql
 	return nil
 }
 

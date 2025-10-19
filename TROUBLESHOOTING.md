@@ -1,5 +1,7 @@
 # GOTRS Troubleshooting Guide
 
+> **Reminder:** All operational commands should flow through the Makefile or provided helper scripts. Avoid running raw `docker`/`podman` commands on the host—use the container-first wrappers instead.
+
 ## Common Issues and Solutions
 
 ### 1. Database Connection Error: "database gotrs_user does not exist"
@@ -18,16 +20,17 @@ FATAL: database "gotrs_user" does not exist
    ./scripts/fix-database.sh
    ```
 
-2. **Or manually fix:**
+2. **Or manually fix (Makefile workflow):**
    ```bash
    # Stop and clean everything
-   docker compose down -v  # or docker-compose down -v
-   
+   make down
+   make clean
+
    # Edit .env file and change:
    # DB_USER=gotrs_user  → DB_USER=gotrs
-   
+
    # Start fresh
-   docker compose up  # or make up
+   make up
    ```
 
 3. **Verify the fix:**
@@ -35,26 +38,21 @@ FATAL: database "gotrs_user" does not exist
    - Check `.env` has `DB_NAME=gotrs`
    - Both should match for PostgreSQL to initialize correctly
 
-### 2. Docker Compose Command Not Found
+### 2. Compose Command Not Found
 
 **Problem:** You see:
 ```
 make: docker-compose: No such file or directory
 ```
 
-**Cause:** Modern Docker uses `docker compose` (with space) instead of `docker-compose` (with hyphen).
+**Cause:** Your host is missing the Compose plugin/binary that the Makefile expects.
 
 **Solution:**
 
-The Makefile now auto-detects the correct command. To check what's available:
-```bash
-make debug-env
-```
-
-You can also use the wrapper script:
-```bash
-./scripts/compose.sh up     # Auto-detects the right command
-```
+1. Run `make debug-env` to see which compose variant the tooling detected.
+2. Prefer `make up`, `make down`, `make restart`, etc.—they automatically use the correct compose command.
+3. If you must run compose manually, call the wrapper: `./scripts/compose.sh <args>`.
+4. Install the hinted compose package if `make debug-env` reports it as missing.
 
 ### 3. Container Won't Start
 
@@ -65,8 +63,8 @@ You can also use the wrapper script:
 1. **Check logs:**
    ```bash
    make logs
-   # or for specific service:
-   docker compose logs postgres
+   # Follow everything continuously
+   make logs-follow
    ```
 
 2. **Clean everything and restart:**
@@ -91,14 +89,13 @@ You can also use the wrapper script:
 
 1. **Ensure services are running:**
    ```bash
-   docker compose ps
+   ./scripts/compose.sh ps
    # All services should show as "running"
    ```
 
 2. **Wait for services to be healthy:**
    ```bash
-   # Check health status
-   docker compose ps
+   ./scripts/compose.sh ps
    # Look for (healthy) status
    ```
 
@@ -147,19 +144,21 @@ docker system df
 **Solution:**
 ```bash
 # The Makefile will handle dependencies, but if needed:
-docker compose exec backend go mod download
-docker compose exec backend go mod tidy
+make toolbox-exec ARGS="go mod download"
+make toolbox-exec ARGS="go mod tidy"
 ```
 
-### 8. Frontend Build Errors
+### 8. Frontend Asset Issues
 
-**Problem:** Frontend fails to compile or start.
+**Problem:** CSS or static assets look stale after changes.
 
 **Solution:**
 ```bash
-# Rebuild frontend
-docker compose build frontend --no-cache
-docker compose up frontend
+# Rebuild Tailwind/CSS assets
+make css-build
+
+# For iterative work, run the watcher
+make css-watch
 ```
 
 ### 9. Database Migrations Fail
@@ -173,9 +172,9 @@ make clean
 make up
 make db-migrate
 
-# Or manually:
-docker compose exec -e PGPASSWORD=gotrs_password backend \
-  psql -h postgres -U gotrs -d gotrs < migrations/000001_initial_schema.up.sql
+# Or manually via compose wrapper:
+./scripts/compose.sh exec backend \
+   sh -lc 'PGPASSWORD=$$DB_PASSWORD psql -h $$DB_HOST -U $$DB_USER -d $$DB_NAME < migrations/postgres/000001_schema_alignment.up.sql'
 ```
 
 ### 10. Tests Fail to Run
@@ -186,12 +185,12 @@ docker compose exec -e PGPASSWORD=gotrs_password backend \
 
 1. **Ensure testify is installed:**
    ```bash
-   docker compose exec backend go get github.com/stretchr/testify
+   make toolbox-exec ARGS="go get github.com/stretchr/testify"
    ```
 
 2. **Run tests directly:**
    ```bash
-   docker compose exec backend go test -v ./...
+   make toolbox-exec ARGS="go test -v ./..."
    ```
 
 3. **Check test coverage:**
@@ -207,14 +206,15 @@ docker compose exec -e PGPASSWORD=gotrs_password backend \
 make debug-env
 
 # Check running containers
-docker compose ps
+./scripts/compose.sh ps
 
 # Check logs
 make logs
 
 # Shell into container
-docker compose exec backend sh
-docker compose exec postgres psql -U gotrs -d gotrs
+./scripts/compose.sh exec backend sh
+# For database access (MariaDB default)
+./scripts/compose.sh exec mariadb mysql -u $$DB_USER -p$$DB_PASSWORD $$DB_NAME
 ```
 
 ### Clean Slate Reset
@@ -232,10 +232,12 @@ make up
 grep DB_ .env
 
 # Verify compose file is valid
-docker compose config
+./scripts/compose.sh config
 
 # Test database connection
-docker compose exec postgres pg_isready -U gotrs
+./scripts/compose.sh exec mariadb mysqladmin ping -u $$DB_USER -p$$DB_PASSWORD || true
+# If you're running Postgres instead of MariaDB
+./scripts/compose.sh exec postgres pg_isready -U $$DB_USER || true
 ```
 
 ## Getting Help

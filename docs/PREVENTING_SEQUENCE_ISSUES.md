@@ -26,11 +26,8 @@ make db-fix-sequences      # Fix sequences immediately
 make migrate-validate      # Verify data integrity
 ```
 
-### 3. Automated Fix in Migrations
-We've added migration `999999_fix_sequences.up.sql` that:
-- Creates a `fix_all_sequences()` function
-- Can be called manually: `SELECT fix_all_sequences();`
-- Provides optional triggers for problematic tables
+### 3. Automated Fix Command
+`make db-fix-sequences` runs a Postgres DO block that recalculates every sequence based on the highest ID in its table. The command is idempotent and safe to run repeatedly after imports or bulk updates.
 
 ### 4. Manual Fix for Specific Table
 ```sql

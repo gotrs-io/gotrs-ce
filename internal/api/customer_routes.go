@@ -137,7 +137,9 @@ func handleCustomerDashboard(db *sql.DB) gin.HandlerFunc {
 				"priority":       ticket.Priority,
 				"priority_color": ticket.PriorityColor.String,
 				"age":            formatAge(ticket.CreateTime),
+				"created_at_iso": ticket.CreateTime.UTC().Format(time.RFC3339),
 				"last_changed":   formatAge(ticket.ChangeTime),
+				"updated_at_iso": ticket.ChangeTime.UTC().Format(time.RFC3339),
 				"article_count":  ticket.ArticleCount,
 				"unread_count":   ticket.UnreadCount,
 			})
@@ -273,7 +275,9 @@ func handleCustomerTickets(db *sql.DB) gin.HandlerFunc {
 				"priority_color": ticket.PriorityColor.String,
 				"service":        ticket.Service.String,
 				"age":            formatAge(ticket.CreateTime),
+				"created_at_iso": ticket.CreateTime.UTC().Format(time.RFC3339),
 				"last_changed":   formatAge(ticket.ChangeTime),
+				"updated_at_iso": ticket.ChangeTime.UTC().Format(time.RFC3339),
 				"article_count":  ticket.ArticleCount,
 				"unread_count":   ticket.UnreadCount,
 			})
@@ -386,9 +390,10 @@ func handleCustomerCreateTicket(db *sql.DB) gin.HandlerFunc {
 
 		// Create ticket
 		var ticketID int
-		err := db.QueryRow(database.ConvertPlaceholders(`
+		typeColumn := database.TicketTypeColumn()
+		err := db.QueryRow(database.ConvertPlaceholders(fmt.Sprintf(`
 			INSERT INTO ticket (
-				tn, title, queue_id, type_id, service_id,
+				tn, title, queue_id, %s, service_id,
 				ticket_state_id, ticket_priority_id,
 				customer_id, customer_user_id,
 				create_time, create_by, change_time, change_by
@@ -398,7 +403,7 @@ func handleCustomerCreateTicket(db *sql.DB) gin.HandlerFunc {
 				$5, $6,
 				NOW(), $7, NOW(), $7
 			) RETURNING id
-		`), tn, title, serviceID, priorityID, customerID, username, userID).Scan(&ticketID)
+		`, typeColumn)), tn, title, serviceID, priorityID, customerID, username, userID).Scan(&ticketID)
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create ticket"})
@@ -566,7 +571,9 @@ func handleCustomerTicketView(db *sql.DB) gin.HandlerFunc {
 				"owner":          ticket.Owner.String,
 				"responsible":    ticket.Responsible.String,
 				"age":            formatAge(ticket.CreateTime),
+				"created_at_iso": ticket.CreateTime.UTC().Format(time.RFC3339),
 				"last_changed":   formatAge(ticket.ChangeTime),
+				"updated_at_iso": ticket.ChangeTime.UTC().Format(time.RFC3339),
 				"can_close":      canClose,
 			},
 			"Articles": articles,

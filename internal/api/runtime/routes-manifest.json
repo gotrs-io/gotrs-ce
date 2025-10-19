@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-10-16T21:35:04.322763098Z",
+  "generatedAt": "2025-10-18T21:03:42.418092853Z",
   "routes": [
     {
       "group": "admin",
@@ -496,6 +496,24 @@
       "method": "GET",
       "path": "/api/notifications/pending",
       "handler": "handlePendingReminderFeed",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-ticket-messages",
+      "method": "GET",
+      "path": "/api/tickets/:id/messages",
+      "handler": "handleGetTicketMessages",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-ticket-messages",
+      "method": "POST",
+      "path": "/api/tickets/:id/messages",
+      "handler": "handleAddTicketMessage",
       "middleware": [
         "auth"
       ]

@@ -5,6 +5,52 @@
 # Works both inside containers and on the host (using docker compose exec)
 
 set -e
+shopt -s extglob
+
+load_env_file() {
+    while IFS= read -r line || [ -n "$line" ]; do
+        line="${line%$'\r'}"
+        case "$line" in
+            ''|\#*) continue ;;
+        esac
+        if [[ "$line" == *=* ]]; then
+            local key="${line%%=*}"
+            local value="${line#*=}"
+
+            # trim leading/trailing whitespace
+            key="${key##+([[:space:]])}"
+            key="${key%%+([[:space:]])}"
+            value="${value##+([[:space:]])}"
+            value="${value%%+([[:space:]])}"
+
+            if [[ "$key" == export\ * ]]; then
+                key="${key#export }"
+            fi
+
+            if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+                value="${value:1:-1}"
+            elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+                value="${value:1:-1}"
+            fi
+
+            if [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+                # Respect pre-existing environment overrides (e.g., caller-supplied values)
+                if [[ -z "${!key+x}" ]]; then
+                    export "$key=$value"
+                fi
+            fi
+        fi
+    done < "$1"
+}
+
+# Load environment variables from .env (or custom ENV_FILE) before we override
+ENV_FILE="${ENV_FILE:-.env}"
+if [ -f "$ENV_FILE" ]; then
+    echo "Loading environment from $ENV_FILE"
+    load_env_file "$ENV_FILE"
+else
+    echo "No environment file found at $ENV_FILE; using in-script defaults"
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -19,7 +65,7 @@ echo "======================================"
 
 # Detect Docker/Podman compose command
 detect_compose_cmd() {
-    if command -v podman-compose > /dev/null 2>&1; then
+    if command -v podman-compose > /dev/null 2>&1 && command -v podman > /dev/null 2>&1; then
         echo "podman-compose"
     elif command -v podman > /dev/null 2>&1 && podman compose version > /dev/null 2>&1; then
         echo "podman compose"
@@ -33,6 +79,7 @@ detect_compose_cmd() {
 }
 
 COMPOSE_CMD=$(detect_compose_cmd)
+COMPOSE_TEST_FILES="-f docker-compose.yml -f docker-compose.testdb.yml"
 
 # Check if running in container or local
 if [ -f /.dockerenv ] || [ -f /run/.containerenv ]; then
@@ -43,11 +90,15 @@ else
     echo "Running on host via container..."
     echo "Using compose command: $COMPOSE_CMD"
     
-    # Check if backend service is running
-    if ! $COMPOSE_CMD ps --services --filter "status=running" | grep -q "backend"; then
-        echo -e "${RED}Error: Backend service is not running.${NC}"
-        echo "Please run 'make up' first to start the services."
-        exit 1
+    if [ "${SKIP_BACKEND_CHECK:-0}" != "1" ]; then
+        # Check if backend service is running
+        if ! $COMPOSE_CMD ps --format '{{.Name}} {{.State}}' 2>/dev/null | awk '/backend/{print $2}' | grep -q "running"; then
+            echo -e "${RED}Error: Backend service is not running.${NC}"
+            echo "Please run 'make up' first to start the services."
+            exit 1
+        fi
+    else
+        echo "Skipping backend service check as requested."
     fi
 fi
 
@@ -88,21 +139,43 @@ check_database_name() {
 # Safety Check 3: Hostname Check (prevent remote DB access during tests)
 check_hostname() {
     local db_host="${DB_HOST:-localhost}"
+    local db_driver="${DB_DRIVER:-postgres}"
     
     # Only allow localhost/postgres container for tests
-    if [[ "$db_host" != "localhost" ]] && \
-       [[ "$db_host" != "127.0.0.1" ]] && \
-       [[ "$db_host" != "postgres" ]] && \
-       [[ "$db_host" != "::1" ]]; then
-        echo -e "${RED}ERROR: Tests can only run against local databases!${NC}"
-        echo -e "${RED}Current DB_HOST: $db_host${NC}"
-        echo ""
-        echo "For safety, tests are restricted to:"
-        echo "- localhost"
-        echo "- 127.0.0.1"
-        echo "- postgres (container name)"
-        echo "- ::1 (IPv6 localhost)"
-        exit 1
+    if [[ "$db_driver" == "postgres" ]]; then
+        if [[ "$db_host" != "localhost" ]] && \
+           [[ "$db_host" != "127.0.0.1" ]] && \
+           [[ "$db_host" != "postgres" ]] && \
+           [[ "$db_host" != "postgres-test" ]] && \
+           [[ "$db_host" != "::1" ]]; then
+            echo -e "${RED}ERROR: Tests can only run against local PostgreSQL databases!${NC}"
+            echo -e "${RED}Current DB_HOST: $db_host${NC}"
+            echo ""
+            echo "For safety, tests are restricted to:"
+            echo "- localhost"
+            echo "- 127.0.0.1"
+            echo "- postgres (container name)"
+            echo "- postgres-test (test container name)"
+            echo "- ::1 (IPv6 localhost)"
+            exit 1
+        fi
+    else
+        if [[ "$db_host" != "localhost" ]] && \
+           [[ "$db_host" != "127.0.0.1" ]] && \
+           [[ "$db_host" != "mariadb" ]] && \
+           [[ "$db_host" != "mariadb-test" ]] && \
+           [[ "$db_host" != "::1" ]]; then
+            echo -e "${RED}ERROR: Tests can only run against local databases!${NC}"
+            echo -e "${RED}Current DB_HOST: $db_host${NC}"
+            echo ""
+            echo "For safety, tests are restricted to:"
+            echo "- localhost"
+            echo "- 127.0.0.1"
+            echo "- mariadb (container name)"
+            echo "- mariadb-test (test container name)"
+            echo "- ::1 (IPv6 localhost)"
+            exit 1
+        fi
     fi
     
     echo -e "${GREEN}✓ Database host check passed (DB_HOST=$db_host)${NC}"
@@ -145,13 +218,39 @@ ensure_test_database() {
         echo -e "${GREEN}✓ Test database already exists: $db_name${NC}"
     else
         # Running on host - use docker compose exec to run psql in postgres container
-        $COMPOSE_CMD exec -e PGPASSWORD="$db_pass" postgres psql -U "$db_user" -d postgres -tc \
+        ensure_postgres_service
+        $COMPOSE_CMD $COMPOSE_TEST_FILES exec -e PGPASSWORD="$db_pass" postgres-test psql -U "$db_user" -d postgres -tc \
             "SELECT 1 FROM pg_database WHERE datname = '$db_name'" | grep -q 1 || \
-        $COMPOSE_CMD exec -e PGPASSWORD="$db_pass" postgres psql -U "$db_user" -d postgres -c \
+        $COMPOSE_CMD $COMPOSE_TEST_FILES exec -e PGPASSWORD="$db_pass" postgres-test psql -U "$db_user" -d postgres -c \
             "CREATE DATABASE \"$db_name\"" && \
         echo -e "${GREEN}✓ Created test database: $db_name${NC}" || \
         echo -e "${GREEN}✓ Test database already exists: $db_name${NC}"
     fi
+}
+
+# Ensure the postgres-test container is running when tests execute on the host
+ensure_postgres_service() {
+    if [ "$IN_CONTAINER" = true ]; then
+        echo -e "${BLUE}Running inside container; assuming postgres-test is reachable...${NC}"
+        return
+    fi
+
+    echo -e "${YELLOW}Ensuring postgres-test container is running...${NC}"
+    APP_ENV=test DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" \
+        $COMPOSE_CMD $COMPOSE_TEST_FILES up -d postgres-test >/dev/null
+
+    echo -n "Waiting for postgres-test to accept connections"
+    for _ in {1..40}; do
+        if $COMPOSE_CMD $COMPOSE_TEST_FILES exec -T postgres-test pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1; then
+            echo -e "\r${GREEN}✓ postgres-test is ready${NC}          "
+            return
+        fi
+        printf '.'
+        sleep 1
+    done
+
+    echo -e "\n${RED}postgres-test did not become ready in time${NC}"
+    exit 1
 }
 
 # Run all safety checks
@@ -214,8 +313,27 @@ run_tests() {
         go test -v -race -coverprofile=generated/coverage.out -covermode=atomic ./...
     else
         mkdir -p generated
-        $COMPOSE_CMD exec -e DB_NAME="${DB_NAME}" -e APP_ENV="${APP_ENV}" backend \
-            sh -c "mkdir -p generated && go test -v -race -coverprofile=generated/coverage.out -covermode=atomic ./..."
+        ensure_postgres_service
+        local test_command='mkdir -p generated && go test -v -race -coverprofile=generated/coverage.out -covermode=atomic ./...'
+        if echo "$COMPOSE_CMD" | grep -q "podman-compose"; then
+            COMPOSE_PROFILES=toolbox $COMPOSE_CMD $COMPOSE_TEST_FILES run --rm \
+                -e APP_ENV="$APP_ENV" \
+                -e DB_NAME="$DB_NAME" \
+                -e DB_HOST="$DB_HOST" \
+                -e DB_DRIVER="$DB_DRIVER" \
+                -e DB_USER="$DB_USER" \
+                -e DB_PASSWORD="$DB_PASSWORD" \
+                toolbox bash -c "$test_command"
+        else
+            $COMPOSE_CMD $COMPOSE_TEST_FILES --profile toolbox run --rm \
+                -e APP_ENV="$APP_ENV" \
+                -e DB_NAME="$DB_NAME" \
+                -e DB_HOST="$DB_HOST" \
+                -e DB_DRIVER="$DB_DRIVER" \
+                -e DB_USER="$DB_USER" \
+                -e DB_PASSWORD="$DB_PASSWORD" \
+                toolbox bash -c "$test_command"
+        fi
     fi
     
     if [ $? -eq 0 ]; then
@@ -245,12 +363,29 @@ main() {
             run_safety_checks
             echo "Safety checks completed. Ready to run tests."
             ;;
+
+        up)
+            run_safety_checks
+            ensure_postgres_service
+            ;;
+
+        down)
+            if [ "$IN_CONTAINER" = true ]; then
+                echo -e "${YELLOW}Skipping postgres-test shutdown inside container${NC}"
+            else
+                $COMPOSE_CMD $COMPOSE_TEST_FILES stop postgres-test >/dev/null 2>&1 || true
+                $COMPOSE_CMD $COMPOSE_TEST_FILES rm -f postgres-test >/dev/null 2>&1 || true
+                echo -e "${GREEN}✓ postgres-test container stopped${NC}"
+            fi
+            ;;
             
         *)
-            echo "Usage: $0 [test|clean|check]"
+            echo "Usage: $0 [test|clean|check|up|down]"
             echo "  test  - Run tests with safety checks (default)"
             echo "  clean - Clean test database"
             echo "  check - Run safety checks only"
+            echo "  up    - Start the postgres-test container after safety checks"
+            echo "  down  - Stop the postgres-test container"
             exit 1
             ;;
     esac
@@ -258,14 +393,56 @@ main() {
 
 # Export test environment variables
 export APP_ENV="${APP_ENV:-test}"
-export DB_NAME="${DB_NAME:-gotrs}_test"
+export DB_DRIVER="${DB_DRIVER:-postgres}"
+
+if [ -z "${DB_NAME:-}" ] || [[ ! "${DB_NAME}" =~ _test$ ]]; then
+    default_db_name="gotrs_test"
+    if [[ "${DB_DRIVER}" != "postgres" ]]; then
+        default_db_name="otrs_test"
+    fi
+    DB_NAME="$default_db_name"
+fi
+export DB_NAME
+export TEST_DB_NAME="$DB_NAME"
+
+if [[ "${DB_DRIVER}" == "postgres" ]]; then
+    # Force known-safe credentials for postgres test harness regardless of host .env defaults
+    export DB_HOST="postgres-test"
+    export DB_USER="gotrs_user"
+    export DB_PASSWORD="gotrs_password"
+else
+    export DB_HOST="${DB_HOST:-mariadb-test}"
+    export DB_USER="${DB_USER:-otrs}"
+    export DB_PASSWORD="${DB_PASSWORD:-LetClaude.1n}"
+fi
+
+export TEST_DB_USER="$DB_USER"
+export TEST_DB_PASSWORD="$DB_PASSWORD"
+if [ -z "${DB_NAME:-}" ] || [[ ! "${DB_NAME}" =~ _test$ ]]; then
+    DEFAULT_DB_NAME="gotrs_test"
+    if [[ "${DB_DRIVER:-postgres}" != "postgres" ]]; then
+        DEFAULT_DB_NAME="otrs_test"
+    fi
+    DB_NAME="${DEFAULT_DB_NAME}"
+fi
+export DB_NAME
+if [[ "${DB_DRIVER}" == "postgres" ]]; then
+    export DB_HOST="${DB_HOST:-postgres-test}"
+    export DB_USER="${DB_USER:-gotrs_user}"
+    export DB_PASSWORD="${DB_PASSWORD:-gotrs_password}"
+else
+    export DB_HOST="${DB_HOST:-mariadb-test}"
+    export DB_USER="${DB_USER:-otrs}"
+    export DB_PASSWORD="${DB_PASSWORD:-LetClaude.1n}"
+fi
 
 # Show current configuration
 echo "Current test configuration:"
 echo "  APP_ENV: $APP_ENV"
 echo "  DB_NAME: $DB_NAME"
 echo "  DB_HOST: ${DB_HOST:-postgres}"
-echo "  DB_USER: ${DB_USER:-gotrs}"
+echo "  DB_USER: ${DB_USER:-gotrs_user}"
+echo "  DB_DRIVER: ${DB_DRIVER}"
 
 # Run main function
 main "$@"

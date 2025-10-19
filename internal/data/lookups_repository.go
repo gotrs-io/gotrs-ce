@@ -79,6 +79,7 @@ func (r *LookupsRepository) GetTicketPriorities(ctx context.Context) ([]LookupIt
 		       CASE WHEN name IN ('1 very low', '2 low', '3 normal', '4 high', '5 very high') 
 		            THEN true ELSE false END as is_system
 		FROM ticket_priority
+		WHERE valid_id = 1
 		ORDER BY 
 			CASE 
 				WHEN name LIKE '1 %' THEN 1
@@ -158,7 +159,7 @@ func (r *LookupsRepository) GetTicketTypes(ctx context.Context) ([]LookupItem, e
 			AND table_name = 'ticket_types'
 		)
 	`).Scan(&tableExists)
-	
+
 	if err != nil || !tableExists {
 		// Return default types if table doesn't exist
 		return []LookupItem{
@@ -210,7 +211,7 @@ func (r *LookupsRepository) GetTranslation(ctx context.Context, tableName, field
 		WHERE table_name = $1 AND field_value = $2 AND language_code = $3
 		LIMIT 1
 	`
-	
+
 	err := r.db.QueryRowContext(ctx, query, tableName, fieldValue, lang).Scan(&translation)
 	if err == sql.ErrNoRows {
 		// No translation found - this is ok, we'll use the original value
@@ -223,7 +224,7 @@ func (r *LookupsRepository) GetTranslation(ctx context.Context, tableName, field
 		}
 		return "", fmt.Errorf("failed to query translation: %w", err)
 	}
-	
+
 	return translation, nil
 }
 
@@ -235,7 +236,7 @@ func (r *LookupsRepository) AddTranslation(ctx context.Context, tableName, field
 		ON CONFLICT (table_name, field_value, language_code) 
 		DO UPDATE SET translation = $4, change_time = $6
 	`
-	
+
 	_, err := r.db.ExecContext(ctx, query, tableName, fieldValue, lang, translation, isSystem, time.Now())
 	if err != nil {
 		// Check if table doesn't exist - silently ignore since translations are optional
@@ -244,7 +245,7 @@ func (r *LookupsRepository) AddTranslation(ctx context.Context, tableName, field
 		}
 		return fmt.Errorf("failed to add translation: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -255,7 +256,7 @@ func (r *LookupsRepository) GetAllTranslations(ctx context.Context, lang string)
 		FROM lookup_translations
 		WHERE language_code = $1
 	`
-	
+
 	rows, err := r.db.QueryContext(ctx, query, lang)
 	if err != nil {
 		// Check if table doesn't exist - return empty map instead of error
@@ -265,7 +266,7 @@ func (r *LookupsRepository) GetAllTranslations(ctx context.Context, lang string)
 		return nil, fmt.Errorf("failed to query translations: %w", err)
 	}
 	defer rows.Close()
-	
+
 	translations := make(map[string]map[string]string)
 	for rows.Next() {
 		var tableName, fieldValue, translation string
@@ -273,16 +274,16 @@ func (r *LookupsRepository) GetAllTranslations(ctx context.Context, lang string)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan translation: %w", err)
 		}
-		
+
 		if translations[tableName] == nil {
 			translations[tableName] = make(map[string]string)
 		}
 		translations[tableName][fieldValue] = translation
 	}
-	
+
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating translations: %w", err)
 	}
-	
+
 	return translations, nil
 }

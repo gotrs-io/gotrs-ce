@@ -17,8 +17,8 @@ import (
 // Focus on business logic and API responses
 
 func TestHTMXLoginHandler_Logic(t *testing.T) {
-    t.Setenv("DEMO_LOGIN_EMAIL", "test@example.com")
-    t.Setenv("DEMO_LOGIN_PASSWORD", "testpass123")
+	t.Setenv("DEMO_LOGIN_EMAIL", "test@example.com")
+	t.Setenv("DEMO_LOGIN_PASSWORD", "testpass123")
 
 	gin.SetMode(gin.TestMode)
 
@@ -40,7 +40,7 @@ func TestHTMXLoginHandler_Logic(t *testing.T) {
 			name:       "Invalid email",
 			email:      "wrong@example.com",
 			password:   "testpass123",
-            wantStatus: http.StatusUnauthorized,
+			wantStatus: http.StatusUnauthorized,
 			wantToken:  false,
 		},
 		{
@@ -86,8 +86,8 @@ func TestHTMXLoginHandler_Logic(t *testing.T) {
 }
 
 func TestHTMXLoginHandler_NoEnvVars(t *testing.T) {
-    t.Setenv("DEMO_LOGIN_EMAIL", "")
-    t.Setenv("DEMO_LOGIN_PASSWORD", "")
+	t.Setenv("DEMO_LOGIN_EMAIL", "")
+	t.Setenv("DEMO_LOGIN_PASSWORD", "")
 
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
@@ -103,15 +103,16 @@ func TestHTMXLoginHandler_NoEnvVars(t *testing.T) {
 
 	handleHTMXLogin(c)
 
-    // Expects 401 when no demo credentials configured
+	// Expects 401 when no demo credentials configured
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 	assert.Contains(t, w.Body.String(), "Invalid credentials")
 }
 
 func TestCreateTicketHandler_Logic(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-    // Avoid DB-dependent path in unit test
-    t.Setenv("APP_ENV", "test")
+	// Avoid DB-dependent path in unit test
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("HTMX_HANDLER_TEST_MODE", "1")
 
 	tests := []struct {
 		name       string
@@ -190,15 +191,15 @@ func TestCreateTicketHandler_Logic(t *testing.T) {
 			c.Request = httptest.NewRequest("POST", "/api/tickets", strings.NewReader(tt.formData.Encode()))
 			c.Request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-            handleCreateTicket(c)
+			handleCreateTicket(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 
-            if tt.wantStatus == http.StatusCreated {
+			if tt.wantStatus == http.StatusCreated {
 				assert.NotEmpty(t, w.Header().Get("HX-Redirect"))
 
-                var response map[string]interface{}
-                _ = json.Unmarshal(w.Body.Bytes(), &response)
+				var response map[string]interface{}
+				_ = json.Unmarshal(w.Body.Bytes(), &response)
 
 				if tt.checkResp != nil {
 					tt.checkResp(t, response)
@@ -210,6 +211,8 @@ func TestCreateTicketHandler_Logic(t *testing.T) {
 
 func TestAssignTicketHandler_Logic(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("HTMX_HANDLER_TEST_MODE", "1")
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 
@@ -359,7 +362,7 @@ func TestTicketReplyHandler_Logic(t *testing.T) {
 				}
 			}()
 
-            handleTicketReply(c)
+			handleTicketReply(c)
 
 			// Can't fully test without templates, but we've validated the logic
 		})
@@ -368,6 +371,8 @@ func TestTicketReplyHandler_Logic(t *testing.T) {
 
 func TestUpdateTicketPriorityHandler_Logic(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("HTMX_HANDLER_TEST_MODE", "1")
 
 	tests := []struct {
 		name       string
@@ -433,6 +438,8 @@ func TestUpdateTicketPriorityHandler_Logic(t *testing.T) {
 
 func TestUpdateTicketQueueHandler_Logic(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("HTMX_HANDLER_TEST_MODE", "1")
 
 	tests := []struct {
 		name       string

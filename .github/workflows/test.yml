@@ -77,8 +77,8 @@ jobs:
           done
           
           # Run migrations for tests
-          psql -h localhost -U gotrs_test -d gotrs_test < migrations/000001_initial_schema.up.sql
-          psql -h localhost -U gotrs_test -d gotrs_test < migrations/000002_initial_data.up.sql
+          psql -h localhost -U gotrs_test -d gotrs_test < migrations/postgres/000001_schema_alignment.up.sql
+          psql -h localhost -U gotrs_test -d gotrs_test < schema/baseline/required_lookups.sql
 
       - name: Generate secure test configuration
         run: |
@@ -258,8 +258,8 @@ jobs:
           done
           
           # Run migrations
-          psql -h localhost -U gotrs_integration -d gotrs_integration < migrations/000001_initial_schema.up.sql
-          psql -h localhost -U gotrs_integration -d gotrs_integration < migrations/000002_initial_data.up.sql
+            psql -h localhost -U gotrs_integration -d gotrs_integration < migrations/postgres/000001_schema_alignment.up.sql
+            psql -h localhost -U gotrs_integration -d gotrs_integration < schema/baseline/required_lookups.sql
 
       - name: Run integration tests
         env:

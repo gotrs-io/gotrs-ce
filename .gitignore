@@ -129,13 +129,13 @@ backups/
 *.bak
 
 # Migration lock files
-migrations/*.lock
+migrations/**/*.lock
 
 # Generated test data (NEVER commit these)
-migrations/*_generated.up.sql
-migrations/*_generated.down.sql
-migrations/*.generated.sql
-migrations/*.bak
+migrations/**/*_generated.up.sql
+migrations/**/*_generated.down.sql
+migrations/**/*.generated.sql
+migrations/**/*.bak
 test_credentials.csv
 test-credentials.csv
 *.credentials.csv

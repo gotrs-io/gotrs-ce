@@ -355,26 +355,62 @@ func (l *RouteLoader) registerRoute(group *gin.RouterGroup, route *RouteDefiniti
 
 // registerMethodRoute registers a route for a specific HTTP method
 func (l *RouteLoader) registerMethodRoute(group *gin.RouterGroup, method, path string, handlers ...gin.HandlerFunc) {
+	resolved := normalizeRoutePath(group.BasePath(), path)
+
 	switch strings.ToUpper(method) {
 	case "GET":
-		group.GET(path, handlers...)
+		group.GET(resolved, handlers...)
 	case "POST":
-		group.POST(path, handlers...)
+		group.POST(resolved, handlers...)
 	case "PUT":
-		group.PUT(path, handlers...)
+		group.PUT(resolved, handlers...)
 	case "DELETE":
-		group.DELETE(path, handlers...)
+		group.DELETE(resolved, handlers...)
 	case "PATCH":
-		group.PATCH(path, handlers...)
+		group.PATCH(resolved, handlers...)
 	case "HEAD":
-		group.HEAD(path, handlers...)
+		group.HEAD(resolved, handlers...)
 	case "OPTIONS":
-		group.OPTIONS(path, handlers...)
+		group.OPTIONS(resolved, handlers...)
 	case "ANY":
-		group.Any(path, handlers...)
+		group.Any(resolved, handlers...)
 	default:
 		log.Printf("Warning: Unknown HTTP method '%s' for route %s", method, path)
 	}
+}
+
+func normalizeRoutePath(prefix, routePath string) string {
+	prefix = strings.TrimSpace(prefix)
+	cleanedPrefix := strings.Trim(prefix, "/")
+
+	path := strings.TrimSpace(routePath)
+	if prefix == "" {
+		if path == "" || path == "/" {
+			return "/"
+		}
+		if strings.HasPrefix(path, "/") {
+			return path
+		}
+		return "/" + path
+	}
+
+	if path == "" || path == "/" {
+		return ""
+	}
+
+	path = strings.TrimPrefix(path, "/")
+
+	if cleanedPrefix != "" {
+		if path == cleanedPrefix {
+			return ""
+		}
+		prefixWithSlash := cleanedPrefix + "/"
+		if strings.HasPrefix(path, prefixWithSlash) {
+			path = strings.TrimPrefix(path, prefixWithSlash)
+		}
+	}
+
+	return path
 }
 
 // parseMethods parses the method field which can be string or []string

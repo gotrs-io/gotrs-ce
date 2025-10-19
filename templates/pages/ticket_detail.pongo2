@@ -123,9 +123,9 @@ div[id^="note-content-"] table tbody tr {
             </div>
             <p class="mt-1">
                 {% if Ticket.pending_reminder_overdue %}
-                    Reminder was scheduled for <span class="font-semibold">{{ Ticket.pending_reminder_at }}</span>{% if Ticket.pending_reminder_relative %} ({{ Ticket.pending_reminder_relative }} ago){% endif %}.
+                    Reminder was scheduled for <span class="font-semibold">{{ Ticket.pending_reminder_at }}</span>{% if Ticket.pending_reminder_relative and Ticket.pending_reminder_at_iso %} (<span data-relative-time data-mode="duration" data-direction="past" data-timestamp="{{ Ticket.pending_reminder_at_iso }}">{{ Ticket.pending_reminder_relative }}</span> ago){% elif Ticket.pending_reminder_relative %} ({{ Ticket.pending_reminder_relative }} ago){% endif %}.
                 {% else %}
-                    Ticket will re-open at <span class="font-semibold">{{ Ticket.pending_reminder_at }}</span>{% if Ticket.pending_reminder_relative %} (in {{ Ticket.pending_reminder_relative }}){% endif %}.
+                    Ticket will re-open at <span class="font-semibold">{{ Ticket.pending_reminder_at }}</span>{% if Ticket.pending_reminder_relative and Ticket.pending_reminder_at_iso %} (in <span data-relative-time data-mode="duration" data-direction="future" data-timestamp="{{ Ticket.pending_reminder_at_iso }}">{{ Ticket.pending_reminder_relative }}</span>){% elif Ticket.pending_reminder_relative %} (in {{ Ticket.pending_reminder_relative }}){% endif %}.
                 {% endif %}
             </p>
         </div>
@@ -144,9 +144,9 @@ div[id^="note-content-"] table tbody tr {
             </div>
             <p class="mt-1">
                 {% if Ticket.auto_close_overdue %}
-                    Ticket should have auto-closed at <span class="font-semibold">{{ Ticket.auto_close_at }}</span> ({{ Ticket.auto_close_relative }} ago).
+                    Ticket should have auto-closed at <span class="font-semibold">{{ Ticket.auto_close_at }}</span>{% if Ticket.auto_close_relative and Ticket.auto_close_at_iso %} (<span data-relative-time data-mode="duration" data-direction="past" data-timestamp="{{ Ticket.auto_close_at_iso }}">{{ Ticket.auto_close_relative }}</span> ago){% elif Ticket.auto_close_relative %} ({{ Ticket.auto_close_relative }} ago){% endif %}.
                 {% else %}
-                    Ticket will auto-close{% if Ticket.auto_close_pending %} while in pending auto close state{% endif %} at <span class="font-semibold">{{ Ticket.auto_close_at }}</span> (in {{ Ticket.auto_close_relative }}).
+                    Ticket will auto-close{% if Ticket.auto_close_pending %} while in pending auto close state{% endif %} at <span class="font-semibold">{{ Ticket.auto_close_at }}</span>{% if Ticket.auto_close_relative and Ticket.auto_close_at_iso %} (in <span data-relative-time data-mode="duration" data-direction="future" data-timestamp="{{ Ticket.auto_close_at_iso }}">{{ Ticket.auto_close_relative }}</span>){% elif Ticket.auto_close_relative %} (in {{ Ticket.auto_close_relative }}){% endif %}.
                 {% endif %}
             </p>
         </div>
@@ -173,7 +173,13 @@ div[id^="note-content-"] table tbody tr {
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
             <div class="text-xs uppercase text-gray-500 dark:text-gray-400">{{ t("tickets.age")|default:"Age" }}</div>
-            <div class="text-sm text-gray-900 dark:text-white">{{ Ticket.age }}</div>
+            <div class="text-sm text-gray-900 dark:text-white">
+                {% if Ticket.created_iso %}
+                <span data-relative-time data-mode="since" data-direction="past" data-timestamp="{{ Ticket.created_iso }}">{{ Ticket.age }}</span>
+                {% else %}
+                {{ Ticket.age }}
+                {% endif %}
+            </div>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
             <div class="text-xs uppercase text-gray-500 dark:text-gray-400">{{ t("tickets.customer_id")|default:"CustomerID" }}</div>
@@ -792,7 +798,7 @@ div[id^="note-content-"] table tbody tr {
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t("tickets.change_status")|default:"Change Status" }}</h3>
         </div>
-        <form onsubmit="submitStatus(event)">
+    <form onsubmit="submitStatus(event)" data-pending-states="{% if PendingStateIDs %}{% for sid in PendingStateIDs %}{{ sid }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}">
             <div class="p-6">
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t("tickets.status") }}</label>

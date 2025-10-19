@@ -63,7 +63,7 @@ func HandleCreateQueueAPI(c *gin.Context) {
 	}
 	defer tx.Rollback()
 
-    // Defaults and required fallbacks per our schema (migrations/legacy/000001_otrs_schema.up.sql)
+    // Defaults mirror baseline bootstrap data (schema/baseline/required_lookups.sql)
     if req.GroupID == 0 { req.GroupID = 1 }          // Default to group 1
     if req.SystemAddressID == nil { d := 1; req.SystemAddressID = &d }
     if req.SalutationID == nil { d := 1; req.SalutationID = &d }

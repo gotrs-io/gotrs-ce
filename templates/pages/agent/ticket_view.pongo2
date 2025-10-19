@@ -136,9 +136,9 @@
             </div>
             <p class="mt-1">
                 {% if ticket.pending_reminder_overdue %}
-                    Reminder was scheduled for <span class="font-semibold">{{ ticket.pending_reminder_at }}</span>{% if ticket.pending_reminder_relative %} ({{ ticket.pending_reminder_relative }} ago){% endif %}.
+                    Reminder was scheduled for <span class="font-semibold">{{ ticket.pending_reminder_at }}</span>{% if ticket.pending_reminder_relative and ticket.pending_reminder_at_iso %} (<span data-relative-time data-mode="duration" data-direction="past" data-timestamp="{{ ticket.pending_reminder_at_iso }}">{{ ticket.pending_reminder_relative }}</span> ago){% elif ticket.pending_reminder_relative %} ({{ ticket.pending_reminder_relative }} ago){% endif %}.
                 {% else %}
-                    Ticket will re-open at <span class="font-semibold">{{ ticket.pending_reminder_at }}</span>{% if ticket.pending_reminder_relative %} (in {{ ticket.pending_reminder_relative }}){% endif %}.
+                    Ticket will re-open at <span class="font-semibold">{{ ticket.pending_reminder_at }}</span>{% if ticket.pending_reminder_relative and ticket.pending_reminder_at_iso %} (in <span data-relative-time data-mode="duration" data-direction="future" data-timestamp="{{ ticket.pending_reminder_at_iso }}">{{ ticket.pending_reminder_relative }}</span>){% elif ticket.pending_reminder_relative %} (in {{ ticket.pending_reminder_relative }}){% endif %}.
                 {% endif %}
             </p>
         </div>
@@ -157,9 +157,9 @@
             </div>
             <p class="mt-1">
                 {% if ticket.auto_close_overdue %}
-                    Ticket should have auto-closed at <span class="font-semibold">{{ ticket.auto_close_at }}</span> ({{ ticket.auto_close_relative }} ago).
+                    Ticket should have auto-closed at <span class="font-semibold">{{ ticket.auto_close_at }}</span>{% if ticket.auto_close_relative and ticket.auto_close_at_iso %} (<span data-relative-time data-mode="duration" data-direction="past" data-timestamp="{{ ticket.auto_close_at_iso }}">{{ ticket.auto_close_relative }}</span> ago){% elif ticket.auto_close_relative %} ({{ ticket.auto_close_relative }} ago){% endif %}.
                 {% else %}
-                    Ticket will auto-close{% if ticket.auto_close_pending %} while in pending auto close state{% endif %} at <span class="font-semibold">{{ ticket.auto_close_at }}</span> (in {{ ticket.auto_close_relative }}).
+                    Ticket will auto-close{% if ticket.auto_close_pending %} while in pending auto close state{% endif %} at <span class="font-semibold">{{ ticket.auto_close_at }}</span>{% if ticket.auto_close_relative and ticket.auto_close_at_iso %} (in <span data-relative-time data-mode="duration" data-direction="future" data-timestamp="{{ ticket.auto_close_at_iso }}">{{ ticket.auto_close_relative }}</span>){% elif ticket.auto_close_relative %} (in {{ ticket.auto_close_relative }}){% endif %}.
                 {% endif %}
             </p>
         </div>
@@ -545,7 +545,7 @@
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Change Status</h3>
             </div>
-            <form id="statusForm" onsubmit="submitStatus(event)">
+            <form id="statusForm" onsubmit="submitStatus(event)" data-pending-states="{% if PendingStateIDs %}{% for sid in PendingStateIDs %}{{ sid }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}">
                 <div class="p-6 space-y-4">
                     <!-- Status Selection -->
                     <div>
@@ -820,14 +820,19 @@ function togglePendingFields() {
     const pendingFields = document.getElementById('pending-time-fields');
     const pendingInput = document.getElementById('pendingUntilInput');
     const helpTexts = document.querySelectorAll('[id$="-help"]');
+    const statusForm = document.getElementById('statusForm');
+    if (!statusSelect || !pendingFields || !pendingInput) {
+        return;
+    }
+    const rawStates = (statusForm && statusForm.dataset && statusForm.dataset.pendingStates) || '';
+    const pendingStates = rawStates.split(',').map(v => v.trim()).filter(Boolean);
+    const pendingSet = pendingStates.length > 0 ? new Set(pendingStates) : new Set(['4', '5', '6']);
     
     // Hide all help texts first
     helpTexts.forEach(help => help.style.display = 'none');
     
     // Pending states: 4=pending reminder, 5=pending auto close+, 6=pending auto close-
-    const pendingStates = ['4', '5', '6'];
-    
-    if (pendingStates.includes(statusSelect.value)) {
+    if (pendingSet.has(statusSelect.value)) {
         pendingFields.style.display = 'block';
         pendingInput.required = true;
         

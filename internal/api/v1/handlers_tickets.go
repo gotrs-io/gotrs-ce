@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-    api "github.com/gotrs-io/gotrs-ce/internal/api"
+	api "github.com/gotrs-io/gotrs-ce/internal/api"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
@@ -81,7 +81,7 @@ func (router *APIRouter) handleListTickets(c *gin.Context) {
 	}
 
 	// Get tickets from service
-    ticketService := api.GetTicketService()
+	ticketService := api.GetTicketService()
 	request := &models.TicketListRequest{
 		Page:       page,
 		PerPage:    perPage,
@@ -90,13 +90,13 @@ func (router *APIRouter) handleListTickets(c *gin.Context) {
 		QueueID:    queueID,
 		Search:     search,
 	}
-	
+
 	response, err := ticketService.ListTickets(request)
 	if err != nil {
 		sendError(c, http.StatusInternalServerError, "Failed to retrieve tickets")
 		return
 	}
-	
+
 	// Convert to API format
 	tickets := []gin.H{}
 	for _, t := range response.Tickets {
@@ -127,16 +127,16 @@ func (router *APIRouter) handleListTickets(c *gin.Context) {
 			"created_at":     t.CreateTime,
 			"updated_at":     t.ChangeTime,
 		}
-		
+
 		if t.UserID != nil {
 			ticket["assigned_to"] = *t.UserID
 			ticket["assigned_name"] = fmt.Sprintf("User %d", *t.UserID) // TODO: Get actual user name
 		}
-		
+
 		tickets = append(tickets, ticket)
 	}
-	
-    pagination := Pagination{
+
+	pagination := Pagination{
 		Page:       response.Page,
 		PerPage:    response.PerPage,
 		Total:      response.Total,
@@ -145,7 +145,7 @@ func (router *APIRouter) handleListTickets(c *gin.Context) {
 		HasPrev:    response.Page > 1,
 	}
 
-    sendPaginatedResponse(c, tickets, pagination)
+	sendPaginatedResponse(c, tickets, pagination)
 }
 
 // HandleCreateTicket creates a new ticket
@@ -200,7 +200,7 @@ func (router *APIRouter) HandleCreateTicket(c *gin.Context) {
 	if generatorConfig["type"] == "" {
 		generatorConfig["type"] = "date"
 	}
-	
+
 	generator, err := ticket_number.NewGeneratorFromConfig(db, generatorConfig)
 	if err != nil {
 		sendError(c, http.StatusInternalServerError, "Failed to initialize ticket number generator")
@@ -235,11 +235,12 @@ func (router *APIRouter) HandleCreateTicket(c *gin.Context) {
 
 	// Get database adapter
 	adapter := database.GetAdapter()
-	
+
 	// Insert ticket
-	ticketQuery := database.ConvertPlaceholders(`
+	ticketTypeColumn := database.TicketTypeColumn()
+	ticketQuery := database.ConvertPlaceholders(fmt.Sprintf(`
 		INSERT INTO ticket (
-			tn, title, queue_id, type_id, ticket_state_id, 
+			tn, title, queue_id, %s, ticket_state_id, 
 			ticket_priority_id, customer_user_id, customer_id,
 			ticket_lock_id, user_id, responsible_user_id,
 			create_time, create_by, change_time, change_by
@@ -249,19 +250,19 @@ func (router *APIRouter) HandleCreateTicket(c *gin.Context) {
 			1, $9, $10,
 			NOW(), $11, NOW(), $12
 		) RETURNING id
-	`)
+	`, ticketTypeColumn))
 
 	ticketID, err := adapter.InsertWithReturningTx(
-		tx, 
+		tx,
 		ticketQuery,
-		ticketNumber, ticketRequest.Title, ticketRequest.QueueID, 
+		ticketNumber, ticketRequest.Title, ticketRequest.QueueID,
 		ticketRequest.TypeID, ticketRequest.StateID,
 		ticketRequest.PriorityID, ticketRequest.CustomerUserID, ticketRequest.CustomerID,
 		userID, userID, userID, userID,
 	)
 
 	if err != nil {
-		sendError(c, http.StatusInternalServerError, "Failed to create ticket: " + err.Error())
+		sendError(c, http.StatusInternalServerError, "Failed to create ticket: "+err.Error())
 		return
 	}
 
@@ -273,10 +274,10 @@ func (router *APIRouter) HandleCreateTicket(c *gin.Context) {
 		if contentType == "" {
 			contentType = "text/plain"
 		}
-		
+
 		articleTypeID := 1 // email-external default
 		senderTypeID := 3  // customer default
-		
+
 		if atID, ok := ticketRequest.Article["article_type_id"].(float64); ok {
 			articleTypeID = int(atID)
 		}
@@ -294,19 +295,19 @@ func (router *APIRouter) HandleCreateTicket(c *gin.Context) {
 				$1, $2, 1, 1, NOW(), $3, NOW(), $4
 			) RETURNING id
 		`)
-		
+
 		articleID, err := adapter.InsertWithReturningTx(
 			tx,
 			articleQuery,
 			ticketID, senderTypeID, userID, userID,
 		)
-		
+
 		if err != nil {
-			sendError(c, http.StatusInternalServerError, "Failed to create article: " + err.Error())
+			sendError(c, http.StatusInternalServerError, "Failed to create article: "+err.Error())
 			return
 		}
-		
-	// Insert article content in article_data_mime table
+
+		// Insert article content in article_data_mime table
 		if subject != "" || body != "" {
 			contentQuery := database.ConvertPlaceholders(`
 				INSERT INTO article_data_mime (
@@ -317,12 +318,12 @@ func (router *APIRouter) HandleCreateTicket(c *gin.Context) {
 					NOW(), $5, NOW(), $6
 				)
 			`)
-			
+
 			_, err = tx.Exec(contentQuery,
 				articleID, subject, body, contentType,
 				userID, userID,
 			)
-			
+
 			if err != nil {
 				// Log error but don't fail the whole ticket creation
 				// Article metadata is saved, just content failed
@@ -340,26 +341,27 @@ func (router *APIRouter) HandleCreateTicket(c *gin.Context) {
 
 	// Fetch the created ticket for response
 	var ticket struct {
-		ID               int64      `json:"id"`
-		TicketNumber     string     `json:"tn"`
-		Title            string     `json:"title"`
-		QueueID          int        `json:"queue_id"`
-		TypeID           int        `json:"type_id"`
-		StateID          int        `json:"ticket_state_id"`
-		PriorityID       int        `json:"ticket_priority_id"`
-		CustomerUserID   *string    `json:"customer_user_id"`
-		CustomerID       *string    `json:"customer_id"`
-		CreateTime       time.Time  `json:"create_time"`
+		ID             int64     `json:"id"`
+		TicketNumber   string    `json:"tn"`
+		Title          string    `json:"title"`
+		QueueID        int       `json:"queue_id"`
+		TypeID         int       `json:"type_id"`
+		StateID        int       `json:"ticket_state_id"`
+		PriorityID     int       `json:"ticket_priority_id"`
+		CustomerUserID *string   `json:"customer_user_id"`
+		CustomerID     *string   `json:"customer_id"`
+		CreateTime     time.Time `json:"create_time"`
 	}
 
 	// Query the created ticket
-	query := database.ConvertPlaceholders(`
-		SELECT id, tn, title, queue_id, type_id, ticket_state_id,
+	typeSelect := fmt.Sprintf("%s AS type_id", database.TicketTypeColumn())
+	query := database.ConvertPlaceholders(fmt.Sprintf(`
+		SELECT id, tn, title, queue_id, %s, ticket_state_id,
 		       ticket_priority_id, customer_user_id, customer_id, create_time
 		FROM ticket
 		WHERE id = $1
-	`)
-	
+	`, typeSelect))
+
 	row := db.QueryRow(query, ticketID)
 	err = row.Scan(
 		&ticket.ID, &ticket.TicketNumber, &ticket.Title,
@@ -367,17 +369,17 @@ func (router *APIRouter) HandleCreateTicket(c *gin.Context) {
 		&ticket.PriorityID, &ticket.CustomerUserID, &ticket.CustomerID,
 		&ticket.CreateTime,
 	)
-	
+
 	if err != nil {
 		// Ticket was created but we can't fetch it - still return success with basic info
 		c.JSON(http.StatusCreated, APIResponse{
 			Success: true,
 			Data: gin.H{
-				"id":            ticketID,
-				"tn":            ticketNumber,
-				"title":         ticketRequest.Title,
-				"queue_id":      ticketRequest.QueueID,
-				"message":       "Ticket created successfully",
+				"id":       ticketID,
+				"tn":       ticketNumber,
+				"title":    ticketRequest.Title,
+				"queue_id": ticketRequest.QueueID,
+				"message":  "Ticket created successfully",
 			},
 		})
 		return
@@ -400,22 +402,22 @@ func (router *APIRouter) handleGetTicket(c *gin.Context) {
 
 	// TODO: Implement actual ticket retrieval
 	ticket := gin.H{
-		"id":             ticketID,
-		"number":         "T-2025-" + ticketID,
-		"title":          "Sample ticket details",
-		"description":    "This is a detailed description of the ticket.",
-		"status":         "open",
-		"priority":       "normal",
-		"queue_id":       1,
-		"queue_name":     "General",
-		"assigned_to":    1,
-		"assigned_name":  "John Doe",
-		"customer_email": "customer@example.com",
-		"created_at":     time.Now().Add(-2 * time.Hour).UTC(),
-		"updated_at":     time.Now().Add(-30 * time.Minute).UTC(),
-		"sla_due":        time.Now().Add(4 * time.Hour).UTC(),
-		"tags":           []string{"urgent", "billing"},
-		"article_count":  3,
+		"id":               ticketID,
+		"number":           "T-2025-" + ticketID,
+		"title":            "Sample ticket details",
+		"description":      "This is a detailed description of the ticket.",
+		"status":           "open",
+		"priority":         "normal",
+		"queue_id":         1,
+		"queue_name":       "General",
+		"assigned_to":      1,
+		"assigned_name":    "John Doe",
+		"customer_email":   "customer@example.com",
+		"created_at":       time.Now().Add(-2 * time.Hour).UTC(),
+		"updated_at":       time.Now().Add(-30 * time.Minute).UTC(),
+		"sla_due":          time.Now().Add(4 * time.Hour).UTC(),
+		"tags":             []string{"urgent", "billing"},
+		"article_count":    3,
 		"attachment_count": 2,
 	}
 
@@ -552,7 +554,7 @@ func (router *APIRouter) handleUpdateTicket(c *gin.Context) {
 		argCounter++
 	}
 	if updateRequest.TypeID != nil {
-		setClauses = append(setClauses, fmt.Sprintf("type_id = $%d", argCounter))
+		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", database.TicketTypeColumn(), argCounter))
 		args = append(args, *updateRequest.TypeID)
 		argCounter++
 	}
@@ -622,13 +624,14 @@ func (router *APIRouter) handleUpdateTicket(c *gin.Context) {
 
 	// Fetch updated ticket
 	var ticket models.Ticket
-	err = db.QueryRow(database.ConvertPlaceholders(`
-		SELECT id, tn, title, queue_id, type_id, ticket_state_id, 
+	typeSelectUpdated := fmt.Sprintf("%s AS type_id", database.TicketTypeColumn())
+	err = db.QueryRow(database.ConvertPlaceholders(fmt.Sprintf(`
+		SELECT id, tn, title, queue_id, %s, ticket_state_id, 
 		       ticket_priority_id, customer_user_id, customer_id,
 		       ticket_lock_id, user_id, responsible_user_id,
 		       create_time, change_time
 		FROM ticket WHERE id = $1
-	`), ticketID).Scan(
+	`, typeSelectUpdated)), ticketID).Scan(
 		&ticket.ID, &ticket.TicketNumber, &ticket.Title, &ticket.QueueID,
 		&ticket.TypeID, &ticket.TicketStateID, &ticket.TicketPriorityID,
 		&ticket.CustomerUserID, &ticket.CustomerID, &ticket.TicketLockID,
@@ -744,7 +747,7 @@ func (router *APIRouter) HandleDeleteTicket(c *gin.Context) {
 	articleResult, err := db.Exec(insertArticleQuery, ticketID, userID, userID)
 	if err == nil {
 		articleID, _ := articleResult.LastInsertId()
-		
+
 		// Insert article content
 		insertMimeQuery := database.ConvertPlaceholders(`
 			INSERT INTO article_data_mime (
@@ -762,15 +765,15 @@ func (router *APIRouter) HandleDeleteTicket(c *gin.Context) {
 				$2, NOW(), $3, NOW(), $4
 			)
 		`)
-		
+
 		db.Exec(insertMimeQuery, articleID, time.Now().Unix(), userID, userID)
 	}
 
 	sendSuccess(c, gin.H{
-		"id":          ticketID,
-		"archived_at": time.Now().UTC(),
-		"message":     "Ticket archived successfully",
-		"state_id":    2,
+		"id":           ticketID,
+		"archived_at":  time.Now().UTC(),
+		"message":      "Ticket archived successfully",
+		"state_id":     2,
 		"archive_flag": 1,
 	})
 }
@@ -887,7 +890,7 @@ func (router *APIRouter) HandleAssignTicket(c *gin.Context) {
 		articleResult, err := tx.Exec(insertArticleQuery, ticketID, userID, userID)
 		if err == nil {
 			articleID, _ := articleResult.LastInsertId()
-			
+
 			// Build assignment message
 			var previousAssignee string
 			if currentResponsibleID.Valid {
@@ -895,18 +898,18 @@ func (router *APIRouter) HandleAssignTicket(c *gin.Context) {
 					"SELECT login FROM users WHERE id = $1",
 				), currentResponsibleID.Int32).Scan(&previousAssignee)
 			}
-			
+
 			var body string
 			if previousAssignee != "" {
 				body = fmt.Sprintf("Ticket reassigned from %s to %s.", previousAssignee, assigneeLogin)
 			} else {
 				body = fmt.Sprintf("Ticket assigned to %s.", assigneeLogin)
 			}
-			
+
 			if assignRequest.Comment != "" {
 				body += "\n\nComment: " + assignRequest.Comment
 			}
-			
+
 			// Insert article content
 			insertMimeQuery := database.ConvertPlaceholders(`
 				INSERT INTO article_data_mime (
@@ -924,7 +927,7 @@ func (router *APIRouter) HandleAssignTicket(c *gin.Context) {
 					$3, NOW(), $4, NOW(), $5
 				)
 			`)
-			
+
 			tx.Exec(insertMimeQuery, articleID, body, time.Now().Unix(), userID, userID)
 		}
 	}
@@ -937,11 +940,11 @@ func (router *APIRouter) HandleAssignTicket(c *gin.Context) {
 
 	// Return success response
 	sendSuccess(c, gin.H{
-		"id":           ticketID,
-		"assigned_to":  assignRequest.AssignedTo,
-		"assignee":     assigneeLogin,
-		"comment":      assignRequest.Comment,
-		"assigned_at":  time.Now().UTC(),
+		"id":          ticketID,
+		"assigned_to": assignRequest.AssignedTo,
+		"assignee":    assigneeLogin,
+		"comment":     assignRequest.Comment,
+		"assigned_at": time.Now().UTC(),
 	})
 }
 
@@ -1006,9 +1009,9 @@ func (router *APIRouter) HandleCloseTicket(c *gin.Context) {
 
 	// Determine close state based on resolution
 	var newStateID int
-	if strings.ToLower(closeRequest.Resolution) == "successful" || 
-	   strings.ToLower(closeRequest.Resolution) == "resolved" ||
-	   strings.ToLower(closeRequest.Resolution) == "fixed" {
+	if strings.ToLower(closeRequest.Resolution) == "successful" ||
+		strings.ToLower(closeRequest.Resolution) == "resolved" ||
+		strings.ToLower(closeRequest.Resolution) == "fixed" {
 		newStateID = 2 // closed successful
 	} else {
 		newStateID = 3 // closed unsuccessful
@@ -1058,14 +1061,14 @@ func (router *APIRouter) HandleCloseTicket(c *gin.Context) {
 		articleResult, err := tx.Exec(insertArticleQuery, ticketID, userID, userID)
 		if err == nil {
 			articleID, _ := articleResult.LastInsertId()
-			
+
 			// Insert article content
 			subject := fmt.Sprintf("Ticket Closed: %s", closeRequest.Resolution)
 			body := closeRequest.Comment
 			if body == "" {
 				body = fmt.Sprintf("Ticket has been closed as %s.", closeRequest.Resolution)
 			}
-			
+
 			insertMimeQuery := database.ConvertPlaceholders(`
 				INSERT INTO article_data_mime (
 					article_id,
@@ -1082,7 +1085,7 @@ func (router *APIRouter) HandleCloseTicket(c *gin.Context) {
 					$4, NOW(), $5, NOW(), $6
 				)
 			`)
-			
+
 			tx.Exec(insertMimeQuery, articleID, subject, body, time.Now().Unix(), userID, userID)
 		}
 	}
@@ -1211,7 +1214,7 @@ func (router *APIRouter) HandleReopenTicket(c *gin.Context) {
 	articleResult, err := tx.Exec(insertArticleQuery, ticketID, userID, userID)
 	if err == nil {
 		articleID, _ := articleResult.LastInsertId()
-		
+
 		// Insert article content
 		insertMimeQuery := database.ConvertPlaceholders(`
 			INSERT INTO article_data_mime (
@@ -1229,7 +1232,7 @@ func (router *APIRouter) HandleReopenTicket(c *gin.Context) {
 				$3, NOW(), $4, NOW(), $5
 			)
 		`)
-		
+
 		body := fmt.Sprintf("Ticket has been reopened. Reason: %s", reopenRequest.Reason)
 		tx.Exec(insertMimeQuery, articleID, body, time.Now().Unix(), userID, userID)
 	}
@@ -1242,10 +1245,10 @@ func (router *APIRouter) HandleReopenTicket(c *gin.Context) {
 
 	// Return success response
 	sendSuccess(c, gin.H{
-		"id":         ticketID,
-		"state_id":   4,
-		"state":      "open",
-		"reason":     reopenRequest.Reason,
+		"id":          ticketID,
+		"state_id":    4,
+		"state":       "open",
+		"reason":      reopenRequest.Reason,
 		"reopened_at": time.Now().UTC(),
 	})
 }
@@ -1297,10 +1300,10 @@ func (router *APIRouter) handleMoveTicketQueue(c *gin.Context) {
 
 	// TODO: Implement actual queue move
 	sendSuccess(c, gin.H{
-		"id":         ticketID,
-		"queue_id":   queueRequest.QueueID,
-		"comment":    queueRequest.Comment,
-		"moved_at":   time.Now().UTC(),
+		"id":       ticketID,
+		"queue_id": queueRequest.QueueID,
+		"comment":  queueRequest.Comment,
+		"moved_at": time.Now().UTC(),
 	})
 }
 
@@ -1346,7 +1349,7 @@ func (router *APIRouter) handleAddTicketArticle(c *gin.Context) { api.HandleCrea
 func (router *APIRouter) handleGetTicketArticle(c *gin.Context) {
 	ticketID := c.Param("id")
 	articleID := c.Param("article_id")
-	
+
 	if ticketID == "" || articleID == "" {
 		sendError(c, http.StatusBadRequest, "Ticket ID and Article ID required")
 		return
@@ -1393,11 +1396,11 @@ func (router *APIRouter) handleBulkAssignTickets(c *gin.Context) {
 
 	// TODO: Implement actual bulk assignment
 	sendSuccess(c, gin.H{
-		"ticket_ids":   bulkRequest.TicketIDs,
-		"assigned_to":  bulkRequest.AssignedTo,
-		"comment":      bulkRequest.Comment,
-		"assigned_at":  time.Now().UTC(),
-		"count":        len(bulkRequest.TicketIDs),
+		"ticket_ids":  bulkRequest.TicketIDs,
+		"assigned_to": bulkRequest.AssignedTo,
+		"comment":     bulkRequest.Comment,
+		"assigned_at": time.Now().UTC(),
+		"count":       len(bulkRequest.TicketIDs),
 	})
 }
 

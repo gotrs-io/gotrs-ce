@@ -1,0 +1,32 @@
+services:
+  postgres-test:
+    image: docker.io/postgres:15-alpine
+    container_name: gotrs-postgres-test
+    user: "999:999"
+    environment:
+      APP_ENV: ${APP_ENV:-test}
+      POSTGRES_DB: ${TEST_DB_NAME:-${DB_NAME:-gotrs_test}}
+      POSTGRES_USER: ${TEST_DB_USER:-${DB_USER:-gotrs_user}}
+      POSTGRES_PASSWORD: ${TEST_DB_PASSWORD:-${DB_PASSWORD:-gotrs_password}}
+      PGPASSWORD: ${TEST_DB_PASSWORD:-${DB_PASSWORD:-gotrs_password}}
+    expose:
+      - "5432"
+    ports:
+      - "${TEST_DB_PORT:-5433}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data:rw,size=512m,uid=999,gid=999
+    volumes:
+      - ./docker/postgres/01-init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro,Z
+      - ./docker/postgres/testdb/10-apply-migrations.sh:/docker-entrypoint-initdb.d/10-apply-migrations.sh:ro,Z
+      - ./migrations/postgres:/docker-entrypoint-initdb.d/migrations:ro,Z
+      - ./schema/baseline/required_lookups.sql:/docker-entrypoint-initdb.d/30-required-lookups.sql:ro,Z
+      - ./schema/seed/minimal.sql:/docker-entrypoint-initdb.d/40-minimal-seed.sql:ro,Z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-gotrs} -d ${TEST_DB_NAME:-${DB_NAME:-gotrs}_test}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - gotrs-network
+
+

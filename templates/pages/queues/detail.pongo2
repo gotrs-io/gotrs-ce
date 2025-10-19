@@ -57,6 +57,6 @@
     </div>
 
     <!-- Queue details -->
-    {% include "../../components/queue_detail.pongo2" %}
+    {% include "components/queue_detail.pongo2" %}
 </div>
 {% endblock %}

@@ -1,7 +1,12 @@
 package api
 
 import (
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // TestTicketZoomJavaScriptFunctionsTDD verifies that required JavaScript functions exist
@@ -59,6 +64,34 @@ func TestTicketZoomHandlerRequirements(t *testing.T) {
 		t.Run(handlerName+" handler exists", func(t *testing.T) {
 			t.Logf("TODO: Verify %s handler is implemented and registered", handlerName)
 			// These will be verified through integration testing
+		})
+	}
+}
+
+func TestSubmitStatusClientValidationPresent(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	baseDir := filepath.Dir(filename)
+
+	data, err := os.ReadFile(filepath.Join(baseDir, "..", "..", "static", "js", "ticket-zoom.js"))
+	require.NoError(t, err)
+	content := string(data)
+	require.Contains(t, content, "Pending states require a follow-up time.")
+	require.Contains(t, content, "Number.isNaN(Date.parse")
+}
+
+func TestStatusFormsExposePendingStateMetadata(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	baseDir := filepath.Dir(filename)
+
+	paths := []string{
+		filepath.Join(baseDir, "..", "..", "templates", "pages", "ticket_detail.pongo2"),
+		filepath.Join(baseDir, "..", "..", "templates", "pages", "agent", "ticket_view.pongo2"),
+	}
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			data, err := os.ReadFile(path)
+			require.NoError(t, err)
+			require.Contains(t, string(data), "data-pending-states")
 		})
 	}
 }

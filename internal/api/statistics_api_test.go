@@ -2,42 +2,44 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
 	"github.com/gotrs-io/gotrs-ce/internal/auth"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStatisticsAPI(t *testing.T) {
-    // Initialize test database; skip if unavailable
-    if err := database.InitTestDB(); err != nil {
-        t.Skip("Database not available, skipping Statistics API tests")
-    }
-    defer database.CloseTestDB()
+	// Initialize test database; skip if unavailable
+	if err := database.InitTestDB(); err != nil {
+		t.Skip("Database not available, skipping Statistics API tests")
+	}
+	defer database.CloseTestDB()
 
 	// Create test JWT manager
-    jwtManager := auth.NewJWTManager("test-secret", time.Hour)
+	jwtManager := auth.NewJWTManager("test-secret", time.Hour)
 
 	// Create test token
-    token, _ := jwtManager.GenerateToken(1, "testuser@example.com", "Agent", 0)
+	token, _ := jwtManager.GenerateToken(1, "testuser@example.com", "Agent", 0)
 
 	// Set Gin to test mode
 	gin.SetMode(gin.TestMode)
 
 	// Setup comprehensive test data
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        t.Skip("Database not available, skipping integration test setup")
-    }
-	
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		t.Skip("Database not available, skipping integration test setup")
+	}
+
 	// Create test tickets with various states and dates
-	ticketQuery := database.ConvertPlaceholders(`
-		INSERT INTO tickets (tn, title, queue_id, type_id, ticket_state_id, 
+	ticketTypeColumn := database.TicketTypeColumn()
+	ticketQuery := database.ConvertPlaceholders(fmt.Sprintf(`
+		INSERT INTO tickets (tn, title, queue_id, %s, ticket_state_id, 
 			ticket_priority_id, customer_user_id, user_id, responsible_user_id,
 			create_time, create_by, change_time, change_by)
 		VALUES 
@@ -46,7 +48,7 @@ func TestStatisticsAPI(t *testing.T) {
 			($3, 'Closed ticket 1', 2, 1, 2, 3, 'customer3@example.com', 1, 1, NOW() - INTERVAL '14 days', 1, NOW() - INTERVAL '10 days', 1),
 			($4, 'Closed ticket 2', 2, 1, 2, 1, 'customer4@example.com', 2, 2, NOW() - INTERVAL '1 day', 1, NOW(), 1),
 			($5, 'Pending ticket', 1, 1, 3, 2, 'customer5@example.com', 1, 2, NOW() - INTERVAL '2 days', 1, NOW(), 1)
-	`)
+	`, ticketTypeColumn))
 	db.Exec(ticketQuery, "2024120100001", "2024120100002", "2024120100003", "2024120100004", "2024120100005")
 
 	// Create test articles for response time metrics
@@ -100,7 +102,7 @@ func TestStatisticsAPI(t *testing.T) {
 				Timestamp time.Time `json:"timestamp"`
 			} `json:"recent_activity"`
 		}
-		
+
 		json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NotZero(t, response.Overview.TotalTickets)
 		assert.NotEmpty(t, response.ByQueue)
@@ -134,13 +136,13 @@ func TestStatisticsAPI(t *testing.T) {
 				Open    int    `json:"open"`
 			} `json:"trends"`
 			Summary struct {
-				TotalCreated   int     `json:"total_created"`
-				TotalClosed    int     `json:"total_closed"`
-				AveragePerDay  float64 `json:"average_per_day"`
-				ClosureRate    float64 `json:"closure_rate"`
+				TotalCreated  int     `json:"total_created"`
+				TotalClosed   int     `json:"total_closed"`
+				AveragePerDay float64 `json:"average_per_day"`
+				ClosureRate   float64 `json:"closure_rate"`
 			} `json:"summary"`
 		}
-		
+
 		json.Unmarshal(w.Body.Bytes(), &response)
 		assert.Equal(t, "daily", response.Period)
 		assert.Equal(t, 7, response.Days)
@@ -175,23 +177,23 @@ func TestStatisticsAPI(t *testing.T) {
 		var response struct {
 			Period string `json:"period"`
 			Agents []struct {
-				AgentID            int     `json:"agent_id"`
-				AgentName          string  `json:"agent_name"`
-				TicketsAssigned    int     `json:"tickets_assigned"`
-				TicketsClosed      int     `json:"tickets_closed"`
-				ArticlesCreated    int     `json:"articles_created"`
-				AvgResponseTime    float64 `json:"avg_response_time_hours"`
-				AvgResolutionTime  float64 `json:"avg_resolution_time_hours"`
+				AgentID              int     `json:"agent_id"`
+				AgentName            string  `json:"agent_name"`
+				TicketsAssigned      int     `json:"tickets_assigned"`
+				TicketsClosed        int     `json:"tickets_closed"`
+				ArticlesCreated      int     `json:"articles_created"`
+				AvgResponseTime      float64 `json:"avg_response_time_hours"`
+				AvgResolutionTime    float64 `json:"avg_resolution_time_hours"`
 				CustomerSatisfaction float64 `json:"customer_satisfaction"`
 			} `json:"agents"`
 			TopPerformers []struct {
-				AgentID   int    `json:"agent_id"`
-				AgentName string `json:"agent_name"`
-				Metric    string `json:"metric"`
+				AgentID   int     `json:"agent_id"`
+				AgentName string  `json:"agent_name"`
+				Metric    string  `json:"metric"`
 				Value     float64 `json:"value"`
 			} `json:"top_performers"`
 		}
-		
+
 		json.Unmarshal(w.Body.Bytes(), &response)
 		assert.Equal(t, "7d", response.Period)
 		assert.NotNil(t, response.Agents)
@@ -231,7 +233,7 @@ func TestStatisticsAPI(t *testing.T) {
 				OverallCompliance float64 `json:"overall_compliance_percent"`
 			} `json:"totals"`
 		}
-		
+
 		json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NotEmpty(t, response.Queues)
 		assert.NotZero(t, response.Totals.AllQueues)
@@ -263,7 +265,7 @@ func TestStatisticsAPI(t *testing.T) {
 			} `json:"data"`
 			PeakHours []int `json:"peak_hours"`
 		}
-		
+
 		json.Unmarshal(w.Body.Bytes(), &hourlyResponse)
 		assert.Equal(t, "hourly", hourlyResponse.Type)
 		assert.Len(t, hourlyResponse.Data, 24) // 24 hours
@@ -286,7 +288,7 @@ func TestStatisticsAPI(t *testing.T) {
 			} `json:"data"`
 			BusiestDays []string `json:"busiest_days"`
 		}
-		
+
 		json.Unmarshal(w.Body.Bytes(), &weekResponse)
 		assert.Equal(t, "day_of_week", weekResponse.Type)
 		assert.Len(t, weekResponse.Data, 7) // 7 days of week
@@ -317,13 +319,13 @@ func TestStatisticsAPI(t *testing.T) {
 				LastActivity  string `json:"last_activity"`
 			} `json:"top_customers"`
 			CustomerMetrics struct {
-				TotalCustomers      int     `json:"total_customers"`
-				ActiveCustomers     int     `json:"active_customers"`
-				NewCustomersThisMonth int   `json:"new_customers_this_month"`
+				TotalCustomers        int     `json:"total_customers"`
+				ActiveCustomers       int     `json:"active_customers"`
+				NewCustomersThisMonth int     `json:"new_customers_this_month"`
 				AvgTicketsPerCustomer float64 `json:"avg_tickets_per_customer"`
 			} `json:"customer_metrics"`
 		}
-		
+
 		json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NotNil(t, response.TopCustomers)
 		assert.NotZero(t, response.CustomerMetrics.TotalCustomers)

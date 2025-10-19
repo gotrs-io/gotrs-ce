@@ -143,7 +143,7 @@ function filterTable(tableId, searchTerm) {
 {% endmacro %}
 
 {# Action Buttons for Table Rows #}
-{% macro action_buttons(edit_url="", delete_url="", view_url="", custom_actions=[]) %}
+{% macro action_buttons(edit_url="", delete_url="", view_url="", custom_actions=none) %}
 <div class="flex items-center justify-end space-x-2">
     {% if view_url %}
     <a href="{{ view_url }}" 
@@ -176,6 +176,7 @@ function filterTable(tableId, searchTerm) {
     </button>
     {% endif %}
     
+    {% if custom_actions %}
     {% for action in custom_actions %}
     <button onclick="{{ action.onclick }}"
             class="{{ action.class|default:'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200' }}"
@@ -183,6 +184,7 @@ function filterTable(tableId, searchTerm) {
         {{ action.icon|safe }}
     </button>
     {% endfor %}
+    {% endif %}
 </div>
 {% endmacro %}
 

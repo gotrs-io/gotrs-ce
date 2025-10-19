@@ -10,10 +10,10 @@ INSERT INTO users (id, login, pw, first_name, last_name, valid_id, create_time, 
 ON CONFLICT (id) DO NOTHING;
 
 -- Grant admin permissions
-INSERT INTO group_user (user_id, group_id, permission_key, permission_value, create_time, create_by, change_time, change_by) VALUES
-(1, 1, 'rw', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
-(1, 2, 'rw', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
-(1, 3, 'rw', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)
+INSERT INTO group_user (user_id, group_id, permission_key, create_time, create_by, change_time, change_by) VALUES
+(1, 1, 'rw', CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+(1, 2, 'rw', CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+(1, 3, 'rw', CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)
 ON CONFLICT DO NOTHING;
 
 -- Set sequence starting points

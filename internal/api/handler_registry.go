@@ -81,6 +81,8 @@ func ensureCoreHandlers() {
 		"HandleDeleteAttachment":   handleDeleteAttachment,
 		"HandleGetThumbnail":       handleGetThumbnail,
 		"HandleViewAttachment":     handleViewAttachment,
+		"handleGetTicketMessages":  handleGetTicketMessages,
+		"handleAddTicketMessage":   handleAddTicketMessage,
 		// Optional customer info partial used by YAML
 		"HandleCustomerInfoPanel": func(c *gin.Context) { c.String(200, "") },
 		"handleSettings":          handleSettings,

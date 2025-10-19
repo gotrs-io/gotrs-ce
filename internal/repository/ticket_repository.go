@@ -128,9 +128,9 @@ func (r *TicketRepository) Create(ticket *models.Ticket) error {
 // insertTicket performs the actual INSERT returning ticket id.
 func (r *TicketRepository) insertTicket(ticket *models.Ticket) error {
 
-	query := `
+	query := fmt.Sprintf(`
 		INSERT INTO ticket (
-			tn, title, queue_id, ticket_lock_id, type_id,
+			tn, title, queue_id, ticket_lock_id, %s,
 			service_id, sla_id, user_id, responsible_user_id,
 			customer_id, customer_user_id, ticket_state_id,
 			ticket_priority_id, timeout, until_time, escalation_time,
@@ -140,7 +140,7 @@ func (r *TicketRepository) insertTicket(ticket *models.Ticket) error {
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
 			$13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
-		) RETURNING id`
+		) RETURNING id`, database.TicketTypeColumn())
 
 	// Convert placeholders for MySQL compatibility
 	query = database.ConvertPlaceholders(query)
@@ -199,9 +199,9 @@ func isUniqueTNError(err error) bool {
 
 // GetByID retrieves a ticket by its ID
 func (r *TicketRepository) GetByID(id uint) (*models.Ticket, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT 
-			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, t.type_id,
+			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, %s AS type_id,
 			t.service_id, t.sla_id, t.user_id, t.responsible_user_id,
 			t.customer_id, t.customer_user_id, t.ticket_state_id,
 			t.ticket_priority_id, t.until_time, t.escalation_time,
@@ -209,7 +209,7 @@ func (r *TicketRepository) GetByID(id uint) (*models.Ticket, error) {
 			t.escalation_solution_time, t.archive_flag,
 			t.create_time, t.create_by, t.change_time, t.change_by
 		FROM ticket t
-		WHERE t.id = $1`
+		WHERE t.id = $1`, database.QualifiedTicketTypeColumn("t"))
 
 	// Convert placeholders for MySQL compatibility
 	query = database.ConvertPlaceholders(query)
@@ -251,9 +251,9 @@ func (r *TicketRepository) GetByID(id uint) (*models.Ticket, error) {
 
 // GetByTN retrieves a ticket by its ticket number
 func (r *TicketRepository) GetByTN(tn string) (*models.Ticket, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT 
-			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, t.type_id,
+			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, %s AS type_id,
 			t.service_id, t.sla_id, t.user_id, t.responsible_user_id,
 			t.customer_id, t.customer_user_id, t.ticket_state_id,
 			t.ticket_priority_id, t.until_time, t.escalation_time,
@@ -261,7 +261,7 @@ func (r *TicketRepository) GetByTN(tn string) (*models.Ticket, error) {
 			t.escalation_solution_time, t.archive_flag,
 			t.create_time, t.create_by, t.change_time, t.change_by
 		FROM ticket t
-		WHERE t.tn = $1`
+		WHERE t.tn = $1`, database.QualifiedTicketTypeColumn("t"))
 
 	// Convert placeholders for MySQL compatibility
 	query = database.ConvertPlaceholders(query)
@@ -305,12 +305,12 @@ func (r *TicketRepository) GetByTN(tn string) (*models.Ticket, error) {
 func (r *TicketRepository) Update(ticket *models.Ticket) error {
 	ticket.ChangeTime = time.Now()
 
-	query := `
+	query := fmt.Sprintf(`
 		UPDATE ticket SET
 			title = $2,
 			queue_id = $3,
 			ticket_lock_id = $4,
-			type_id = $5,
+			%s = $5,
 			service_id = $6,
 			sla_id = $7,
 			user_id = $8,
@@ -327,7 +327,7 @@ func (r *TicketRepository) Update(ticket *models.Ticket) error {
 			archive_flag = $19,
 			change_time = $20,
 			change_by = $21
-		WHERE id = $1`
+		WHERE id = $1`, database.TicketTypeColumn())
 
 	// Convert placeholders for MySQL compatibility
 	query = database.ConvertPlaceholders(query)
@@ -411,16 +411,18 @@ func (r *TicketRepository) List(req *models.TicketListRequest) (*models.TicketLi
 	// Build base query
 	baseQuery := `FROM ticket t WHERE 1=1`
 	countQuery := `SELECT COUNT(*) ` + baseQuery
-	selectQuery := `
+	typeSelect := fmt.Sprintf("%s AS type_id", database.QualifiedTicketTypeColumn("t"))
+	selectQuery := fmt.Sprintf(`
 		SELECT 
-			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, t.type_id,
+			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, %s,
 			t.service_id, t.sla_id, t.user_id, t.responsible_user_id,
 			t.customer_id, t.customer_user_id, t.ticket_state_id,
 			t.ticket_priority_id, t.until_time, t.escalation_time,
 			t.escalation_update_time, t.escalation_response_time,
 			t.escalation_solution_time, t.archive_flag,
 			t.create_time, t.create_by, t.change_time, t.change_by
-		` + baseQuery
+		%%s`, typeSelect)
+	selectQuery = fmt.Sprintf(selectQuery, baseQuery)
 
 	// Build filters
 	var filters []string
@@ -559,9 +561,10 @@ func (r *TicketRepository) List(req *models.TicketListRequest) (*models.TicketLi
 
 // GetTicketsByCustomer retrieves all tickets for a specific customer
 func (r *TicketRepository) GetTicketsByCustomer(customerID uint, includeArchived bool) ([]models.Ticket, error) {
-	query := `
+	typeSelect := fmt.Sprintf("%s AS type_id", database.QualifiedTicketTypeColumn("t"))
+	query := fmt.Sprintf(`
 		SELECT 
-			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, t.type_id,
+			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, %s,
 			t.service_id, t.sla_id, t.user_id, t.responsible_user_id,
 			t.customer_id, t.customer_user_id, t.ticket_state_id,
 			t.ticket_priority_id, t.until_time, t.escalation_time,
@@ -569,7 +572,7 @@ func (r *TicketRepository) GetTicketsByCustomer(customerID uint, includeArchived
 			t.escalation_solution_time, t.archive_flag,
 			t.create_time, t.create_by, t.change_time, t.change_by
 		FROM ticket t
-		WHERE t.customer_id = $1`
+		WHERE t.customer_id = $1`, typeSelect)
 
 	if !includeArchived {
 		query += " AND t.archive_flag = 0"
@@ -600,9 +603,10 @@ func (r *TicketRepository) GetTicketsByCustomer(customerID uint, includeArchived
 
 // GetTicketsByOwner retrieves all tickets assigned to a specific user
 func (r *TicketRepository) GetTicketsByOwner(ownerID uint, includeArchived bool) ([]models.Ticket, error) {
-	query := `
+	typeSelect := fmt.Sprintf("%s AS type_id", database.QualifiedTicketTypeColumn("t"))
+	query := fmt.Sprintf(`
 		SELECT 
-			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, t.type_id,
+			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, %s,
 			t.service_id, t.sla_id, t.user_id, t.responsible_user_id,
 			t.customer_id, t.customer_user_id, t.ticket_state_id,
 			t.ticket_priority_id, t.until_time, t.escalation_time,
@@ -610,7 +614,7 @@ func (r *TicketRepository) GetTicketsByOwner(ownerID uint, includeArchived bool)
 			t.escalation_solution_time, t.archive_flag,
 			t.create_time, t.create_by, t.change_time, t.change_by
 		FROM ticket t
-		WHERE (t.user_id = $1 OR t.responsible_user_id = $1)`
+		WHERE (t.user_id = $1 OR t.responsible_user_id = $1)`, typeSelect)
 
 	if !includeArchived {
 		query += " AND t.archive_flag = 0"
@@ -641,9 +645,10 @@ func (r *TicketRepository) GetTicketsByOwner(ownerID uint, includeArchived bool)
 
 // GetTicketWithRelations retrieves a ticket with all related data
 func (r *TicketRepository) GetTicketWithRelations(id uint) (*models.Ticket, error) {
-	query := `
+	typeSelect := fmt.Sprintf("%s AS type_id", database.QualifiedTicketTypeColumn("t"))
+	query := fmt.Sprintf(`
 		SELECT 
-			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, t.type_id,
+			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, %s,
 			t.service_id, t.sla_id, t.user_id, t.responsible_user_id,
 			t.customer_id, t.customer_user_id, t.ticket_state_id,
 			t.ticket_priority_id, t.until_time, t.escalation_time,
@@ -657,7 +662,7 @@ func (r *TicketRepository) GetTicketWithRelations(id uint) (*models.Ticket, erro
 		LEFT JOIN queue q ON t.queue_id = q.id
 		LEFT JOIN ticket_state ts ON t.ticket_state_id = ts.id
 		LEFT JOIN ticket_priority tp ON t.ticket_priority_id = tp.id
-		WHERE t.id = $1`
+		WHERE t.id = $1`, typeSelect)
 
 	// Convert placeholders for MySQL compatibility
 	query = database.ConvertPlaceholders(query)

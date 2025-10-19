@@ -181,6 +181,19 @@ DB_HOST ?= postgres
 DB_PORT ?= 5432
 endif
 
+PG_MIGRATIONS_DIR := migrations/postgres
+MYSQL_MIGRATIONS_DIR := migrations/mysql
+PG_MIGRATE_PATH := /app/migrations/postgres
+MYSQL_MIGRATE_PATH := /app/migrations/mysql
+
+ifeq ($(filter $(DB_DRIVER),mysql mariadb),)
+ACTIVE_MIGRATIONS_DIR := $(PG_MIGRATIONS_DIR)
+ACTIVE_MIGRATE_PATH := $(PG_MIGRATE_PATH)
+else
+ACTIVE_MIGRATIONS_DIR := $(MYSQL_MIGRATIONS_DIR)
+ACTIVE_MIGRATE_PATH := $(MYSQL_MIGRATE_PATH)
+endif
+
 .PHONY: help up down logs logs-follow restart clean setup test build build-artifacts debug-env build-cached toolbox-build toolbox-run toolbox-exec api-call toolbox-compile toolbox-compile-api \
 	toolbox-test-api toolbox-test toolbox-test-all toolbox-test-run toolbox-run-file toolbox-staticcheck test-actions-dropdown
 
@@ -285,6 +298,7 @@ help:
 	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
 	@printf "\n"
 	@printf "  \033[0;32mmake up\033[0m                           ▶️ Start all services\n"
+	@printf "  \033[0;32mmake up-d\033[0m                         ▶️ Start all services in daemon mode\n"
 	@printf "  \033[0;32mmake down\033[0m                         🛑 Stop all services\n"
 	@printf "  \033[0;32mmake logs\033[0m                         📋 View a portion of the most recent logs\n"
 	@printf "  \033[0;32mmake logs-follow\033[0m                  📋 View and endlessly follow logs\n"
@@ -423,7 +437,7 @@ help:
 	@printf "  \033[1;33m🐠 i18n (Babel fish) Commands\033[0m\n"
 	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
 	@printf "\n"
-	@printf "  \033[0;32mmake babelfish\033[0m                    🏗️ Build gotrs-babelfish binary\n"
+	@printf "  \033[0;32mmake babelfish\033[0m                    🏗️  Build gotrs-babelfish binary\n"
 	@printf "  \033[0;32mmake babelfish-coverage\033[0m           📊 Show translation coverage\n"
 	@printf "  \033[0;32mmake babelfish-validate\033[0m\n\t LANG=de   ✅ Validate a language\n"
 	@printf "  \033[0;32mmake babelfish-missing\033[0m\n\t LANG=es    🔍 Show missing translations\n"
@@ -435,11 +449,11 @@ help:
 	@printf "  \033[1;33m🔒 Security Commands\033[0m\n"
 	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
 	@printf "\n"
-	@printf "  \033[0;32mmake scan-secrets\033[0m\t\t\t🕵️ Scan current code for secrets\n"
+	@printf "  \033[0;32mmake scan-secrets\033[0m\t\t\t🕵️  Scan current code for secrets\n"
 	@printf "  \033[0;32mmake scan-secrets-history\033[0m\t\t📜 Scan git history for secrets\n"
-	@printf "  \033[0;32mmake scan-secrets-precommit\033[0m\t\t🪝 Install pre-commit hooks\n"
+	@printf "  \033[0;32mmake scan-secrets-precommit\033[0m\t\t🪝  Install pre-commit hooks\n"
 	@printf "  \033[0;32mmake scan-vulnerabilities\033[0m\t\t🐛 Scan for vulnerabilities\n"
-	@printf "  \033[0;32mmake security-scan\033[0m\t\t\t🛡️ Run all security scans\n"
+	@printf "  \033[0;32mmake security-scan\033[0m\t\t\t🛡️  Run all security scans\n"
 	@printf "  \033[0;32mmake test-contracts\033[0m\t\t\t📝 Run Pact contract tests\n"
 	@printf "  \033[0;32mmake test-all\033[0m\t\t\t\t🎯 Run all tests (backend, frontend, contracts)\n"
 	@printf "\n"
@@ -461,7 +475,7 @@ help:
 	@printf "  \033[0;32mmake db-reset\033[0m\t\t\t\t💥 Reset DB (cleans storage)\n"
 	@printf "  \033[0;32mmake db-init\033[0m\t\t\t\t🚀 Fast baseline init\n"
 	@printf "  \033[0;32mmake db-apply-test-data\033[0m\t\t🧪 Apply test data\n"
-	@printf "  \033[0;32mmake clean-storage\033[0m\t\t\t🗑️ Remove orphaned files\n"
+	@printf "  \033[0;32mmake clean-storage\033[0m\t\t\t🗑️  Remove orphaned files\n"
 	@printf "\n"
 	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
 	@printf "  \033[1;33m📦 OTRS Migration\033[0m\n"
@@ -611,13 +625,13 @@ synthesize-credentials:
 
 # Show development credentials from generated SQL file
 show-dev-creds:
-	@grep "^-- ||" migrations/000004_generated_test_data.up.sql 2>/dev/null | sed 's/^-- || //' | column -t || echo "No credentials found. Run 'make synthesize' first."
+	@grep "^-- ||" migrations/postgres/000004_generated_test_data.up.sql 2>/dev/null | sed 's/^-- || //' | column -t || echo "No credentials found. Run 'make synthesize' first."
 
 # Apply generated test data to database
 db-apply-test-data:
 	@printf "📝 Applying generated test data...\n"
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
-		$(COMPOSE_CMD) exec -T postgres psql -U $(DB_USER) -d $(DB_NAME) -f - < migrations/000004_generated_test_data.up.sql; \
+		$(COMPOSE_CMD) exec -T postgres psql -U $(DB_USER) -d $(DB_NAME) -f - < migrations/postgres/000004_generated_test_data.up.sql; \
 		printf "✅ Test data applied. Run 'make show-dev-creds' to see credentials.\n"; \
 	else \
 		printf "📡 Starting dependencies (mariadb)...\n"; \
@@ -1381,11 +1395,11 @@ db-shell:
 # Fix PostgreSQL sequences after data import (PostgreSQL only)
 db-fix-sequences:
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
-		@printf "🔧 Fixing database sequences...\n"; \
-		@./scripts/fix-sequences.sh; \
-		@printf "✅ Sequences fixed - duplicate key errors should be resolved\n"; \
+		printf "🔧 Fixing database sequences...\n"; \
+		$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox psql -h $(DB_HOST) -U $(DB_USER) -d $(DB_NAME) -v ON_ERROR_STOP=1 -f /workspace/scripts/sql/fix_sequences.sql; \
+		printf "✅ Sequences fixed - duplicate key errors should be resolved\n"; \
 	else \
-		@printf "ℹ️  Sequence fixing is only needed for PostgreSQL databases\n"; \
+		printf "ℹ️  Sequence fixing is only needed for PostgreSQL databases\n"; \
 	fi
 # Run a database query (use QUERY="SELECT ..." make db-query)
 db-query:
@@ -1419,34 +1433,34 @@ db-query:
 db-migrate:
 	@printf "Running database migrations...\n"
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
-		$(COMPOSE_CMD) exec backend ./migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up; \
 	else \
-		$(COMPOSE_CMD) exec backend ./migrate -path /app/migrations -database "mysql://$(DB_USER):$(DB_PASSWORD)@tcp(mariadb:3306)/$(DB_NAME)" up; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "mysql://$(DB_USER):$(DB_PASSWORD)@tcp(mariadb:3306)/$(DB_NAME)" up; \
 	fi
 	@printf "Migrations completed successfully!\n"
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
-		@printf "🔧 Fixing database sequences to prevent duplicate key errors...\n"; \
-		@./scripts/fix-sequences.sh > /dev/null 2>&1 || true; \
-		@printf "✅ Database ready with sequences properly synchronized!\n"; \
+		printf "🔧 Fixing database sequences to prevent duplicate key errors...\n"; \
+		$(MAKE) db-fix-sequences > /dev/null 2>&1 || true; \
+		printf "✅ Database ready with sequences properly synchronized!\n"; \
 	fi
 db-migrate-schema-only:
 	@printf "Running schema migration only...\n"
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
-		$(COMPOSE_CMD) exec backend ./migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up 3; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up 3; \
 	else \
-		$(COMPOSE_CMD) exec backend ./migrate -path /app/migrations -database "mysql://$(DB_USER):$(DB_PASSWORD)@tcp(mariadb:3306)/$(DB_NAME)" up 3; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "mysql://$(DB_USER):$(DB_PASSWORD)@tcp(mariadb:3306)/$(DB_NAME)" up 3; \
 	fi
 	@printf "Schema and initial data applied (no test data)\n"
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
-		@printf "🔧 Fixing database sequences...\n"; \
-		@./scripts/fix-sequences.sh > /dev/null 2>&1 || true; \
-		@printf "✅ Sequences synchronized!\n"; \
+		printf "🔧 Fixing database sequences...\n"; \
+		$(MAKE) db-fix-sequences > /dev/null 2>&1 || true; \
+		printf "✅ Sequences synchronized!\n"; \
 	fi
 db-seed-dev:
 	@printf "Seeding development database with comprehensive test data...\n"
-	@$(COMPOSE_CMD) exec backend ./migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up
+	@$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up
 	@printf "🔧 Fixing sequences after seeding...\n"
-	@./scripts/fix-sequences.sh > /dev/null 2>&1 || true
+	@$(MAKE) db-fix-sequences > /dev/null 2>&1 || true
 	@printf "✅ Development database seeded with:\n"
 	@printf "   - 10 organizations\n"
 	@printf "   - 50 customer users\n"
@@ -1455,7 +1469,7 @@ db-seed-dev:
 	@printf "   - Knowledge base articles\n"
 db-seed-test:
 	@printf "Seeding test database with comprehensive test data...\n"
-	@$(COMPOSE_CMD) exec backend ./migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$${DB_NAME}_test?sslmode=disable" up
+	@$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$${DB_NAME}_test?sslmode=disable" up
 	@printf "✅ Test database ready for testing\n"
 db-reset-dev:
 	@printf "⚠️  This will DELETE all data and recreate the development database!\n"
@@ -1463,8 +1477,8 @@ db-reset-dev:
 	read confirm; \
 	if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
 		echo "Resetting development database..."; \
-		$(COMPOSE_CMD) exec backend migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" down -all; \
-		$(COMPOSE_CMD) exec backend migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up; \
+		$(COMPOSE_CMD) exec backend migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" down -all; \
+		$(COMPOSE_CMD) exec backend migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up; \
 		$(MAKE) clean-storage; \
 		echo "✅ Fresh development environment ready with test data!"; \
 	else \
@@ -1473,14 +1487,14 @@ db-reset-dev:
 
 db-reset-test:
 	@printf "Resetting test database...\n"
-	@$(COMPOSE_CMD) exec backend migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$${DB_NAME}_test?sslmode=disable" down -all
-	@$(COMPOSE_CMD) exec backend migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$${DB_NAME}_test?sslmode=disable" up
+	@$(COMPOSE_CMD) exec backend migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$${DB_NAME}_test?sslmode=disable" down -all
+	@$(COMPOSE_CMD) exec backend migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$${DB_NAME}_test?sslmode=disable" up
 	@$(MAKE) clean-storage
 	@printf "✅ Test database reset with fresh test data\n"
 db-refresh: db-reset-dev
 	@printf "✅ Database refreshed for new development cycle\n"
 db-rollback:
-	$(COMPOSE_CMD) exec backend migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" down 1
+	$(COMPOSE_CMD) exec backend migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" down 1
 
 # Fast database initialization from baseline (new approach)
 db-init:
@@ -1491,7 +1505,7 @@ db-init:
 		$(COMPOSE_CMD) exec -T postgres psql -U $(DB_USER) -d $(DB_NAME) -f - < schema/baseline/required_lookups.sql; \
 		$(MAKE) clean-storage; \
 		printf "🔧 Fixing sequences after baseline initialization...\n"; \
-		./scripts/fix-sequences.sh > /dev/null 2>&1 || true; \
+		$(MAKE) db-fix-sequences > /dev/null 2>&1 || true; \
 		printf "✅ Database initialized from baseline (Postgres)\n"; \
 	else \
 		printf "📡 Starting dependencies (mariadb)...\n"; \
@@ -1516,28 +1530,23 @@ db-init-dev:
 	@$(MAKE) db-init
 	@$(COMPOSE_CMD) exec -T postgres psql -U $(DB_USER) -d $(DB_NAME) -f - < schema/seed/minimal.sql
 	@printf "🔧 Fixing sequences after initialization...\n"
-	@./scripts/fix-sequences.sh > /dev/null 2>&1 || true
+	@$(MAKE) db-fix-sequences > /dev/null 2>&1 || true
 	@printf "✅ Development database ready (admin/admin)\n"
-# Legacy reset using old migrations (kept for compatibility)
-db-reset-legacy:
-	$(COMPOSE_CMD) exec backend migrate -path /app/migrations/legacy -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" down -all
-	$(COMPOSE_CMD) exec backend migrate -path /app/migrations/legacy -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up
-
 # New reset using baseline
 db-reset: db-init-dev
 
 db-status:
-	$(COMPOSE_CMD) exec backend ./migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" version
+	$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" version
 
 db-force:
 	@echo -n "Force migration to version: "; \
 	read version; \
-	$(COMPOSE_CMD) exec backend ./migrate -path /app/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" force $$version
+	$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" force $$version
 
 # Apply SQL migrations directly via psql
 db-migrate-sql:
 	@printf "📄 Applying SQL migrations directly...\n"
-	@for f in migrations/*.up.sql; do \
+	@for f in $(PG_MIGRATIONS_DIR)/*.up.sql; do \
 		echo "  Running $$(basename $$f)..."; \
 		$(COMPOSE_CMD) exec -T postgres psql -U $(DB_USER) -d $(DB_NAME) -f - < "$$f" 2>&1 | grep -E "(CREATE|ALTER|INSERT|ERROR)" | head -3 || true; \
 	done
@@ -1827,6 +1836,24 @@ test-check:
 	else \
 		echo "test-db-safe.sh not found, checking in container"; \
 		$(COMPOSE_CMD) exec backend sh -c "echo 'Test environment: OK'"; \
+	fi
+
+test-db-up:
+	@if [ -f ./scripts/test-db-safe.sh ]; then \
+		SKIP_BACKEND_CHECK=1 APP_ENV=test DB_DRIVER=postgres DB_HOST=postgres-test DB_PORT=5432 DB_NAME=$${DB_NAME:-gotrs} DB_USER=$${DB_USER:-gotrs} DB_PASSWORD=$${DB_PASSWORD:-gotrs_password} bash ./scripts/test-db-safe.sh up; \
+	else \
+		echo "test-db-safe.sh not found, starting postgres-test via compose"; \
+		APP_ENV=test DB_NAME=$${DB_NAME:-gotrs}_test DB_USER=$${DB_USER:-gotrs} DB_PASSWORD=$${DB_PASSWORD:-gotrs_password} \
+		$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml up -d postgres-test; \
+	fi
+
+test-db-down:
+	@if [ -f ./scripts/test-db-safe.sh ]; then \
+		SKIP_BACKEND_CHECK=1 APP_ENV=test DB_DRIVER=postgres DB_HOST=postgres-test DB_PORT=5432 DB_NAME=$${DB_NAME:-gotrs} DB_USER=$${DB_USER:-gotrs} DB_PASSWORD=$${DB_PASSWORD:-gotrs_password} bash ./scripts/test-db-safe.sh down; \
+	else \
+		echo "test-db-safe.sh not found, stopping postgres-test via compose"; \
+		$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml stop postgres-test >/dev/null 2>&1 || true; \
+		$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml rm -f postgres-test >/dev/null 2>&1 || true; \
 	fi
 
 test-coverage-html:
@@ -2134,15 +2161,15 @@ gen-migration:
 	@echo -n "Migration name: "; \
 	read name; \
 	timestamp=$$(date +%Y%m%d%H%M%S); \
-	touch migrations/$$timestamp\_$$name.up.sql; \
-	touch migrations/$$timestamp\_$$name.down.sql; \
-	echo "-- Migration: $$name" > migrations/$$timestamp\_$$name.up.sql; \
-	echo "" >> migrations/$$timestamp\_$$name.up.sql; \
-	echo "-- Rollback: $$name" > migrations/$$timestamp\_$$name.down.sql; \
-	echo "" >> migrations/$$timestamp\_$$name.down.sql; \
+	touch $(ACTIVE_MIGRATIONS_DIR)/$$timestamp\_$$name.up.sql; \
+	touch $(ACTIVE_MIGRATIONS_DIR)/$$timestamp\_$$name.down.sql; \
+	echo "-- Migration: $$name" > $(ACTIVE_MIGRATIONS_DIR)/$$timestamp\_$$name.up.sql; \
+	echo "" >> $(ACTIVE_MIGRATIONS_DIR)/$$timestamp\_$$name.up.sql; \
+	echo "-- Rollback: $$name" > $(ACTIVE_MIGRATIONS_DIR)/$$timestamp\_$$name.down.sql; \
+	echo "" >> $(ACTIVE_MIGRATIONS_DIR)/$$timestamp\_$$name.down.sql; \
 	echo "Created migration files:"; \
-	echo "  migrations/$$timestamp\_$$name.up.sql"; \
-	echo "  migrations/$$timestamp\_$$name.down.sql"
+	echo "  $(ACTIVE_MIGRATIONS_DIR)/$$timestamp\_$$name.up.sql"; \
+	echo "  $(ACTIVE_MIGRATIONS_DIR)/$$timestamp\_$$name.down.sql"
 
 # LDAP testing and administration commands
 .PHONY: test-ldap test-ldap-perf ldap-admin ldap-logs ldap-setup ldap-test-user

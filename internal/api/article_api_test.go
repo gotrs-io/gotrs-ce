@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -10,42 +11,43 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
 	"github.com/gotrs-io/gotrs-ce/internal/auth"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestArticleAPI(t *testing.T) {
 	// Initialize test database
-    if err := database.InitTestDB(); err != nil {
-        t.Skip("Database not available, skipping integration-style API test")
-    }
-    defer database.CloseTestDB()
+	if err := database.InitTestDB(); err != nil {
+		t.Skip("Database not available, skipping integration-style API test")
+	}
+	defer database.CloseTestDB()
 
 	// Create test JWT manager
-    jwtManager := auth.NewJWTManager("test-secret", time.Hour)
+	jwtManager := auth.NewJWTManager("test-secret", time.Hour)
 
 	// Create test token
-    token, _ := jwtManager.GenerateToken(1, "testuser@example.com", "Agent", 0)
+	token, _ := jwtManager.GenerateToken(1, "testuser@example.com", "Agent", 0)
 
 	// Set Gin to test mode
 	gin.SetMode(gin.TestMode)
 
 	// Setup test data - create a ticket first
-    db, _ := database.GetDB()
-    if db == nil {
-        t.Skip("Database not available, skipping")
-    }
-    var ticketID int
-    // MariaDB-safe insert without RETURNING; then fetch by TN
-    ticketInsert := database.ConvertPlaceholders(`
-        INSERT INTO ticket (tn, title, queue_id, type_id, ticket_state_id,
-            ticket_priority_id, customer_user_id, user_id, responsible_user_id,
-            create_time, create_by, change_time, change_by)
-        VALUES ($1, $2, 1, 1, 1, 3, 'test@example.com', 1, 1, NOW(), 1, NOW(), 1)
-    `)
-    _, _ = db.Exec(ticketInsert, "2024123100001", "Test Ticket")
-    _ = db.QueryRow(database.ConvertPlaceholders(`SELECT id FROM ticket WHERE tn = $1 ORDER BY id DESC LIMIT 1`), "2024123100001").Scan(&ticketID)
+	db, _ := database.GetDB()
+	if db == nil {
+		t.Skip("Database not available, skipping")
+	}
+	var ticketID int
+	// MariaDB-safe insert without RETURNING; then fetch by TN
+	ticketTypeColumn := database.TicketTypeColumn()
+	ticketInsert := database.ConvertPlaceholders(fmt.Sprintf(`
+		INSERT INTO ticket (tn, title, queue_id, %s, ticket_state_id,
+			ticket_priority_id, customer_user_id, user_id, responsible_user_id,
+			create_time, create_by, change_time, change_by)
+		VALUES ($1, $2, 1, 1, 1, 3, 'test@example.com', 1, 1, NOW(), 1, NOW(), 1)
+	`, ticketTypeColumn))
+	_, _ = db.Exec(ticketInsert, "2024123100001", "Test Ticket")
+	_ = db.QueryRow(database.ConvertPlaceholders(`SELECT id FROM ticket WHERE tn = $1 ORDER BY id DESC LIMIT 1`), "2024123100001").Scan(&ticketID)
 
 	t.Run("List Articles", func(t *testing.T) {
 		router := gin.New()
@@ -99,20 +101,20 @@ func TestArticleAPI(t *testing.T) {
 		})
 		router.GET("/api/v1/tickets/:ticket_id/articles/:id", HandleGetArticleAPI)
 
-        // Create a test article (MariaDB-safe)
-        var articleID int
-        _, _ = db.Exec(database.ConvertPlaceholders(`
+		// Create a test article (MariaDB-safe)
+		var articleID int
+		_, _ = db.Exec(database.ConvertPlaceholders(`
             INSERT INTO article (ticket_id, article_type_id, article_sender_type_id,
                 from_email, to_email, subject, body, create_time, create_by, change_time, change_by)
             VALUES ($1, 1, 1, 'from@test.com', 'to@test.com', 
                 'Get Test', 'Get Test Body', NOW(), 1, NOW(), 1)
         `), ticketID)
-        _ = db.QueryRow(database.ConvertPlaceholders(`
+		_ = db.QueryRow(database.ConvertPlaceholders(`
             SELECT id FROM article WHERE ticket_id = $1 AND subject = 'Get Test' ORDER BY id DESC LIMIT 1
         `), ticketID).Scan(&articleID)
 
-        // Test getting the article (fallback permits any positive id in test)
-        req := httptest.NewRequest("GET", "/api/v1/tickets/"+strconv.Itoa(ticketID)+"/articles/"+strconv.Itoa(articleID), nil)
+		// Test getting the article (fallback permits any positive id in test)
+		req := httptest.NewRequest("GET", "/api/v1/tickets/"+strconv.Itoa(ticketID)+"/articles/"+strconv.Itoa(articleID), nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()
 
@@ -192,15 +194,15 @@ func TestArticleAPI(t *testing.T) {
 		})
 		router.PUT("/api/v1/tickets/:ticket_id/articles/:id", HandleUpdateArticleAPI)
 
-        // Create a test article (MariaDB-safe)
-        var articleID int
-        _, _ = db.Exec(database.ConvertPlaceholders(`
+		// Create a test article (MariaDB-safe)
+		var articleID int
+		_, _ = db.Exec(database.ConvertPlaceholders(`
             INSERT INTO article (ticket_id, article_type_id, article_sender_type_id,
                 from_email, to_email, subject, body, create_time, create_by, change_time, change_by)
             VALUES ($1, 1, 1, 'original@test.com', 'to@test.com', 
                 'Original Subject', 'Original Body', NOW(), 1, NOW(), 1)
         `), ticketID)
-        _ = db.QueryRow(database.ConvertPlaceholders(`
+		_ = db.QueryRow(database.ConvertPlaceholders(`
             SELECT id FROM article WHERE ticket_id = $1 AND subject = 'Original Subject' ORDER BY id DESC LIMIT 1
         `), ticketID).Scan(&articleID)
 
@@ -239,15 +241,15 @@ func TestArticleAPI(t *testing.T) {
 		})
 		router.DELETE("/api/v1/tickets/:ticket_id/articles/:id", HandleDeleteArticleAPI)
 
-        // Create a test article (MariaDB-safe)
-        var articleID int
-        _, _ = db.Exec(database.ConvertPlaceholders(`
+		// Create a test article (MariaDB-safe)
+		var articleID int
+		_, _ = db.Exec(database.ConvertPlaceholders(`
             INSERT INTO article (ticket_id, article_type_id, article_sender_type_id,
                 from_email, to_email, subject, body, create_time, create_by, change_time, change_by)
             VALUES ($1, 1, 1, 'delete@test.com', 'to@test.com', 
                 'Delete Test', 'Delete Body', NOW(), 1, NOW(), 1)
         `), ticketID)
-        _ = db.QueryRow(database.ConvertPlaceholders(`
+		_ = db.QueryRow(database.ConvertPlaceholders(`
             SELECT id FROM article WHERE ticket_id = $1 AND subject = 'Delete Test' ORDER BY id DESC LIMIT 1
         `), ticketID).Scan(&articleID)
 
@@ -277,15 +279,15 @@ func TestArticleAPI(t *testing.T) {
 		})
 		router.GET("/api/v1/tickets/:ticket_id/articles/:id", HandleGetArticleAPI)
 
-        // Create article with attachment (MariaDB-safe)
-        var articleID int
-        _, _ = db.Exec(database.ConvertPlaceholders(`
+		// Create article with attachment (MariaDB-safe)
+		var articleID int
+		_, _ = db.Exec(database.ConvertPlaceholders(`
             INSERT INTO article (ticket_id, article_type_id, article_sender_type_id,
                 from_email, to_email, subject, body, create_time, create_by, change_time, change_by)
             VALUES ($1, 1, 1, 'attach@test.com', 'to@test.com', 
                 'Attachment Test', 'Body with attachment', NOW(), 1, NOW(), 1)
         `), ticketID)
-        _ = db.QueryRow(database.ConvertPlaceholders(`
+		_ = db.QueryRow(database.ConvertPlaceholders(`
             SELECT id FROM article WHERE ticket_id = $1 AND subject = 'Attachment Test' ORDER BY id DESC LIMIT 1
         `), ticketID).Scan(&articleID)
 

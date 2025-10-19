@@ -161,6 +161,7 @@ func handleAgentDashboard(db *sql.DB) gin.HandlerFunc {
 				"state":    ticket.State,
 				"priority": ticket.Priority,
 				"age":      formatAge(ticket.CreateTime),
+				"created_at_iso": ticket.CreateTime.UTC().Format(time.RFC3339),
 			})
 		}
 
@@ -409,7 +410,9 @@ func handleAgentTickets(db *sql.DB) gin.HandlerFunc {
 				"priority_color": ticket.PriorityColor.String,
 				"assigned_to":    ticket.AssignedTo.String,
 				"age":            formatAge(ticket.CreateTime),
+			"created_at_iso": ticket.CreateTime.UTC().Format(time.RFC3339),
 				"last_changed":   formatAge(ticket.ChangeTime),
+			"updated_at_iso": ticket.ChangeTime.UTC().Format(time.RFC3339),
 				"article_count":  ticket.ArticleCount,
 			})
 		}
@@ -744,17 +747,17 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid next state selection"})
 				return
 			}
-			if nextState.TypeID == 5 {
+			if isPendingState(nextState) {
 				if pendingUntilRaw == "" {
 					c.JSON(http.StatusBadRequest, gin.H{"error": "Pending time required for pending states"})
 					return
 				}
-				parsed, err := time.Parse("2006-01-02T15:04", pendingUntilRaw)
-				if err != nil {
+				parsed := parsePendingUntil(pendingUntilRaw)
+				if parsed <= 0 {
 					c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pending time format"})
 					return
 				}
-				pendingUntilUnix = parsed.Unix()
+				pendingUntilUnix = int64(parsed)
 			} else {
 				pendingUntilUnix = 0
 			}

@@ -7,6 +7,15 @@
 let currentTicketId = null;
 let isComposing = false;
 
+function getPendingStateSet(container) {
+    const raw = (container && container.dataset && container.dataset.pendingStates) || '';
+    const tokens = raw.split(',').map(token => token.trim()).filter(Boolean);
+    if (tokens.length === 0) {
+        return new Set(['4', '5', '6', '7', '8']);
+    }
+    return new Set(tokens);
+}
+
 /**
  * Initialize ticket zoom functionality
  */
@@ -190,21 +199,25 @@ function changeStatus() {
         console.log('Status modal opened');
         
         // Add event listener to show/hide pending time field
+        const statusForm = statusModal.querySelector('form');
+        const pendingStates = getPendingStateSet(statusForm);
         const statusSelect = document.querySelector('#statusModal select[name="status_id"]');
         if (statusSelect) {
             statusSelect.addEventListener('change', function() {
                 const pendingContainer = document.getElementById('pendingTimeContainer');
                 const pendingInput = document.querySelector('#statusModal input[name="pending_until"]');
-                
-                // Pending states: 6 (pending reminder), 7 (pending auto close+), 8 (pending auto close-)
-                const pendingStates = ['6', '7', '8'];
-                if (pendingStates.includes(this.value)) {
-                    pendingContainer.style.display = 'block';
-                    pendingInput.required = true;
-                } else {
-                    pendingContainer.style.display = 'none';
-                    pendingInput.required = false;
-                    pendingInput.value = '';
+                const needsPending = pendingStates.has(this.value);
+                if (pendingContainer && pendingInput) {
+                    pendingContainer.style.display = needsPending ? 'block' : 'none';
+                    pendingInput.required = needsPending;
+                    if (needsPending && !pendingInput.value) {
+                        const now = new Date(Date.now() + 60 * 60 * 1000);
+                        const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+                        pendingInput.value = local.toISOString().slice(0, 16);
+                    }
+                    if (!needsPending) {
+                        pendingInput.value = '';
+                    }
                 }
             });
         }
@@ -440,7 +453,35 @@ function submitNote(event) {
 
 function submitStatus(event) {
     event.preventDefault();
-    const formData = new FormData(event.target);
+    const form = event.target;
+    const statusSelect = form.querySelector('select[name="status_id"], select[name="status"]');
+    const pendingInput = form.querySelector('input[name="pending_until"]');
+    const pendingStates = getPendingStateSet(form);
+    const statusValue = statusSelect ? String(statusSelect.value).trim() : '';
+    const requiresPending = statusValue && pendingStates.has(statusValue);
+
+    if (requiresPending) {
+        const value = pendingInput ? String(pendingInput.value).trim() : '';
+        if (!value) {
+            showToast('Pending states require a follow-up time.', 'error');
+            if (pendingInput && typeof pendingInput.focus === 'function') {
+                pendingInput.focus();
+            }
+            return;
+        }
+        if (Number.isNaN(Date.parse(value))) {
+            showToast('Enter a valid pending time.', 'error');
+            if (pendingInput && typeof pendingInput.focus === 'function') {
+                pendingInput.focus();
+            }
+            return;
+        }
+    }
+
+    const formData = new FormData(form);
+    if (!requiresPending) {
+        formData.delete('pending_until');
+    }
     
     apiFetch(`/agent/tickets/${currentTicketId}/status`, {
         method: 'POST',

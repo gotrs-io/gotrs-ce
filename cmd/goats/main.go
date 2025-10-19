@@ -72,6 +72,8 @@ func main() {
 		"dashboard_recent_tickets":  api.HandleRecentTickets,
 		"dashboard_queue_status":    api.DashboardQueueStatus,
 		"dashboard_activity_stream": api.HandleActivityStream,
+		"handleUpdateTicketStatus":  api.HandleUpdateTicketStatus,
+		"handlePendingReminderFeed": api.HandlePendingReminderFeed,
 
 		// Agent handlers
 		"handleAgentTickets":         api.AgentHandlerExports.HandleAgentTickets,

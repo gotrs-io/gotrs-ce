@@ -1,0 +1,22 @@
+# Ticket Messages API Routes Configuration
+apiVersion: v1
+kind: RouteGroup
+metadata:
+  name: api-ticket-messages
+  description: "Ticket message retrieval and creation endpoints"
+  namespace: default
+  enabled: true
+spec:
+  prefix: /api
+  middleware:
+    - auth
+  routes:
+    - path: /tickets/:id/messages
+      method: GET
+      handler: handleGetTicketMessages
+      description: "List ticket messages including attachments"
+
+    - path: /tickets/:id/messages
+      method: POST
+      handler: handleAddTicketMessage
+      description: "Create a new message for a ticket"

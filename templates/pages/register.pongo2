@@ -1,4 +1,4 @@
-{% extends "../layouts/auth.pongo2" %}
+{% extends "layouts/auth.pongo2" %}
 
 {% block title %}{{ t("auth.signup") }} - {{ t("app.name") }}{% endblock %}
 

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gotrs-io/gotrs-ce/internal/config"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 )
@@ -95,8 +96,24 @@ func parsePendingUntil(value string) int {
 	if t, err := time.Parse(time.RFC3339, trimmed); err == nil {
 		return int(t.Unix())
 	}
-	if t, err := time.Parse("2006-01-02T15:04", trimmed); err == nil {
-		return int(t.Unix())
+
+	loc := time.UTC
+	if cfg := config.Get(); cfg != nil && cfg.App.Timezone != "" {
+		if tz, err := time.LoadLocation(cfg.App.Timezone); err == nil {
+			loc = tz
+		}
+	}
+
+	layouts := []string{
+		"2006-01-02T15:04",
+		"2006-01-02 15:04",
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05",
+	}
+	for _, layout := range layouts {
+		if t, err := time.ParseInLocation(layout, trimmed, loc); err == nil {
+			return int(t.In(time.UTC).Unix())
+		}
 	}
 	return 0
 }

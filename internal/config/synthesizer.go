@@ -161,7 +161,7 @@ func (s *Synthesizer) SynthesizeTestData() error {
 		return fmt.Errorf("failed to generate test data: %w", err)
 	}
 	
-	fmt.Fprintf(os.Stderr, "✅ Generated test data SQL: migrations/000004_generated_test_data.up.sql\n")
+	fmt.Fprintf(os.Stderr, "✅ Generated test data SQL: migrations/postgres/000004_generated_test_data.up.sql\n")
 	fmt.Fprintf(os.Stderr, "📝 Credentials CSV written to stdout (redirect to save: make synthesize > credentials.csv)\n")
 	
 	return nil

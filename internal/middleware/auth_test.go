@@ -14,7 +14,8 @@ import (
 
 func TestAuthMiddleware(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+	t.Setenv("APP_ENV", "production")
+
 	// Create JWT manager for testing
 	jwtManager := auth.NewJWTManager("test-secret", 1*time.Hour)
 	authMiddleware := NewAuthMiddleware(jwtManager)
@@ -73,12 +74,12 @@ func TestAuthMiddleware(t *testing.T) {
 
 	t.Run("RequireRole blocks unauthorized roles", func(t *testing.T) {
 		router := gin.New()
-		
+
 		// First apply auth middleware
 		router.Use(authMiddleware.RequireAuth())
 		// Then apply role middleware
 		router.Use(authMiddleware.RequireRole("Admin"))
-		
+
 		router.GET("/admin", func(c *gin.Context) {
 			c.JSON(200, gin.H{"message": "admin access"})
 		})
@@ -199,7 +200,7 @@ func TestAuthMiddleware(t *testing.T) {
 	t.Run("extractToken from Authorization header", func(t *testing.T) {
 		router := gin.New()
 		var extractedToken string
-		
+
 		router.GET("/test", func(c *gin.Context) {
 			extractedToken = authMiddleware.extractToken(c)
 			c.JSON(200, gin.H{"token": extractedToken})
@@ -216,7 +217,7 @@ func TestAuthMiddleware(t *testing.T) {
 	t.Run("extractToken from query parameter", func(t *testing.T) {
 		router := gin.New()
 		var extractedToken string
-		
+
 		router.GET("/test", func(c *gin.Context) {
 			extractedToken = authMiddleware.extractToken(c)
 			c.JSON(200, gin.H{"token": extractedToken})
@@ -232,7 +233,7 @@ func TestAuthMiddleware(t *testing.T) {
 	t.Run("extractToken from cookie", func(t *testing.T) {
 		router := gin.New()
 		var extractedToken string
-		
+
 		router.GET("/test", func(c *gin.Context) {
 			extractedToken = authMiddleware.extractToken(c)
 			c.JSON(200, gin.H{"token": extractedToken})
@@ -249,7 +250,7 @@ func TestAuthMiddleware(t *testing.T) {
 	t.Run("IsAuthenticated checks authentication", func(t *testing.T) {
 		router := gin.New()
 		router.Use(authMiddleware.OptionalAuth())
-		
+
 		router.GET("/check", func(c *gin.Context) {
 			isAuth := authMiddleware.IsAuthenticated(c)
 			c.JSON(200, gin.H{"authenticated": isAuth})
@@ -273,7 +274,7 @@ func TestAuthMiddleware(t *testing.T) {
 	t.Run("GetUserID retrieves user ID", func(t *testing.T) {
 		router := gin.New()
 		router.Use(authMiddleware.RequireAuth())
-		
+
 		router.GET("/userid", func(c *gin.Context) {
 			userID, exists := authMiddleware.GetUserID(c)
 			c.JSON(200, gin.H{"user_id": userID, "exists": exists})
@@ -292,7 +293,7 @@ func TestAuthMiddleware(t *testing.T) {
 	t.Run("GetUserRole retrieves user role", func(t *testing.T) {
 		router := gin.New()
 		router.Use(authMiddleware.RequireAuth())
-		
+
 		router.GET("/role", func(c *gin.Context) {
 			role, exists := authMiddleware.GetUserRole(c)
 			c.JSON(200, gin.H{"role": role, "exists": exists})
@@ -311,7 +312,7 @@ func TestAuthMiddleware(t *testing.T) {
 	t.Run("CanAccessTicket checks ticket access", func(t *testing.T) {
 		router := gin.New()
 		router.Use(authMiddleware.RequireAuth())
-		
+
 		router.GET("/ticket/:id", func(c *gin.Context) {
 			// Simulate ticket owner ID (in real app, would query from DB)
 			ticketOwnerID := uint(100)

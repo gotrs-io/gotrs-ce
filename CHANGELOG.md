@@ -24,6 +24,7 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 - Pluggable auth provider registry (database, ldap, static) with tests.
 - Dockerfile/dev compose improvements for caching & user customization.
 - Comprehensive ticket creation & validation test suite.
+- Consolidated schema alignment with Znuny: added `ticket_number_counter`, surrogate primary key for `acl_sync`, `acl_ticket_attribute_relations`, `activity`, `article_color`, `permission_groups`, `translation`, `calendar_appointment_plugin`, `pm_process_preferences`, `smime_keys`, `oauth2_token_config`/`oauth2_token`, and `mention` tables via migration `000001_schema_alignment`.
 
 ### Changed
 - Refactored customer user inline autocomplete logic on ticket creation form to generic GoatKit modules (removal of large inline JS block in `templates/pages/tickets/new.pongo2`).
@@ -32,6 +33,7 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 - Ticket creation now relies on repository ticket number generator (post framework introduction).
 - Dockerfile optimized for builds (layer caching / user customization notes).
 - Activity stream handling cleaned (duplicate handlers removed).
+- Added surrogate primary key to `acl_sync` as part of consolidated migration `000001_schema_alignment` to stay aligned with Znuny upstream schema.
 
 ### Fixed
 - Trailing comma in generated seed JSON causing parse error (replaced incorrect loop variable usage and added tolerant parser).
@@ -49,7 +51,7 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 
 ### Breaking Changes
 - Auth initialization now requires explicit provider registration (auth provider registry).
-- New DB migration `000005_ticket_number_counter` required before further ticket creation.
+- New DB migration `000001_schema_alignment` required before further ticket creation.
 
 ### Internal / Developer Notes
 - Autocomplete registry kept in-memory (`REGISTRY`) for potential future API exposure.

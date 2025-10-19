@@ -153,7 +153,7 @@ GOTRS mirrors the classic OTRS pending reminder flow with three pieces that can 
 
 - **Detector (Scheduler job)** – a cron-backed job (`pending-reminder`) runs every minute and asks the ticket repository for pending tickets whose `until_time` has passed. The job only works with repository interfaces so it can be mocked in tests. It emits `PendingReminder` events for downstream handling.
 - **Dispatcher (pluggable backends)** – reminder events flow through a dispatcher abstraction. The default implementation fan-outs to the in-process toast hub, but the interface allows wiring future channels (email, Slack, etc.) without touching the scheduler core.
-- **Presentation (UI toast feed)** – agents poll a lightweight `/api/notifications/pending` endpoint. The feed returns reminders targeted at the current user (responsible user first, owner as fallback). Each toast includes a snooze action that updates the ticket’s `until_time` through the REST endpoint, pushing the deadline forward without leaving the ticket context.
+- **Presentation (UI toast feed)** – agents poll a lightweight `/api/notifications/pending` endpoint. The feed returns reminders targeted at the current user (responsible user first, owner as fallback). Each toast includes a snooze action posting to the legacy-compatible alias `POST /api/tickets/:id/status`, which resolves to the HTMX handler and updates the ticket’s `until_time` without leaving the ticket context.
 
 The first release ships with the toast backend enabled; follow-up work can register additional dispatchers beside it. All reminder logic continues to rely on the existing `ticket.until_time` column so auto-close and reminder flows remain consistent.
 

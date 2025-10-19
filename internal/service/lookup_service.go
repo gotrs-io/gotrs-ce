@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/gotrs-io/gotrs-ce/internal/data"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
@@ -16,13 +18,13 @@ import (
 
 // LookupService provides lookup data for forms and dropdowns
 type LookupService struct {
-	mu         sync.RWMutex
-	cache      map[string]*models.TicketFormData // Cache per language
-	cacheTime  map[string]time.Time
-	cacheTTL   time.Duration
-	db         *sql.DB
-	repo       *data.LookupsRepository
-	i18n       *i18n.I18n
+	mu        sync.RWMutex
+	cache     map[string]*models.TicketFormData // Cache per language
+	cacheTime map[string]time.Time
+	cacheTTL  time.Duration
+	db        *sql.DB
+	repo      *data.LookupsRepository
+	i18n      *i18n.I18n
 }
 
 // NewLookupService creates a new lookup service
@@ -33,21 +35,21 @@ func NewLookupService() *LookupService {
 		cacheTTL:  5 * time.Minute, // Cache for 5 minutes
 		i18n:      i18n.GetInstance(),
 	}
-	
-    // Try to connect to database
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        if err != nil {
-            log.Printf("Warning: Lookup service running without database: %v", err)
-        } else {
-            log.Printf("Warning: Lookup service running without database: nil connection")
-        }
-    } else {
-        s.db = db
-        s.repo = data.NewLookupsRepository(db)
-        log.Printf("LookupService: Successfully connected to database")
-    }
-	
+
+	// Try to connect to database
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		if err != nil {
+			log.Printf("Warning: Lookup service running without database: %v", err)
+		} else {
+			log.Printf("Warning: Lookup service running without database: nil connection")
+		}
+	} else {
+		s.db = db
+		s.repo = data.NewLookupsRepository(db)
+		log.Printf("LookupService: Successfully connected to database")
+	}
+
 	return s
 }
 
@@ -61,7 +63,7 @@ func (s *LookupService) GetTicketFormDataWithLang(lang string) *models.TicketFor
 	if lang == "" {
 		lang = "en"
 	}
-	
+
 	s.mu.RLock()
 	if cached, ok := s.cache[lang]; ok && time.Since(s.cacheTime[lang]) < s.cacheTTL {
 		defer s.mu.RUnlock()
@@ -91,19 +93,19 @@ func (s *LookupService) buildFormData() *models.TicketFormData {
 
 // buildFormDataWithLang creates form data with translations
 func (s *LookupService) buildFormDataWithLang(lang string) *models.TicketFormData {
-    // Initialize with defaults that will be overridden if database is available
-    result := &models.TicketFormData{
-        Queues:     []models.QueueInfo{},
-        Priorities: []models.LookupItem{},
-        Statuses:   []models.LookupItem{},
-        Types:      s.getDefaultTypes(lang),
-    }
-	
+	// Initialize with defaults that will be overridden if database is available
+	result := &models.TicketFormData{
+		Queues:     []models.QueueInfo{},
+		Priorities: []models.LookupItem{},
+		Statuses:   []models.LookupItem{},
+		Types:      s.getDefaultTypes(lang),
+	}
+
 	// If we have database connection, get values from there
-    if s.repo != nil {
+	if s.repo != nil {
 		ctx := context.Background()
 		log.Printf("LookupService: Fetching data from database for language: %s", lang)
-		
+
 		// Get states from database
 		states, err := s.repo.GetTicketStates(ctx)
 		if err == nil && len(states) > 0 {
@@ -121,7 +123,7 @@ func (s *LookupService) buildFormDataWithLang(lang string) *models.TicketFormDat
 			result.Statuses = statuses
 			log.Printf("LookupService: Got %d states from database", len(statuses))
 		}
-		
+
 		// Get priorities from database
 		priorities, err := s.repo.GetTicketPriorities(ctx)
 		if err == nil && len(priorities) > 0 {
@@ -139,8 +141,8 @@ func (s *LookupService) buildFormDataWithLang(lang string) *models.TicketFormDat
 			result.Priorities = priorityItems
 			log.Printf("LookupService: Got %d priorities from database", len(priorityItems))
 		}
-		
-		// Get queues from database  
+
+		// Get queues from database
 		queues, err := s.repo.GetQueues(ctx)
 		if err == nil && len(queues) > 0 {
 			queueItems := make([]models.QueueInfo, len(queues))
@@ -156,68 +158,68 @@ func (s *LookupService) buildFormDataWithLang(lang string) *models.TicketFormDat
 					Active:      queue.ValidID == 1,
 				}
 			}
-			result.Queues = queueItems
+			result.Queues = s.ensureDefaultQueues(queueItems, lang)
 			log.Printf("LookupService: Got %d queues from database", len(queueItems))
 		}
-		
-        // Normalize statuses to a standard 5-state workflow for tests and simplicity
-        result.Statuses = s.normalizeStatuses(result.Statuses)
-        return result
+
+		// Normalize statuses to a standard 5-state workflow for tests and simplicity
+		result.Statuses = s.normalizeStatuses(result.Statuses)
+		return result
 	}
-	
-    // Graceful fallback when DB unavailable: provide sensible defaults
-    log.Printf("WARNING: No lookup data available from database; returning default lists")
-    // Default queues (at least two so tests can resolve multiple IDs)
-    result.Queues = []models.QueueInfo{
-        {ID: 1, Name: "General", Description: "Default queue", Active: true},
-        {ID: 3, Name: "Junk", Description: "Fallback queue", Active: true},
-    }
-    // Default priorities (workflow order low->urgent)
-    result.Priorities = []models.LookupItem{
-        {ID: 1, Value: "low", Label: "Low", Order: 1, Active: true},
-        {ID: 2, Value: "normal", Label: "Normal", Order: 2, Active: true},
-        {ID: 3, Value: "high", Label: "High", Order: 3, Active: true},
-        {ID: 4, Value: "urgent", Label: "Urgent", Order: 4, Active: true},
-    }
-    // Default statuses (workflow order new->closed)
-    result.Statuses = []models.LookupItem{
-        {ID: 1, Value: "new", Label: "New", Order: 1, Active: true},
-        {ID: 2, Value: "open", Label: "Open", Order: 2, Active: true},
-        {ID: 3, Value: "pending", Label: "Pending", Order: 3, Active: true},
-        {ID: 4, Value: "resolved", Label: "Resolved", Order: 4, Active: true},
-        {ID: 5, Value: "closed", Label: "Closed", Order: 5, Active: true},
-    }
-    return result
+
+	// Graceful fallback when DB unavailable: provide sensible defaults
+	log.Printf("WARNING: No lookup data available from database; returning default lists")
+	// Default queues (at least two so tests can resolve multiple IDs)
+	result.Queues = []models.QueueInfo{
+		{ID: 1, Name: "General", Description: "Default queue", Active: true},
+		{ID: 3, Name: "Junk", Description: "Fallback queue", Active: true},
+	}
+	// Default priorities (workflow order low->urgent)
+	result.Priorities = []models.LookupItem{
+		{ID: 1, Value: "low", Label: "Low", Order: 1, Active: true},
+		{ID: 2, Value: "normal", Label: "Normal", Order: 2, Active: true},
+		{ID: 3, Value: "high", Label: "High", Order: 3, Active: true},
+		{ID: 4, Value: "urgent", Label: "Urgent", Order: 4, Active: true},
+	}
+	// Default statuses (workflow order new->closed)
+	result.Statuses = []models.LookupItem{
+		{ID: 1, Value: "new", Label: "New", Order: 1, Active: true},
+		{ID: 2, Value: "open", Label: "Open", Order: 2, Active: true},
+		{ID: 3, Value: "pending", Label: "Pending", Order: 3, Active: true},
+		{ID: 4, Value: "resolved", Label: "Resolved", Order: 4, Active: true},
+		{ID: 5, Value: "closed", Label: "Closed", Order: 5, Active: true},
+	}
+	return result
 }
 
 // normalizeStatuses reduces a potentially large OTRS state list to the common 5-state workflow
 func (s *LookupService) normalizeStatuses(states []models.LookupItem) []models.LookupItem {
-    // For deterministic tests, always provide the standard 5-state workflow
-    if os.Getenv("APP_ENV") == "test" {
-        return []models.LookupItem{
-            {ID: 1, Value: "new", Label: "New", Order: 1, Active: true},
-            {ID: 2, Value: "open", Label: "Open", Order: 2, Active: true},
-            {ID: 3, Value: "pending", Label: "Pending", Order: 3, Active: true},
-            {ID: 4, Value: "resolved", Label: "Resolved", Order: 4, Active: true},
-            {ID: 5, Value: "closed", Label: "Closed", Order: 5, Active: true},
-        }
-    }
-    if len(states) <= 5 {
-        return states
-    }
-    wanted := map[string]int{"new": 1, "open": 2, "pending": 3, "resolved": 4, "closed": 5}
-    out := make([]models.LookupItem, 0, 5)
-    for _, st := range states {
-        if ord, ok := wanted[st.Value]; ok {
-            st.Order = ord
-            out = append(out, st)
-        }
-    }
-    if len(out) == 5 {
-        return out
-    }
-    // Fallback to first 5 if we cannot map by names
-    return states[:5]
+	// For deterministic tests, always provide the standard 5-state workflow
+	if os.Getenv("APP_ENV") == "test" {
+		return []models.LookupItem{
+			{ID: 1, Value: "new", Label: "New", Order: 1, Active: true},
+			{ID: 2, Value: "open", Label: "Open", Order: 2, Active: true},
+			{ID: 3, Value: "pending", Label: "Pending", Order: 3, Active: true},
+			{ID: 4, Value: "resolved", Label: "Resolved", Order: 4, Active: true},
+			{ID: 5, Value: "closed", Label: "Closed", Order: 5, Active: true},
+		}
+	}
+	if len(states) <= 5 {
+		return states
+	}
+	wanted := map[string]int{"new": 1, "open": 2, "pending": 3, "resolved": 4, "closed": 5}
+	out := make([]models.LookupItem, 0, 5)
+	for _, st := range states {
+		if ord, ok := wanted[st.Value]; ok {
+			st.Order = ord
+			out = append(out, st)
+		}
+	}
+	if len(out) == 5 {
+		return out
+	}
+	// Fallback to first 5 if we cannot map by names
+	return states[:5]
 }
 
 // GetQueues returns available queues
@@ -255,9 +257,9 @@ func (s *LookupService) InvalidateCache() {
 // GetQueueByID returns a specific queue by ID
 func (s *LookupService) GetQueueByID(id int) (*models.QueueInfo, bool) {
 	queues := s.GetQueues()
-	for _, q := range queues {
-		if q.ID == id {
-			return &q, true
+	for i := range queues {
+		if queues[i].ID == id {
+			return &queues[i], true
 		}
 	}
 	return nil, false
@@ -265,21 +267,42 @@ func (s *LookupService) GetQueueByID(id int) (*models.QueueInfo, bool) {
 
 // GetPriorityByValue returns a priority by its value
 func (s *LookupService) GetPriorityByValue(value string) (*models.LookupItem, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, false
+	}
+
 	priorities := s.GetPriorities()
-	for _, p := range priorities {
-		if p.Value == value {
-			return &p, true
+	for i := range priorities {
+		if strings.TrimSpace(priorities[i].Value) == value {
+			return &priorities[i], true
 		}
 	}
+
+	if value == strings.ToLower(value) {
+		normalized := normalizePriorityValue(value)
+		if normalized == "" {
+			return nil, false
+		}
+
+		for i := range priorities {
+			actual := strings.TrimSpace(priorities[i].Value)
+			if normalizePriorityValue(actual) == normalized {
+				item := priorities[i]
+				return &item, true
+			}
+		}
+	}
+
 	return nil, false
 }
 
 // GetTypeByID returns a ticket type by ID
 func (s *LookupService) GetTypeByID(id int) (*models.LookupItem, bool) {
 	types := s.GetTypes()
-	for _, t := range types {
-		if t.ID == id {
-			return &t, true
+	for i := range types {
+		if types[i].ID == id {
+			return &types[i], true
 		}
 	}
 	return nil, false
@@ -288,9 +311,9 @@ func (s *LookupService) GetTypeByID(id int) (*models.LookupItem, bool) {
 // GetStatusByValue returns a status by its value
 func (s *LookupService) GetStatusByValue(value string) (*models.LookupItem, bool) {
 	statuses := s.GetStatuses()
-	for _, s := range statuses {
-		if s.Value == value {
-			return &s, true
+	for i := range statuses {
+		if statuses[i].Value == value {
+			return &statuses[i], true
 		}
 	}
 	return nil, false
@@ -304,7 +327,7 @@ func (s *LookupService) getTranslation(tableName, fieldValue, lang string) strin
 			return translation
 		}
 	}
-	
+
 	// Fallback to i18n files for common values
 	// This is just a fallback - primary translations should be in DB
 	if s.i18n != nil {
@@ -313,7 +336,7 @@ func (s *LookupService) getTranslation(tableName, fieldValue, lang string) strin
 			if trans := s.i18n.T(lang, "status."+fieldValue); trans != "status."+fieldValue {
 				return trans
 			}
-        } else if tableName == "ticket_priorities" {
+		} else if tableName == "ticket_priorities" {
 			// Handle OTRS format "3 normal" -> try "normal"
 			simplified := fieldValue
 			if len(fieldValue) > 2 && fieldValue[1] == ' ' {
@@ -322,24 +345,37 @@ func (s *LookupService) getTranslation(tableName, fieldValue, lang string) strin
 			if trans := s.i18n.T(lang, "priority."+simplified); trans != "priority."+simplified {
 				return trans
 			}
-            // Fallback mapping for extremes when translations are missing
-            switch simplified {
-            case "very low":
-                if lang == "de" {
-                    return "Sehr niedrig"
-                }
-                return "Very Low"
-            case "very high":
-                if lang == "de" {
-                    return "Sehr hoch"
-                }
-                return "Very High"
-            }
+			// Fallback mapping for extremes when translations are missing
+			switch simplified {
+			case "very low":
+				if lang == "de" {
+					return "Sehr niedrig"
+				}
+				return "Very Low"
+			case "very high":
+				if lang == "de" {
+					return "Sehr hoch"
+				}
+				return "Very High"
+			}
 		}
 	}
-	
+
 	// If no translation found, return original value
 	return fieldValue
+}
+
+func normalizePriorityValue(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	i := 0
+	for i < len(value) {
+		r := rune(value[i])
+		if !unicode.IsDigit(r) && r != ' ' && r != '.' {
+			break
+		}
+		i++
+	}
+	return strings.TrimSpace(value[i:])
 }
 
 // getDefaultTypes returns default ticket types with translations
@@ -351,7 +387,7 @@ func (s *LookupService) getDefaultTypes(lang string) []models.LookupItem {
 		{ID: 4, Value: "problem", Label: "Problem", Order: 4, Active: true},
 		{ID: 5, Value: "question", Label: "Question", Order: 5, Active: true},
 	}
-	
+
 	// Apply translations if available
 	for i := range types {
 		if s.i18n != nil {
@@ -360,6 +396,43 @@ func (s *LookupService) getDefaultTypes(lang string) []models.LookupItem {
 			}
 		}
 	}
-	
+
 	return types
+}
+
+func (s *LookupService) ensureDefaultQueues(queues []models.QueueInfo, lang string) []models.QueueInfo {
+	if len(queues) == 0 {
+		return []models.QueueInfo{
+			{ID: 1, Name: s.getTranslation("queues", "Postmaster", lang), Description: "Default queue for incoming emails", Active: true},
+			{ID: 3, Name: s.getTranslation("queues", "Junk", lang), Description: "Queue for junk/spam", Active: true},
+		}
+	}
+
+	existing := make(map[int]bool, len(queues))
+	for _, q := range queues {
+		existing[q.ID] = true
+	}
+
+	defaults := []struct {
+		id   int
+		name string
+		desc string
+	}{
+		{1, "Postmaster", "Default queue for incoming emails"},
+		{3, "Junk", "Queue for junk/spam"},
+	}
+
+	for _, def := range defaults {
+		if existing[def.id] {
+			continue
+		}
+		queues = append(queues, models.QueueInfo{
+			ID:          def.id,
+			Name:        s.getTranslation("queues", def.name, lang),
+			Description: def.desc,
+			Active:      true,
+		})
+	}
+
+	return queues
 }

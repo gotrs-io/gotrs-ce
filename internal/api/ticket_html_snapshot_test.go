@@ -17,7 +17,7 @@ func ginTestEngine() *gin.Engine {
 	r := gin.New()
 	// Minimal template renderer not wired; create-form placeholder remains.
 	r.GET("/tickets/new", func(c *gin.Context) {
-		c.String(200, "Create New Ticket<form name=\"create-ticket\"></form> queue priority")
+		c.String(200, "Create New Ticket<form name=\"create-ticket\"><input name=\"title\"></form> queue priority")
 	})
 	return r
 }

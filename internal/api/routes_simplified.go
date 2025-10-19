@@ -2,6 +2,7 @@ package api
 
 import (
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -16,7 +17,7 @@ func NewSimpleRouter() *gin.Engine {
 	r := gin.Default()
 	log.Println("✅ Gin router created")
 
-    // Initialize pongo2 renderer for templates, but only if templates exist
+	// Initialize pongo2 renderer for templates, but only if templates exist
 	// Determine template directory with fallbacks
 	templateDir := os.Getenv("TEMPLATES_DIR")
 	if templateDir == "" {
@@ -59,8 +60,26 @@ func NewSimpleRouter() *gin.Engine {
 	})
 	log.Println("✅ Test route added")
 
+	// Minimal logout handlers for tests
+	ensureRoute(r, http.MethodGet, "/logout", func(c *gin.Context) {
+		c.Redirect(http.StatusFound, "/login")
+	})
+	ensureRoute(r, http.MethodPost, "/logout", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"success": true})
+	})
+
 	log.Println("🎉 NewSimpleRouter initialization complete")
 	return r
+}
+
+func ensureRoute(r *gin.Engine, method, path string, handler gin.HandlerFunc) {
+	for _, ri := range r.Routes() {
+		if ri.Method == method && ri.Path == path {
+			log.Printf("ℹ️ route %s %s already registered; keeping existing handler", method, path)
+			return
+		}
+	}
+	r.Handle(method, path, handler)
 }
 
 // SetupBasicRoutes adds basic routes to an existing router

@@ -23,8 +23,13 @@ make db-apply-test-data  # Apply generated test data
 ### Migration Files Structure
 ```
 migrations/
-├── 000004_generated_test_data.up.sql  # Dynamically generated test data
-└── legacy/                             # Old sequential migrations (archived)
+├── mysql/
+│   ├── 000001_schema_alignment.up.sql   # MySQL schema (OTRS baseline)
+│   └── 000002_minimal_data.up.sql       # Essential lookup data
+├── postgres/
+│   ├── 000001_schema_alignment.up.sql   # PostgreSQL schema alignment
+│   └── 000004_generated_test_data.up.sql  # Dynamically generated test data (optional)
+└── legacy/                              # Old sequential migrations (archived)
     ├── 000001_otrs_schema.up.sql
     ├── 000002_otrs_initial_data.up.sql
     └── ... (28 migration files)

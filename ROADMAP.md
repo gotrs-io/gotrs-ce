@@ -11,6 +11,7 @@
 - ✅ **HTML FALLBACK CLEANUP** - Replaced embedded HTML with JSON responses
 - ✅ **CODE CLEANUP** - Removed duplicate commented code blocks
 - ✅ Core toolbox-test now green (cmd/goats, internal/api, generated)
+- ✅ Reminder notification feed + snooze action wired end-to-end (`/api/notifications/pending` + `/api/tickets/:id/status` alias)
 - ⚠️ Some DB-heavy integration tests still skipped when DB/templates unavailable
 
 ### Code Quality Improvements (September 23, 2025)
@@ -37,6 +38,8 @@
 
 **Recent Success**: Completed comprehensive code quality improvements including template system robustness, HTML fallback cleanup, and code deduplication. System now has proper error handling and cleaner architecture. **Latest Achievement**: Queue detail pages now display real-time statistics and enhanced ticket listings with navigation.
 
+**New Achievement (October 19, 2025)**: Reminder toasts are actionable end-to-end. The legacy `/api/notifications/pending` endpoint now resolves to the HTMX handler, and a matching `/api/tickets/:id/status` alias keeps snooze posts working without the `/agent` prefix. Routes manifest and regression tests cover the flow.
+
 ### Test Stabilization Progress (Internal/API)
 - ✅ Queue API/HTMX suites pass (DB-less fallbacks for CI without DB)
 - ✅ Priority API suites pass
@@ -47,6 +50,7 @@
 - ✅ Agent Ticket Zoom handlers gain deterministic test-mode fallbacks
 - ✅ Admin middleware bypassed in test env to avoid 403 HTML noise
 - ✅ Core toolbox-test now green (cmd/goats, internal/api, generated)
+- ✅ Reminder notification feed + snooze action wired end-to-end (`/api/notifications/pending` + `/api/tickets/:id/status` alias)
 - ⚠️ Some DB-heavy integration tests still skipped when DB/templates unavailable
 
 ## 📅 Development Timeline
@@ -504,6 +508,16 @@ Impact:
 - Smooth runtime compatibility with existing OTRS/Znuny attachment stores (read and write in-place)
 - Clear migration path for filesystem-based installs
 - No changes to MVP ticket vertical slice status; remaining work continues per Immediate MVP Focus
+
+---
+
+### ✅ Update: October 19, 2025 – Reminder Toast Snooze Flow
+
+- Routed `/api/notifications/pending` through the exported reminder handler so toast polling works without 404s
+- Added POST `/api/tickets/:id/status` alias in YAML to mirror legacy API expectations for snooze actions
+- Updated handler registry (`HandleUpdateTicketStatus`) and regenerated `runtime/routes-manifest.json`
+- Extended `internal/api` tests to cover the status update handler wiring
+- Restarted containers via `make restart` to verify the end-to-end reminder snooze flow in production-like settings
 
 ---
 

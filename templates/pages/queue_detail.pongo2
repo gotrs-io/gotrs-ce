@@ -124,7 +124,7 @@
                                 </div>
                                 <div class="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400">
                                     <p class="truncate">
-                                        Created {{ ticket.CreateTime.Format("Jan 2, 2006 at 3:04 PM") }}
+                                        Created {{ ticket.CreateTime.Format(t("time.formats.queue_detail")) }}
                                         {% if ticket.OwnerName %} • Owner: {{ ticket.OwnerName }}{% endif %}
                                     </p>
                                 </div>

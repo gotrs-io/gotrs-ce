@@ -11,20 +11,22 @@ import (
 
 // Core handlers
 var (
-	HandleLoginPage      = handleLoginPage
-	HandleLogout         = handleLogout
-	HandleDashboard      = handleDashboard
-	HandleDashboardStats = handleDashboardStats
-	HandleRecentTickets  = handleRecentTickets
-	DashboardQueueStatus = dashboard_queue_status
-	HandleActivityStream = handleActivityStream
+	HandleLoginPage           = handleLoginPage
+	HandleLogout              = handleLogout
+	HandleDashboard           = handleDashboard
+	HandleDashboardStats      = handleDashboardStats
+	HandleRecentTickets       = handleRecentTickets
+	DashboardQueueStatus      = dashboard_queue_status
+	HandleActivityStream      = handleActivityStream
+	HandlePendingReminderFeed = handlePendingReminderFeed
+	HandleUpdateTicketStatus  = handleUpdateTicketStatus
 )
 
 // Auth API handlers are directly exported from auth_handlers.go
 
 // Admin handlers
 var (
-	HandleAdminDashboard          = handleAdminDashboard
+	HandleAdminDashboard = handleAdminDashboard
 	// Users are handled by dynamic modules and admin_users_handlers.go
 	HandleAdminUserEdit           = HandleAdminUserGet // Same handler for edit form
 	HandleAdminPasswordPolicy     = HandlePasswordPolicy
@@ -97,21 +99,21 @@ var (
 
 // Attachment handlers (exported for routing)
 var (
-	HandleGetAttachments   = handleGetAttachments
-	HandleUploadAttachment = handleUploadAttachment
+	HandleGetAttachments     = handleGetAttachments
+	HandleUploadAttachment   = handleUploadAttachment
 	HandleDownloadAttachment = handleDownloadAttachment
-	HandleDeleteAttachment = handleDeleteAttachment
-	HandleGetThumbnail     = handleGetThumbnail
-	HandleViewAttachment   = handleViewAttachment
+	HandleDeleteAttachment   = handleDeleteAttachment
+	HandleGetThumbnail       = handleGetThumbnail
+	HandleViewAttachment     = handleViewAttachment
 )
 
 // Dev handlers
 var (
-	HandleDevDashboard = handleDevDashboard
+	HandleDevDashboard  = handleDevDashboard
 	HandleClaudeTickets = handleClaudeTickets
-	HandleDevAction = handleDevAction
-	HandleDevLogs = handleDevLogs
-	HandleDevDatabase = handleDevDatabase
+	HandleDevAction     = handleDevAction
+	HandleDevLogs       = handleDevLogs
+	HandleDevDatabase   = handleDevDatabase
 )
 
 // GetPongo2Renderer returns the pongo2 renderer for template rendering

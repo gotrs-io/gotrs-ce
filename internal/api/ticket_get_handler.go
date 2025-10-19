@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -126,7 +127,8 @@ func HandleGetTicketAPI(c *gin.Context) {
 	}
 
 	// Query for ticket details with related information (GOTRS/OTRS schema)
-	query := database.ConvertPlaceholders(`
+	typeSelect := fmt.Sprintf("%s AS type_id", database.QualifiedTicketTypeColumn("t"))
+	query := database.ConvertPlaceholders(fmt.Sprintf(`
 		SELECT 
 			t.id,
 			t.tn as ticket_number,
@@ -137,7 +139,7 @@ func HandleGetTicketAPI(c *gin.Context) {
 			tp.name as priority_name,
 			t.queue_id,
 			q.name as queue_name,
-			t.type_id,
+			%s,
 			t.customer_id,
 			t.customer_user_id,
 			t.user_id as owner_user_id,
@@ -149,7 +151,7 @@ func HandleGetTicketAPI(c *gin.Context) {
 		LEFT JOIN ticket_priority tp ON t.ticket_priority_id = tp.id
 		LEFT JOIN queue q ON t.queue_id = q.id
 		WHERE t.id = $1
-	`)
+	`, typeSelect))
 
 	var ticket struct {
 		ID                int64          `json:"id"`
@@ -234,7 +236,6 @@ func HandleGetTicketAPI(c *gin.Context) {
 	if ticket.ResponsibleUserID.Valid {
 		response["responsible_user_id"] = ticket.ResponsibleUserID.Int32
 	}
-
 
 	// Get article count
 	var articleCount int

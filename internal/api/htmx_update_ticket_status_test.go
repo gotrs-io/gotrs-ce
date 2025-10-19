@@ -56,6 +56,46 @@ WHERE id = $1`)).
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestHandleUpdateTicketStatus_PendingReminderRequiresUntil(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock setup failed: %v", err)
+	}
+	defer mockDB.Close()
+
+	database.SetDB(mockDB)
+	t.Cleanup(func() { database.SetDB(nil) })
+
+	stateRows := sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
+		AddRow(4, "pending reminder", 4, 1, time.Now(), 1, time.Now(), 1)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, type_id, valid_id,
+   create_time, create_by, change_time, change_by
+FROM ticket_state
+WHERE id = $1`)).
+		WithArgs(4).
+		WillReturnRows(stateRows)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("user_id", uint(9))
+	c.Params = []gin.Param{{Key: "id", Value: "123"}}
+
+	form := url.Values{}
+	form.Set("status", "4")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/tickets/123/status", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	c.Request = req
+
+	handleUpdateTicketStatus(c)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestHandleUpdateTicketStatus_PendingSetsUntil(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

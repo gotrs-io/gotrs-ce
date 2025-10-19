@@ -1,13 +1,7 @@
 {
   "admin": {
-    "actions": {
-      "delete": "Löschen",
-      "disable": "Deaktivieren",
-      "edit": "Bearbeiten",
-      "enable": "Aktivieren",
-      "view": "Details anzeigen"
-    },
-  "common": {
+    "actions": "Aktionen",
+    "common": {
       "actions": {
         "cancel": "Abbrechen",
         "create": "Erstellen",
@@ -21,9 +15,9 @@
         "save": "Speichern",
         "toggle_status": "Status umschalten",
         "update": "Aktualisieren"
-  },
-  "total": "Gesamt",
-  "refresh": "Aktualisieren",
+      },
+      "total": "Gesamt",
+      "refresh": "Aktualisieren",
       "filters": {
         "active": "Aktiv",
         "active_queues": "Aktive Warteschlangen",
@@ -129,7 +123,7 @@
       "invalid": "Ungültig",
       "valid": "Gültig"
     },
-    "dashboard": "Admin-Übersicht",
+  "dashboard": "Admin-Dashboard",
     "dashboard_description": "Übersicht der Systemverwaltung",
     "groups": "Gruppen",
     "groups_description": "Benutzergruppen erstellen und verwalten",
@@ -215,6 +209,13 @@
     "groups_title": "Gruppen",
     "lookups": {
       "description": "Stammdaten verwalten"
+    },
+    "action_labels": {
+      "delete": "Löschen",
+      "disable": "Deaktivieren",
+      "edit": "Bearbeiten",
+      "enable": "Aktivieren",
+      "view": "Details anzeigen"
     }
   },
   "agent": {
@@ -261,7 +262,10 @@
     "sign_in": "Einloggen",
     "sign_up": "Konto erstellen",
     "signin": "Einloggen",
-    "signup": "Registrieren"
+    "signup": "Registrieren",
+    "not_a_member": "Noch kein Mitglied?",
+    "signing_in": "Anmeldung läuft...",
+    "username": "Benutzername"
   },
   "buttons": {
     "add": "Hinzufügen",
@@ -321,6 +325,7 @@
     "title": "Änderungen"
   },
   "common": {
+    "actions": "Aktionen",
     "all": "Alle",
     "all_statuses": "Alle Status",
     "are_you_sure": "Sind Sie sicher?",
@@ -355,10 +360,16 @@
     "to": "bis",
     "unassigned": "Nicht zugewiesen",
     "update": "Aktualisieren",
-  "move": "Verschieben",
+    "move": "Verschieben",
     "view_all": "Alle anzeigen",
     "warning": "Warnung",
-    "yes": "Ja"
+    "yes": "Ja",
+    "clear": "Leeren",
+    "date": "Datum",
+    "name": "Name",
+    "total": "Gesamt",
+    "username": "Benutzername",
+    "email": "E-Mail"
   },
   "customer": {
     "company": "Firma",
@@ -616,7 +627,8 @@
     "queue_status": "Queue-Status",
     "search_placeholder": "Queues durchsuchen...",
     "sla_rules": "SLA-Regeln",
-    "title": "Queues"
+    "title": "Queues",
+    "manage_description": "Queue-Zuweisungen und Routing-Regeln verwalten"
   },
   "search": {
     "advanced_search": "Erweiterte Suche",
@@ -673,7 +685,10 @@
     "time_format": "Zeitformat",
     "timezone": "Zeitzone",
     "two_factor_auth": "Zwei-Faktor-Authentifizierung",
-    "webhooks": "Webhooks"
+    "webhooks": "Webhooks",
+    "default": "Standard",
+    "session_timeout_help": "Legt fest, wie lange Browsersitzungen aktiv bleiben, bevor eine erneute Anmeldung erforderlich ist.",
+    "more_coming": "Weitere Einstellungen folgen in Kürze"
   },
   "severity": {
     "critical": "Kritisch",
@@ -776,9 +791,9 @@
     "type": "Typ",
     "unassign": "Zuweisung aufheben",
     "unlock": "Entsperren",
-  "unlocked": "Entsperrt",
-  "updated_at": "Aktualisiert am",
-  "watch": "Beobachten",
+    "unlocked": "Entsperrt",
+    "updated_at": "Aktualisiert am",
+    "watch": "Beobachten",
     "view_in_queue": "Tickets in dieser Queue anzeigen",
     "view_and_manage": "Support-Tickets anzeigen und verwalten",
     "back_to_queues": "Zurück zu allen Queues",
@@ -822,7 +837,33 @@
     "pending_until": "Wartend bis",
     "pending_required": "Erforderlich für wartende Status",
     "target_ticket_number": "Ziel-Ticketnummer",
-    "merge_target_placeholder": "Ticketnummer zum Zusammenführen eingeben"
+    "merge_target_placeholder": "Ticketnummer zum Zusammenführen eingeben",
+    "age": "Alter",
+    "article": "Artikel",
+    "customer_id": "Kunden-ID",
+    "communication": "Kommunikation",
+    "history_placeholder": "Noch keine Historieneinträge",
+    "links": "Links",
+    "links_placeholder": "Verknüpfte Einträge werden hier angezeigt",
+    "optional": "Optional",
+    "no_customer_assigned": "Kein Kunde zugewiesen",
+    "no_time_entries": "Keine Zeiteinträge vorhanden",
+    "internal_note_default_subject": "Notiz",
+    "customer_visible_badge": "Für Kunden sichtbar",
+    "internal_only_badge": "Nur intern",
+    "visible_for_customer": "Für Kunden sichtbar",
+    "visible_for_customer_help": "Aktivieren, um die Aktualisierung im Kundenportal anzuzeigen.",
+    "time_accounting": "Zeiterfassung",
+    "time_tracking": "Zeiterfassung",
+  "total_time": "Gesamtzeit",
+    "minutes": "Minuten",
+    "back_to_list": "Zurück zur Liste",
+    "time_units_help": "Dokumentieren Sie, wie viele Minuten für dieses Ticket aufgewendet wurden.",
+    "time_units_required_help": "Zeiterfassung ist für wartende Erinnerungen erforderlich.",
+    "next_state": "Nächster Status",
+    "next_state_help": "Status auswählen, der nach der Bearbeitung gelten soll.",
+    "keep_current_state": "Aktuellen Status beibehalten",
+    "pending_until_help": "Angeben, wann das Ticket automatisch wieder geöffnet werden soll."
   },
   "tickets_form": {
     "subject_placeholder": "Kurze Zusammenfassung des Problems...",
@@ -848,7 +889,14 @@
     "create_ticket": "Ticket erstellen",
     "body_placeholder": "Beschreiben Sie das Problem ausführlich...",
     "created_success_redirect": "Ticket erfolgreich erstellt! Weiterleitung zum Ticket #{{number}}...",
-    "create_error": "Beim Erstellen des Tickets ist ein Fehler aufgetreten."
+    "create_error": "Beim Erstellen des Tickets ist ein Fehler aufgetreten.",
+    "time_units": "Zeiteinheiten",
+    "time_units_help": "Gesamten Aufwand für dieses Ticket in Minuten angeben.",
+    "next_state": "Nächster Status",
+    "state": {
+      "keep_open": "Ticket geöffnet lassen"
+    },
+    "pending_until": "Warten bis"
   },
   "time": {
     "days_ago": "Tage her",
@@ -858,7 +906,10 @@
     "minutes_ago": "Minuten her",
     "this_week": "Diese Woche",
     "today": "Heute",
-    "yesterday": "Gestern"
+    "yesterday": "Gestern",
+    "formats": {
+      "queue_detail": "02.01.2006 um 15:04"
+    }
   },
   "user": {
     "department": "Abteilung",
@@ -892,7 +943,12 @@
     "required": "Dieses Feld ist erforderlich",
     "time": "Ungültige Zeit",
     "unique": "Dieser Wert existiert bereits",
-    "url": "Ungültige URL"
+    "url": "Ungültige URL",
+    "required_suffix": "ist erforderlich",
+    "minlength_suffix": "Mindestlänge nicht erreicht",
+    "pattern_suffix": "ungültiges Format",
+    "filesize_suffix": "Datei ist zu groß",
+    "summary_title": "Bitte korrigieren Sie die markierten Fehler"
   },
   "welcome": {
     "greeting": "Willkommen"

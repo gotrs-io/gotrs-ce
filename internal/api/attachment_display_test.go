@@ -1,28 +1,28 @@
 package api
 
 import (
-    "bytes"
-    "fmt"
-    "io"
-    "mime/multipart"
-    "net/http"
-    "net/http/httptest"
-    "os"
-    "path/filepath"
-    "testing"
+	"bytes"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"testing"
 
-    "github.com/gin-gonic/gin"
-    "github.com/gotrs-io/gotrs-ce/internal/database"
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
+	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAttachmentDisplayInTicketDetail(t *testing.T) {
-    // Get database connection
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        t.Skip("Database not available, skipping integration test")
-    }
+	// Get database connection
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		t.Skip("Database not available, skipping integration test")
+	}
 
 	// Set up Gin in test mode
 	gin.SetMode(gin.TestMode)
@@ -45,7 +45,7 @@ func TestAttachmentDisplayInTicketDetail(t *testing.T) {
 		// Create a test file to upload
 		testFileName := "test-attachment.txt"
 		testFileContent := []byte("This is a test attachment content")
-		
+
 		// Add file to form
 		part, err := writer.CreateFormFile("attachment", testFileName)
 		require.NoError(t, err)
@@ -69,7 +69,7 @@ func TestAttachmentDisplayInTicketDetail(t *testing.T) {
 		assert.Equal(t, http.StatusCreated, w.Code)
 
 		// Now fetch the ticket messages to verify attachment is included
-    req2 := httptest.NewRequest("GET", "/api/tickets/1/messages", nil)
+		req2 := httptest.NewRequest("GET", "/api/tickets/1/messages", nil)
 		req2.Header.Set("Cookie", "token=test-token")
 		req2.Header.Set("HX-Request", "true") // Request as HTMX
 
@@ -87,11 +87,11 @@ func TestAttachmentDisplayInTicketDetail(t *testing.T) {
 }
 
 func TestAttachmentDownloadHandler(t *testing.T) {
-    // Get database connection
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        t.Skip("Database not available, skipping integration test")
-    }
+	// Get database connection
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		t.Skip("Database not available, skipping integration test")
+	}
 
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
@@ -153,28 +153,29 @@ func TestAttachmentDownloadHandler(t *testing.T) {
 }
 
 func TestGetMessagesWithAttachments(t *testing.T) {
-    // Get database connection
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        t.Skip("Database not available, skipping integration test")
-    }
+	// Get database connection
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		t.Skip("Database not available, skipping integration test")
+	}
 
 	t.Run("GetMessages includes attachment data from database", func(t *testing.T) {
-        // Re-check DB availability (defensive)
-        db, err := database.GetDB()
-        if err != nil || db == nil {
-            t.Skip("Database not available, skipping integration test")
-        }
+		// Re-check DB availability (defensive)
+		db, err := database.GetDB()
+		if err != nil || db == nil {
+			t.Skip("Database not available, skipping integration test")
+		}
 
 		// Create a test ticket
+		ticketTypeColumn := database.TicketTypeColumn()
 		var ticketID int
-        err = db.QueryRow(database.ConvertPlaceholders(`
-			INSERT INTO ticket (tn, title, queue_id, type_id, ticket_state_id, ticket_priority_id, 
+		err = db.QueryRow(database.ConvertPlaceholders(fmt.Sprintf(`
+			INSERT INTO ticket (tn, title, queue_id, %s, ticket_state_id, ticket_priority_id, 
 			                   ticket_lock_id, timeout, create_by, change_by)
 			VALUES ('TEST-ATT-001', 'Test Ticket for Attachments', 1, 1, 1, 1, 1, 0, 1, 1)
-            RETURNING id
-        `)).Scan(&ticketID)
-		
+	            RETURNING id
+	        `, ticketTypeColumn))).Scan(&ticketID)
+
 		if err != nil {
 			t.Skip("Could not create test ticket")
 		}
@@ -188,7 +189,7 @@ func TestGetMessagesWithAttachments(t *testing.T) {
 			VALUES ($1, 'Test Article', 'Test article body', 3, 1, 1, 1, 1)
 			RETURNING id
 		`), ticketID).Scan(&articleID)
-		
+
 		require.NoError(t, err)
 		defer db.Exec("DELETE FROM article WHERE id = $1", articleID)
 
@@ -204,14 +205,14 @@ func TestGetMessagesWithAttachments(t *testing.T) {
 			VALUES ($1, 'document.pdf', 'application/pdf', '11', $2, 'attachment', 1, 1)
 			RETURNING id
 		`), articleID, []byte(testFile)).Scan(&attachmentID)
-		
+
 		require.NoError(t, err)
 		defer db.Exec("DELETE FROM article_data_mime_attachment WHERE id = $1", attachmentID)
 
 		// Get the ticket service and retrieve messages
 		ticketService := GetTicketService()
 		messages, err := ticketService.GetMessages(uint(ticketID))
-		
+
 		require.NoError(t, err)
 		require.NotEmpty(t, messages, "Should have at least one message")
 
@@ -225,6 +226,6 @@ func TestGetMessagesWithAttachments(t *testing.T) {
 		assert.Equal(t, "document.pdf", attachment.Filename)
 		assert.Equal(t, "application/pdf", attachment.ContentType)
 		assert.Equal(t, int64(11), attachment.Size)
-        assert.Contains(t, attachment.URL, "/api/attachments/")
+		assert.Contains(t, attachment.URL, "/api/attachments/")
 	})
 }

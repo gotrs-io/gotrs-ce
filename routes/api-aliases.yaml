@@ -18,6 +18,11 @@ spec:
     handler: HandleReopenTicketAPI
     description: "Alias reopen ticket (maps to /api/v1/tickets/:id/reopen)"
 
+  - path: /tickets/:id/status
+    method: POST
+    handler: handleUpdateTicketStatus
+    description: "Alias ticket status update (supports pending reminders)"
+
   - path: /tickets/:id/time
     method: POST
     handler: handleAddTicketTime

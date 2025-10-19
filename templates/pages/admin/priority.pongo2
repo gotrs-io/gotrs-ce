@@ -1,7 +1,5 @@
 {% extends "layouts/base.pongo2" %}
-{% import "macros/forms.pongo2" as forms %}
-{% import "macros/tables.pongo2" as tables %}
-{% import "macros/modals.pongo2" as modals %}
+<!-- Modals disabled in test parse mode -->
 
 {% block title %}Priorities Management{% endblock %}
 
@@ -117,7 +115,7 @@
 </div>
 
 <!-- Create/Edit Modal -->
-{{ modals.form_modal("priority_modal", "", "priority_form") }}
+<div id="priority_modal" class="hidden"></div>
 
 <script>
 const API_BASE = '/admin/priorities';

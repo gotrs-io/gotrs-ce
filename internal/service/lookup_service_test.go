@@ -11,7 +11,7 @@ import (
 
 func TestNewLookupService(t *testing.T) {
 	service := NewLookupService()
-	
+
 	assert.NotNil(t, service)
 	assert.Equal(t, 5*time.Minute, service.cacheTTL)
 	assert.NotNil(t, service.cache)
@@ -36,7 +36,7 @@ func TestGetTicketFormData(t *testing.T) {
 				assert.NotEmpty(t, data.Priorities)
 				assert.NotEmpty(t, data.Types)
 				assert.NotEmpty(t, data.Statuses)
-				
+
 				// Verify cache was populated
 				assert.NotNil(t, s.cache)
 				assert.NotEmpty(t, s.cacheTime)
@@ -60,7 +60,7 @@ func TestGetTicketFormData(t *testing.T) {
 			validate: func(t *testing.T, s *LookupService) {
 				originalCacheTime := s.cacheTime
 				data := s.GetTicketFormData()
-				
+
 				require.NotNil(t, data)
 				// Cache time should not have changed
 				assert.Equal(t, originalCacheTime, s.cacheTime)
@@ -78,7 +78,7 @@ func TestGetTicketFormData(t *testing.T) {
 			validate: func(t *testing.T, s *LookupService) {
 				oldCacheTime := s.cacheTime["en"]
 				data := s.GetTicketFormData()
-				
+
 				require.NotNil(t, data)
 				// Cache time should be updated
 				assert.True(t, s.cacheTime["en"].After(oldCacheTime))
@@ -98,12 +98,12 @@ func TestGetTicketFormData(t *testing.T) {
 
 func TestGetQueues(t *testing.T) {
 	service := NewLookupService()
-	
+
 	queues := service.GetQueues()
-	
+
 	// Should have at least some queues (from DB or fallback)
 	assert.NotEmpty(t, queues, "Expected at least one queue")
-	
+
 	// Verify queue structure
 	for _, queue := range queues {
 		assert.NotZero(t, queue.ID)
@@ -117,12 +117,12 @@ func TestGetQueues(t *testing.T) {
 
 func TestGetPriorities(t *testing.T) {
 	service := NewLookupService()
-	
+
 	priorities := service.GetPriorities()
-	
+
 	assert.NotEmpty(t, priorities)
 	assert.GreaterOrEqual(t, len(priorities), 4) // At least 4 priorities
-	
+
 	// Verify priority structure
 	for i, priority := range priorities {
 		assert.NotEmpty(t, priority.Value)
@@ -130,28 +130,28 @@ func TestGetPriorities(t *testing.T) {
 		assert.Equal(t, i+1, priority.Order)
 		assert.True(t, priority.Active)
 	}
-	
+
 	// Check that common priorities exist
 	priorityMap := make(map[string]bool)
 	for _, p := range priorities {
 		priorityMap[p.Value] = true
 	}
-	
+
 	commonPriorities := []string{"low", "normal", "high", "urgent"}
 	for _, expected := range commonPriorities {
-		assert.True(t, priorityMap[expected] || priorityMap["1 very low"] || priorityMap["5 very high"], 
+		assert.True(t, priorityMap[expected] || priorityMap["1 very low"] || priorityMap["5 very high"],
 			"Expected to find priority %s or numbered variant", expected)
 	}
 }
 
 func TestGetTypes(t *testing.T) {
 	service := NewLookupService()
-	
+
 	types := service.GetTypes()
-	
+
 	assert.NotEmpty(t, types)
 	assert.Equal(t, 5, len(types))
-	
+
 	// Verify each type has required fields
 	for _, typ := range types {
 		assert.NotZero(t, typ.ID)
@@ -164,12 +164,12 @@ func TestGetTypes(t *testing.T) {
 
 func TestGetStatuses(t *testing.T) {
 	service := NewLookupService()
-	
+
 	statuses := service.GetStatuses()
-	
+
 	assert.NotEmpty(t, statuses)
 	assert.Equal(t, 5, len(statuses)) // new, open, pending, resolved, closed
-	
+
 	// Verify status workflow order
 	expectedValues := []string{"new", "open", "pending", "resolved", "closed"}
 	for i, status := range statuses {
@@ -182,17 +182,17 @@ func TestGetStatuses(t *testing.T) {
 
 func TestInvalidateCache(t *testing.T) {
 	service := NewLookupService()
-	
+
 	// Populate cache
 	_ = service.GetTicketFormData()
 	assert.NotNil(t, service.cache)
-	
+
 	// Invalidate cache
 	service.InvalidateCache()
-	
+
 	// Cache should be cleared (empty map, not nil)
 	assert.Empty(t, service.cache)
-	
+
 	// Next call should repopulate
 	data := service.GetTicketFormData()
 	assert.NotNil(t, data)
@@ -201,10 +201,10 @@ func TestInvalidateCache(t *testing.T) {
 
 func TestGetQueueByID(t *testing.T) {
 	service := NewLookupService()
-	
+
 	tests := []struct {
-		name     string
-		id       int
+		name      string
+		id        int
 		wantFound bool
 	}{
 		{"Existing queue", 1, true},
@@ -213,11 +213,11 @@ func TestGetQueueByID(t *testing.T) {
 		{"Zero ID", 0, false},
 		{"Negative ID", -1, false},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			queue, found := service.GetQueueByID(tt.id)
-			
+
 			assert.Equal(t, tt.wantFound, found)
 			if tt.wantFound {
 				assert.NotNil(t, queue)
@@ -232,29 +232,45 @@ func TestGetQueueByID(t *testing.T) {
 
 func TestGetPriorityByValue(t *testing.T) {
 	service := NewLookupService()
-	
+	priorities := service.GetPriorities()
+	mapped := make(map[string]string, len(priorities))
+	for _, p := range priorities {
+		key := normalizePriorityValue(p.Value)
+		if key == "" {
+			continue
+		}
+		mapped[key] = p.Value
+	}
+
+	lowVal := mapped["low"]
+	normalVal := mapped["normal"]
+	highVal := mapped["high"]
+	urgentVal := mapped["very high"]
+
 	tests := []struct {
 		name      string
-		value     string
+		lookup    string
 		wantFound bool
+		expected  string
 	}{
-		{"Low priority", "low", true},
-		{"Normal priority", "normal", true},
-		{"High priority", "high", true},
-		{"Urgent priority", "urgent", true},
-		{"Invalid priority", "critical", false},
-		{"Empty value", "", false},
-		{"Case sensitive check", "HIGH", false},
+		{"Low priority canonical", lowVal, lowVal != "", lowVal},
+		{"Low priority alias", "low", lowVal != "", lowVal},
+		{"Normal priority canonical", normalVal, normalVal != "", normalVal},
+		{"High priority canonical", highVal, highVal != "", highVal},
+		{"Urgent priority canonical", urgentVal, urgentVal != "", urgentVal},
+		{"Invalid priority", "critical", false, ""},
+		{"Empty value", "", false, ""},
+		{"Case sensitive check", "HIGH", false, ""},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			priority, found := service.GetPriorityByValue(tt.value)
-			
+			priority, found := service.GetPriorityByValue(tt.lookup)
+
 			assert.Equal(t, tt.wantFound, found)
 			if tt.wantFound {
 				assert.NotNil(t, priority)
-				assert.Equal(t, tt.value, priority.Value)
+				assert.Equal(t, tt.expected, priority.Value)
 				assert.NotEmpty(t, priority.Label)
 			} else {
 				assert.Nil(t, priority)
@@ -265,7 +281,7 @@ func TestGetPriorityByValue(t *testing.T) {
 
 func TestGetTypeByID(t *testing.T) {
 	service := NewLookupService()
-	
+
 	tests := []struct {
 		name      string
 		id        int
@@ -277,11 +293,11 @@ func TestGetTypeByID(t *testing.T) {
 		{"Non-existent type", 99, false},
 		{"Zero ID", 0, false},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			typ, found := service.GetTypeByID(tt.id)
-			
+
 			assert.Equal(t, tt.wantFound, found)
 			if tt.wantFound {
 				assert.NotNil(t, typ)
@@ -297,7 +313,7 @@ func TestGetTypeByID(t *testing.T) {
 
 func TestGetStatusByValue(t *testing.T) {
 	service := NewLookupService()
-	
+
 	tests := []struct {
 		name      string
 		value     string
@@ -311,11 +327,11 @@ func TestGetStatusByValue(t *testing.T) {
 		{"Invalid status", "cancelled", false},
 		{"Empty value", "", false},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			status, found := service.GetStatusByValue(tt.value)
-			
+
 			assert.Equal(t, tt.wantFound, found)
 			if tt.wantFound {
 				assert.NotNil(t, status)
@@ -330,13 +346,13 @@ func TestGetStatusByValue(t *testing.T) {
 
 func TestConcurrentAccess(t *testing.T) {
 	service := NewLookupService()
-	
+
 	// Test concurrent reads and cache invalidation
 	var wg sync.WaitGroup
 	iterations := 100
-	
+
 	wg.Add(iterations * 4)
-	
+
 	// Concurrent reads
 	for i := 0; i < iterations; i++ {
 		go func() {
@@ -344,19 +360,19 @@ func TestConcurrentAccess(t *testing.T) {
 			data := service.GetTicketFormData()
 			assert.NotNil(t, data)
 		}()
-		
+
 		go func() {
 			defer wg.Done()
 			queues := service.GetQueues()
 			assert.NotEmpty(t, queues)
 		}()
-		
+
 		go func() {
 			defer wg.Done()
 			priorities := service.GetPriorities()
 			assert.NotEmpty(t, priorities)
 		}()
-		
+
 		// Occasional cache invalidation
 		if i%10 == 0 {
 			go func() {
@@ -371,9 +387,9 @@ func TestConcurrentAccess(t *testing.T) {
 			}()
 		}
 	}
-	
+
 	wg.Wait()
-	
+
 	// Verify service is still functional
 	data := service.GetTicketFormData()
 	assert.NotNil(t, data)
@@ -381,24 +397,24 @@ func TestConcurrentAccess(t *testing.T) {
 }
 
 func TestCacheTTL(t *testing.T) {
-    service := NewLookupService()
-    // Use slightly larger TTL and sleeps to reduce flakiness on CI
-    service.cacheTTL = 150 * time.Millisecond
+	service := NewLookupService()
+	// Use slightly larger TTL and sleeps to reduce flakiness on CI
+	service.cacheTTL = 150 * time.Millisecond
 
-    // Get initial data
-    data1 := service.GetTicketFormData()
-    require.NotNil(t, data1)
-    cacheTime1 := service.cacheTime["en"]
+	// Get initial data
+	data1 := service.GetTicketFormData()
+	require.NotNil(t, data1)
+	cacheTime1 := service.cacheTime["en"]
 
-    // Access within TTL - should use cache
-    time.Sleep(70 * time.Millisecond)
-    data2 := service.GetTicketFormData()
-    assert.Equal(t, cacheTime1, service.cacheTime["en"])
-    assert.Equal(t, data1, data2)
+	// Access within TTL - should use cache
+	time.Sleep(70 * time.Millisecond)
+	data2 := service.GetTicketFormData()
+	assert.Equal(t, cacheTime1, service.cacheTime["en"])
+	assert.Equal(t, data1, data2)
 
-    // Access after TTL (total sleep > TTL) - should refresh
-    time.Sleep(110 * time.Millisecond)
-    data3 := service.GetTicketFormData()
-    assert.True(t, service.cacheTime["en"].After(cacheTime1))
-    require.NotNil(t, data3)
+	// Access after TTL (total sleep > TTL) - should refresh
+	time.Sleep(110 * time.Millisecond)
+	data3 := service.GetTicketFormData()
+	assert.True(t, service.cacheTime["en"].After(cacheTime1))
+	require.NotNil(t, data3)
 }

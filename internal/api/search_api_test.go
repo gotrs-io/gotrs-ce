@@ -3,49 +3,51 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-    "time"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
 	"github.com/gotrs-io/gotrs-ce/internal/auth"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSearchAPI(t *testing.T) {
-    // Initialize test database (skip if unavailable)
-    if err := database.InitTestDB(); err != nil {
-        t.Skip("Database not available, skipping search API test")
-    }
-    defer database.CloseTestDB()
+	// Initialize test database (skip if unavailable)
+	if err := database.InitTestDB(); err != nil {
+		t.Skip("Database not available, skipping search API test")
+	}
+	defer database.CloseTestDB()
 
 	// Create test JWT manager
-    jwtManager := auth.NewJWTManager("test-secret", time.Hour)
+	jwtManager := auth.NewJWTManager("test-secret", time.Hour)
 
 	// Create test token
-    token, _ := jwtManager.GenerateToken(1, "testuser@example.com", "Agent", 0)
+	token, _ := jwtManager.GenerateToken(1, "testuser@example.com", "Agent", 0)
 
 	// Set Gin to test mode
 	gin.SetMode(gin.TestMode)
 
-    // Setup test data
-    db, _ := database.GetDB()
-    if db == nil {
-        t.Skip("Database not available, skipping search API test")
-    }
-	
+	// Setup test data
+	db, _ := database.GetDB()
+	if db == nil {
+		t.Skip("Database not available, skipping search API test")
+	}
+
 	// Create test tickets
-    ticketQuery := database.ConvertPlaceholders(`
-        INSERT INTO ticket (tn, title, queue_id, type_id, ticket_state_id, 
+	ticketTypeColumn := database.TicketTypeColumn()
+	ticketQuery := database.ConvertPlaceholders(fmt.Sprintf(`
+		INSERT INTO ticket (tn, title, queue_id, %s, ticket_state_id, 
 			ticket_priority_id, customer_user_id, user_id, responsible_user_id,
 			create_time, create_by, change_time, change_by)
 		VALUES 
 			($1, 'Network connectivity issue', 1, 1, 1, 3, 'customer1@example.com', 1, 1, NOW(), 1, NOW(), 1),
 			($2, 'Email server problem', 1, 1, 1, 2, 'customer2@example.com', 1, 1, NOW(), 1, NOW(), 1),
 			($3, 'Password reset request', 2, 1, 2, 3, 'customer3@example.com', 1, 1, NOW(), 1, NOW(), 1)
-	`)
+	`, ticketTypeColumn))
 	db.Exec(ticketQuery, "2024123100001", "2024123100002", "2024123100003")
 
 	// Create test articles
@@ -132,7 +134,7 @@ func TestSearchAPI(t *testing.T) {
 			} `json:"hits"`
 		}
 		json.Unmarshal(w.Body.Bytes(), &response)
-		
+
 		// Verify we only get ticket results
 		for _, hit := range response.Hits {
 			assert.Equal(t, "ticket", hit.Type)
@@ -230,7 +232,7 @@ func TestSearchAPI(t *testing.T) {
 			} `json:"hits"`
 		}
 		json.Unmarshal(w.Body.Bytes(), &response)
-		
+
 		// Check if highlights are present
 		if len(response.Hits) > 0 && response.Hits[0].Highlights != nil {
 			assert.NotEmpty(t, response.Hits[0].Highlights)

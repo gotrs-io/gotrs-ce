@@ -71,6 +71,19 @@ func TestHandleAgentCreateTicket_UsesSelectedNextState(t *testing.T) {
 	t.Cleanup(func() { repository.SetTicketNumberGenerator(nil, nil) })
 	database.SetDB(mockDB)
 
+	stateRows := sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
+		AddRow(5, "pending reminder", 4, 1, time.Now(), 1, time.Now(), 1)
+
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, type_id, valid_id,
+	       create_time, create_by, change_time, change_by
+	FROM ticket_state
+	WHERE id = $1`)).
+		WithArgs(5).
+		WillReturnRows(stateRows)
+
+	pendingUntil := "2025-10-18T15:30"
+	pendingUnix := parsePendingUntil(pendingUntil)
+
 	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO ticket (")).
 		WithArgs(
 			"202510050001",
@@ -87,7 +100,7 @@ func TestHandleAgentCreateTicket_UsesSelectedNextState(t *testing.T) {
 			equalsInt{want: 5},
 			3,
 			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
+			equalsInt{want: pendingUnix},
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
@@ -158,6 +171,9 @@ func TestHandleAgentCreateTicket_UsesSelectedNextState(t *testing.T) {
 		t.Fatalf("write field: %v", err)
 	}
 	if err := writer.WriteField("next_state_id", "5"); err != nil {
+		t.Fatalf("write field: %v", err)
+	}
+	if err := writer.WriteField("pending_until", pendingUntil); err != nil {
 		t.Fatalf("write field: %v", err)
 	}
 	if err := writer.Close(); err != nil {

@@ -1781,12 +1781,27 @@ babelfish-missing: toolbox-build
 test-short:
 	$(COMPOSE_CMD) exec -e DB_NAME=$${DB_NAME:-gotrs}_test -e APP_ENV=test backend go test -short ./...
 
-test-coverage:
+test-coverage: toolbox-build
 	@printf "Running test coverage analysis...\n"
 	@printf "Using test database: $${DB_NAME:-gotrs}_test\n"
+	@$(call ensure_caches)
+	@$(call cache_guard)
+	@printf "📡 Ensuring database/cache services are available...\n"
+	@$(COMPOSE_CMD) up -d mariadb valkey >/dev/null 2>&1 || true
 	@mkdir -p generated
-	$(COMPOSE_CMD) exec -e DB_NAME=$${DB_NAME:-gotrs}_test -e APP_ENV=test backend sh -c "mkdir -p generated && go test -v -race -coverprofile=generated/coverage.out -covermode=atomic ./..."
-	$(COMPOSE_CMD) exec backend go tool cover -func=generated/coverage.out
+	@DB_NAME=$${DB_NAME:-gotrs}_test \
+	APP_ENV=test \
+	STORAGE_PATH=/tmp \
+	TEMPLATES_DIR=/workspace/templates \
+	DB_DRIVER=$(DB_DRIVER) \
+	DB_HOST=$(DB_HOST) \
+	DB_PORT=$(DB_PORT) \
+	DB_USER=$(DB_USER) \
+	DB_PASSWORD=$(DB_PASSWORD) \
+	VALKEY_HOST=$(VALKEY_HOST) \
+	VALKEY_PORT=$(VALKEY_PORT) \
+	$(MAKE) toolbox-exec ARGS='bash scripts/run_coverage.sh'
+	@$(MAKE) toolbox-exec ARGS='go tool cover -func=generated/coverage.out'
 
 # Run tests with enhanced coverage reporting (runs in container if script missing)
 test-report:
@@ -1856,11 +1871,27 @@ test-db-down:
 		$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml rm -f postgres-test >/dev/null 2>&1 || true; \
 	fi
 
-test-coverage-html:
+test-coverage-html: toolbox-build
+	@printf "Running test coverage (HTML) analysis...\n"
+	@printf "Using test database: $${DB_NAME:-gotrs}_test\n"
+	@$(call ensure_caches)
+	@$(call cache_guard)
+	@printf "📡 Ensuring database/cache services are available...\n"
+	@$(COMPOSE_CMD) up -d mariadb valkey >/dev/null 2>&1 || true
 	@mkdir -p generated
-	$(COMPOSE_CMD) exec -e DB_NAME=$${DB_NAME:-gotrs}_test -e APP_ENV=test backend sh -c "mkdir -p generated && go test -v -race -coverprofile=generated/coverage.out -covermode=atomic ./..."
-	$(COMPOSE_CMD) exec backend sh -c "go tool cover -html=generated/coverage.out -o generated/coverage.html"
-	$(COMPOSE_CMD) cp backend:/app/generated/coverage.html ./generated/coverage.html
+	@DB_NAME=$${DB_NAME:-gotrs}_test \
+	APP_ENV=test \
+	STORAGE_PATH=/tmp \
+	TEMPLATES_DIR=/workspace/templates \
+	DB_DRIVER=$(DB_DRIVER) \
+	DB_HOST=$(DB_HOST) \
+	DB_PORT=$(DB_PORT) \
+	DB_USER=$(DB_USER) \
+	DB_PASSWORD=$(DB_PASSWORD) \
+	VALKEY_HOST=$(VALKEY_HOST) \
+	VALKEY_PORT=$(VALKEY_PORT) \
+	$(MAKE) toolbox-exec ARGS='bash scripts/run_coverage.sh'
+	@$(MAKE) toolbox-exec ARGS='go tool cover -html=generated/coverage.out -o generated/coverage.html'
 	@printf "Coverage report generated: generated/coverage.html\n"
 # Frontend test commands
 test-frontend:

@@ -24,6 +24,8 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 - Pluggable auth provider registry (database, ldap, static) with tests.
 - Dockerfile/dev compose improvements for caching & user customization.
 - Comprehensive ticket creation & validation test suite.
+- Agent ticket creation auto-selects preferred queues pulled from customer and customer-user group permissions, with info panel surfacing the resolved queue name.
+- Playwright acceptance harness (`test-acceptance-playwright`) with queue preference coverage, configurable artifact directories, and resilient base URL resolution.
 - Consolidated schema alignment with Znuny: added `ticket_number_counter`, surrogate primary key for `acl_sync`, `acl_ticket_attribute_relations`, `activity`, `article_color`, `permission_groups`, `translation`, `calendar_appointment_plugin`, `pm_process_preferences`, `smime_keys`, `oauth2_token_config`/`oauth2_token`, and `mention` tables via migration `000001_schema_alignment`.
 
 ### Changed
@@ -34,6 +36,9 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 - Dockerfile optimized for builds (layer caching / user customization notes).
 - Activity stream handling cleaned (duplicate handlers removed).
 - Added surrogate primary key to `acl_sync` as part of consolidated migration `000001_schema_alignment` to stay aligned with Znuny upstream schema.
+- Ticket list + queue detail defaults to `not_closed`, populating status dropdowns from live state tables and excluding closed types when requested.
+- Login screen auto-focuses and selects the username field on load for quicker keyboard entry.
+- Coverage targets (`make test-coverage*`) now run through the toolbox inside containers, spin up DB/cache services, and delegate execution to `scripts/run_coverage.sh` for filtered package selection.
 
 ### Fixed
 - Trailing comma in generated seed JSON causing parse error (replaced incorrect loop variable usage and added tolerant parser).

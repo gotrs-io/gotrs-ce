@@ -50,39 +50,39 @@ type Queue struct {
 
 // Ticket represents a support ticket
 type Ticket struct {
-	ID                     int        `json:"id" db:"id"`
-	TicketNumber           string     `json:"tn" db:"tn"` // Ticket Number (tn field for compatibility)
-	Title                  string     `json:"title" db:"title"`
-	QueueID                int        `json:"queue_id" db:"queue_id"`
-	TicketLockID           int        `json:"ticket_lock_id" db:"ticket_lock_id"` // 1=unlock, 2=lock, 3=tmp_lock
-	TypeID                 *int       `json:"type_id,omitempty" db:"type_id"`
-	ServiceID              *int       `json:"service_id,omitempty" db:"service_id"`
-	SLAID                  *int       `json:"sla_id,omitempty" db:"sla_id"`
-	UserID                 *int       `json:"user_id,omitempty" db:"user_id"` // Owner
-	ResponsibleUserID      *int       `json:"responsible_user_id,omitempty" db:"responsible_user_id"`
-	CustomerID             *string    `json:"customer_id,omitempty" db:"customer_id"`
-	CustomerUserID         *string    `json:"customer_user_id,omitempty" db:"customer_user_id"`
-	TicketStateID          int        `json:"ticket_state_id" db:"ticket_state_id"`
-	TicketPriorityID       int        `json:"ticket_priority_id" db:"ticket_priority_id"`
-	Timeout                int        `json:"timeout,omitempty" db:"timeout"`
-	UntilTime              int        `json:"until_time" db:"until_time"`
-	EscalationTime         int        `json:"escalation_time" db:"escalation_time"`
-	EscalationUpdateTime   int        `json:"escalation_update_time" db:"escalation_update_time"`
-	EscalationResponseTime int        `json:"escalation_response_time" db:"escalation_response_time"`
-	EscalationSolutionTime int        `json:"escalation_solution_time" db:"escalation_solution_time"`
-	ArchiveFlag            int        `json:"archive_flag" db:"archive_flag"` // 0=not archived, 1=archived
-	CreateTime             time.Time  `json:"create_time" db:"create_time"`
-	CreateBy               int        `json:"create_by" db:"create_by"`
-	ChangeTime             time.Time  `json:"change_time" db:"change_time"`
-	ChangeBy               int        `json:"change_by" db:"change_by"`
-	
+	ID                     int       `json:"id" db:"id"`
+	TicketNumber           string    `json:"tn" db:"tn"` // Ticket Number (tn field for compatibility)
+	Title                  string    `json:"title" db:"title"`
+	QueueID                int       `json:"queue_id" db:"queue_id"`
+	TicketLockID           int       `json:"ticket_lock_id" db:"ticket_lock_id"` // 1=unlock, 2=lock, 3=tmp_lock
+	TypeID                 *int      `json:"type_id,omitempty" db:"type_id"`
+	ServiceID              *int      `json:"service_id,omitempty" db:"service_id"`
+	SLAID                  *int      `json:"sla_id,omitempty" db:"sla_id"`
+	UserID                 *int      `json:"user_id,omitempty" db:"user_id"` // Owner
+	ResponsibleUserID      *int      `json:"responsible_user_id,omitempty" db:"responsible_user_id"`
+	CustomerID             *string   `json:"customer_id,omitempty" db:"customer_id"`
+	CustomerUserID         *string   `json:"customer_user_id,omitempty" db:"customer_user_id"`
+	TicketStateID          int       `json:"ticket_state_id" db:"ticket_state_id"`
+	TicketPriorityID       int       `json:"ticket_priority_id" db:"ticket_priority_id"`
+	Timeout                int       `json:"timeout,omitempty" db:"timeout"`
+	UntilTime              int       `json:"until_time" db:"until_time"`
+	EscalationTime         int       `json:"escalation_time" db:"escalation_time"`
+	EscalationUpdateTime   int       `json:"escalation_update_time" db:"escalation_update_time"`
+	EscalationResponseTime int       `json:"escalation_response_time" db:"escalation_response_time"`
+	EscalationSolutionTime int       `json:"escalation_solution_time" db:"escalation_solution_time"`
+	ArchiveFlag            int       `json:"archive_flag" db:"archive_flag"` // 0=not archived, 1=archived
+	CreateTime             time.Time `json:"create_time" db:"create_time"`
+	CreateBy               int       `json:"create_by" db:"create_by"`
+	ChangeTime             time.Time `json:"change_time" db:"change_time"`
+	ChangeBy               int       `json:"change_by" db:"change_by"`
+
 	// Joined fields (populated when needed)
-	Queue          *Queue          `json:"queue,omitempty"`
-	State          *TicketState    `json:"state,omitempty"`
-	Priority       *TicketPriority `json:"priority,omitempty"`
-	Owner          *User           `json:"owner,omitempty"`
-	Customer       *User           `json:"customer,omitempty"`
-	ResponsibleUser *User          `json:"responsible_user,omitempty"`
+	Queue           *Queue          `json:"queue,omitempty"`
+	State           *TicketState    `json:"state,omitempty"`
+	Priority        *TicketPriority `json:"priority,omitempty"`
+	Owner           *User           `json:"owner,omitempty"`
+	Customer        *User           `json:"customer,omitempty"`
+	ResponsibleUser *User           `json:"responsible_user,omitempty"`
 }
 
 type PendingReminder struct {
@@ -99,60 +99,60 @@ type PendingReminder struct {
 
 // Article represents a message/comment within a ticket
 type Article struct {
-	ID                    int         `json:"id" db:"id"`
-	TicketID              int         `json:"ticket_id" db:"ticket_id"`
-	ArticleTypeID         int         `json:"article_type_id" db:"article_type_id"` // 1=email-external, 2=email-internal, etc.
-	SenderTypeID          int         `json:"sender_type_id" db:"sender_type_id"`   // 1=agent, 2=system, 3=customer
-	CommunicationChannelID int        `json:"communication_channel_id" db:"communication_channel_id"`
-	IsVisibleForCustomer  int         `json:"is_visible_for_customer" db:"is_visible_for_customer"`
-	Subject               string      `json:"subject" db:"subject"`
-	Body                  interface{} `json:"body" db:"body"` // Can be string or []byte
-	BodyType              string      `json:"body_type" db:"body_type"` // text/plain, text/html
-	TemplateID            *uint       `json:"template_id,omitempty" db:"template_id"` // Track which template was used
-	Charset               string      `json:"charset" db:"charset"`
-	MimeType              string      `json:"mime_type" db:"mime_type"`
-	ContentPath           *string     `json:"content_path,omitempty" db:"content_path"`
-	ValidID               int         `json:"valid_id" db:"valid_id"`
-	CreateTime            time.Time   `json:"create_time" db:"create_time"`
-	CreateBy              int         `json:"create_by" db:"create_by"`
-	ChangeTime            time.Time   `json:"change_time" db:"change_time"`
-	ChangeBy              int         `json:"change_by" db:"change_by"`
-	
+	ID                     int         `json:"id" db:"id"`
+	TicketID               int         `json:"ticket_id" db:"ticket_id"`
+	ArticleTypeID          int         `json:"article_type_id" db:"article_type_id"` // 1=email-external, 2=email-internal, etc.
+	SenderTypeID           int         `json:"sender_type_id" db:"sender_type_id"`   // 1=agent, 2=system, 3=customer
+	CommunicationChannelID int         `json:"communication_channel_id" db:"communication_channel_id"`
+	IsVisibleForCustomer   int         `json:"is_visible_for_customer" db:"is_visible_for_customer"`
+	Subject                string      `json:"subject" db:"subject"`
+	Body                   interface{} `json:"body" db:"body"`                         // Can be string or []byte
+	BodyType               string      `json:"body_type" db:"body_type"`               // text/plain, text/html
+	TemplateID             *uint       `json:"template_id,omitempty" db:"template_id"` // Track which template was used
+	Charset                string      `json:"charset" db:"charset"`
+	MimeType               string      `json:"mime_type" db:"mime_type"`
+	ContentPath            *string     `json:"content_path,omitempty" db:"content_path"`
+	ValidID                int         `json:"valid_id" db:"valid_id"`
+	CreateTime             time.Time   `json:"create_time" db:"create_time"`
+	CreateBy               int         `json:"create_by" db:"create_by"`
+	ChangeTime             time.Time   `json:"change_time" db:"change_time"`
+	ChangeBy               int         `json:"change_by" db:"change_by"`
+
 	// Joined fields
-	Ticket      *Ticket       `json:"ticket,omitempty"`
-	Creator     *User         `json:"creator,omitempty"`
-	Attachments []Attachment  `json:"attachments,omitempty"`
+	Ticket      *Ticket      `json:"ticket,omitempty"`
+	Creator     *User        `json:"creator,omitempty"`
+	Attachments []Attachment `json:"attachments,omitempty"`
 }
 
 // Attachment represents a file attachment to an article
 type Attachment struct {
-	ID                uint      `json:"id" db:"id"`
-	ArticleID         uint      `json:"article_id" db:"article_id"`
-	Filename          string    `json:"filename" db:"filename"`
-	ContentType       string    `json:"content_type" db:"content_type"`
-	ContentSize       int       `json:"content_size" db:"content_size"`
-	ContentID         *string   `json:"content_id,omitempty" db:"content_id"`
-	ContentAlternative *string  `json:"content_alternative,omitempty" db:"content_alternative"`
-	Disposition       string    `json:"disposition" db:"disposition"`
-	Content           string    `json:"content" db:"content"` // Base64 encoded or file path
-	CreateTime        time.Time `json:"create_time" db:"create_time"`
-	CreateBy          uint      `json:"create_by" db:"create_by"`
-	ChangeTime        time.Time `json:"change_time" db:"change_time"`
-	ChangeBy          uint      `json:"change_by" db:"change_by"`
+	ID                 uint      `json:"id" db:"id"`
+	ArticleID          uint      `json:"article_id" db:"article_id"`
+	Filename           string    `json:"filename" db:"filename"`
+	ContentType        string    `json:"content_type" db:"content_type"`
+	ContentSize        int       `json:"content_size" db:"content_size"`
+	ContentID          *string   `json:"content_id,omitempty" db:"content_id"`
+	ContentAlternative *string   `json:"content_alternative,omitempty" db:"content_alternative"`
+	Disposition        string    `json:"disposition" db:"disposition"`
+	Content            string    `json:"content" db:"content"` // Base64 encoded or file path
+	CreateTime         time.Time `json:"create_time" db:"create_time"`
+	CreateBy           uint      `json:"create_by" db:"create_by"`
+	ChangeTime         time.Time `json:"change_time" db:"change_time"`
+	ChangeBy           uint      `json:"change_by" db:"change_by"`
 }
 
 // TicketCreateRequest represents a request to create a new ticket
 type TicketCreateRequest struct {
-	Title            string   `json:"title" binding:"required,min=1,max=255"`
-	QueueID          uint     `json:"queue_id" binding:"required"`
-	PriorityID       uint     `json:"priority_id" binding:"required"`
-	StateID          uint     `json:"state_id,omitempty"`
-	CustomerID       *uint    `json:"customer_id,omitempty"`
-	CustomerUserID   *string  `json:"customer_user_id,omitempty"`
-	Body             string   `json:"body" binding:"required"`
-	BodyType         string   `json:"body_type,omitempty"` // defaults to text/plain
-	Subject          string   `json:"subject,omitempty"`
-	Attachments      []string `json:"attachments,omitempty"` // Base64 encoded files
+	Title          string   `json:"title" binding:"required,min=1,max=255"`
+	QueueID        uint     `json:"queue_id" binding:"required"`
+	PriorityID     uint     `json:"priority_id" binding:"required"`
+	StateID        uint     `json:"state_id,omitempty"`
+	CustomerID     *uint    `json:"customer_id,omitempty"`
+	CustomerUserID *string  `json:"customer_user_id,omitempty"`
+	Body           string   `json:"body" binding:"required"`
+	BodyType       string   `json:"body_type,omitempty"` // defaults to text/plain
+	Subject        string   `json:"subject,omitempty"`
+	Attachments    []string `json:"attachments,omitempty"` // Base64 encoded files
 }
 
 // TicketUpdateRequest represents a request to update a ticket
@@ -176,25 +176,26 @@ type ArticleCreateRequest struct {
 	IsVisibleForCustomer int      `json:"is_visible_for_customer,omitempty"`
 	Subject              *string  `json:"subject,omitempty"`
 	Body                 string   `json:"body" binding:"required"`
-	BodyType             string   `json:"body_type,omitempty"` // defaults to text/plain
+	BodyType             string   `json:"body_type,omitempty"`   // defaults to text/plain
 	Attachments          []string `json:"attachments,omitempty"` // Base64 encoded files
 }
 
 // TicketListRequest represents query parameters for listing tickets
 type TicketListRequest struct {
-	Page         int      `json:"page,omitempty" form:"page"`
-	PerPage      int      `json:"per_page,omitempty" form:"per_page"`
-	QueueID      *uint    `json:"queue_id,omitempty" form:"queue_id"`
-	StateID      *uint    `json:"state_id,omitempty" form:"state_id"`
-	PriorityID   *uint    `json:"priority_id,omitempty" form:"priority_id"`
-	CustomerID   *uint    `json:"customer_id,omitempty" form:"customer_id"`
-	OwnerID      *uint    `json:"owner_id,omitempty" form:"owner_id"`
-	Search       string   `json:"search,omitempty" form:"search"`
-	SortBy       string   `json:"sort_by,omitempty" form:"sort_by"`
-	SortOrder    string   `json:"sort_order,omitempty" form:"sort_order"`
-	ArchiveFlag  *int     `json:"archive_flag,omitempty" form:"archive_flag"`
-	StartDate    *string  `json:"start_date,omitempty" form:"start_date"`
-	EndDate      *string  `json:"end_date,omitempty" form:"end_date"`
+	Page                int     `json:"page,omitempty" form:"page"`
+	PerPage             int     `json:"per_page,omitempty" form:"per_page"`
+	QueueID             *uint   `json:"queue_id,omitempty" form:"queue_id"`
+	StateID             *uint   `json:"state_id,omitempty" form:"state_id"`
+	PriorityID          *uint   `json:"priority_id,omitempty" form:"priority_id"`
+	CustomerID          *uint   `json:"customer_id,omitempty" form:"customer_id"`
+	OwnerID             *uint   `json:"owner_id,omitempty" form:"owner_id"`
+	Search              string  `json:"search,omitempty" form:"search"`
+	SortBy              string  `json:"sort_by,omitempty" form:"sort_by"`
+	SortOrder           string  `json:"sort_order,omitempty" form:"sort_order"`
+	ArchiveFlag         *int    `json:"archive_flag,omitempty" form:"archive_flag"`
+	StartDate           *string `json:"start_date,omitempty" form:"start_date"`
+	EndDate             *string `json:"end_date,omitempty" form:"end_date"`
+	ExcludeClosedStates bool    `json:"-"`
 }
 
 // TicketListResponse represents a paginated list of tickets
@@ -264,7 +265,7 @@ func (t *Ticket) CanBeEditedBy(userID int, role string) bool {
 	if role == "Admin" {
 		return true
 	}
-	
+
 	// Agents can edit if they own the ticket or it's unassigned
 	if role == "Agent" {
 		if t.UserID == nil || *t.UserID == userID {
@@ -274,7 +275,7 @@ func (t *Ticket) CanBeEditedBy(userID int, role string) bool {
 			return true
 		}
 	}
-	
+
 	// Customers can only edit their own tickets if not locked
 	if role == "Customer" {
 		// For customer permissions, we'll need to compare CustomerID or implement a different approach
@@ -286,7 +287,7 @@ func (t *Ticket) CanBeEditedBy(userID int, role string) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 

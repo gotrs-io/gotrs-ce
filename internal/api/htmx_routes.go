@@ -34,6 +34,8 @@ import (
 
 	"github.com/xeonx/timeago"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // TicketDisplay represents ticket data for display purposes
@@ -1800,6 +1802,70 @@ func handleDashboard(c *gin.Context) {
 	})
 }
 
+func buildTicketStatusOptions(db *sql.DB) ([]gin.H, bool) {
+	titleCaser := cases.Title(language.English)
+	options := []gin.H{}
+	hasClosed := false
+	appendDefaults := func() {
+		options = append(options,
+			gin.H{"Value": "1", "Label": titleCaser.String("new")},
+			gin.H{"Value": "2", "Label": titleCaser.String("open")},
+			gin.H{"Value": "3", "Label": titleCaser.String("pending")},
+			gin.H{"Value": "4", "Label": titleCaser.String("closed")},
+		)
+		hasClosed = true
+	}
+
+	if db == nil {
+		appendDefaults()
+		return options, hasClosed
+	}
+
+	query := `
+		SELECT ts.id, ts.name, tst.id AS type_id, tst.name AS type_name
+		FROM ticket_state ts
+		JOIN ticket_state_type tst ON ts.type_id = tst.id
+		WHERE ts.valid_id = 1 AND tst.valid_id = 1
+		ORDER BY ts.name
+	`
+	rows, err := db.Query(database.ConvertPlaceholders(query))
+	if err != nil {
+		log.Printf("failed to load ticket states: %v", err)
+		appendDefaults()
+		return options, hasClosed
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			stateID   uint
+			stateName string
+			typeID    uint
+			typeName  string
+		)
+		if scanErr := rows.Scan(&stateID, &stateName, &typeID, &typeName); scanErr != nil {
+			continue
+		}
+		cleanName := strings.ReplaceAll(strings.TrimSpace(stateName), "_", " ")
+		options = append(options, gin.H{
+			"Value": fmt.Sprintf("%d", stateID),
+			"Label": titleCaser.String(cleanName),
+		})
+		if strings.EqualFold(strings.TrimSpace(typeName), "closed") || typeID == uint(models.TicketStateClosed) {
+			hasClosed = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("failed iterating ticket states: %v", err)
+	}
+
+	if len(options) == 1 {
+		appendDefaults()
+	}
+
+	return options, hasClosed
+}
+
 // handleTickets shows the tickets list page
 func handleTickets(c *gin.Context) {
 	// Get database connection (graceful fallback to empty list)
@@ -1814,16 +1880,25 @@ func handleTickets(c *gin.Context) {
 	}
 
 	// Get filter and search parameters
-	status := c.Query("status")
-	priority := c.Query("priority")
-	queue := c.Query("queue")
-	search := c.Query("search")
+	statusParam := strings.TrimSpace(c.Query("status"))
+	priority := strings.TrimSpace(c.Query("priority"))
+	queue := strings.TrimSpace(c.Query("queue"))
+	search := strings.TrimSpace(c.Query("search"))
 	sortBy := c.DefaultQuery("sort", "created_desc")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if page < 1 {
 		page = 1
 	}
 	limit := 25
+
+	states, hasClosedType := buildTicketStatusOptions(db)
+
+	effectiveStatus := statusParam
+	if effectiveStatus == "" {
+		effectiveStatus = "not_closed"
+	}
+
+	hasActiveFilters := statusParam != "" || priority != "" || queue != "" || search != ""
 
 	// Build ticket list request
 	req := &models.TicketListRequest{
@@ -1833,10 +1908,16 @@ func handleTickets(c *gin.Context) {
 		PerPage: limit,
 	}
 
-	// Apply status filter
-	if status != "" && status != "all" {
-		stateID, _ := strconv.Atoi(status)
-		if stateID > 0 {
+	switch effectiveStatus {
+	case "all":
+		// no-op
+	case "not_closed":
+		if hasClosedType {
+			req.ExcludeClosedStates = true
+		}
+	default:
+		stateID, err := strconv.Atoi(effectiveStatus)
+		if err == nil && stateID > 0 {
 			stateIDPtr := uint(stateID)
 			req.StateID = &stateIDPtr
 		}
@@ -1918,14 +1999,6 @@ func handleTickets(c *gin.Context) {
 		})
 	}
 
-	// Get available filters
-	states := []gin.H{
-		{"id": 1, "name": "new"},
-		{"id": 2, "name": "open"},
-		{"id": 3, "name": "pending"},
-		{"id": 4, "name": "closed"},
-	}
-
 	priorities := []gin.H{
 		{"id": 1, "name": "low"},
 		{"id": 2, "name": "normal"},
@@ -1945,20 +2018,21 @@ func handleTickets(c *gin.Context) {
 	}
 
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets.pongo2", pongo2.Context{
-		"Tickets":        tickets,
-		"User":           getUserMapForTemplate(c),
-		"ActivePage":     "tickets",
-		"Statuses":       states,
-		"Priorities":     priorities,
-		"Queues":         queueList,
-		"FilterStatus":   status,
-		"FilterPriority": priority,
-		"FilterQueue":    queue,
-		"SearchQuery":    search,
-		"SortBy":         sortBy,
-		"CurrentPage":    page,
-		"TotalPages":     (result.Total + limit - 1) / limit,
-		"TotalTickets":   result.Total,
+		"Tickets":          tickets,
+		"User":             getUserMapForTemplate(c),
+		"ActivePage":       "tickets",
+		"Statuses":         states,
+		"Priorities":       priorities,
+		"Queues":           queueList,
+		"FilterStatus":     effectiveStatus,
+		"FilterPriority":   priority,
+		"FilterQueue":      queue,
+		"SearchQuery":      search,
+		"SortBy":           sortBy,
+		"CurrentPage":      page,
+		"TotalPages":       (result.Total + limit - 1) / limit,
+		"TotalTickets":     result.Total,
+		"HasActiveFilters": hasActiveFilters,
 	})
 }
 
@@ -2229,15 +2303,24 @@ func handleQueueDetail(c *gin.Context) {
 	}
 
 	// Get filter and search parameters (similar to handleTickets but with queue pre-set)
-	status := c.Query("status")
-	priority := c.Query("priority")
-	search := c.Query("search")
+	statusParam := strings.TrimSpace(c.Query("status"))
+	priority := strings.TrimSpace(c.Query("priority"))
+	search := strings.TrimSpace(c.Query("search"))
 	sortBy := c.DefaultQuery("sort", "created_desc")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if page < 1 {
 		page = 1
 	}
 	limit := 25
+
+	states, hasClosedType := buildTicketStatusOptions(db)
+
+	effectiveStatus := statusParam
+	if effectiveStatus == "" {
+		effectiveStatus = "not_closed"
+	}
+
+	hasActiveFilters := statusParam != "" || priority != "" || search != ""
 
 	// Build ticket list request with queue pre-filtered
 	queueIDUint := uint(idUint)
@@ -2250,9 +2333,16 @@ func handleQueueDetail(c *gin.Context) {
 	}
 
 	// Apply additional filters
-	if status != "" && status != "all" {
-		stateID, _ := strconv.Atoi(status)
-		if stateID > 0 {
+	switch effectiveStatus {
+	case "all":
+		// no-op
+	case "not_closed":
+		if hasClosedType {
+			req.ExcludeClosedStates = true
+		}
+	default:
+		stateID, err := strconv.Atoi(effectiveStatus)
+		if err == nil && stateID > 0 {
 			stateIDPtr := uint(stateID)
 			req.StateID = &stateIDPtr
 		}
@@ -2324,14 +2414,6 @@ func handleQueueDetail(c *gin.Context) {
 		})
 	}
 
-	// Get available filters
-	states := []gin.H{
-		{"id": 1, "name": "new"},
-		{"id": 2, "name": "open"},
-		{"id": 3, "name": "pending"},
-		{"id": 4, "name": "closed"},
-	}
-
 	priorities := []gin.H{
 		{"id": 1, "name": "low"},
 		{"id": 2, "name": "normal"},
@@ -2351,22 +2433,23 @@ func handleQueueDetail(c *gin.Context) {
 	}
 
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets.pongo2", pongo2.Context{
-		"Tickets":        tickets,
-		"User":           getUserMapForTemplate(c),
-		"ActivePage":     "queues",
-		"Statuses":       states,
-		"Priorities":     priorities,
-		"Queues":         queueList,
-		"FilterStatus":   status,
-		"FilterPriority": priority,
-		"FilterQueue":    queueID, // Pre-set to current queue
-		"SearchQuery":    search,
-		"SortBy":         sortBy,
-		"CurrentPage":    page,
-		"TotalPages":     (result.Total + limit - 1) / limit,
-		"TotalTickets":   result.Total,
-		"QueueName":      queue.Name, // Add queue name for display
-		"QueueID":        queueID,
+		"Tickets":          tickets,
+		"User":             getUserMapForTemplate(c),
+		"ActivePage":       "queues",
+		"Statuses":         states,
+		"Priorities":       priorities,
+		"Queues":           queueList,
+		"FilterStatus":     effectiveStatus,
+		"FilterPriority":   priority,
+		"FilterQueue":      queueID, // Pre-set to current queue
+		"SearchQuery":      search,
+		"SortBy":           sortBy,
+		"CurrentPage":      page,
+		"TotalPages":       (result.Total + limit - 1) / limit,
+		"TotalTickets":     result.Total,
+		"QueueName":        queue.Name, // Add queue name for display
+		"QueueID":          queueID,
+		"HasActiveFilters": hasActiveFilters,
 	})
 }
 

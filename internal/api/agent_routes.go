@@ -153,14 +153,14 @@ func handleAgentDashboard(db *sql.DB) gin.HandlerFunc {
 				&ticket.Queue, &ticket.State, &ticket.Priority, &ticket.CreateTime)
 
 			recentTickets = append(recentTickets, map[string]interface{}{
-				"id":       ticket.ID,
-				"tn":       ticket.TN,
-				"title":    ticket.Title,
-				"customer": ticket.Customer.String,
-				"queue":    ticket.Queue,
-				"state":    ticket.State,
-				"priority": ticket.Priority,
-				"age":      formatAge(ticket.CreateTime),
+				"id":             ticket.ID,
+				"tn":             ticket.TN,
+				"title":          ticket.Title,
+				"customer":       ticket.Customer.String,
+				"queue":          ticket.Queue,
+				"state":          ticket.State,
+				"priority":       ticket.Priority,
+				"age":            formatAge(ticket.CreateTime),
 				"created_at_iso": ticket.CreateTime.UTC().Format(time.RFC3339),
 			})
 		}
@@ -236,7 +236,6 @@ func handleAgentTickets(db *sql.DB) gin.HandlerFunc {
 		// Get user ID from context (middleware sets "user_id" not "userID")
 		userIDInterface, exists := c.Get("user_id")
 		if !exists {
-			log.Printf("handleAgentTickets: user_id not found in context")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
 			return
 		}
@@ -250,15 +249,12 @@ func handleAgentTickets(db *sql.DB) gin.HandlerFunc {
 		case float64:
 			userID = uint(v)
 		default:
-			log.Printf("handleAgentTickets: user_id has unexpected type %T", userIDInterface)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
 			return
 		}
 
-		log.Printf("handleAgentTickets: userID = %d", userID)
-
 		// Get filter parameters
-		status := c.DefaultQuery("status", "open")
+		status := c.DefaultQuery("status", "not_closed")
 		queue := c.DefaultQuery("queue", "all")
 		assignee := c.DefaultQuery("assignee", "all")
 		search := c.Query("search")
@@ -306,6 +302,9 @@ func handleAgentTickets(db *sql.DB) gin.HandlerFunc {
 		} else if status == "closed" {
 			// Closed states have type_id 3
 			query += " AND t.ticket_state_id IN (SELECT id FROM ticket_state WHERE type_id = 3)"
+		} else if status == "not_closed" {
+			// Exclude closed state types (type_id 3)
+			query += " AND t.ticket_state_id NOT IN (SELECT id FROM ticket_state WHERE type_id = 3)"
 		}
 
 		// Apply queue filter
@@ -326,7 +325,6 @@ func handleAgentTickets(db *sql.DB) gin.HandlerFunc {
 
 			if adminCheckErr == nil && isAdmin {
 				// Admin sees all queues - no filter needed
-				log.Printf("User %d is admin, showing all queues", userID)
 			} else {
 				// Regular agents see only queues they have access to through group membership
 				argCount++
@@ -337,7 +335,6 @@ func handleAgentTickets(db *sql.DB) gin.HandlerFunc {
 					)
 				)`, argCount)
 				args = append(args, userID)
-				log.Printf("User %d is not admin, filtering by queue access", userID)
 			}
 		}
 
@@ -410,9 +407,9 @@ func handleAgentTickets(db *sql.DB) gin.HandlerFunc {
 				"priority_color": ticket.PriorityColor.String,
 				"assigned_to":    ticket.AssignedTo.String,
 				"age":            formatAge(ticket.CreateTime),
-			"created_at_iso": ticket.CreateTime.UTC().Format(time.RFC3339),
+				"created_at_iso": ticket.CreateTime.UTC().Format(time.RFC3339),
 				"last_changed":   formatAge(ticket.ChangeTime),
-			"updated_at_iso": ticket.ChangeTime.UTC().Format(time.RFC3339),
+				"updated_at_iso": ticket.ChangeTime.UTC().Format(time.RFC3339),
 				"article_count":  ticket.ArticleCount,
 			})
 		}

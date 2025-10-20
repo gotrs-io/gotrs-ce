@@ -519,6 +519,13 @@ Impact:
 - Extended `internal/api` tests to cover the status update handler wiring
 - Restarted containers via `make restart` to verify the end-to-end reminder snooze flow in production-like settings
 
+### ✅ Update: October 20, 2025 – Not Closed Filter & i18n Alignment
+
+- `/tickets` and `/agent/tickets` now default to the `not_closed` status, exposing it explicitly in each filter dropdown
+- Repository list queries honor `ExcludeClosedStates`, joining `ticket_state_type` to avoid over-fetching closed tickets
+- `tickets.not_closed` translation delivered for EN/DE/ES/AR/TLH so the new option localizes correctly
+- Cleaned temporary debug logging from the agent ticket list handler to keep production logs focused on actionable errors
+
 ---
 
 ## 🧩 Planned: Ticket Number Generator Integration & Config Wiring (October 2025)

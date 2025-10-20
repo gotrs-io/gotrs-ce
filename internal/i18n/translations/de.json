@@ -327,7 +327,8 @@
   "common": {
     "actions": "Aktionen",
     "all": "Alle",
-    "all_statuses": "Alle Status",
+  "all_statuses": "Alle Status",
+  "not_closed": "Nicht geschlossen",
     "are_you_sure": "Sind Sie sicher?",
     "cancel": "Abbrechen",
     "comments": "Kommentare",

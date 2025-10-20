@@ -56,7 +56,8 @@
     "close": "إغلاق",
     "reopen": "إعادة فتح",
     "assign": "إسناد",
-    "unassign": "إلغاء الإسناد"
+    "unassign": "إلغاء الإسناد",
+    "not_closed": "غير مغلق"
   },
   "status": {
     "new": "جديد",

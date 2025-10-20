@@ -409,7 +409,10 @@ func (r *TicketRepository) List(req *models.TicketListRequest) (*models.TicketLi
 	}
 
 	// Build base query
-	baseQuery := `FROM ticket t WHERE 1=1`
+	baseQuery := `FROM ticket t
+	LEFT JOIN ticket_state ts ON t.ticket_state_id = ts.id
+	LEFT JOIN ticket_state_type tst ON ts.type_id = tst.id
+	WHERE 1=1`
 	countQuery := `SELECT COUNT(*) ` + baseQuery
 	typeSelect := fmt.Sprintf("%s AS type_id", database.QualifiedTicketTypeColumn("t"))
 	selectQuery := fmt.Sprintf(`
@@ -439,6 +442,10 @@ func (r *TicketRepository) List(req *models.TicketListRequest) (*models.TicketLi
 		filters = append(filters, fmt.Sprintf(" AND t.ticket_state_id = $%d", argCount))
 		args = append(args, *req.StateID)
 		argCount++
+	}
+
+	if req.ExcludeClosedStates {
+		filters = append(filters, " AND (tst.name IS NULL OR LOWER(tst.name) != 'closed')")
 	}
 
 	if req.PriorityID != nil {

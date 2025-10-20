@@ -328,7 +328,8 @@
   "common": {
     "actions": "Actions",
     "all": "All",
-    "all_statuses": "All Statuses",
+  "all_statuses": "All Statuses",
+  "not_closed": "Not Closed",
     "are_you_sure": "Are you sure?",
     "clear": "Clear",
     "cancel": "Cancel",

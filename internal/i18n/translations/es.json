@@ -56,7 +56,8 @@
     "close": "Cerrar",
     "reopen": "Reabrir",
     "assign": "Asignar",
-    "unassign": "Desasignar"
+    "unassign": "Desasignar",
+    "not_closed": "No cerrado"
   },
   "incidents": {
     "title": "Incidentes",

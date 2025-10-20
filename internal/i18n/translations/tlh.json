@@ -56,7 +56,8 @@
     "close": "SoQ",
     "reopen": "poQ chu'",
     "assign": "nob",
-    "unassign": "nobHa'"
+    "unassign": "nobHa'",
+    "not_closed": "SoQbe'"
   },
   "status": {
     "new": "chu'",

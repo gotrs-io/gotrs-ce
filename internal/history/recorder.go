@@ -22,6 +22,7 @@ const (
 	TypeSetPendingTime    = "SetPendingTime"
 	TypeOwnerUpdate       = "OwnerUpdate"
 	TypeResponsibleUpdate = "ResponsibleUpdate"
+	TypeMerged            = "Merged"
 )
 
 const maxHistoryNameLength = 200

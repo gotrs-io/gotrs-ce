@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -9,6 +10,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/history"
+	"github.com/gotrs-io/gotrs-ce/internal/models"
+	"github.com/gotrs-io/gotrs-ce/internal/repository"
 )
 
 // MergeRequest represents a ticket merge request
@@ -32,7 +38,7 @@ type MergeHistory struct {
 }
 
 // Mock data store for merge tracking (in production, this would be in database)
-var mergedTickets = make(map[int]int)        // Maps merged ticket ID to primary ticket ID
+var mergedTickets = make(map[int]int)             // Maps merged ticket ID to primary ticket ID
 var mergeHistories = make(map[int][]MergeHistory) // Maps ticket ID to its merge history
 
 // handleMergeTickets handles the merging of multiple tickets into one
@@ -93,7 +99,7 @@ func handleMergeTickets(c *gin.Context) {
 	// Check permissions
 	userRole, _ := c.Get("user_role")
 	userID, _ := c.Get("user_id")
-	
+
 	if userRole == "customer" {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Customers are not authorized to merge tickets"})
 		return
@@ -122,13 +128,13 @@ func handleMergeTickets(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Ticket %d not found", id)})
 			return
 		}
-		
+
 		// Check agent permissions for each ticket
 		if userRole == "agent" && !isAgentAssigned(ticket, userID) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "You are not authorized to merge these tickets"})
 			return
 		}
-		
+
 		mergeTicketList = append(mergeTicketList, ticket)
 	}
 
@@ -142,7 +148,7 @@ func handleMergeTickets(c *gin.Context) {
 	// Perform merge
 	mergeID := uuid.New().String()
 	mergedAt := time.Now()
-	
+
 	// Mark tickets as merged
 	for _, id := range ticketIDs {
 		mergedTickets[id] = primaryID
@@ -156,11 +162,13 @@ func handleMergeTickets(c *gin.Context) {
 		PerformedBy: "Demo Agent", // TODO: Get from auth context
 		PerformedAt: mergedAt,
 	}
-	
+
 	if mergeHistories[primaryID] == nil {
 		mergeHistories[primaryID] = []MergeHistory{}
 	}
 	mergeHistories[primaryID] = append(mergeHistories[primaryID], history)
+
+	recordMergeHistory(c, primaryID, ticketIDs, req.Reason)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":           "Tickets merged successfully",
@@ -200,6 +208,7 @@ func handleUnmergeTicket(c *gin.Context) {
 
 	// Unmerge the ticket
 	delete(mergedTickets, ticketID)
+	recordUnmergeHistory(c, primaryID, ticketID, req.Reason)
 
 	// Record unmerge history
 	history := MergeHistory{
@@ -209,7 +218,7 @@ func handleUnmergeTicket(c *gin.Context) {
 		PerformedBy: "Demo Agent", // TODO: Get from auth context
 		PerformedAt: time.Now(),
 	}
-	
+
 	if mergeHistories[primaryID] == nil {
 		mergeHistories[primaryID] = []MergeHistory{}
 	}
@@ -262,26 +271,26 @@ func validateMerge(primaryTicket map[string]interface{}, mergeTickets []map[stri
 	primaryStatus := primaryTicket["status"].(string)
 
 	// Check if primary ticket is closed
-    if primaryStatus == "closed" {
-        return false, fmt.Errorf("Cannot merge into closed ticket")
-    }
+	if primaryStatus == "closed" {
+		return false, fmt.Errorf("Cannot merge into closed ticket")
+	}
 
 	for _, ticket := range mergeTickets {
 		// Check customer match
-        if ticket["customer"].(string) != primaryCustomer {
-            return false, fmt.Errorf("Cannot merge tickets from different customers")
-        }
+		if ticket["customer"].(string) != primaryCustomer {
+			return false, fmt.Errorf("Cannot merge tickets from different customers")
+		}
 
 		// Check if ticket is closed
-        if ticket["status"].(string) == "closed" {
-            return false, fmt.Errorf("Cannot merge closed tickets")
-        }
+		if ticket["status"].(string) == "closed" {
+			return false, fmt.Errorf("Cannot merge closed tickets")
+		}
 
 		// Check if ticket is already merged
-        if mergedInto, ok := ticket["merged_into"]; ok && mergedInto != nil {
-            ticketID := ticket["id"].(int)
-            return false, fmt.Errorf("Ticket %d is already merged", ticketID)
-        }
+		if mergedInto, ok := ticket["merged_into"]; ok && mergedInto != nil {
+			ticketID := ticket["id"].(int)
+			return false, fmt.Errorf("Ticket %d is already merged", ticketID)
+		}
 	}
 
 	return true, nil
@@ -329,7 +338,7 @@ func getMockTicket(id int) map[string]interface{} {
 		}
 		return ticket
 	}
-	
+
 	return nil
 }
 
@@ -339,11 +348,196 @@ func isAgentAssigned(ticket map[string]interface{}, userID interface{}) bool {
 	if !ok {
 		return false
 	}
-	
+
 	agentID, ok := userID.(int)
 	if !ok {
 		return false
 	}
-	
+
 	return assignedTo == agentID
+}
+
+func recordMergeHistory(c *gin.Context, primaryID int, mergedIDs []int, reason string) {
+	if primaryID <= 0 || len(mergedIDs) == 0 {
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		return
+	}
+
+	repo := repository.NewTicketRepository(db)
+	primaryTicket, err := repo.GetByID(uint(primaryID))
+	if err != nil {
+		log.Printf("history merge load primary %d failed: %v", primaryID, err)
+		return
+	}
+
+	recorder := history.NewRecorder(repo)
+	ctx := c.Request.Context()
+	actorID := resolveActorID(c)
+	reason = strings.TrimSpace(reason)
+
+	mergedTickets := make([]*models.Ticket, 0, len(mergedIDs))
+	labels := make([]string, 0, len(mergedIDs))
+	for _, id := range mergedIDs {
+		if id <= 0 {
+			continue
+		}
+		ticket, terr := repo.GetByID(uint(id))
+		if terr != nil {
+			log.Printf("history merge load ticket %d failed: %v", id, terr)
+			continue
+		}
+		mergedTickets = append(mergedTickets, ticket)
+		labels = append(labels, ticketLabel(ticket))
+	}
+
+	if len(mergedTickets) == 0 {
+		return
+	}
+
+	targetMsg := mergeSummaryMessage(labels, reason)
+	if err := recorder.Record(ctx, nil, primaryTicket, nil, history.TypeMerged, targetMsg, actorID); err != nil {
+		log.Printf("history merge record primary %d failed: %v", primaryID, err)
+	}
+
+	childMsg := mergeChildMessage(ticketLabel(primaryTicket), reason)
+	for _, ticket := range mergedTickets {
+		if err := recorder.Record(ctx, nil, ticket, nil, history.TypeMerged, childMsg, actorID); err != nil {
+			log.Printf("history merge record ticket %d failed: %v", ticket.ID, err)
+		}
+	}
+}
+
+func recordUnmergeHistory(c *gin.Context, parentID, childID int, reason string) {
+	if parentID <= 0 || childID <= 0 {
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		return
+	}
+
+	repo := repository.NewTicketRepository(db)
+	parentTicket, err := repo.GetByID(uint(parentID))
+	if err != nil {
+		log.Printf("history unmerge load parent %d failed: %v", parentID, err)
+		return
+	}
+
+	childTicket, err := repo.GetByID(uint(childID))
+	if err != nil {
+		log.Printf("history unmerge load child %d failed: %v", childID, err)
+		return
+	}
+
+	recorder := history.NewRecorder(repo)
+	ctx := c.Request.Context()
+	actorID := resolveActorID(c)
+	reason = strings.TrimSpace(reason)
+
+	parentMsg := unmergeParentMessage(ticketLabel(childTicket), reason)
+	if err := recorder.Record(ctx, nil, parentTicket, nil, history.TypeMerged, parentMsg, actorID); err != nil {
+		log.Printf("history unmerge record parent %d failed: %v", parentID, err)
+	}
+
+	childMsg := unmergeChildMessage(ticketLabel(parentTicket), reason)
+	if err := recorder.Record(ctx, nil, childTicket, nil, history.TypeMerged, childMsg, actorID); err != nil {
+		log.Printf("history unmerge record child %d failed: %v", childID, err)
+	}
+}
+
+func resolveActorID(c *gin.Context) int {
+	if c == nil {
+		return 1
+	}
+	if raw, ok := c.Get("user_id"); ok {
+		switch v := raw.(type) {
+		case int:
+			if v > 0 {
+				return v
+			}
+		case uint:
+			if v > 0 {
+				return int(v)
+			}
+		case int64:
+			if v > 0 {
+				return int(v)
+			}
+		case uint64:
+			if v > 0 {
+				return int(v)
+			}
+		case string:
+			if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+				return parsed
+			}
+		}
+	}
+	if userVal, ok := c.Get("user"); ok {
+		if user, ok := userVal.(*models.User); ok && user.ID > 0 {
+			return int(user.ID)
+		}
+	}
+	return 1
+}
+
+func ticketLabel(ticket *models.Ticket) string {
+	if ticket == nil {
+		return ""
+	}
+	tn := strings.TrimSpace(ticket.TicketNumber)
+	if tn != "" {
+		return fmt.Sprintf("#%s", tn)
+	}
+	if ticket.ID > 0 {
+		return fmt.Sprintf("#%d", ticket.ID)
+	}
+	return "ticket"
+}
+
+func mergeSummaryMessage(labels []string, reason string) string {
+	if len(labels) == 0 {
+		return appendReason("Tickets merged", reason)
+	}
+	base := ""
+	if len(labels) == 1 {
+		base = fmt.Sprintf("Merged ticket %s into this ticket", labels[0])
+	} else {
+		base = fmt.Sprintf("Merged tickets %s into this ticket", strings.Join(labels, ", "))
+	}
+	return appendReason(base, reason)
+}
+
+func mergeChildMessage(targetLabel, reason string) string {
+	if targetLabel == "" {
+		targetLabel = "target ticket"
+	}
+	return appendReason(fmt.Sprintf("Merged into ticket %s", targetLabel), reason)
+}
+
+func unmergeParentMessage(childLabel, reason string) string {
+	if childLabel == "" {
+		childLabel = "ticket"
+	}
+	return appendReason(fmt.Sprintf("Unmerged ticket %s", childLabel), reason)
+}
+
+func unmergeChildMessage(parentLabel, reason string) string {
+	if parentLabel == "" {
+		parentLabel = "ticket"
+	}
+	return appendReason(fmt.Sprintf("Unmerged from ticket %s", parentLabel), reason)
+}
+
+func appendReason(message, reason string) string {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return message
+	}
+	return fmt.Sprintf("%s — %s", message, reason)
 }

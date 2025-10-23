@@ -14,6 +14,7 @@ import (
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/history"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	"github.com/gotrs-io/gotrs-ce/internal/utils"
 )
@@ -652,6 +653,7 @@ func handleAgentTicketReply(db *sql.DB) gin.HandlerFunc {
 func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ticketID := c.Param("id")
+		ticketID = strings.TrimSpace(ticketID)
 
 		// Get body content - try JSON first, then form data
 		var body string
@@ -725,6 +727,24 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 			c.JSON(http.StatusOK, gin.H{"success": true, "article_id": 1})
 			return
 		}
+		if db == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+
+		tid, err := strconv.Atoi(ticketID)
+		if err != nil || tid <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket id"})
+			return
+		}
+
+		ticketRepo := repository.NewTicketRepository(db)
+		prevTicket, prevErr := ticketRepo.GetByID(uint(tid))
+		if prevErr != nil {
+			log.Printf("Error loading ticket %s before note: %v", ticketID, prevErr)
+			c.JSON(http.StatusNotFound, gin.H{"error": "Ticket not found"})
+			return
+		}
 
 		var (
 			nextStateID      int
@@ -796,7 +816,7 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 								create_time, create_by, change_time, change_by)
 			VALUES ($1, 1, $2, $3, CURRENT_TIMESTAMP, $4, CURRENT_TIMESTAMP, $4)
 			RETURNING id
-		`), ticketID, channelID, isVisibleForCustomer, userID, userID).Scan(&articleID)
+		`), tid, channelID, isVisibleForCustomer, userID, userID).Scan(&articleID)
 
 		if err != nil {
 			log.Printf("Error creating article: %v", err)
@@ -838,7 +858,7 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 				UPDATE ticket
 				SET ticket_state_id = $1, until_time = $2, change_time = CURRENT_TIMESTAMP, change_by = $3
 				WHERE id = $4
-			`), nextStateID, pendingUntilUnix, userID, ticketID); err != nil {
+			`), nextStateID, pendingUntilUnix, userID, tid); err != nil {
 				log.Printf("Error updating ticket state from note: %v", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update ticket state"})
 				return
@@ -848,7 +868,7 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 				UPDATE ticket
 				SET change_time = CURRENT_TIMESTAMP, change_by = $1
 				WHERE id = $2
-			`), userID, ticketID); err != nil {
+			`), userID, tid); err != nil {
 				log.Printf("Error updating ticket: %v", err)
 			}
 		}
@@ -862,20 +882,98 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 
 		// Persist time accounting (after commit to avoid orphaning on rollback)
 		if timeUnits > 0 {
-			if tid, err := strconv.Atoi(ticketID); err == nil {
-				aid := int(articleID)
-				uid := int(userID)
-				if err := saveTimeEntry(db, tid, &aid, timeUnits, uid); err != nil {
-					log.Printf("Failed to save time entry for ticket %d article %d: %v", tid, aid, err)
-				} else {
-					log.Printf("Saved time entry for ticket %d article %d: %d minutes", tid, aid, timeUnits)
-				}
+			aid := int(articleID)
+			uid := int(userID)
+			if err := saveTimeEntry(db, tid, &aid, timeUnits, uid); err != nil {
+				log.Printf("Failed to save time entry for ticket %d article %d: %v", tid, aid, err)
 			} else {
-				log.Printf("Invalid ticket id for time entry: %s", ticketID)
+				log.Printf("Saved time entry for ticket %d article %d: %d minutes", tid, aid, timeUnits)
+			}
+		}
+
+		updatedTicket, terr := ticketRepo.GetByID(uint(tid))
+		if terr != nil {
+			log.Printf("history snapshot (agent note) failed: %v", terr)
+			c.JSON(http.StatusOK, gin.H{"success": true, "article_id": articleID})
+			return
+		}
+
+		recorder := history.NewRecorder(ticketRepo)
+		actorID := int(userID)
+		if actorID <= 0 {
+			actorID = 1
+		}
+
+		label := noteLabel(channelID, isVisibleForCustomer)
+		excerpt := history.Excerpt(body, 140)
+		message := label
+		if excerpt != "" {
+			message = fmt.Sprintf("%s — %s", label, excerpt)
+		}
+
+		aID := int(articleID)
+		if err := recorder.Record(c.Request.Context(), nil, updatedTicket, &aID, history.TypeAddNote, message, actorID); err != nil {
+			log.Printf("history record (agent note) failed: %v", err)
+		}
+
+		if stateChanged {
+			prevStateName := ""
+			if prevTicket != nil {
+				if st, serr := loadTicketState(ticketRepo, prevTicket.TicketStateID); serr == nil && st != nil {
+					prevStateName = st.Name
+				} else if serr != nil {
+					log.Printf("history agent note state lookup (prev) failed: %v", serr)
+				} else if prevTicket.TicketStateID > 0 {
+					prevStateName = fmt.Sprintf("state %d", prevTicket.TicketStateID)
+				}
+			}
+
+			newStateName := fmt.Sprintf("state %d", nextStateID)
+			if st, serr := loadTicketState(ticketRepo, nextStateID); serr == nil && st != nil {
+				newStateName = st.Name
+			} else if serr != nil {
+				log.Printf("history agent note state lookup (new) failed: %v", serr)
+			}
+
+			stateMsg := history.ChangeMessage("State", prevStateName, newStateName)
+			if strings.TrimSpace(stateMsg) == "" {
+				stateMsg = fmt.Sprintf("State set to %s", newStateName)
+			}
+			if err := recorder.Record(c.Request.Context(), nil, updatedTicket, &aID, history.TypeStateUpdate, stateMsg, actorID); err != nil {
+				log.Printf("history record (agent note state) failed: %v", err)
+			}
+
+			if pendingUntilUnix > 0 {
+				pendingMsg := fmt.Sprintf("Pending until %s", time.Unix(pendingUntilUnix, 0).In(time.Local).Format("02 Jan 2006 15:04"))
+				if err := recorder.Record(c.Request.Context(), nil, updatedTicket, &aID, history.TypeSetPendingTime, pendingMsg, actorID); err != nil {
+					log.Printf("history record (agent note pending) failed: %v", err)
+				}
+			} else if prevTicket != nil && prevTicket.UntilTime > 0 {
+				if err := recorder.Record(c.Request.Context(), nil, updatedTicket, &aID, history.TypeSetPendingTime, "Pending time cleared", actorID); err != nil {
+					log.Printf("history record (agent note pending clear) failed: %v", err)
+				}
 			}
 		}
 
 		c.JSON(http.StatusOK, gin.H{"success": true, "article_id": articleID})
+	}
+}
+
+func noteLabel(channelID int, visibleForCustomer int) string {
+	if visibleForCustomer == 1 {
+		return "Customer note added"
+	}
+	switch channelID {
+	case 1:
+		return "Email note added"
+	case 2:
+		return "Phone note added"
+	case 3:
+		return "Internal note added"
+	case 4:
+		return "Chat note added"
+	default:
+		return "Note added"
 	}
 }
 
@@ -1113,6 +1211,11 @@ func handleAgentTicketMerge(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sourceTicketID := c.Param("id")
 		targetTN := c.PostForm("target_tn")
+		sourceID, parseErr := strconv.Atoi(sourceTicketID)
+		if parseErr != nil || sourceID <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
+			return
+		}
 
 		if targetTN == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Target ticket number required"})
@@ -1168,6 +1271,8 @@ func handleAgentTicketMerge(db *sql.DB) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete merge"})
 			return
 		}
+
+		recordMergeHistory(c, targetTicketID, []int{sourceID}, "")
 
 		c.JSON(http.StatusOK, gin.H{
 			"success":       true,

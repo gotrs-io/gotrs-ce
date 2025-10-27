@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"log"
 	"math"
 	"net/http"
@@ -2223,6 +2224,8 @@ func renderTicketsTestFallback(c *gin.Context) {
 	status := c.DefaultQuery("status", "all")
 	priority := c.DefaultQuery("priority", "all")
 	queue := c.DefaultQuery("queue", "all")
+	search := strings.TrimSpace(c.Query("search"))
+	escapedSearch := template.HTMLEscapeString(search)
 
 	title := "Tickets"
 	if status == "open" || status == "2" {
@@ -2231,6 +2234,11 @@ func renderTicketsTestFallback(c *gin.Context) {
 
 	html := "<h1>" + title + "</h1>"
 	html += `<form id="filter-form" method="GET" hx-get="/api/tickets" hx-target="#ticket-list" hx-trigger="submit">`
+	html += `<div class="search-bar">`
+	html += `<label for="search-input">Search</label>`
+	html += `<input type="search" id="search-input" name="search" value="` + escapedSearch + `" placeholder="Search tickets" />`
+	html += `<button type="submit" id="search-btn">Search</button>`
+	html += `</div>`
 	html += `<label>Status</label><select name="status">`
 	html += `<option value="all"` + sel(status, "all") + `>all</option>`
 	html += `<option value="new"` + sel(status, "new") + `>new</option>`
@@ -2251,7 +2259,7 @@ func renderTicketsTestFallback(c *gin.Context) {
 	html += `<option value="2"` + sel(queue, "2") + `>Technical Support</option>`
 	html += `</select>`
 	html += `<button type="submit">Apply Filters</button>`
-	html += `<button type="reset" id="clear-filters">Clear</button>`
+	html += `<button type="reset" id="clear-filters-btn">Clear</button>`
 	html += `</form>`
 
 	// Render active filter badges (include × remove icon to satisfy tests)
@@ -2264,6 +2272,9 @@ func renderTicketsTestFallback(c *gin.Context) {
 	}
 	if queue != "" && queue != "all" {
 		html += `<span class="badge queue-badge">` + queue + ` <span aria-label="remove queue" role="button">×</span></span>`
+	}
+	if search != "" {
+		html += `<span class="badge search-badge">` + template.HTMLEscapeString(search) + ` <span aria-label="remove search" role="button">×</span></span>`
 	}
 	html += `</div>`
 

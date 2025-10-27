@@ -487,9 +487,9 @@ func (r *TicketRepository) List(req *models.TicketListRequest) (*models.TicketLi
 	}
 
 	if req.Search != "" {
-		filters = append(filters, fmt.Sprintf(" AND (t.title ILIKE $%d OR t.tn ILIKE $%d)", argCount, argCount))
-		args = append(args, "%"+req.Search+"%")
-		argCount++
+		filters = append(filters, fmt.Sprintf(" AND (t.title ILIKE $%d OR t.tn ILIKE $%d)", argCount, argCount+1))
+		args = append(args, "%"+req.Search+"%", "%"+req.Search+"%")
+		argCount += 2
 	}
 
 	if req.StartDate != nil {

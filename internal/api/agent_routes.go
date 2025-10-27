@@ -350,10 +350,16 @@ func handleAgentTickets(db *sql.DB) gin.HandlerFunc {
 
 		// Apply search
 		if search != "" {
+			pattern := "%" + search + "%"
 			argCount++
+			first := argCount
+			argCount++
+			second := argCount
+			argCount++
+			third := argCount
 			query += fmt.Sprintf(" AND (t.tn ILIKE $%d OR t.title ILIKE $%d OR c.login ILIKE $%d)",
-				argCount, argCount, argCount)
-			args = append(args, "%"+search+"%")
+				first, second, third)
+			args = append(args, pattern, pattern, pattern)
 		}
 
 		// Add ordering

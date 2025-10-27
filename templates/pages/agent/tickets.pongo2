@@ -24,7 +24,7 @@
             <form method="get" action="/agent/tickets" class="space-y-4 sm:space-y-0 sm:flex sm:items-center sm:space-x-4">
                 <!-- Search -->
                 <div class="flex-1">
-                    <input type="text" name="search" value="{{ CurrentFilters.search }}"
+                    <input id="search-input" type="text" name="search" value="{{ CurrentFilters.search }}"
                            placeholder="Search by ticket number, title, or customer..."
                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
                 </div>
@@ -63,7 +63,7 @@
 
                 <!-- Buttons -->
                 <div class="flex space-x-2">
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <button id="search-btn" type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                         Filter
                     </button>
                     <a href="/agent/tickets" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">

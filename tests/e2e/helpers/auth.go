@@ -63,7 +63,12 @@ func (a *AuthHelper) Login(email, password string) error {
 	errorMsg := a.browser.Page.Locator("#error-message")
 	if count, _ := errorMsg.Count(); count > 0 {
 		text, _ := errorMsg.TextContent()
-		return fmt.Errorf("login failed: %s", text)
+		html, _ := a.browser.Page.Content()
+		snippet := strings.TrimSpace(html)
+		if len(snippet) > 400 {
+			snippet = snippet[:400]
+		}
+		return fmt.Errorf("login failed: %s; snippet: %s", strings.TrimSpace(text), snippet)
 	}
 
 	return nil

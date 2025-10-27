@@ -47,13 +47,8 @@ func TestAgentNoteBlockquoteAlignment(t *testing.T) {
 	noteHTML := fmt.Sprintf("<blockquote>%s</blockquote>", noteText)
 	require.NoError(t, postNote(t, browser, ids.ID, noteHTML, true))
 
-	_, err := browser.Page.Reload()
+	_, err = browser.Page.Reload()
 	require.NoError(t, err)
-
-	submitBtn := browser.Page.Locator("#noteForm button[type='submit']")
-	require.NoError(t, submitBtn.Click())
-
-	require.NoError(t, browser.Page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateLoad}))
 	require.NoError(t, browser.Page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateNetworkidle}))
 	pageHTML, err := browser.Page.Content()
 	require.NoError(t, err)

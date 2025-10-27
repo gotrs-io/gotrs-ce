@@ -16,6 +16,7 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 ### Fixed
 - Ticket history HTMX fragment now resolves article subjects via `article_data_mime`, eliminating 500 errors on MariaDB installs.
 - Ticket links fragment works on both PostgreSQL and MySQL after duplicating the ticket ID parameter when `database.ConvertQuery` expands `$1` placeholders.
+- Agent ticket search for MariaDB uses distinct placeholders per column, preventing the "expected 3 arguments, got 1" SQL error.
 
 ### Removed
 - _Nothing yet._

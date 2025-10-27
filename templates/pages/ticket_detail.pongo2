@@ -2,8 +2,15 @@
 
 {% block title %}Ticket {{ Ticket.tn }} - GOTRS{% endblock %}
 
-{% block styles %}
+{% block head %}
+{{ block.super }}
 <style>
+div[id^="note-content-"] {
+    margin: 0 !important;
+    padding: 0 !important;
+    text-indent: 0 !important;
+}
+
 /* Table styles for note content */
 div[id^="note-content-"] table {
     border-collapse: collapse !important;
@@ -47,6 +54,69 @@ div[id^="note-content-"] table tbody tr {
 
 .dark div[id^="note-content-"] table tbody tr {
     border-bottom: 1px solid #4b5563 !important;
+}
+
+div[id^="note-content-"] blockquote {
+    margin: 1rem 0 1rem 1.5rem !important;
+    padding: 0.75rem 0 0.75rem 1.25rem !important;
+    border-left: 4px solid #e5e7eb !important;
+    background-color: #f9fafb !important;
+}
+
+.dark div[id^="note-content-"] blockquote {
+    border-left-color: #4b5563 !important;
+    background-color: #1f2937 !important;
+}
+
+div[id^="note-content-"].prose :where(blockquote):not(:where([class~="not-prose"] *)) {
+    margin: 1rem 0 1rem 1.5rem !important;
+    padding: 0.75rem 0 0.75rem 1.25rem !important;
+    border-left-width: 4px !important;
+    border-left: 4px solid #e5e7eb !important;
+    background-color: #f9fafb !important;
+}
+
+.dark div[id^="note-content-"].prose :where(blockquote):not(:where([class~="not-prose"] *)) {
+    border-left-color: #4b5563 !important;
+    background-color: #1f2937 !important;
+}
+
+div[id^="note-content-"] :where(p):not(:where([class~="not-prose"] *)) {
+    margin-inline-start: 0 !important;
+    padding-inline-start: 0 !important;
+    text-indent: 0 !important;
+}
+
+.note-entry .prose {
+    margin: 0 !important;
+    padding: 0 !important;
+    text-indent: 0 !important;
+}
+
+.note-entry .prose :where(blockquote):not(:where([class~="not-prose"] *)) {
+    margin: 1rem 0 1rem 1.5rem !important;
+    padding: 0.75rem 0 0.75rem 1.25rem !important;
+    border-left: 4px solid #e5e7eb !important;
+    background-color: #f9fafb !important;
+}
+
+.dark .note-entry .prose :where(blockquote):not(:where([class~="not-prose"] *)) {
+    border-left-color: #4b5563 !important;
+    background-color: #1f2937 !important;
+}
+
+#descriptionViewer blockquote,
+#descriptionViewer.prose :where(blockquote):not(:where([class~="not-prose"] *)) {
+    margin: 1rem 0 1rem 1.5rem !important;
+    padding: 0.75rem 0 0.75rem 1.25rem !important;
+    border-left: 4px solid #e5e7eb !important;
+    background-color: #f9fafb !important;
+}
+
+.dark #descriptionViewer blockquote,
+.dark #descriptionViewer.prose :where(blockquote):not(:where([class~="not-prose"] *)) {
+    border-left-color: #4b5563 !important;
+    background-color: #1f2937 !important;
 }
 
 .note-highlight {
@@ -111,21 +181,29 @@ div[id^="note-content-"] table tbody tr {
     <!-- Add hidden queue ID, priority ID, and status ID for JavaScript -->
     <div data-queue-id="{{ Ticket.queue_id }}" data-priority-id="{{ Ticket.priority_id }}" data-status-id="{{ Ticket.status_id }}" style="display: none;"></div>
 
-    {% if Ticket.pending_reminder_at %}
+    {% if Ticket.pending_reminder %}
     <div class="mb-6">
     <div class="rounded-md border p-4 text-sm {% if Ticket.pending_reminder_overdue %}border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/30 text-red-900 dark:text-red-100{% else %}border-blue-200 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/60 text-blue-900 dark:text-blue-50{% endif %}">
             <div class="font-medium">
-                {% if Ticket.pending_reminder_overdue %}
-                    Reminder overdue
+                {% if Ticket.pending_reminder_has_time %}
+                    {% if Ticket.pending_reminder_overdue %}
+                        Reminder overdue
+                    {% else %}
+                        Reminder scheduled
+                    {% endif %}
                 {% else %}
-                    Reminder scheduled
+                    Reminder not scheduled
                 {% endif %}
             </div>
             <p class="mt-1">
-                {% if Ticket.pending_reminder_overdue %}
-                    Reminder was scheduled for <span class="font-semibold">{{ Ticket.pending_reminder_at }}</span>{% if Ticket.pending_reminder_relative and Ticket.pending_reminder_at_iso %} (<span data-relative-time data-mode="duration" data-direction="past" data-timestamp="{{ Ticket.pending_reminder_at_iso }}">{{ Ticket.pending_reminder_relative }}</span> ago){% elif Ticket.pending_reminder_relative %} ({{ Ticket.pending_reminder_relative }} ago){% endif %}.
+                {% if Ticket.pending_reminder_has_time %}
+                    {% if Ticket.pending_reminder_overdue %}
+                        Reminder was scheduled for <span class="font-semibold">{{ Ticket.pending_reminder_at }}</span>{% if Ticket.pending_reminder_relative and Ticket.pending_reminder_at_iso %} (<span data-relative-time data-mode="duration" data-direction="past" data-timestamp="{{ Ticket.pending_reminder_at_iso }}">{{ Ticket.pending_reminder_relative }}</span> ago){% elif Ticket.pending_reminder_relative %} ({{ Ticket.pending_reminder_relative }} ago){% endif %}.
+                    {% else %}
+                        Ticket will re-open at <span class="font-semibold">{{ Ticket.pending_reminder_at }}</span>{% if Ticket.pending_reminder_relative and Ticket.pending_reminder_at_iso %} (in <span data-relative-time data-mode="duration" data-direction="future" data-timestamp="{{ Ticket.pending_reminder_at_iso }}">{{ Ticket.pending_reminder_relative }}</span>){% elif Ticket.pending_reminder_relative %} (in {{ Ticket.pending_reminder_relative }}){% endif %}.
+                    {% endif %}
                 {% else %}
-                    Ticket will re-open at <span class="font-semibold">{{ Ticket.pending_reminder_at }}</span>{% if Ticket.pending_reminder_relative and Ticket.pending_reminder_at_iso %} (in <span data-relative-time data-mode="duration" data-direction="future" data-timestamp="{{ Ticket.pending_reminder_at_iso }}">{{ Ticket.pending_reminder_relative }}</span>){% elif Ticket.pending_reminder_relative %} (in {{ Ticket.pending_reminder_relative }}){% endif %}.
+                    {{ Ticket.pending_reminder_message|default:"No reminder time scheduled." }}
                 {% endif %}
             </p>
         </div>
@@ -294,9 +372,13 @@ div[id^="note-content-"] table tbody tr {
                                                     </span>
                                                     {% endif %}
                                                 </div>
-                                                <div id="note-content-{{ note_counter }}" class="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap break-words">
+                                                {% if note.has_html %}
+                                                <div id="note-content-{{ note_counter }}" class="prose prose-sm dark:prose-invert max-w-none break-words article-content" data-article-body>
                                                     {{ note.body|safe }}
                                                 </div>
+                                                {% else %}
+                                                <div id="note-content-{{ note_counter }}" class="article-plain article-content" data-article-body>{{- note.body|escape -}}</div>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </div>

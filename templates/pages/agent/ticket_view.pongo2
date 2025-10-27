@@ -151,9 +151,9 @@
                             </div>
                             <div class="mt-2 max-w-none article-content">
                                 {% if '<p' in article.body or '<div' in article.body or '<table' in article.body or '<br' in article.body or '<ul' in article.body or '<ol' in article.body or '<h1' in article.body or '<h2' in article.body or '<h3' in article.body %}
-                                    <div data-article-body class="prose prose-sm dark:prose-invert text-sm text-gray-800 dark:text-gray-200">{{ article.body|safe }}</div>
+                                    <div data-article-body class="article-html">{{ article.body|safe }}</div>
                                 {% else %}
-                                    <div data-article-body class="whitespace-pre-wrap break-words font-mono text-sm text-gray-800 dark:text-gray-200">{{ article.body }}</div>
+                                    <div data-article-body class="article-plain">{{ article.body|escape }}</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -166,21 +166,29 @@
         </div>
     </div>
 
-    {% if ticket.pending_reminder_at %}
+    {% if ticket.pending_reminder %}
     <div class="mb-6">
     <div class="rounded-md border p-4 text-sm {% if ticket.pending_reminder_overdue %}border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/30 text-red-900 dark:text-red-100{% else %}border-blue-200 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/60 text-blue-900 dark:text-blue-50{% endif %}">
             <div class="font-medium">
-                {% if ticket.pending_reminder_overdue %}
-                    Reminder overdue
+                {% if ticket.pending_reminder_has_time %}
+                    {% if ticket.pending_reminder_overdue %}
+                        Reminder overdue
+                    {% else %}
+                        Reminder scheduled
+                    {% endif %}
                 {% else %}
-                    Reminder scheduled
+                    Reminder not scheduled
                 {% endif %}
             </div>
             <p class="mt-1">
-                {% if ticket.pending_reminder_overdue %}
-                    Reminder was scheduled for <span class="font-semibold">{{ ticket.pending_reminder_at }}</span>{% if ticket.pending_reminder_relative and ticket.pending_reminder_at_iso %} (<span data-relative-time data-mode="duration" data-direction="past" data-timestamp="{{ ticket.pending_reminder_at_iso }}">{{ ticket.pending_reminder_relative }}</span> ago){% elif ticket.pending_reminder_relative %} ({{ ticket.pending_reminder_relative }} ago){% endif %}.
+                {% if ticket.pending_reminder_has_time %}
+                    {% if ticket.pending_reminder_overdue %}
+                        Reminder was scheduled for <span class="font-semibold">{{ ticket.pending_reminder_at }}</span>{% if ticket.pending_reminder_relative and ticket.pending_reminder_at_iso %} (<span data-relative-time data-mode="duration" data-direction="past" data-timestamp="{{ ticket.pending_reminder_at_iso }}">{{ ticket.pending_reminder_relative }}</span> ago){% elif ticket.pending_reminder_relative %} ({{ ticket.pending_reminder_relative }} ago){% endif %}.
+                    {% else %}
+                        Ticket will re-open at <span class="font-semibold">{{ ticket.pending_reminder_at }}</span>{% if ticket.pending_reminder_relative and ticket.pending_reminder_at_iso %} (in <span data-relative-time data-mode="duration" data-direction="future" data-timestamp="{{ ticket.pending_reminder_at_iso }}">{{ ticket.pending_reminder_relative }}</span>){% elif ticket.pending_reminder_relative %} (in {{ ticket.pending_reminder_relative }}){% endif %}.
+                    {% endif %}
                 {% else %}
-                    Ticket will re-open at <span class="font-semibold">{{ ticket.pending_reminder_at }}</span>{% if ticket.pending_reminder_relative and ticket.pending_reminder_at_iso %} (in <span data-relative-time data-mode="duration" data-direction="future" data-timestamp="{{ ticket.pending_reminder_at_iso }}">{{ ticket.pending_reminder_relative }}</span>){% elif ticket.pending_reminder_relative %} (in {{ ticket.pending_reminder_relative }}){% endif %}.
+                    {{ ticket.pending_reminder_message|default:"No reminder time scheduled." }}
                 {% endif %}
             </p>
         </div>
@@ -247,9 +255,9 @@
                                 <div class="mt-2 max-w-none article-content">
                                     {# Treat as HTML only if we see common block/line break tags. Otherwise preserve whitespace. #}
                                     {% if '<p' in article.body or '<div' in article.body or '<table' in article.body or '<br' in article.body or '<ul' in article.body or '<ol' in article.body or '<h1' in article.body or '<h2' in article.body or '<h3' in article.body %}
-                                        <div data-article-body class="prose prose-sm dark:prose-invert text-sm text-gray-800 dark:text-gray-200">{{ article.body|safe }}</div>
+                                        <div data-article-body class="prose prose-sm dark:prose-invert text-sm text-gray-800 dark:text-gray-200 indent-0">{{ article.body|safe }}</div>
                                     {% else %}
-                                        <div data-article-body class="whitespace-pre-wrap break-words font-mono text-sm text-gray-800 dark:text-gray-200">{{ article.body }}</div>
+                                        <div data-article-body class="whitespace-pre-wrap break-words font-mono text-sm text-gray-800 dark:text-gray-200 indent-0">{{ article.body }}</div>
                                     {% endif %}
                                 </div>
                                 {% if article.attachments %}

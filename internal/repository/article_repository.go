@@ -12,8 +12,8 @@ import (
 
 // ArticleRepository handles database operations for articles
 type ArticleRepository struct {
-	db *sql.DB
-	hasArticleTypeID *bool
+	db                        *sql.DB
+	hasArticleTypeID          *bool
 	hasCommunicationChannelID *bool
 }
 
@@ -40,8 +40,12 @@ func (r *ArticleRepository) Create(article *models.Article) error {
 	if article.IsVisibleForCustomer == 0 {
 		article.IsVisibleForCustomer = 1 // Visible by default
 	}
-	if article.CreateBy == 0 { article.CreateBy = 1 }
-	if article.ChangeBy == 0 { article.ChangeBy = article.CreateBy }
+	if article.CreateBy == 0 {
+		article.CreateBy = 1
+	}
+	if article.ChangeBy == 0 {
+		article.ChangeBy = article.CreateBy
+	}
 
 	// Begin transaction
 	tx, err := r.db.Begin()
@@ -80,7 +84,11 @@ func (r *ArticleRepository) Create(article *models.Article) error {
 	// Build placeholders according to current DB
 	placeholders := make([]string, len(cols))
 	for i := range cols {
-		if database.IsMySQL() { placeholders[i] = "?" } else { placeholders[i] = fmt.Sprintf("$%d", i+1) }
+		if database.IsMySQL() {
+			placeholders[i] = "?"
+		} else {
+			placeholders[i] = fmt.Sprintf("$%d", i+1)
+		}
 	}
 	articleQuery := fmt.Sprintf("INSERT INTO article (%s) VALUES (%s) RETURNING id", strings.Join(cols, ", "), strings.Join(placeholders, ", "))
 	articleQuery = database.ConvertPlaceholders(articleQuery)
@@ -144,8 +152,8 @@ func (r *ArticleRepository) Create(article *models.Article) error {
 			"text/html; charset=utf-8",
 			contentSize,
 			bodyStr,
-			nil, // content_id
-			"",  // content_alternative
+			nil,      // content_id
+			"",       // content_alternative
 			"inline", // disposition - inline for HTML body
 			now,
 			article.CreateBy,
@@ -227,17 +235,23 @@ func (r *ArticleRepository) ensureArticleTypeColumn() (bool, error) {
 
 // ensureCommunicationChannelColumn checks once whether article.communication_channel_id exists
 func (r *ArticleRepository) ensureCommunicationChannelColumn() (bool, error) {
-	if r.hasCommunicationChannelID != nil { return *r.hasCommunicationChannelID, nil }
+	if r.hasCommunicationChannelID != nil {
+		return *r.hasCommunicationChannelID, nil
+	}
 	has := false
 	if database.IsMySQL() {
 		row := r.db.QueryRow(`SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'article' AND COLUMN_NAME = 'communication_channel_id'`)
 		var cnt int
-		if err := row.Scan(&cnt); err != nil { return false, err }
+		if err := row.Scan(&cnt); err != nil {
+			return false, err
+		}
 		has = cnt > 0
 	} else {
 		row := r.db.QueryRow(`SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'article' AND column_name = 'communication_channel_id'`)
 		var cnt int
-		if err := row.Scan(&cnt); err != nil { return false, err }
+		if err := row.Scan(&cnt); err != nil {
+			return false, err
+		}
 		has = cnt > 0
 	}
 	r.hasCommunicationChannelID = &has
@@ -344,7 +358,7 @@ func (r *ArticleRepository) GetHTMLBodyContent(articleID uint) (string, error) {
 // GetByTicketID retrieves all articles for a specific ticket
 func (r *ArticleRepository) GetByTicketID(ticketID uint, includeInternal bool) ([]models.Article, error) {
 	fmt.Printf("DEBUG: GetByTicketID called with ticketID=%d, includeInternal=%v\n", ticketID, includeInternal)
-	
+
 	query := database.ConvertPlaceholders(`
 		SELECT 
 			a.id, a.ticket_id, a.article_sender_type_id,
@@ -359,7 +373,7 @@ func (r *ArticleRepository) GetByTicketID(ticketID uint, includeInternal bool) (
 		query += " AND a.is_visible_for_customer = 1"
 	}
 
-	query += " ORDER BY a.create_time ASC"
+	query += " ORDER BY a.create_time ASC, a.id ASC"
 
 	fmt.Printf("DEBUG: Executing query: %s with ticketID=%d\n", query, ticketID)
 	rows, err := r.db.Query(query, ticketID)

@@ -21,6 +21,10 @@ import (
 func TestMain(m *testing.M) {
 	ensureTestEnvironment()
 
+	if os.Getenv("SKIP_DB_WAIT") == "1" {
+		os.Exit(m.Run())
+	}
+
 	if err := waitForTestDatabase(45 * time.Second); err != nil {
 		fmt.Fprintf(os.Stderr, "test database unavailable: %v\n", err)
 		os.Exit(1)

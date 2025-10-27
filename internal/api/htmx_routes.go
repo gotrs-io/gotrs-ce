@@ -211,6 +211,8 @@ type pendingReminderMeta struct {
 	atISO    string
 	relative string
 	overdue  bool
+	hasTime  bool
+	message  string
 }
 
 func computePendingReminderMeta(ticket *models.Ticket, stateName string, stateTypeID int, now time.Time) pendingReminderMeta {
@@ -223,6 +225,7 @@ func computePendingReminderMeta(ticket *models.Ticket, stateName string, stateTy
 		pendingAt := time.Unix(int64(ticket.UntilTime), 0).UTC()
 		diff := pendingAt.Sub(now)
 		meta.overdue = diff < 0
+		meta.hasTime = true
 		if meta.overdue {
 			meta.relative = humanizeDuration(-diff)
 		} else {
@@ -233,7 +236,7 @@ func computePendingReminderMeta(ticket *models.Ticket, stateName string, stateTy
 		return meta
 	}
 	if meta.pending {
-		meta.at = pendingReminderNoTimeLabel
+		meta.message = pendingReminderNoTimeLabel
 	}
 	return meta
 }
@@ -1205,9 +1208,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 			// Use the full handler
 			handleAPITickets(c)
 		})
-		if os.Getenv("APP_ENV") != "test" {
-			protectedAPI.POST("/tickets", handleCreateTicket)
-		}
+		protectedAPI.POST("/tickets", handleCreateTicket)
 		protectedAPI.GET("/tickets/:id", handleGetTicket)
 		protectedAPI.PUT("/tickets/:id", handleUpdateTicket)
 		protectedAPI.DELETE("/tickets/:id", handleDeleteTicket)
@@ -3355,14 +3356,23 @@ func handleTicketDetail(c *gin.Context) {
 		ticketData["auto_close_overdue"] = autoCloseMeta.overdue
 		ticketData["auto_close_relative"] = autoCloseMeta.relative
 	}
-	if pendingReminderMeta.at != "" && pendingReminderMeta.pending {
-		ticketData["pending_reminder_at"] = pendingReminderMeta.at
-		ticketData["pending_reminder_overdue"] = pendingReminderMeta.overdue
-		if pendingReminderMeta.relative != "" {
-			ticketData["pending_reminder_relative"] = pendingReminderMeta.relative
-		}
-		if pendingReminderMeta.atISO != "" {
-			ticketData["pending_reminder_at_iso"] = pendingReminderMeta.atISO
+	if pendingReminderMeta.pending {
+		ticketData["pending_reminder"] = true
+		ticketData["pending_reminder_has_time"] = pendingReminderMeta.hasTime
+		if pendingReminderMeta.hasTime {
+			ticketData["pending_reminder_at"] = pendingReminderMeta.at
+			ticketData["pending_reminder_overdue"] = pendingReminderMeta.overdue
+			if pendingReminderMeta.relative != "" {
+				ticketData["pending_reminder_relative"] = pendingReminderMeta.relative
+			}
+			if pendingReminderMeta.atISO != "" {
+				ticketData["pending_reminder_at_iso"] = pendingReminderMeta.atISO
+			}
+		} else {
+			if pendingReminderMeta.message != "" {
+				ticketData["pending_reminder_message"] = pendingReminderMeta.message
+			}
+			ticketData["pending_reminder_overdue"] = false
 		}
 	}
 

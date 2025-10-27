@@ -158,4 +158,95 @@
     .article-html {
         @apply text-sm text-gray-800 dark:text-gray-200;
     }
+
+    /* Normalize ticket article alignment for stray inline styles */
+    .article-content [data-article-body] {
+        text-indent: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .article-content [data-article-body] [style*="margin-left" i] {
+        margin-left: 0 !important;
+        margin-inline-start: 0 !important;
+    }
+
+    .article-content [data-article-body] [style*="padding-left" i] {
+        padding-left: 0 !important;
+    }
+
+    .article-content [data-article-body] [style*="text-indent" i] {
+        text-indent: 0 !important;
+    }
+
+    .article-content [data-article-body] [class*="ql-indent"] {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+        text-indent: 0 !important;
+    }
+
+    .article-content [data-article-body] .ql-indent-1,
+    .article-content [data-article-body] .ql-indent-2,
+    .article-content [data-article-body] .ql-indent-3,
+    .article-content [data-article-body] .ql-indent-4,
+    .article-content [data-article-body] .ql-indent-5 {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+        text-indent: 0 !important;
+    }
+
+    .article-content [data-article-body] blockquote {
+        margin: 1rem 0 1rem 1.5rem !important;
+        padding: 0.75rem 0 0.75rem 1.25rem !important;
+        border-left: 0.25rem solid rgba(209, 213, 219, 1) !important;
+        border-radius: 0.125rem;
+        background-color: rgba(249, 250, 251, 1) !important;
+    }
+
+    .dark .article-content [data-article-body] blockquote {
+        border-left-color: rgba(75, 85, 99, 1) !important;
+        background-color: rgba(17, 24, 39, 1) !important;
+    }
+
+    .article-content [data-article-body] p {
+        margin-inline-start: 0 !important;
+        padding-inline-start: 0 !important;
+        text-indent: 0 !important;
+    }
+
+    /* Normalize note alignment */
+    div[id^="note-content-"] {
+        text-indent: 0 !important;
+    }
+
+    div[id^="note-content-"] blockquote,
+    div[id^="note-content-"] p {
+        text-indent: 0 !important;
+    }
+
+    div[id^="note-content-"] blockquote {
+        margin: 1rem 0 1rem 1.5rem !important;
+        padding: 0.75rem 0 0.75rem 1.25rem !important;
+        border-left: 0.25rem solid rgba(209, 213, 219, 1) !important;
+        border-radius: 0.125rem;
+        background-color: rgba(249, 250, 251, 1) !important;
+    }
+
+    .dark div[id^="note-content-"] blockquote {
+        border-left-color: rgba(75, 85, 99, 1) !important;
+        background-color: rgba(17, 24, 39, 1) !important;
+    }
+
+    div[id^="note-content-"] [style*="margin-left" i] {
+        margin-left: 0 !important;
+        margin-inline-start: 0 !important;
+    }
+
+    div[id^="note-content-"] [style*="padding-left" i] {
+        padding-left: 0 !important;
+    }
+
+    div[id^="note-content-"] [style*="text-indent" i] {
+        text-indent: 0 !important;
+    }
 }

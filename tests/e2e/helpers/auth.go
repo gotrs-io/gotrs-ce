@@ -1,9 +1,10 @@
 package helpers
 
 import (
-    "fmt"
-    "strings"
-    "github.com/playwright-community/playwright-go"
+	"fmt"
+	"strings"
+
+	"github.com/playwright-community/playwright-go"
 )
 
 // AuthHelper provides authentication utilities for tests
@@ -78,25 +79,25 @@ func (a *AuthHelper) LoginAsAdmin() error {
 
 // Logout performs logout
 func (a *AuthHelper) Logout() error {
-    // Prefer clicking a visible logout control if present
-    logoutLink := a.browser.Page.Locator("a[href='/logout'], button:has-text('Logout')")
-    if count, _ := logoutLink.Count(); count > 0 {
-        if err := logoutLink.First().Click(); err == nil {
-            if err := a.browser.Page.WaitForURL("**/login", playwright.PageWaitForURLOptions{Timeout: playwright.Float(5000)}); err == nil {
-                return nil
-            }
-        }
-        // Fall through to direct navigation if click or wait fails
-    }
+	// Prefer clicking a visible logout control if present
+	logoutLink := a.browser.Page.Locator("a[href='/logout'], button:has-text('Logout')")
+	if count, _ := logoutLink.Count(); count > 0 {
+		if err := logoutLink.First().Click(); err == nil {
+			if err := a.browser.Page.WaitForURL("**/login", playwright.PageWaitForURLOptions{Timeout: playwright.Float(5000)}); err == nil {
+				return nil
+			}
+		}
+		// Fall through to direct navigation if click or wait fails
+	}
 
-    // Fallback: navigate directly to the logout endpoint
-    if _, err := a.browser.Page.Goto(a.browser.Config.BaseURL + "/logout"); err != nil {
-        return fmt.Errorf("failed to navigate to /logout: %w", err)
-    }
-    if err := a.browser.Page.WaitForURL("**/login", playwright.PageWaitForURLOptions{Timeout: playwright.Float(5000)}); err != nil {
-        return fmt.Errorf("logout redirect failed: %w", err)
-    }
-    return nil
+	// Fallback: navigate directly to the logout endpoint
+	if _, err := a.browser.Page.Goto(a.browser.Config.BaseURL + "/logout"); err != nil {
+		return fmt.Errorf("failed to navigate to /logout: %w", err)
+	}
+	if err := a.browser.Page.WaitForURL("**/login", playwright.PageWaitForURLOptions{Timeout: playwright.Float(5000)}); err != nil {
+		return fmt.Errorf("logout redirect failed: %w", err)
+	}
+	return nil
 }
 
 // IsLoggedIn checks if the user is currently logged in
@@ -106,13 +107,13 @@ func (a *AuthHelper) IsLoggedIn() bool {
 	if count, _ := dashboard.Count(); count > 0 {
 		return true
 	}
-	
+
 	// Or check URL
-    url := a.browser.Page.URL()
-    // Treat blank pages or non-app URLs as not logged in
-    if url == "" || strings.HasPrefix(url, "about:") || !strings.HasPrefix(url, a.browser.Config.BaseURL) {
-        return false
-    }
-    return url != a.browser.Config.BaseURL+"/login" && 
-           url != a.browser.Config.BaseURL+"/"
+	url := a.browser.Page.URL()
+	// Treat blank pages or non-app URLs as not logged in
+	if url == "" || strings.HasPrefix(url, "about:") || !strings.HasPrefix(url, a.browser.Config.BaseURL) {
+		return false
+	}
+	return url != a.browser.Config.BaseURL+"/login" &&
+		url != a.browser.Config.BaseURL+"/"
 }

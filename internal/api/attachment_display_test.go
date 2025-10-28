@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/history"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	"github.com/gotrs-io/gotrs-ce/internal/ticketnumber"
 	"github.com/stretchr/testify/assert"
@@ -127,6 +128,31 @@ func TestAttachmentDisplayInTicketDetail(t *testing.T) {
 		// Verify that attachment information is in the response
 		// The attachment should be visible in the messages HTML
 		assert.Contains(t, responseBody, testFileName, "Attachment filename should be in the response")
+
+		// Confirm ticket history recorded creation entry
+		historyQuery := database.ConvertPlaceholders(`
+			SELECT COUNT(*)
+			FROM ticket_history th
+			JOIN ticket_history_type tht ON th.history_type_id = tht.id
+			WHERE th.ticket_id = $1 AND tht.name = $2
+		`)
+		var historyCount int
+		err = db.QueryRow(historyQuery, created.ID, history.TypeNewTicket).Scan(&historyCount)
+		require.NoError(t, err)
+		assert.Greater(t, historyCount, 0, "ticket creation should record a history entry")
+
+		var historyName string
+		historyNameQuery := database.ConvertPlaceholders(`
+			SELECT th.name
+			FROM ticket_history th
+			JOIN ticket_history_type tht ON th.history_type_id = tht.id
+			WHERE th.ticket_id = $1 AND tht.name = $2
+			ORDER BY th.id DESC
+			LIMIT 1
+		`)
+		err = db.QueryRow(historyNameQuery, created.ID, history.TypeNewTicket).Scan(&historyName)
+		require.NoError(t, err)
+		assert.Contains(t, historyName, created.TicketNumber, "history payload should reference the new ticket number")
 	})
 }
 

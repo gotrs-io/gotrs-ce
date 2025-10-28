@@ -3,8 +3,11 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 	"time"
 
+	"github.com/gotrs-io/gotrs-ce/internal/history"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 )
@@ -90,6 +93,21 @@ func (s *ticketService) Create(ctx context.Context, in CreateTicketInput) (*mode
 	}
 	if err := s.repo.Create(ticket); err != nil {
 		return nil, err
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if ticket.ChangeTime.IsZero() {
+		ticket.ChangeTime = time.Now()
+	}
+
+	message := fmt.Sprintf("Ticket created (%s)", ticket.TicketNumber)
+	recorder := history.NewRecorder(s.repo)
+	if recorder != nil {
+		if err := recorder.Record(ctx, nil, ticket, nil, history.TypeNewTicket, message, in.UserID); err != nil {
+			log.Printf("ticket history record (create) failed: %v", err)
+		}
 	}
 	return ticket, nil
 }

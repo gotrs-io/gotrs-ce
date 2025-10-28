@@ -1186,7 +1186,15 @@ func (r *TicketRepository) getHistoryTypeID(ctx context.Context, name string) (i
 	query := database.ConvertPlaceholders(`SELECT id FROM ticket_history_type WHERE name = $1`)
 	var id int
 	if err := r.db.QueryRowContext(ctx, query, trimmed).Scan(&id); err != nil {
-		return 0, err
+		if !errors.Is(err, sql.ErrNoRows) {
+			return 0, err
+		}
+
+		createdID, createErr := r.ensureHistoryType(ctx, trimmed)
+		if createErr != nil {
+			return 0, createErr
+		}
+		id = createdID
 	}
 
 	r.historyMu.Lock()
@@ -1197,6 +1205,36 @@ func (r *TicketRepository) getHistoryTypeID(ctx context.Context, name string) (i
 	r.historyMu.Unlock()
 
 	return id, nil
+}
+
+func (r *TicketRepository) ensureHistoryType(ctx context.Context, name string) (int, error) {
+	if r == nil || r.db == nil {
+		return 0, errors.New("ticket repository not initialized")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	adapter := database.GetAdapter()
+	now := time.Now().UTC()
+	query := `
+		INSERT INTO ticket_history_type (
+			name, valid_id, create_time, create_by, change_time, change_by
+		) VALUES ($1,$2,$3,$4,$5,$6)
+		RETURNING id
+	`
+
+	id64, err := adapter.InsertWithReturning(r.db, database.ConvertPlaceholders(query), name, 1, now, 1, now, 1)
+	if err != nil {
+		lookup := database.ConvertPlaceholders(`SELECT id FROM ticket_history_type WHERE name = $1`)
+		var existing int
+		if scanErr := r.db.QueryRowContext(ctx, lookup, name).Scan(&existing); scanErr == nil {
+			return existing, nil
+		}
+		return 0, err
+	}
+
+	return int(id64), nil
 }
 
 // GetTicketHistoryEntries returns recent history entries for a ticket.

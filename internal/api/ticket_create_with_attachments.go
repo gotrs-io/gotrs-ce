@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/config"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/history"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	"github.com/gotrs-io/gotrs-ce/internal/service"
@@ -391,6 +392,49 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 			log.Printf("WARNING: Failed to save initial time entry for ticket %d: %v", ticket.ID, err)
 		} else {
 			log.Printf("Saved initial time entry for ticket %d: %d minutes", ticket.ID, minutes)
+		}
+	}
+
+	// Record ticket creation history entry
+	if ticketRepo != nil {
+		recorder := history.NewRecorder(ticketRepo)
+		actorID := int(createdBy)
+		if v, ok := c.Get("user_id"); ok {
+			switch t := v.(type) {
+			case int:
+				actorID = t
+			case int64:
+				actorID = int(t)
+			case uint:
+				actorID = int(t)
+			case uint64:
+				actorID = int(t)
+			case string:
+				if n, err := strconv.Atoi(t); err == nil {
+					actorID = n
+				}
+			}
+		}
+
+		var historyTicket *models.Ticket = ticket
+		if snapshot, err := ticketRepo.GetByID(uint(ticket.ID)); err == nil {
+			historyTicket = snapshot
+		} else {
+			log.Printf("history snapshot (ticket create) failed: %v", err)
+		}
+		if historyTicket != nil {
+			if historyTicket.ChangeTime.IsZero() {
+				historyTicket.ChangeTime = time.Now()
+			}
+			var articleIDPtr *int
+			if article != nil && article.ID > 0 {
+				aid := article.ID
+				articleIDPtr = &aid
+			}
+			message := fmt.Sprintf("Ticket created (%s)", historyTicket.TicketNumber)
+			if err := recorder.Record(c.Request.Context(), nil, historyTicket, articleIDPtr, history.TypeNewTicket, message, actorID); err != nil {
+				log.Printf("history record (ticket create) failed: %v", err)
+			}
 		}
 	}
 

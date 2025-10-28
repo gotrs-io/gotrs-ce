@@ -180,28 +180,28 @@ func resolveHost(host string) string {
 		return host
 	}
 
+	if strings.EqualFold(host, "localhost") {
+		return "127.0.0.1"
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	resolver := &net.Resolver{PreferGo: true}
-	if ips, err := resolver.LookupHost(ctx, host); err == nil && len(ips) > 0 {
+	if ips, err := net.DefaultResolver.LookupHost(ctx, host); err == nil && len(ips) > 0 {
 		return ips[0]
 	}
 
-	output, err := exec.Command("getent", "hosts", host).Output()
-	if err == nil {
-		fields := strings.Fields(string(output))
-		if len(fields) > 0 {
-			return fields[0]
+	if _, err := exec.LookPath("getent"); err == nil {
+		if output, err := exec.Command("getent", "hosts", host).Output(); err == nil {
+			fields := strings.Fields(string(output))
+			if len(fields) > 0 {
+				return fields[0]
+			}
 		}
 	}
 
 	switch strings.ToLower(host) {
-	case "mariadb", "mysql", "mariadb-test", "postgres", "postgres-test", "valkey", "redis", "mailhog":
-		return "127.0.0.1"
 	case "host.docker.internal", "host.containers.internal":
-		return "127.0.0.1"
-	case "localhost":
 		return "127.0.0.1"
 	}
 

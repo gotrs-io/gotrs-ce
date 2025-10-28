@@ -2,11 +2,13 @@ package repository_test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/history"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
@@ -14,6 +16,7 @@ import (
 
 func TestAddTicketHistoryEntryInsertsRow(t *testing.T) {
 	t.Setenv("DB_DRIVER", "postgres")
+	database.ResetAdapterForTest()
 
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
@@ -62,6 +65,7 @@ func TestAddTicketHistoryEntryInsertsRow(t *testing.T) {
 
 func TestAddTicketHistoryEntryCachesTypeLookup(t *testing.T) {
 	t.Setenv("DB_DRIVER", "postgres")
+	database.ResetAdapterForTest()
 
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
@@ -126,5 +130,57 @@ func TestAddTicketHistoryEntryCachesTypeLookup(t *testing.T) {
 
 	err = repo.AddTicketHistoryEntry(context.Background(), nil, entry)
 	require.NoError(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAddTicketHistoryEntryCreatesMissingType(t *testing.T) {
+	t.Setenv("DB_DRIVER", "postgres")
+	database.ResetAdapterForTest()
+
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := repository.NewTicketRepository(db)
+
+	entry := models.TicketHistoryInsert{
+		TicketID:    9,
+		TypeID:      1,
+		QueueID:     2,
+		OwnerID:     3,
+		PriorityID:  4,
+		StateID:     5,
+		CreatedBy:   6,
+		HistoryType: history.TypeNewTicket,
+		Name:        "Ticket created",
+	}
+
+	mock.ExpectQuery("SELECT id FROM ticket_history_type").
+		WithArgs(history.TypeNewTicket).
+		WillReturnError(sql.ErrNoRows)
+
+	mock.ExpectQuery("INSERT INTO ticket_history_type").
+		WithArgs(history.TypeNewTicket, 1, sqlmock.AnyArg(), 1, sqlmock.AnyArg(), 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(30))
+
+	mock.ExpectExec("INSERT INTO ticket_history").
+		WithArgs(
+			entry.Name,
+			30,
+			entry.TicketID,
+			nil,
+			entry.TypeID,
+			entry.QueueID,
+			entry.OwnerID,
+			entry.PriorityID,
+			entry.StateID,
+			sqlmock.AnyArg(),
+			entry.CreatedBy,
+			sqlmock.AnyArg(),
+			entry.CreatedBy,
+		).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	require.NoError(t, repo.AddTicketHistoryEntry(context.Background(), nil, entry))
 	require.NoError(t, mock.ExpectationsWereMet())
 }

@@ -198,6 +198,8 @@ func TestCreateTicketAPI_TitleTooLong(t *testing.T) {
 
 func TestCreateTicketAPI_DBUnavailable(t *testing.T) {
 	t.Setenv("DB_DRIVER", "postgres")
+	t.Setenv("DB_HOST", "127.0.0.1")
+	t.Setenv("DB_PORT", "59999")
 	// Ensure DB nil triggers 503 path
 	database.ResetDB() // nil DB
 	injectGenerator()

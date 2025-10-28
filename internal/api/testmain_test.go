@@ -41,12 +41,12 @@ func init() {
 
 func ensureTestEnvironment() {
 	setDefaultEnv("APP_ENV", "test")
-	setDefaultEnv("DB_DRIVER", "mysql")
-	setDefaultEnv("DB_HOST", "127.0.0.1")
-	setDefaultEnv("DB_PORT", "3308")
-	setDefaultEnv("DB_NAME", "otrs_test")
-	setDefaultEnv("DB_USER", "otrs")
-	setDefaultEnv("DB_PASSWORD", "CHANGEME")
+	setDefaultEnv("DB_DRIVER", "postgres")
+	setDefaultEnv("DB_HOST", "postgres-test")
+	setDefaultEnv("DB_PORT", "5432")
+	setDefaultEnv("DB_NAME", "gotrs_test")
+	setDefaultEnv("DB_USER", "gotrs_user")
+	setDefaultEnv("DB_PASSWORD", "gotrs_password")
 }
 
 func waitForTestDatabase(timeout time.Duration) error {

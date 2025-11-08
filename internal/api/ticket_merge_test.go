@@ -38,12 +38,12 @@ func TestMergeTickets(t *testing.T) {
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				assert.Equal(t, "Tickets merged successfully", resp["message"])
 				assert.Equal(t, float64(100), resp["primary_ticket_id"])
-				
+
 				mergedTickets := resp["merged_tickets"].([]interface{})
 				assert.Len(t, mergedTickets, 2)
 				assert.Contains(t, mergedTickets, float64(101))
 				assert.Contains(t, mergedTickets, float64(102))
-				
+
 				assert.Contains(t, resp, "merge_id")
 				assert.Contains(t, resp, "merged_at")
 			},
@@ -193,9 +193,9 @@ func TestUnmergeTickets(t *testing.T) {
 			},
 		},
 		{
-			name:     "Missing unmerge reason",
-			ticketID: "102",
-			formData: url.Values{},
+			name:       "Missing unmerge reason",
+			ticketID:   "102",
+			formData:   url.Values{},
 			wantStatus: http.StatusBadRequest,
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				assert.Contains(t, resp["error"], "Unmerge reason is required")
@@ -243,7 +243,7 @@ func TestGetMergeHistory(t *testing.T) {
 				assert.Contains(t, resp, "merge_history")
 				history := resp["merge_history"].([]interface{})
 				assert.Greater(t, len(history), 0)
-				
+
 				// Check first merge event
 				firstMerge := history[0].(map[string]interface{})
 				assert.Contains(t, firstMerge, "action") // "merged" or "unmerged"
@@ -364,14 +364,14 @@ func TestMergePermissions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
-			
+
 			// Add middleware to set user role
 			router.Use(func(c *gin.Context) {
 				c.Set("user_role", tt.userRole)
 				c.Set("user_id", 1)
 				c.Next()
 			})
-			
+
 			router.POST("/api/tickets/:id/merge", handleMergeTickets)
 
 			w := httptest.NewRecorder()
@@ -394,11 +394,11 @@ func TestMergePermissions(t *testing.T) {
 
 func TestMergeValidation(t *testing.T) {
 	tests := []struct {
-		name           string
-		primaryTicket  map[string]interface{}
-		mergeTickets   []map[string]interface{}
-		wantValid      bool
-		wantError      string
+		name          string
+		primaryTicket map[string]interface{}
+		mergeTickets  []map[string]interface{}
+		wantValid     bool
+		wantError     string
 	}{
 		{
 			name: "Valid merge - same customer",
@@ -459,9 +459,9 @@ func TestMergeValidation(t *testing.T) {
 			},
 			mergeTickets: []map[string]interface{}{
 				{
-					"id":         401,
-					"customer":   "customer@example.com",
-					"status":     "merged",
+					"id":          401,
+					"customer":    "customer@example.com",
+					"status":      "merged",
 					"merged_into": 399,
 				},
 			},
@@ -473,7 +473,7 @@ func TestMergeValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := validateMerge(tt.primaryTicket, tt.mergeTickets)
-			
+
 			if tt.wantValid {
 				assert.True(t, result)
 				assert.Nil(t, err)
@@ -490,10 +490,10 @@ func TestMergeEffects(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name          string
-		primaryID     string
-		mergeIDs      []string
-		checkEffects  func(t *testing.T, primaryTicket, mergedTickets map[string]interface{})
+		name         string
+		primaryID    string
+		mergeIDs     []string
+		checkEffects func(t *testing.T, primaryTicket, mergedTickets map[string]interface{})
 	}{
 		{
 			name:      "Merged ticket messages are combined",
@@ -503,7 +503,7 @@ func TestMergeEffects(t *testing.T) {
 				// Primary ticket should have all messages
 				messages := primary["messages"].([]interface{})
 				assert.Greater(t, len(messages), 2) // Has original + merged messages
-				
+
 				// Check messages are properly attributed
 				for _, msg := range messages {
 					m := msg.(map[string]interface{})
@@ -557,17 +557,17 @@ func TestMergeEffects(t *testing.T) {
 				},
 				"activities": []interface{}{},
 			}
-			
+
 			mergedTickets := make(map[string]interface{})
 			for _, id := range tt.mergeIDs {
 				primaryIDInt, _ := strconv.Atoi(tt.primaryID)
 				mergedTickets[id] = map[string]interface{}{
-					"id":     id,
-					"status": "merged",
+					"id":          id,
+					"status":      "merged",
 					"merged_into": float64(primaryIDInt),
 				}
 			}
-			
+
 			// Simulate merge effects
 			if tt.name == "Merged ticket messages are combined" {
 				primaryTicket["messages"] = []interface{}{
@@ -576,16 +576,16 @@ func TestMergeEffects(t *testing.T) {
 					map[string]interface{}{"id": 3, "text": "Merged message 2", "original_ticket_id": "1002", "merged_from_ticket": "1002"},
 				}
 			}
-			
+
 			if tt.name == "Primary ticket gets merge notification" {
 				primaryTicket["activities"] = []interface{}{
 					map[string]interface{}{
-						"type": "tickets_merged",
+						"type":    "tickets_merged",
 						"details": "Merged tickets 1201, 1202 into this ticket",
 					},
 				}
 			}
-			
+
 			tt.checkEffects(t, primaryTicket, mergedTickets)
 		})
 	}

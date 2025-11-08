@@ -23,13 +23,13 @@ func TestUploadAttachment(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name       string
-		ticketID   string
-		fileName   string
+		name        string
+		ticketID    string
+		fileName    string
 		fileContent string
-		fileType   string
-		wantStatus int
-		checkResp  func(t *testing.T, resp map[string]interface{})
+		fileType    string
+		wantStatus  int
+		checkResp   func(t *testing.T, resp map[string]interface{})
 	}{
 		{
 			name:        "Upload text file successfully",
@@ -125,16 +125,16 @@ func TestUploadAttachment(t *testing.T) {
 			// Create multipart form
 			body := &bytes.Buffer{}
 			writer := multipart.NewWriter(body)
-			
+
 			// Add file
 			part, err := writer.CreateFormFile("file", tt.fileName)
 			require.NoError(t, err)
 			_, err = io.WriteString(part, tt.fileContent)
 			require.NoError(t, err)
-			
+
 			// Add other fields if needed
 			writer.WriteField("description", "Test upload")
-			
+
 			err = writer.Close()
 			require.NoError(t, err)
 
@@ -172,7 +172,7 @@ func TestGetAttachments(t *testing.T) {
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				attachments := resp["attachments"].([]interface{})
 				assert.Greater(t, len(attachments), 0)
-				
+
 				first := attachments[0].(map[string]interface{})
 				assert.Contains(t, first, "id")
 				assert.Contains(t, first, "filename")
@@ -329,7 +329,7 @@ func TestDeleteAttachment(t *testing.T) {
 		ticketID     string
 		attachmentID string
 		userRole     string
-		userID        int
+		userID       int
 		wantStatus   int
 		checkResp    func(t *testing.T, resp map[string]interface{})
 	}{
@@ -338,7 +338,7 @@ func TestDeleteAttachment(t *testing.T) {
 			ticketID:     "123",
 			attachmentID: "1",
 			userRole:     "admin",
-			userID:        1,
+			userID:       1,
 			wantStatus:   http.StatusOK,
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				assert.Equal(t, "Attachment deleted successfully", resp["message"])
@@ -349,7 +349,7 @@ func TestDeleteAttachment(t *testing.T) {
 			ticketID:     "123",
 			attachmentID: "3",
 			userRole:     "customer",
-			userID:        1,
+			userID:       1,
 			wantStatus:   http.StatusOK,
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				assert.Equal(t, "Attachment deleted successfully", resp["message"])
@@ -360,7 +360,7 @@ func TestDeleteAttachment(t *testing.T) {
 			ticketID:     "123",
 			attachmentID: "1",
 			userRole:     "customer",
-			userID:        2, // Different user ID
+			userID:       2, // Different user ID
 			wantStatus:   http.StatusForbidden,
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				assert.Contains(t, resp["error"], "not authorized to delete this attachment")
@@ -371,7 +371,7 @@ func TestDeleteAttachment(t *testing.T) {
 			ticketID:     "123",
 			attachmentID: "99999",
 			userRole:     "admin",
-			userID:        1,
+			userID:       1,
 			wantStatus:   http.StatusNotFound,
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				assert.Contains(t, resp["error"], "Attachment not found")
@@ -383,16 +383,16 @@ func TestDeleteAttachment(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Restore attachments before each test
 			restoreAttachments()
-			
+
 			router := gin.New()
-			
+
 			// Add middleware to set user role
 			router.Use(func(c *gin.Context) {
 				c.Set("user_role", tt.userRole)
 				c.Set("user_id", tt.userID)
 				c.Next()
 			})
-			
+
 			router.DELETE("/api/tickets/:id/attachments/:attachment_id", handleDeleteAttachment)
 
 			w := httptest.NewRecorder()
@@ -416,12 +416,12 @@ func TestDeleteAttachment(t *testing.T) {
 
 func TestAttachmentValidation(t *testing.T) {
 	tests := []struct {
-		name         string
-		filename     string
-		contentType  string
-		size         int64
-		wantAllowed  bool
-		wantError    string
+		name        string
+		filename    string
+		contentType string
+		size        int64
+		wantAllowed bool
+		wantError   string
 	}{
 		{
 			name:        "Valid document",
@@ -474,7 +474,7 @@ func TestAttachmentValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateAttachment(tt.filename, tt.contentType, tt.size)
-			
+
 			if tt.wantAllowed {
 				assert.NoError(t, err)
 			} else {
@@ -498,14 +498,14 @@ func TestAttachmentMetadata(t *testing.T) {
 		// Upload with metadata
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
-		
+
 		part, _ := writer.CreateFormFile("file", "test.txt")
 		io.WriteString(part, "test content")
-		
+
 		writer.WriteField("description", "Important document")
 		writer.WriteField("tags", "invoice,2024,urgent")
 		writer.WriteField("internal", "true")
-		
+
 		writer.Close()
 
 		w := httptest.NewRecorder()
@@ -527,7 +527,7 @@ func TestAttachmentMetadata(t *testing.T) {
 
 		assert.Equal(t, "Important document", metadata["description"])
 		assert.Equal(t, true, metadata["internal"])
-		
+
 		tags := metadata["tags"].([]interface{})
 		assert.Len(t, tags, 3)
 		assert.Contains(t, tags, "invoice")
@@ -538,11 +538,11 @@ func TestAttachmentSecurity(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name         string
-		filename     string
-		fileContent  string
-		wantBlocked  bool
-		blockReason  string
+		name        string
+		filename    string
+		fileContent string
+		wantBlocked bool
+		blockReason string
 	}{
 		{
 			name:        "ZIP bomb detection",
@@ -569,7 +569,7 @@ func TestAttachmentSecurity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			blocked, reason := scanFileContent(tt.filename, []byte(tt.fileContent))
-			
+
 			assert.Equal(t, tt.wantBlocked, blocked)
 			if tt.wantBlocked {
 				assert.Contains(t, reason, tt.blockReason)
@@ -589,7 +589,7 @@ func TestAttachmentQuota(t *testing.T) {
 		for i := 0; i < 21; i++ { // Try to upload 21 files (limit is 20)
 			body := &bytes.Buffer{}
 			writer := multipart.NewWriter(body)
-			
+
 			filename := fmt.Sprintf("file%d.txt", i)
 			part, _ := writer.CreateFormFile("file", filename)
 			io.WriteString(part, "content")
@@ -604,7 +604,7 @@ func TestAttachmentQuota(t *testing.T) {
 				assert.Equal(t, http.StatusCreated, w.Code, "File %d should upload successfully", i)
 			} else {
 				assert.Equal(t, http.StatusBadRequest, w.Code, "File %d should be rejected (quota exceeded)", i)
-				
+
 				var resp map[string]interface{}
 				json.Unmarshal(w.Body.Bytes(), &resp)
 				assert.Contains(t, resp["error"], "attachment limit exceeded")
@@ -621,7 +621,7 @@ func TestAttachmentQuota(t *testing.T) {
 		for i := 0; i < 5; i++ {
 			body := &bytes.Buffer{}
 			writer := multipart.NewWriter(body)
-			
+
 			part, _ := writer.CreateFormFile("file", fmt.Sprintf("file%d.bin", i))
 			// Write 9MB (under the 10MB per-file limit)
 			content := make([]byte, 9*1024*1024)
@@ -639,7 +639,7 @@ func TestAttachmentQuota(t *testing.T) {
 		// Now try to upload another 9MB file, which should exceed the 50MB total limit
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
-		
+
 		part, _ := writer.CreateFormFile("file", "exceeds_total.bin")
 		// Write 9MB
 		content := make([]byte, 9*1024*1024)
@@ -652,7 +652,7 @@ func TestAttachmentQuota(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
-		
+
 		var resp map[string]interface{}
 		json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.Contains(t, resp["error"], "total size limit exceeded")
@@ -669,34 +669,34 @@ func createZipBombSignature() string {
 func scanFileContent(filename string, content []byte) (bool, string) {
 	// Mock implementation for testing
 	contentStr := string(content)
-	
+
 	// Check for PHP tags
 	if strings.Contains(contentStr, "<?php") {
 		return true, "file content does not match extension"
 	}
-	
+
 	// Check for ZIP bomb pattern
 	if strings.HasPrefix(contentStr, "PK\x03\x04") && len(content) > 900 {
 		return true, "suspicious compression ratio detected"
 	}
-	
+
 	return false, ""
 }
 
 func validateAttachment(filename, contentType string, size int64) error {
 	// Mock implementation for testing
-	
+
 	// Check file size
 	maxSize := int64(10 * 1024 * 1024) // 10MB
 	if size > maxSize {
 		return fmt.Errorf("file exceeds maximum size of 10MB")
 	}
-	
+
 	// Check for hidden files
 	if strings.HasPrefix(filename, ".") {
 		return fmt.Errorf("hidden files are not allowed")
 	}
-	
+
 	// Check for blocked extensions
 	blockedExts := []string{".exe", ".sh", ".bat", ".cmd", ".ps1"}
 	for _, ext := range blockedExts {
@@ -707,7 +707,7 @@ func validateAttachment(filename, contentType string, size int64) error {
 			return fmt.Errorf("script files are not allowed")
 		}
 	}
-	
+
 	return nil
 }
 

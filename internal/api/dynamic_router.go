@@ -1,11 +1,11 @@
 package api
 
 import (
-    "log"
-    "net/http"
-    "os"
-    "sync/atomic"
-    "github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin"
+	"log"
+	"net/http"
+	"os"
+	"sync/atomic"
 )
 
 // dynamicEngine holds only YAML routes (selective mode) and can be swapped without impacting static routes.
@@ -17,32 +17,36 @@ func useDynamicSubEngine() bool { return os.Getenv("ROUTES_SELECTIVE") != "" }
 // mountDynamicEngine installs a catch-all group under / that forwards to current dynamic engine
 // while allowing explicit static routes registered earlier to win (Gin matches specific before wildcard).
 func mountDynamicEngine(r *gin.Engine) {
-    if !useDynamicSubEngine() { return }
-    if v := dynamicEngine.Load(); v == nil { // initialize once
-        eng := gin.New()
-        eng.Use(gin.Recovery())
-        dynamicEngine.Store(eng)
-    }
-    // Catch-all forwarder placed last
-    r.Any("/*dynamicPath", func(c *gin.Context) {
-        // Skip if original route already handled (shouldn't happen because this is final)
-        if h := dynamicEngine.Load(); h != nil {
-            if eng, ok := h.(*gin.Engine); ok && eng != nil {
-                eng.HandleContext(c)
-                return
-            }
-        }
-        c.JSON(http.StatusNotFound, gin.H{"error":"not found"})
-    })
-    log.Println("[routes-selective] dynamic sub-engine mounted")
+	if !useDynamicSubEngine() {
+		return
+	}
+	if v := dynamicEngine.Load(); v == nil { // initialize once
+		eng := gin.New()
+		eng.Use(gin.Recovery())
+		dynamicEngine.Store(eng)
+	}
+	// Catch-all forwarder placed last
+	r.Any("/*dynamicPath", func(c *gin.Context) {
+		// Skip if original route already handled (shouldn't happen because this is final)
+		if h := dynamicEngine.Load(); h != nil {
+			if eng, ok := h.(*gin.Engine); ok && eng != nil {
+				eng.HandleContext(c)
+				return
+			}
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+	})
+	log.Println("[routes-selective] dynamic sub-engine mounted")
 }
 
 // rebuildDynamicEngine rebuilds the dynamic engine with fresh YAML routes only.
 func rebuildDynamicEngine(authMW interface{}) {
-    if !useDynamicSubEngine() { return }
-    eng := gin.New()
-    eng.Use(gin.Recovery())
-    registerYAMLRoutes(eng, authMW)
-    dynamicEngine.Store(eng)
-    log.Println("[routes-selective] dynamic engine rebuilt")
+	if !useDynamicSubEngine() {
+		return
+	}
+	eng := gin.New()
+	eng.Use(gin.Recovery())
+	registerYAMLRoutes(eng, authMW)
+	dynamicEngine.Store(eng)
+	log.Println("[routes-selective] dynamic engine rebuilt")
 }

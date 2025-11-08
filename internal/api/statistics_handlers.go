@@ -2,11 +2,14 @@ package api
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -24,12 +27,12 @@ func HandleDashboardStatisticsAPI(c *gin.Context) {
 	_ = userID
 
 	db, err := database.GetDB()
-	if err != nil {
+	if err != nil || db == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
 
-	// Get overview statistics
+	// Overview counts using portable queries
 	var overview struct {
 		TotalTickets   int
 		OpenTickets    int
@@ -37,107 +40,113 @@ func HandleDashboardStatisticsAPI(c *gin.Context) {
 		PendingTickets int
 	}
 
-	overviewQuery := database.ConvertPlaceholders(`
-		SELECT 
-			COUNT(*) as total,
-			COUNT(CASE WHEN ts.type_id = 1 THEN 1 END) as open,
-			COUNT(CASE WHEN ts.type_id = 2 THEN 1 END) as closed,
-			COUNT(CASE WHEN ts.type_id = 3 THEN 1 END) as pending
-		FROM tickets t
-		JOIN ticket_state ts ON t.ticket_state_id = ts.id
-	`)
-	
-	db.QueryRow(overviewQuery).Scan(
-		&overview.TotalTickets,
-		&overview.OpenTickets,
-		&overview.ClosedTickets,
-		&overview.PendingTickets,
-	)
+	if err := db.QueryRow("SELECT COUNT(*) FROM ticket").Scan(&overview.TotalTickets); err != nil {
+		overview.TotalTickets = 0
+	}
 
-	// Get tickets by queue
-	byQueueQuery := database.ConvertPlaceholders(`
-		SELECT q.id, q.name, COUNT(t.id) as count
-		FROM queues q
-		LEFT JOIN tickets t ON q.id = t.queue_id
+	stateID := func(name string) int {
+		var id int
+		query := database.ConvertPlaceholders("SELECT id FROM ticket_state WHERE name = $1")
+		if err := db.QueryRow(query, name).Scan(&id); err != nil {
+			return 0
+		}
+		return id
+	}
+
+	if id := stateID("open"); id > 0 {
+		query := database.ConvertPlaceholders("SELECT COUNT(*) FROM ticket WHERE ticket_state_id = $1")
+		_ = db.QueryRow(query, id).Scan(&overview.OpenTickets)
+	}
+	if id := stateID("closed"); id > 0 {
+		query := database.ConvertPlaceholders("SELECT COUNT(*) FROM ticket WHERE ticket_state_id = $1")
+		_ = db.QueryRow(query, id).Scan(&overview.ClosedTickets)
+	}
+	if id := stateID("pending"); id > 0 {
+		query := database.ConvertPlaceholders("SELECT COUNT(*) FROM ticket WHERE ticket_state_id = $1")
+		_ = db.QueryRow(query, id).Scan(&overview.PendingTickets)
+	}
+
+	// Tickets by queue
+	byQueue := []gin.H{}
+	queueQuery := `
+		SELECT q.id, q.name, COUNT(t.id) AS cnt
+		FROM queue q
+		LEFT JOIN ticket t ON q.id = t.queue_id
 		WHERE q.valid_id = 1
 		GROUP BY q.id, q.name
-		ORDER BY count DESC
-	`)
-	
-	rows, _ := db.Query(byQueueQuery)
-	defer rows.Close()
-	
-	byQueue := []gin.H{}
-	for rows.Next() {
-		var item struct {
-			QueueID   int
-			QueueName string
-			Count     int
-		}
-		if err := rows.Scan(&item.QueueID, &item.QueueName, &item.Count); err == nil {
-			byQueue = append(byQueue, gin.H{
-				"queue_id":   item.QueueID,
-				"queue_name": item.QueueName,
-				"count":      item.Count,
-			})
+		ORDER BY cnt DESC
+	`
+	if rows, err := db.Query(queueQuery); err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var (
+				queueID int
+				name    string
+				count   int64
+			)
+			if err := rows.Scan(&queueID, &name, &count); err == nil {
+				byQueue = append(byQueue, gin.H{
+					"queue_id":   queueID,
+					"queue_name": name,
+					"count":      int(count),
+				})
+			}
 		}
 	}
 
-	// Get tickets by priority
-	byPriorityQuery := database.ConvertPlaceholders(`
-		SELECT p.id, p.name, COUNT(t.id) as count
+	// Tickets by priority
+	byPriority := []gin.H{}
+	priorityQuery := `
+		SELECT p.id, p.name, COUNT(t.id) AS cnt
 		FROM ticket_priority p
-		LEFT JOIN tickets t ON p.id = t.ticket_priority_id
+		LEFT JOIN ticket t ON p.id = t.ticket_priority_id
 		WHERE p.valid_id = 1
 		GROUP BY p.id, p.name
 		ORDER BY p.id
-	`)
-	
-	rows2, _ := db.Query(byPriorityQuery)
-	defer rows2.Close()
-	
-	byPriority := []gin.H{}
-	for rows2.Next() {
-		var item struct {
-			PriorityID   int
-			PriorityName string
-			Count        int
-		}
-		if err := rows2.Scan(&item.PriorityID, &item.PriorityName, &item.Count); err == nil {
-			byPriority = append(byPriority, gin.H{
-				"priority_id":   item.PriorityID,
-				"priority_name": item.PriorityName,
-				"count":         item.Count,
-			})
+	`
+	if rows, err := db.Query(priorityQuery); err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var (
+				priorityID int
+				name       string
+				count      int64
+			)
+			if err := rows.Scan(&priorityID, &name, &count); err == nil {
+				byPriority = append(byPriority, gin.H{
+					"priority_id":   priorityID,
+					"priority_name": name,
+					"count":         int(count),
+				})
+			}
 		}
 	}
 
-	// Get recent activity
-	activityQuery := database.ConvertPlaceholders(`
-		SELECT 'created' as type, t.id, t.tn, t.create_time
-		FROM tickets t
+	// Recent activity
+	recentActivity := []gin.H{}
+	activityQuery := `
+		SELECT 'created' AS type, t.id, t.tn, t.create_time
+		FROM ticket t
 		ORDER BY t.create_time DESC
 		LIMIT 10
-	`)
-	
-	rows3, _ := db.Query(activityQuery)
-	defer rows3.Close()
-	
-	recentActivity := []gin.H{}
-	for rows3.Next() {
-		var item struct {
-			Type      string
-			TicketID  int
-			TicketTN  string
-			Timestamp time.Time
-		}
-		if err := rows3.Scan(&item.Type, &item.TicketID, &item.TicketTN, &item.Timestamp); err == nil {
-			recentActivity = append(recentActivity, gin.H{
-				"type":      item.Type,
-				"ticket_id": item.TicketID,
-				"ticket_tn": item.TicketTN,
-				"timestamp": item.Timestamp,
-			})
+	`
+	if rows, err := db.Query(activityQuery); err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var (
+				typeLabel string
+				ticketID  int
+				tn        string
+				ts        time.Time
+			)
+			if err := rows.Scan(&typeLabel, &ticketID, &tn, &ts); err == nil {
+				recentActivity = append(recentActivity, gin.H{
+					"type":      typeLabel,
+					"ticket_id": ticketID,
+					"ticket_tn": tn,
+					"timestamp": ts,
+				})
+			}
 		}
 	}
 
@@ -177,124 +186,195 @@ func HandleTicketTrendsAPI(c *gin.Context) {
 	trends := []gin.H{}
 	var totalCreated, totalClosed int
 
+	now := time.Now().UTC()
+
 	if period == "daily" {
-		daysInt, _ := strconv.Atoi(days)
-		
-		// Get daily trends
-		dailyQuery := database.ConvertPlaceholders(`
-			WITH date_series AS (
-				SELECT generate_series(
-					CURRENT_DATE - INTERVAL '%d days',
-					CURRENT_DATE,
-					INTERVAL '1 day'
-				)::date as date
-			)
-			SELECT 
-				ds.date,
-				COUNT(DISTINCT t1.id) as created,
-				COUNT(DISTINCT t2.id) as closed,
-				(SELECT COUNT(*) FROM tickets t 
-				 JOIN ticket_state ts ON t.ticket_state_id = ts.id
-				 WHERE ts.type_id = 1 AND DATE(t.create_time) <= ds.date) as open
-			FROM date_series ds
-			LEFT JOIN tickets t1 ON DATE(t1.create_time) = ds.date
-			LEFT JOIN tickets t2 ON DATE(t2.change_time) = ds.date 
-				AND t2.ticket_state_id IN (SELECT id FROM ticket_state WHERE type_id = 2)
-			GROUP BY ds.date
-			ORDER BY ds.date
+		daysInt, err := strconv.Atoi(days)
+		if err != nil || daysInt <= 0 {
+			daysInt = 7
+		}
+
+		start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, -(daysInt - 1))
+
+		records := make([]struct {
+			created time.Time
+			changed sql.NullTime
+			typeID  int
+		}, 0)
+
+		query := database.ConvertPlaceholders(`
+			SELECT t.create_time, t.change_time, ts.type_id
+			FROM ticket t
+			JOIN ticket_state ts ON t.ticket_state_id = ts.id
+			WHERE t.create_time >= $1 OR (t.change_time IS NOT NULL AND t.change_time >= $1)
 		`)
-		
-		formattedQuery := fmt.Sprintf(dailyQuery, daysInt)
-		rows, _ := db.Query(formattedQuery)
-		defer rows.Close()
-		
-		for rows.Next() {
-			var item struct {
-				Date    time.Time
-				Created int
-				Closed  int
-				Open    int
-			}
-			if err := rows.Scan(&item.Date, &item.Created, &item.Closed, &item.Open); err == nil {
-				trends = append(trends, gin.H{
-					"date":    item.Date.Format("2006-01-02"),
-					"created": item.Created,
-					"closed":  item.Closed,
-					"open":    item.Open,
-				})
-				totalCreated += item.Created
-				totalClosed += item.Closed
+		rows, err := db.Query(query, start)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var (
+					createTime time.Time
+					changeTime sql.NullTime
+					typeID     int
+				)
+				if err := rows.Scan(&createTime, &changeTime, &typeID); err == nil {
+					records = append(records, struct {
+						created time.Time
+						changed sql.NullTime
+						typeID  int
+					}{createTime, changeTime, typeID})
+				}
 			}
 		}
-	} else if period == "monthly" {
-		monthsInt, _ := strconv.Atoi(months)
-		
-		// Get monthly trends
-		monthlyQuery := database.ConvertPlaceholders(`
-			SELECT 
-				DATE_TRUNC('month', t.create_time) as month,
-				COUNT(*) as created,
-				COUNT(CASE WHEN ts.type_id = 2 THEN 1 END) as closed,
-				COUNT(CASE WHEN ts.type_id = 1 THEN 1 END) as open
-			FROM tickets t
-			JOIN ticket_state ts ON t.ticket_state_id = ts.id
-			WHERE t.create_time >= CURRENT_DATE - INTERVAL '%d months'
-			GROUP BY DATE_TRUNC('month', t.create_time)
-			ORDER BY month
-		`)
-		
-		formattedQuery := fmt.Sprintf(monthlyQuery, monthsInt)
-		rows, _ := db.Query(formattedQuery)
-		defer rows.Close()
-		
-		for rows.Next() {
-			var item struct {
-				Month   time.Time
-				Created int
-				Closed  int
-				Open    int
+
+		createdCounts := map[string]int{}
+		closedCounts := map[string]int{}
+
+		for _, rec := range records {
+			day := rec.created.In(time.UTC).Format("2006-01-02")
+			createdCounts[day]++
+			if rec.typeID == 2 && rec.changed.Valid {
+				closeDay := rec.changed.Time.In(time.UTC).Format("2006-01-02")
+				closedCounts[closeDay]++
 			}
-			if err := rows.Scan(&item.Month, &item.Created, &item.Closed, &item.Open); err == nil {
-				trends = append(trends, gin.H{
-					"date":    item.Month.Format("2006-01"),
-					"created": item.Created,
-					"closed":  item.Closed,
-					"open":    item.Open,
-				})
-				totalCreated += item.Created
-				totalClosed += item.Closed
+		}
+
+		open := 0
+		for dateCursor := start; !dateCursor.After(now); dateCursor = dateCursor.AddDate(0, 0, 1) {
+			key := dateCursor.Format("2006-01-02")
+			created := createdCounts[key]
+			closed := closedCounts[key]
+			totalCreated += created
+			totalClosed += closed
+			open += created - closed
+			if open < 0 {
+				open = 0
+			}
+			trends = append(trends, gin.H{
+				"date":    key,
+				"created": created,
+				"closed":  closed,
+				"open":    open,
+			})
+		}
+
+		daysIntValidated := len(trends)
+		response := gin.H{
+			"period": period,
+			"days":   daysInt,
+			"trends": trends,
+			"summary": gin.H{
+				"total_created": totalCreated,
+				"total_closed":  totalClosed,
+				"average_per_day": func() float64 {
+					if daysIntValidated == 0 {
+						return 0
+					}
+					return float64(totalCreated) / float64(daysIntValidated)
+				}(),
+				"closure_rate": func() float64 {
+					if totalCreated == 0 {
+						return 0
+					}
+					return float64(totalClosed) / float64(totalCreated) * 100
+				}(),
+			},
+		}
+		c.JSON(http.StatusOK, response)
+		return
+	}
+
+	// Monthly trends fallback
+	monthsInt, err := strconv.Atoi(months)
+	if err != nil || monthsInt <= 0 {
+		monthsInt = 3
+	}
+
+	firstOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -(monthsInt - 1), 0)
+
+	records := make([]struct {
+		created time.Time
+		changed sql.NullTime
+		typeID  int
+	}, 0)
+
+	query := database.ConvertPlaceholders(`
+		SELECT t.create_time, t.change_time, ts.type_id
+		FROM ticket t
+		JOIN ticket_state ts ON t.ticket_state_id = ts.id
+		WHERE t.create_time >= $1 OR (t.change_time IS NOT NULL AND t.change_time >= $1)
+	`)
+	if rows, err := db.Query(query, firstOfMonth); err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var (
+				createTime time.Time
+				changeTime sql.NullTime
+				typeID     int
+			)
+			if err := rows.Scan(&createTime, &changeTime, &typeID); err == nil {
+				records = append(records, struct {
+					created time.Time
+					changed sql.NullTime
+					typeID  int
+				}{createTime, changeTime, typeID})
 			}
 		}
 	}
 
-	// Calculate summary metrics
-	averagePerDay := 0.0
-	closureRate := 0.0
-	
-	if period == "daily" && len(trends) > 0 {
-		averagePerDay = float64(totalCreated) / float64(len(trends))
+	createdCounts := map[string]int{}
+	closedCounts := map[string]int{}
+
+	for _, rec := range records {
+		monthKey := rec.created.In(time.UTC).Format("2006-01")
+		createdCounts[monthKey]++
+		if rec.typeID == 2 && rec.changed.Valid {
+			closeKey := rec.changed.Time.In(time.UTC).Format("2006-01")
+			closedCounts[closeKey]++
+		}
 	}
-	if totalCreated > 0 {
-		closureRate = float64(totalClosed) / float64(totalCreated) * 100
+
+	current := firstOfMonth
+	open := 0
+	for i := 0; i < monthsInt; i++ {
+		key := current.Format("2006-01")
+		created := createdCounts[key]
+		closed := closedCounts[key]
+		totalCreated += created
+		totalClosed += closed
+		open += created - closed
+		if open < 0 {
+			open = 0
+		}
+		trends = append(trends, gin.H{
+			"date":    key,
+			"created": created,
+			"closed":  closed,
+			"open":    open,
+		})
+		current = current.AddDate(0, 1, 0)
 	}
 
 	response := gin.H{
 		"period": period,
+		"months": monthsInt,
 		"trends": trends,
 		"summary": gin.H{
-			"total_created":  totalCreated,
-			"total_closed":   totalClosed,
-			"average_per_day": averagePerDay,
-			"closure_rate":   closureRate,
+			"total_created": totalCreated,
+			"total_closed":  totalClosed,
+			"average_per_day": func() float64 {
+				if len(trends) == 0 {
+					return 0
+				}
+				return float64(totalCreated) / float64(len(trends))
+			}(),
+			"closure_rate": func() float64 {
+				if totalCreated == 0 {
+					return 0
+				}
+				return float64(totalClosed) / float64(totalCreated) * 100
+			}(),
 		},
-	}
-
-	if period == "daily" {
-		daysInt, _ := strconv.Atoi(days)
-		response["days"] = daysInt
-	} else {
-		monthsInt, _ := strconv.Atoi(months)
-		response["months"] = monthsInt
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -311,93 +391,157 @@ func HandleAgentPerformanceAPI(c *gin.Context) {
 	_ = userID
 
 	period := c.DefaultQuery("period", "7d")
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
 
-	// Parse period
-	var intervalStr string
+	// Determine interval
+	interval := 7 * 24 * time.Hour
 	switch period {
 	case "24h":
-		intervalStr = "1 day"
-	case "7d":
-		intervalStr = "7 days"
+		interval = 24 * time.Hour
 	case "30d":
-		intervalStr = "30 days"
+		interval = 30 * 24 * time.Hour
+	case "7d":
+		interval = 7 * 24 * time.Hour
 	default:
-		intervalStr = "7 days"
+		interval = 7 * 24 * time.Hour
+	}
+	start := time.Now().UTC().Add(-interval)
+
+	// Load active agents
+	userRows, err := db.Query("SELECT id, login FROM users WHERE valid_id = 1")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load agents"})
+		return
+	}
+	defer userRows.Close()
+
+	type agentStats struct {
+		id        int
+		name      string
+		assigned  int
+		closed    int
+		articles  int
+		respHours float64
+		reslHours float64
+		satScore  float64
 	}
 
-	// Get agent performance metrics
-	agentQuery := database.ConvertPlaceholders(`
-		SELECT 
-			u.id as agent_id,
-			u.login as agent_name,
-			COUNT(DISTINCT t1.id) as tickets_assigned,
-			COUNT(DISTINCT CASE WHEN ts.type_id = 2 THEN t1.id END) as tickets_closed,
-			COUNT(DISTINCT a.id) as articles_created,
-			0 as avg_response_time,
-			0 as avg_resolution_time,
-			0 as customer_satisfaction
-		FROM users u
-		LEFT JOIN tickets t1 ON u.id = t1.responsible_user_id 
-			AND t1.create_time >= CURRENT_TIMESTAMP - INTERVAL '%s'
-		LEFT JOIN ticket_state ts ON t1.ticket_state_id = ts.id
-		LEFT JOIN article a ON u.id = a.create_by 
-			AND a.create_time >= CURRENT_TIMESTAMP - INTERVAL '%s'
-		WHERE u.valid_id = 1
-		GROUP BY u.id, u.login
-		ORDER BY tickets_closed DESC
-	`)
-	
-	formattedQuery := fmt.Sprintf(agentQuery, intervalStr, intervalStr)
-	rows, _ := db.Query(formattedQuery)
-	defer rows.Close()
-	
-	agents := []gin.H{}
-	topPerformers := []gin.H{}
-	
-	for rows.Next() {
-		var agent struct {
-			AgentID              int
-			AgentName            string
-			TicketsAssigned      int
-			TicketsClosed        int
-			ArticlesCreated      int
-			AvgResponseTime      float64
-			AvgResolutionTime    float64
-			CustomerSatisfaction float64
+	agentMap := make(map[int]*agentStats)
+	for userRows.Next() {
+		var (
+			id   int
+			name string
+		)
+		if err := userRows.Scan(&id, &name); err != nil {
+			continue
 		}
-		
-		if err := rows.Scan(
-			&agent.AgentID, &agent.AgentName,
-			&agent.TicketsAssigned, &agent.TicketsClosed,
-			&agent.ArticlesCreated, &agent.AvgResponseTime,
-			&agent.AvgResolutionTime, &agent.CustomerSatisfaction,
-		); err == nil {
-			agents = append(agents, gin.H{
-				"agent_id":              agent.AgentID,
-				"agent_name":            agent.AgentName,
-				"tickets_assigned":      agent.TicketsAssigned,
-				"tickets_closed":        agent.TicketsClosed,
-				"articles_created":      agent.ArticlesCreated,
-				"avg_response_time_hours": agent.AvgResponseTime,
-				"avg_resolution_time_hours": agent.AvgResolutionTime,
-				"customer_satisfaction": agent.CustomerSatisfaction,
-			})
-			
-			// Track top performers
-			if len(topPerformers) < 3 && agent.TicketsClosed > 0 {
-				topPerformers = append(topPerformers, gin.H{
-					"agent_id":   agent.AgentID,
-					"agent_name": agent.AgentName,
-					"metric":     "tickets_closed",
-					"value":      float64(agent.TicketsClosed),
-				})
+		agentMap[id] = &agentStats{id: id, name: name}
+	}
+
+	if err := userRows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read agents"})
+		return
+	}
+
+	// Aggregate ticket assignments and closures
+	ticketQuery := database.ConvertPlaceholders(`
+		SELECT t.responsible_user_id, t.create_time, t.change_time, ts.type_id
+		FROM ticket t
+		JOIN ticket_state ts ON t.ticket_state_id = ts.id
+		WHERE t.responsible_user_id IS NOT NULL
+		AND (t.create_time >= $1 OR (t.change_time IS NOT NULL AND t.change_time >= $1))
+	`)
+	ticketRows, err := db.Query(ticketQuery, start)
+	if err == nil {
+		defer ticketRows.Close()
+		for ticketRows.Next() {
+			var (
+				agentID  int
+				createAt time.Time
+				changeAt sql.NullTime
+				typeID   int
+			)
+			if err := ticketRows.Scan(&agentID, &createAt, &changeAt, &typeID); err != nil {
+				continue
 			}
+			stats, ok := agentMap[agentID]
+			if !ok {
+				continue
+			}
+			if !createAt.Before(start) {
+				stats.assigned++
+			}
+			if typeID == 2 && changeAt.Valid && !changeAt.Time.Before(start) {
+				stats.closed++
+			}
+		}
+	}
+
+	// Aggregate article counts per agent
+	articleQuery := database.ConvertPlaceholders(`
+		SELECT create_by, COUNT(*)
+		FROM article
+		WHERE create_by IS NOT NULL AND create_time >= $1
+		GROUP BY create_by
+	`)
+	articleRows, err := db.Query(articleQuery, start)
+	if err == nil {
+		defer articleRows.Close()
+		for articleRows.Next() {
+			var (
+				creatorID int
+				count     int
+			)
+			if err := articleRows.Scan(&creatorID, &count); err != nil {
+				continue
+			}
+			if stats, ok := agentMap[creatorID]; ok {
+				stats.articles = count
+			}
+		}
+	}
+
+	agentList := make([]agentStats, 0, len(agentMap))
+	for _, stats := range agentMap {
+		agentList = append(agentList, *stats)
+	}
+
+	sort.Slice(agentList, func(i, j int) bool {
+		if agentList[i].closed == agentList[j].closed {
+			if agentList[i].assigned == agentList[j].assigned {
+				return agentList[i].name < agentList[j].name
+			}
+			return agentList[i].assigned > agentList[j].assigned
+		}
+		return agentList[i].closed > agentList[j].closed
+	})
+
+	agents := make([]gin.H, 0, len(agentList))
+	topPerformers := make([]gin.H, 0, 3)
+	for _, stats := range agentList {
+		agents = append(agents, gin.H{
+			"agent_id":                  stats.id,
+			"agent_name":                stats.name,
+			"tickets_assigned":          stats.assigned,
+			"tickets_closed":            stats.closed,
+			"articles_created":          stats.articles,
+			"avg_response_time_hours":   stats.respHours,
+			"avg_resolution_time_hours": stats.reslHours,
+			"customer_satisfaction":     stats.satScore,
+		})
+
+		if len(topPerformers) < 3 && stats.closed > 0 {
+			topPerformers = append(topPerformers, gin.H{
+				"agent_id":   stats.id,
+				"agent_name": stats.name,
+				"metric":     "tickets_closed",
+				"value":      float64(stats.closed),
+			})
 		}
 	}
 
@@ -424,75 +568,107 @@ func HandleQueueMetricsAPI(c *gin.Context) {
 		return
 	}
 
-	// Get queue metrics
-	queueQuery := database.ConvertPlaceholders(`
-		SELECT 
-			q.id as queue_id,
-			q.name as queue_name,
-			COUNT(t.id) as total_tickets,
-			COUNT(CASE WHEN ts.type_id = 1 THEN 1 END) as open_tickets,
-			0 as avg_wait_time,
-			0 as avg_resolution_time,
-			COUNT(CASE WHEN ts.type_id = 1 AND t.create_time < CURRENT_TIMESTAMP - INTERVAL '24 hours' THEN 1 END) as backlog,
-			0 as sla_compliance
-		FROM queues q
-		LEFT JOIN tickets t ON q.id = t.queue_id
-		LEFT JOIN ticket_state ts ON t.ticket_state_id = ts.id
-		WHERE q.valid_id = 1
-		GROUP BY q.id, q.name
-		ORDER BY total_tickets DESC
-	`)
-	
-	rows, _ := db.Query(queueQuery)
-	defer rows.Close()
-	
-	queues := []gin.H{}
-	var totalQueues, totalTickets, totalOpen int
-	
-	for rows.Next() {
-		var queue struct {
-			QueueID           int
-			QueueName         string
-			TotalTickets      int
-			OpenTickets       int
-			AvgWaitTime       float64
-			AvgResolutionTime float64
-			Backlog           int
-			SLACompliance     float64
+	// Load queues
+	queueRows, err := db.Query("SELECT id, name FROM queue WHERE valid_id = 1")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load queues"})
+		return
+	}
+	defer queueRows.Close()
+
+	type queueStats struct {
+		id      int
+		name    string
+		total   int
+		open    int
+		backlog int
+	}
+
+	queueMap := make(map[int]*queueStats)
+	for queueRows.Next() {
+		var (
+			id   int
+			name string
+		)
+		if err := queueRows.Scan(&id, &name); err != nil {
+			continue
 		}
-		
-		if err := rows.Scan(
-			&queue.QueueID, &queue.QueueName,
-			&queue.TotalTickets, &queue.OpenTickets,
-			&queue.AvgWaitTime, &queue.AvgResolutionTime,
-			&queue.Backlog, &queue.SLACompliance,
-		); err == nil {
-			queues = append(queues, gin.H{
-				"queue_id":               queue.QueueID,
-				"queue_name":             queue.QueueName,
-				"total_tickets":          queue.TotalTickets,
-				"open_tickets":           queue.OpenTickets,
-				"avg_wait_time_hours":    queue.AvgWaitTime,
-				"avg_resolution_time_hours": queue.AvgResolutionTime,
-				"backlog":                queue.Backlog,
-				"sla_compliance_percent": queue.SLACompliance,
-			})
-			
-			totalQueues++
-			totalTickets += queue.TotalTickets
-			totalOpen += queue.OpenTickets
+		queueMap[id] = &queueStats{id: id, name: name}
+	}
+
+	if err := queueRows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read queues"})
+		return
+	}
+
+	threshold := time.Now().UTC().Add(-24 * time.Hour)
+	ticketRows, err := db.Query(`
+		SELECT t.queue_id, t.create_time, ts.type_id
+		FROM ticket t
+		JOIN ticket_state ts ON t.ticket_state_id = ts.id
+	`)
+	if err == nil {
+		defer ticketRows.Close()
+		for ticketRows.Next() {
+			var (
+				queueID   int
+				createdAt time.Time
+				typeID    int
+			)
+			if err := ticketRows.Scan(&queueID, &createdAt, &typeID); err != nil {
+				continue
+			}
+			stats, ok := queueMap[queueID]
+			if !ok {
+				continue
+			}
+			stats.total++
+			if typeID == 1 {
+				stats.open++
+				if createdAt.Before(threshold) {
+					stats.backlog++
+				}
+			}
 		}
 	}
 
-	overallCompliance := 0.0 // Would calculate from actual SLA data
+	queueList := make([]queueStats, 0, len(queueMap))
+	for _, stats := range queueMap {
+		queueList = append(queueList, *stats)
+	}
+
+	sort.Slice(queueList, func(i, j int) bool {
+		if queueList[i].total == queueList[j].total {
+			return queueList[i].name < queueList[j].name
+		}
+		return queueList[i].total > queueList[j].total
+	})
+
+	queues := make([]gin.H, 0, len(queueList))
+	var totalQueues, totalTickets, totalOpen int
+	for _, stats := range queueList {
+		queues = append(queues, gin.H{
+			"queue_id":                  stats.id,
+			"queue_name":                stats.name,
+			"total_tickets":             stats.total,
+			"open_tickets":              stats.open,
+			"avg_wait_time_hours":       0.0,
+			"avg_resolution_time_hours": 0.0,
+			"backlog":                   stats.backlog,
+			"sla_compliance_percent":    0.0,
+		})
+		totalQueues++
+		totalTickets += stats.total
+		totalOpen += stats.open
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"queues": queues,
 		"totals": gin.H{
-			"all_queues":               totalQueues,
-			"total_tickets":            totalTickets,
-			"total_open":               totalOpen,
-			"overall_compliance_percent": overallCompliance,
+			"all_queues":                 totalQueues,
+			"total_tickets":              totalTickets,
+			"total_open":                 totalOpen,
+			"overall_compliance_percent": 0.0,
 		},
 	})
 }
@@ -514,23 +690,23 @@ func HandleTimeBasedAnalyticsAPI(c *gin.Context) {
 		data := []gin.H{}
 		peakHours := []int{}
 		maxCount := 0
-		
+
 		for hour := 0; hour < 24; hour++ {
 			// Simplified - would query actual data
 			created := 0
 			closed := 0
-			
+
 			if hour >= 9 && hour <= 17 {
 				created = 5 + hour%3
 				closed = 3 + hour%2
 			}
-			
+
 			data = append(data, gin.H{
 				"hour":    hour,
 				"created": created,
 				"closed":  closed,
 			})
-			
+
 			if created > maxCount {
 				maxCount = created
 				peakHours = []int{hour}
@@ -538,40 +714,40 @@ func HandleTimeBasedAnalyticsAPI(c *gin.Context) {
 				peakHours = append(peakHours, hour)
 			}
 		}
-		
+
 		c.JSON(http.StatusOK, gin.H{
 			"type":       analysisType,
 			"data":       data,
 			"peak_hours": peakHours,
 		})
-		
+
 	} else if analysisType == "day_of_week" {
 		// Day of week distribution
 		days := []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
 		data := []gin.H{}
 		busiestDays := []string{}
-		
+
 		for i, day := range days {
 			// Simplified - would query actual data
 			created := 10 - i
 			closed := 8 - i
-			
+
 			if i < 5 { // Weekdays
 				created *= 2
 				closed *= 2
 			}
-			
+
 			data = append(data, gin.H{
 				"day":     day,
 				"created": created,
 				"closed":  closed,
 			})
-			
+
 			if i < 2 {
 				busiestDays = append(busiestDays, day)
 			}
 		}
-		
+
 		c.JSON(http.StatusOK, gin.H{
 			"type":         analysisType,
 			"data":         data,
@@ -592,90 +768,152 @@ func HandleCustomerStatisticsAPI(c *gin.Context) {
 
 	top := c.DefaultQuery("top", "10")
 	topInt, _ := strconv.Atoi(top)
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
 
-	// Get top customers
-	customerQuery := database.ConvertPlaceholders(`
-		SELECT 
-			t.customer_user_id,
-			t.customer_user_id as email,
-			COUNT(t.id) as ticket_count,
-			COUNT(CASE WHEN ts.type_id = 1 THEN 1 END) as open_tickets,
-			MAX(t.create_time) as last_activity
-		FROM tickets t
+	// Aggregate customer statistics in code for portability
+	rows, err := db.Query(`
+		SELECT t.customer_user_id, t.create_time, ts.type_id
+		FROM ticket t
 		JOIN ticket_state ts ON t.ticket_state_id = ts.id
-		GROUP BY t.customer_user_id
-		ORDER BY ticket_count DESC
-		LIMIT $1
+		WHERE t.customer_user_id IS NOT NULL AND t.customer_user_id <> ''
 	`)
-	
-	rows, _ := db.Query(customerQuery, topInt)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"top_customers": []gin.H{},
+			"customer_metrics": gin.H{
+				"total_customers":          0,
+				"active_customers":         0,
+				"new_customers_this_month": 0,
+				"avg_tickets_per_customer": 0.0,
+			},
+		})
+		return
+	}
 	defer rows.Close()
-	
-	topCustomers := []gin.H{}
+
+	type customerStats struct {
+		id               string
+		ticketCount      int
+		openTickets      int
+		lastActivity     time.Time
+		activeRecent     bool
+		createdThisMonth bool
+	}
+
+	now := time.Now().UTC()
+	activeThreshold := now.AddDate(0, 0, -30)
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	totalTickets := 0
+	customerMap := make(map[string]*customerStats)
+
 	for rows.Next() {
-		var customer struct {
-			CustomerID    string
-			CustomerEmail string
-			TicketCount   int
-			OpenTickets   int
-			LastActivity  time.Time
+		var (
+			customerID sql.NullString
+			createdAt  time.Time
+			typeID     int
+		)
+		if err := rows.Scan(&customerID, &createdAt, &typeID); err != nil {
+			continue
 		}
-		
-		if err := rows.Scan(
-			&customer.CustomerID, &customer.CustomerEmail,
-			&customer.TicketCount, &customer.OpenTickets,
-			&customer.LastActivity,
-		); err == nil {
-			topCustomers = append(topCustomers, gin.H{
-				"customer_id":    customer.CustomerID,
-				"customer_email": customer.CustomerEmail,
-				"ticket_count":   customer.TicketCount,
-				"open_tickets":   customer.OpenTickets,
-				"last_activity":  customer.LastActivity.Format(time.RFC3339),
-			})
+		if !customerID.Valid {
+			continue
+		}
+		id := strings.TrimSpace(customerID.String)
+		if id == "" {
+			continue
+		}
+		stats, ok := customerMap[id]
+		if !ok {
+			stats = &customerStats{id: id}
+			customerMap[id] = stats
+		}
+
+		stats.ticketCount++
+		totalTickets++
+		if typeID == 1 {
+			stats.openTickets++
+		}
+		if createdAt.After(stats.lastActivity) {
+			stats.lastActivity = createdAt
+		}
+		if createdAt.After(activeThreshold) {
+			stats.activeRecent = true
+		}
+		if createdAt.After(monthStart) {
+			stats.createdThisMonth = true
 		}
 	}
 
-	// Get customer metrics
-	var metrics struct {
-		TotalCustomers        int
-		ActiveCustomers       int
-		NewCustomersThisMonth int
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"top_customers": []gin.H{},
+			"customer_metrics": gin.H{
+				"total_customers":          0,
+				"active_customers":         0,
+				"new_customers_this_month": 0,
+				"avg_tickets_per_customer": 0.0,
+			},
+		})
+		return
 	}
-	
-	metricsQuery := database.ConvertPlaceholders(`
-		SELECT 
-			COUNT(DISTINCT customer_user_id) as total,
-			COUNT(DISTINCT CASE WHEN create_time >= CURRENT_DATE - INTERVAL '30 days' THEN customer_user_id END) as active,
-			COUNT(DISTINCT CASE WHEN create_time >= DATE_TRUNC('month', CURRENT_DATE) THEN customer_user_id END) as new_this_month
-		FROM tickets
-	`)
-	
-	db.QueryRow(metricsQuery).Scan(
-		&metrics.TotalCustomers,
-		&metrics.ActiveCustomers,
-		&metrics.NewCustomersThisMonth,
-	)
-	
+
+	customerList := make([]customerStats, 0, len(customerMap))
+	var activeCustomers, newThisMonth int
+	for _, stats := range customerMap {
+		customerList = append(customerList, *stats)
+		if stats.activeRecent {
+			activeCustomers++
+		}
+		if stats.createdThisMonth {
+			newThisMonth++
+		}
+	}
+
+	sort.Slice(customerList, func(i, j int) bool {
+		if customerList[i].ticketCount == customerList[j].ticketCount {
+			return customerList[i].lastActivity.After(customerList[j].lastActivity)
+		}
+		return customerList[i].ticketCount > customerList[j].ticketCount
+	})
+
+	limit := topInt
+	if limit <= 0 || limit > len(customerList) {
+		limit = len(customerList)
+	}
+
+	topCustomers := make([]gin.H, 0, limit)
+	for idx := 0; idx < limit; idx++ {
+		stats := customerList[idx]
+		last := ""
+		if !stats.lastActivity.IsZero() {
+			last = stats.lastActivity.UTC().Format(time.RFC3339)
+		}
+		topCustomers = append(topCustomers, gin.H{
+			"customer_id":    stats.id,
+			"customer_email": stats.id,
+			"ticket_count":   stats.ticketCount,
+			"open_tickets":   stats.openTickets,
+			"last_activity":  last,
+		})
+	}
+
+	totalCustomers := len(customerList)
 	avgTicketsPerCustomer := 0.0
-	if metrics.TotalCustomers > 0 {
-		var totalTickets int
-		db.QueryRow("SELECT COUNT(*) FROM tickets").Scan(&totalTickets)
-		avgTicketsPerCustomer = float64(totalTickets) / float64(metrics.TotalCustomers)
+	if totalCustomers > 0 {
+		avgTicketsPerCustomer = float64(totalTickets) / float64(totalCustomers)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"top_customers": topCustomers,
 		"customer_metrics": gin.H{
-			"total_customers":         metrics.TotalCustomers,
-			"active_customers":        metrics.ActiveCustomers,
-			"new_customers_this_month": metrics.NewCustomersThisMonth,
+			"total_customers":          totalCustomers,
+			"active_customers":         activeCustomers,
+			"new_customers_this_month": newThisMonth,
 			"avg_tickets_per_customer": avgTicketsPerCustomer,
 		},
 	})
@@ -694,7 +932,7 @@ func HandleExportStatisticsAPI(c *gin.Context) {
 	format := c.DefaultQuery("format", "json")
 	exportType := c.DefaultQuery("type", "summary")
 	period := c.DefaultQuery("period", "7d")
-	
+
 	db, err := database.GetDB()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
@@ -703,23 +941,38 @@ func HandleExportStatisticsAPI(c *gin.Context) {
 
 	// Get data based on export type
 	var data interface{}
-	
+
 	if exportType == "tickets" {
-		// Get ticket data for export
+		// Determine lookback duration from period
+		lookback := 7 * 24 * time.Hour
+		switch period {
+		case "24h":
+			lookback = 24 * time.Hour
+		case "30d":
+			lookback = 30 * 24 * time.Hour
+		case "7d":
+			lookback = 7 * 24 * time.Hour
+		}
+		start := time.Now().UTC().Add(-lookback)
+
 		query := database.ConvertPlaceholders(`
-			SELECT t.tn, t.title, q.name as queue, ts.name as state, 
-				   tp.name as priority, t.customer_user_id, t.create_time
-			FROM tickets t
-			JOIN queues q ON t.queue_id = q.id
+			SELECT t.tn, t.title, q.name as queue, ts.name as state,
+			       tp.name as priority, t.customer_user_id, t.create_time
+			FROM ticket t
+			JOIN queue q ON t.queue_id = q.id
 			JOIN ticket_state ts ON t.ticket_state_id = ts.id
 			JOIN ticket_priority tp ON t.ticket_priority_id = tp.id
-			WHERE t.create_time >= CURRENT_TIMESTAMP - INTERVAL '7 days'
+			WHERE t.create_time >= $1
 			ORDER BY t.create_time DESC
 		`)
-		
-		rows, _ := db.Query(query)
+
+		rows, err := db.Query(query, start)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load tickets"})
+			return
+		}
 		defer rows.Close()
-		
+
 		tickets := []map[string]interface{}{}
 		for rows.Next() {
 			var ticket struct {
@@ -728,28 +981,36 @@ func HandleExportStatisticsAPI(c *gin.Context) {
 				Queue        string
 				State        string
 				Priority     string
-				CustomerUser string
+				CustomerUser sql.NullString
 				CreateTime   time.Time
 			}
-			
+
 			if err := rows.Scan(
 				&ticket.TN, &ticket.Title, &ticket.Queue,
 				&ticket.State, &ticket.Priority, &ticket.CustomerUser,
 				&ticket.CreateTime,
 			); err == nil {
+				customer := ""
+				if ticket.CustomerUser.Valid {
+					customer = ticket.CustomerUser.String
+				}
 				tickets = append(tickets, map[string]interface{}{
 					"ticket_number": ticket.TN,
 					"title":         ticket.Title,
 					"queue":         ticket.Queue,
 					"state":         ticket.State,
 					"priority":      ticket.Priority,
-					"customer":      ticket.CustomerUser,
-					"created":       ticket.CreateTime.Format("2006-01-02 15:04:05"),
+					"customer":      customer,
+					"created":       ticket.CreateTime.UTC().Format("2006-01-02 15:04:05"),
 				})
 			}
 		}
+		if err := rows.Err(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read tickets"})
+			return
+		}
 		data = tickets
-		
+
 	} else {
 		// Summary data
 		data = gin.H{
@@ -757,8 +1018,8 @@ func HandleExportStatisticsAPI(c *gin.Context) {
 			"period":      period,
 			"type":        exportType,
 			"summary": gin.H{
-				"total_tickets": 100,
-				"open_tickets":  25,
+				"total_tickets":  100,
+				"open_tickets":   25,
 				"closed_tickets": 75,
 			},
 		}
@@ -768,12 +1029,12 @@ func HandleExportStatisticsAPI(c *gin.Context) {
 		// Export as CSV
 		var buf bytes.Buffer
 		writer := csv.NewWriter(&buf)
-		
+
 		if tickets, ok := data.([]map[string]interface{}); ok && len(tickets) > 0 {
 			// Write headers
 			headers := []string{"Ticket Number", "Title", "Queue", "State", "Priority", "Customer", "Created"}
 			writer.Write(headers)
-			
+
 			// Write data
 			for _, ticket := range tickets {
 				row := []string{
@@ -788,18 +1049,18 @@ func HandleExportStatisticsAPI(c *gin.Context) {
 				writer.Write(row)
 			}
 		}
-		
+
 		writer.Flush()
-		
+
 		c.Header("Content-Type", "text/csv")
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=statistics_%s.csv", time.Now().Format("20060102_150405")))
 		c.Data(http.StatusOK, "text/csv", buf.Bytes())
-		
+
 	} else {
 		// Export as JSON
 		c.Header("Content-Type", "application/json")
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=statistics_%s.json", time.Now().Format("20060102_150405")))
-		
+
 		jsonData, _ := json.MarshalIndent(data, "", "  ")
 		c.Data(http.StatusOK, "application/json", jsonData)
 	}

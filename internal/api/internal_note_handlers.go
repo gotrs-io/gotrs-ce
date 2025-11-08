@@ -20,10 +20,10 @@ type InternalNoteHandlers struct {
 func NewInternalNoteHandlers() *InternalNoteHandlers {
 	repo := repository.NewMemoryInternalNoteRepository()
 	srv := service.NewInternalNoteService(repo)
-	
+
 	// Initialize with some default categories and templates
 	initializeDefaultNoteData(srv)
-	
+
 	return &InternalNoteHandlers{
 		service: srv,
 	}
@@ -32,7 +32,7 @@ func NewInternalNoteHandlers() *InternalNoteHandlers {
 // initializeDefaultNoteData creates default categories and templates
 func initializeDefaultNoteData(srv *service.InternalNoteService) {
 	ctx := context.Background()
-	
+
 	// Default templates
 	templates := []models.NoteTemplate{
 		{
@@ -71,7 +71,7 @@ func initializeDefaultNoteData(srv *service.InternalNoteService) {
 			IsImportant: false,
 		},
 	}
-	
+
 	for _, tmpl := range templates {
 		srv.CreateTemplate(ctx, &tmpl)
 	}
@@ -84,25 +84,25 @@ func (h *InternalNoteHandlers) CreateNote(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	var note models.InternalNote
 	if err := c.ShouldBindJSON(&note); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	note.TicketID = uint(ticketID)
-	
+
 	// TODO: Get author info from session/auth
 	note.AuthorID = 1
 	note.AuthorName = "Agent Name"
 	note.AuthorEmail = "agent@example.com"
-	
+
 	if err := h.service.CreateNote(c.Request.Context(), &note); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, note)
 }
 
@@ -113,20 +113,20 @@ func (h *InternalNoteHandlers) CreateNoteFromTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	var req struct {
 		TemplateID uint              `json:"template_id" binding:"required"`
 		Variables  map[string]string `json:"variables"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// TODO: Get author ID from session/auth
 	authorID := uint(1)
-	
+
 	note, err := h.service.CreateNoteFromTemplate(
 		c.Request.Context(),
 		uint(ticketID),
@@ -138,7 +138,7 @@ func (h *InternalNoteHandlers) CreateNoteFromTemplate(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, note)
 }
 
@@ -149,13 +149,13 @@ func (h *InternalNoteHandlers) GetNotes(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	notes, err := h.service.GetNotesByTicket(c.Request.Context(), uint(ticketID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, notes)
 }
 
@@ -166,13 +166,13 @@ func (h *InternalNoteHandlers) GetPinnedNotes(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	notes, err := h.service.GetPinnedNotes(c.Request.Context(), uint(ticketID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, notes)
 }
 
@@ -183,13 +183,13 @@ func (h *InternalNoteHandlers) GetImportantNotes(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	notes, err := h.service.GetImportantNotes(c.Request.Context(), uint(ticketID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, notes)
 }
 
@@ -200,20 +200,20 @@ func (h *InternalNoteHandlers) GetNoteByID(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid note ID"})
 		return
 	}
-	
+
 	note, err := h.service.GetNote(c.Request.Context(), uint(noteID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Note not found"})
 		return
 	}
-	
+
 	// Verify the note belongs to the ticket
 	ticketID, _ := strconv.ParseUint(c.Param("id"), 10, 32)
 	if note.TicketID != uint(ticketID) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Note does not belong to this ticket"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, note)
 }
 
@@ -224,40 +224,40 @@ func (h *InternalNoteHandlers) UpdateNote(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid note ID"})
 		return
 	}
-	
+
 	var req struct {
 		Content    string `json:"content" binding:"required"`
 		EditReason string `json:"edit_reason"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Get existing note
 	note, err := h.service.GetNote(c.Request.Context(), uint(noteID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Note not found"})
 		return
 	}
-	
+
 	// Verify the note belongs to the ticket
 	ticketID, _ := strconv.ParseUint(c.Param("id"), 10, 32)
 	if note.TicketID != uint(ticketID) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Note does not belong to this ticket"})
 		return
 	}
-	
+
 	// Update content
 	note.Content = req.Content
 	note.EditedBy = 1 // TODO: Get from current user
-	
+
 	if err := h.service.UpdateNote(c.Request.Context(), note, req.EditReason); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, note)
 }
 
@@ -268,15 +268,15 @@ func (h *InternalNoteHandlers) DeleteNote(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid note ID"})
 		return
 	}
-	
+
 	// TODO: Check permissions
 	deletedBy := uint(1) // TODO: Get from current user
-	
+
 	if err := h.service.DeleteNote(c.Request.Context(), uint(noteID), deletedBy); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Note deleted successfully"})
 }
 
@@ -287,15 +287,15 @@ func (h *InternalNoteHandlers) PinNote(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid note ID"})
 		return
 	}
-	
+
 	// TODO: Get user ID from session/auth
 	userID := uint(1)
-	
+
 	if err := h.service.PinNote(c.Request.Context(), uint(noteID), userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Note pin status updated"})
 }
 
@@ -306,24 +306,24 @@ func (h *InternalNoteHandlers) MarkImportant(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid note ID"})
 		return
 	}
-	
+
 	var req struct {
 		Important bool `json:"important"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// TODO: Get user ID from session/auth
 	userID := uint(1)
-	
+
 	if err := h.service.MarkImportant(c.Request.Context(), uint(noteID), req.Important, userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Note importance updated"})
 }
 
@@ -334,24 +334,24 @@ func (h *InternalNoteHandlers) SearchNotes(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	filter := &models.NoteFilter{
 		TicketID:    uint(ticketID),
 		SearchQuery: c.Query("q"),
 		Category:    c.Query("category"),
 	}
-	
+
 	// Parse boolean filters
 	if important := c.Query("important"); important != "" {
 		b := important == "true"
 		filter.IsImportant = &b
 	}
-	
+
 	if pinned := c.Query("pinned"); pinned != "" {
 		b := pinned == "true"
 		filter.IsPinned = &b
 	}
-	
+
 	// Parse pagination
 	if limit := c.Query("limit"); limit != "" {
 		if l, err := strconv.Atoi(limit); err == nil {
@@ -361,13 +361,13 @@ func (h *InternalNoteHandlers) SearchNotes(c *gin.Context) {
 	if filter.Limit == 0 {
 		filter.Limit = 50
 	}
-	
+
 	notes, err := h.service.SearchNotes(c.Request.Context(), filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, notes)
 }
 
@@ -378,13 +378,13 @@ func (h *InternalNoteHandlers) GetEditHistory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid note ID"})
 		return
 	}
-	
+
 	history, err := h.service.GetEditHistory(c.Request.Context(), uint(noteID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, history)
 }
 
@@ -395,13 +395,13 @@ func (h *InternalNoteHandlers) GetNoteStatistics(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	stats, err := h.service.GetTicketNoteSummary(c.Request.Context(), uint(ticketID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, stats)
 }
 
@@ -412,20 +412,20 @@ func (h *InternalNoteHandlers) GetRecentActivity(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	limit := 50
 	if limitStr := c.Query("limit"); limitStr != "" {
 		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
 			limit = l
 		}
 	}
-	
+
 	activities, err := h.service.GetRecentActivity(c.Request.Context(), uint(ticketID), limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, activities)
 }
 
@@ -436,29 +436,29 @@ func (h *InternalNoteHandlers) ExportNotes(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	format := c.Query("format")
 	if format == "" {
 		format = "json"
 	}
-	
+
 	// TODO: Get user email from session/auth
 	exportedBy := "user@example.com"
-	
+
 	data, err := h.service.ExportNotes(c.Request.Context(), uint(ticketID), format, exportedBy)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	contentType := "application/json"
 	filename := "notes.json"
-	
+
 	if format == "csv" {
 		contentType = "text/csv"
 		filename = "notes.csv"
 	}
-	
+
 	c.Header("Content-Type", contentType)
 	c.Header("Content-Disposition", "attachment; filename="+filename)
 	c.Data(http.StatusOK, contentType, data)
@@ -471,7 +471,7 @@ func (h *InternalNoteHandlers) GetTemplates(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, templates)
 }
 
@@ -482,15 +482,15 @@ func (h *InternalNoteHandlers) CreateTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// TODO: Get creator from session/auth
 	template.CreatedBy = 1
-	
+
 	if err := h.service.CreateTemplate(c.Request.Context(), &template); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, template)
 }
 
@@ -501,20 +501,20 @@ func (h *InternalNoteHandlers) UpdateTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template ID"})
 		return
 	}
-	
+
 	var template models.NoteTemplate
 	if err := c.ShouldBindJSON(&template); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	template.ID = uint(templateID)
-	
+
 	if err := h.service.UpdateTemplate(c.Request.Context(), &template); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, template)
 }
 
@@ -525,12 +525,12 @@ func (h *InternalNoteHandlers) DeleteTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template ID"})
 		return
 	}
-	
+
 	if err := h.service.DeleteTemplate(c.Request.Context(), uint(templateID)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Template deleted successfully"})
 }
 
@@ -541,6 +541,6 @@ func (h *InternalNoteHandlers) GetCategories(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, categories)
 }

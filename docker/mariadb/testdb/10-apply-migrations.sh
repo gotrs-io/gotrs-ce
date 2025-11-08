@@ -4,10 +4,24 @@ set -euo pipefail
 mariadb_cli() {
     mariadb \
         --ssl=0 \
-    --init-command="SET SESSION foreign_key_checks = 0" \
+        --init-command="SET SESSION foreign_key_checks = 0" \
         -h "${MARIADB_HOST:-localhost}" \
         -u "${MARIADB_USER}" \
         -p"${MARIADB_PASSWORD}" \
+        "${MARIADB_DATABASE}"
+}
+
+mariadb_root_cli() {
+    if [ -z "${MARIADB_ROOT_PASSWORD:-}" ]; then
+        echo "MARIADB_ROOT_PASSWORD not set; cannot perform privileged operations" >&2
+        return 1
+    fi
+
+    mariadb \
+        --ssl=0 \
+        -h "${MARIADB_HOST:-localhost}" \
+        -u root \
+        -p"${MARIADB_ROOT_PASSWORD}" \
         "${MARIADB_DATABASE}"
 }
 
@@ -26,6 +40,17 @@ for file in "${MIGRATION_FILES[@]}"; do
         echo "Skipping missing migration: ${file}"
     fi
 done
+
+echo "Ensuring '${MARIADB_USER}' has remote access"
+if mariadb_root_cli >/dev/null 2>&1 <<SQL
+GRANT ALL PRIVILEGES ON \`${MARIADB_DATABASE}\`.* TO '${MARIADB_USER}'@'%' IDENTIFIED BY '${MARIADB_PASSWORD}';
+FLUSH PRIVILEGES;
+SQL
+then
+    true
+else
+    echo "Warning: failed to grant remote access for '${MARIADB_USER}', proceeding without modification" >&2
+fi
 
 echo "Re-enabling foreign key checks"
 mariadb_cli <<'EOSQL'

@@ -26,7 +26,8 @@ INSERT INTO queue (
     change_time,
     change_by
 ) VALUES
-    (5, 'Support', 1, 1, 1, 1, 0, 1, 0, 'Primary support queue for agents', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)
+    (5, 'Support', 1, 1, 1, 1, 0, 1, 0, 'Primary support queue for agents', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+    (6, 'OBC', 1, 1, 1, 1, 0, 1, 0, 'OBC customer queue required by compatibility tests', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)
 ON CONFLICT (id) DO NOTHING;
 
 -- Seed a deterministic test user referenced by admin integration tests
@@ -91,7 +92,7 @@ ON CONFLICT (tn) DO NOTHING;
 
 -- Keep sequences aligned with the inserted fixtures
 SELECT setval('groups_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM groups), 4));
-SELECT setval('queue_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM queue), 5));
+SELECT setval('queue_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM queue), 6));
 SELECT setval('users_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM users), 15));
 
 COMMIT;

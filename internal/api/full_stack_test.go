@@ -15,7 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	
+
 	// Import database package directly
 	"database/sql"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
@@ -26,35 +26,35 @@ import (
 
 // TestFullStackTicketCreation tests the complete ticket creation flow with real database
 func TestFullStackTicketCreation(t *testing.T) {
-    // Skip if DB env not configured or unreachable
-    if os.Getenv("DB_HOST") == "" {
-        t.Skip("Database not configured; skipping full stack test")
-    }
-    // Connect to real database
+	// Skip if DB env not configured or unreachable
+	if os.Getenv("DB_HOST") == "" {
+		t.Skip("Database not configured; skipping full stack test")
+	}
+	// Connect to real database
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"),
 		os.Getenv("DB_PASSWORD"), os.Getenv("DB_NAME"), os.Getenv("DB_SSLMODE"))
-	
+
 	db, err := sql.Open("postgres", dsn)
 	require.NoError(t, err, "Database must be available for full stack testing")
 	defer db.Close()
-	
-    err = db.Ping()
-    if err != nil {
-        t.Skipf("Database not reachable: %v", err)
-    }
-	
+
+	err = db.Ping()
+	if err != nil {
+		t.Skipf("Database not reachable: %v", err)
+	}
+
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	
+
 	// For now, manually register the routes we're testing
 	router.POST("/api/tickets", handleCreateTicketWithAttachments)
 	router.POST("/api/tickets/:id/messages", handleAddTicketMessage)
-	
+
 	t.Run("Create ticket with multiple attachments using full infrastructure", func(t *testing.T) {
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
-		
+
 		// Add all form fields
 		writer.WriteField("title", "Full Stack Test - Bug Report")
 		writer.WriteField("customer_email", "fullstack@test.com")
@@ -63,7 +63,7 @@ func TestFullStackTicketCreation(t *testing.T) {
 		writer.WriteField("priority", "high")
 		writer.WriteField("queue_id", "1")
 		writer.WriteField("type_id", "1")
-		
+
 		// Add multiple test files
 		files := []struct {
 			name    string
@@ -73,48 +73,48 @@ func TestFullStackTicketCreation(t *testing.T) {
 			{"config.json", `{"version": "1.2.3", "debug": true, "max_connections": 100}`},
 			{"screenshot.png", "fake-png-binary-data-would-be-here"},
 		}
-		
+
 		for _, f := range files {
 			part, err := writer.CreateFormFile("attachment", f.name)
 			require.NoError(t, err)
 			_, err = io.WriteString(part, f.content)
 			require.NoError(t, err)
 		}
-		
+
 		writer.Close()
-		
+
 		req := httptest.NewRequest("POST", "/api/tickets", body)
 		req.Header.Set("Content-Type", writer.FormDataContentType())
-		
+
 		// Mock authentication - in production this comes from middleware
 		req.Header.Set("X-User-ID", "1")
 		req.Header.Set("X-User-Role", "Agent")
-		
+
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
-		
+
 		// Verify response
 		assert.Equal(t, http.StatusCreated, w.Code, "Should create ticket successfully")
-		
+
 		var resp map[string]interface{}
 		err = json.Unmarshal(w.Body.Bytes(), &resp)
 		require.NoError(t, err)
-		
+
 		// Verify ticket was created
 		assert.Contains(t, resp, "id", "Should return ticket ID")
 		assert.Contains(t, resp, "ticket_number", "Should return ticket number")
 		assert.Equal(t, "Ticket created successfully", resp["message"])
-		
+
 		// Verify attachments were processed
 		if attachments, ok := resp["attachments"]; ok {
 			attachmentList := attachments.([]interface{})
 			assert.Len(t, attachmentList, 3, "Should have processed all 3 attachments")
-			
+
 			for i, att := range attachmentList {
 				attachment := att.(map[string]interface{})
 				assert.True(t, attachment["saved"].(bool), "Attachment %d should be saved", i)
 				assert.Contains(t, attachment, "path", "Should have storage path")
-				
+
 				// Verify file actually exists on disk
 				path := attachment["path"].(string)
 				_, err := os.Stat(path)
@@ -123,26 +123,26 @@ func TestFullStackTicketCreation(t *testing.T) {
 		} else {
 			t.Error("No attachments in response despite uploading files")
 		}
-		
+
 		// Verify ticket exists in database
 		ticketID := int(resp["id"].(float64))
 		db, _ := database.GetDB()
-		
+
 		var count int
-        err = db.QueryRow(database.ConvertPlaceholders(`SELECT COUNT(*) FROM ticket WHERE id = $1`), ticketID).Scan(&count)
+		err = db.QueryRow(database.ConvertPlaceholders(`SELECT COUNT(*) FROM ticket WHERE id = $1`), ticketID).Scan(&count)
 		assert.NoError(t, err)
 		assert.Equal(t, 1, count, "Ticket should exist in database")
-		
-        // Verify article was created
-        err = db.QueryRow(database.ConvertPlaceholders(`SELECT COUNT(*) FROM article WHERE ticket_id = $1`), ticketID).Scan(&count)
+
+		// Verify article was created
+		err = db.QueryRow(database.ConvertPlaceholders(`SELECT COUNT(*) FROM article WHERE ticket_id = $1`), ticketID).Scan(&count)
 		assert.NoError(t, err)
 		assert.Greater(t, count, 0, "Article should exist for ticket")
 	})
-	
+
 	t.Run("Test ticket messages API with full infrastructure", func(t *testing.T) {
 		// First create a ticket
 		ticketID := createTestTicket(t, router)
-		
+
 		// Now test adding a message
 		msgBody := &bytes.Buffer{}
 		writer := multipart.NewWriter(msgBody)
@@ -150,53 +150,53 @@ func TestFullStackTicketCreation(t *testing.T) {
 		writer.WriteField("subject", "Re: Test Ticket")
 		writer.WriteField("is_internal", "false")
 		writer.Close()
-		
+
 		req := httptest.NewRequest("POST", fmt.Sprintf("/api/tickets/%d/messages", ticketID), msgBody)
 		req.Header.Set("Content-Type", writer.FormDataContentType())
 		req.Header.Set("X-User-ID", "1")
 		req.Header.Set("X-User-Role", "Agent")
-		
+
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
-		
+
 		assert.Equal(t, http.StatusCreated, w.Code, "Should add message successfully")
-		
+
 		// Verify message in database
 		db, _ := database.GetDB()
 		var messageCount int
-        err := db.QueryRow(database.ConvertPlaceholders(`SELECT COUNT(*) FROM article WHERE ticket_id = $1`), ticketID).Scan(&messageCount)
+		err := db.QueryRow(database.ConvertPlaceholders(`SELECT COUNT(*) FROM article WHERE ticket_id = $1`), ticketID).Scan(&messageCount)
 		assert.NoError(t, err)
 		assert.GreaterOrEqual(t, messageCount, 2, "Should have at least 2 articles (initial + new message)")
 	})
-	
+
 	t.Run("Load test with concurrent ticket creation", func(t *testing.T) {
 		// Test that our infrastructure handles concurrent requests
 		concurrency := 5
 		done := make(chan bool, concurrency)
-		
+
 		for i := 0; i < concurrency; i++ {
 			go func(index int) {
 				defer func() { done <- true }()
-				
+
 				body := &bytes.Buffer{}
 				writer := multipart.NewWriter(body)
 				writer.WriteField("title", fmt.Sprintf("Concurrent Test Ticket %d", index))
 				writer.WriteField("customer_email", fmt.Sprintf("user%d@test.com", index))
 				writer.WriteField("body", "Testing concurrent ticket creation")
 				writer.Close()
-				
+
 				req := httptest.NewRequest("POST", "/api/tickets", body)
 				req.Header.Set("Content-Type", writer.FormDataContentType())
 				req.Header.Set("X-User-ID", "1")
 				req.Header.Set("X-User-Role", "Agent")
-				
+
 				w := httptest.NewRecorder()
 				router.ServeHTTP(w, req)
-				
+
 				assert.Equal(t, http.StatusCreated, w.Code, "Concurrent request %d should succeed", index)
 			}(i)
 		}
-		
+
 		// Wait for all goroutines with timeout
 		timeout := time.After(10 * time.Second)
 		for i := 0; i < concurrency; i++ {
@@ -207,7 +207,7 @@ func TestFullStackTicketCreation(t *testing.T) {
 				t.Fatal("Timeout waiting for concurrent requests")
 			}
 		}
-		
+
 		// Verify all tickets were created
 		db, _ := database.GetDB()
 		var count int
@@ -215,33 +215,33 @@ func TestFullStackTicketCreation(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, concurrency, count, "All concurrent tickets should be created")
 	})
-	
+
 	t.Run("Test file type validation", func(t *testing.T) {
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
 		writer.WriteField("title", "Security Test")
 		writer.WriteField("customer_email", "security@test.com")
 		writer.WriteField("body", "Testing blocked file types")
-		
+
 		// Try to upload a blocked file type
 		part, _ := writer.CreateFormFile("attachment", "malicious.exe")
 		io.WriteString(part, "fake executable content")
 		writer.Close()
-		
+
 		req := httptest.NewRequest("POST", "/api/tickets", body)
 		req.Header.Set("Content-Type", writer.FormDataContentType())
 		req.Header.Set("X-User-ID", "1")
 		req.Header.Set("X-User-Role", "Agent")
-		
+
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
-		
+
 		// Should still create ticket but without the blocked attachment
 		assert.Equal(t, http.StatusCreated, w.Code, "Should create ticket even with blocked file")
-		
+
 		var resp map[string]interface{}
 		json.Unmarshal(w.Body.Bytes(), &resp)
-		
+
 		// Verify no attachments were saved
 		if attachments, ok := resp["attachments"]; ok {
 			attachmentList := attachments.([]interface{})
@@ -258,75 +258,115 @@ func createTestTicket(t *testing.T, router *gin.Engine) int {
 	writer.WriteField("customer_email", "test@example.com")
 	writer.WriteField("body", "Initial ticket body")
 	writer.Close()
-	
+
 	req := httptest.NewRequest("POST", "/api/tickets", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.Header.Set("X-User-ID", "1")
 	req.Header.Set("X-User-Role", "Agent")
-	
+
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
-	
+
 	require.Equal(t, http.StatusCreated, w.Code)
-	
+
 	var resp map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &resp)
-	
+
 	return int(resp["id"].(float64))
 }
 
 // TestDatabaseIntegrity verifies our database operations maintain referential integrity
 func TestDatabaseIntegrity(t *testing.T) {
-    if err := database.InitTestDB(); err != nil {
-        t.Skip("Database not available")
-    }
-	
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        t.Skip("Database not available")
-    }
-	
-    t.Run("Verify foreign key constraints work", func(t *testing.T) {
-        // Try to create an article for non-existent ticket
-        _, err := db.Exec(database.ConvertPlaceholders(`
+	if err := database.InitTestDB(); err != nil {
+		t.Skip("Database not available")
+	}
+
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		t.Skip("Database not available")
+	}
+
+	t.Run("Verify foreign key constraints work", func(t *testing.T) {
+		// Try to create an article for non-existent ticket
+		_, err := db.Exec(database.ConvertPlaceholders(`
             INSERT INTO article (ticket_id, article_sender_type_id, communication_channel_id, is_visible_for_customer, create_time, create_by, change_time, change_by)
             VALUES (999999, 1, 1, 1, NOW(), 1, NOW(), 1)
         `))
-        
-        assert.Error(t, err, "Should fail due to foreign key constraint")
-        // Different engines produce different messages; just assert error
-    })
-	
-    t.Run("Verify cascade deletes work correctly", func(t *testing.T) {
-        // OTRS schema does not define ON DELETE CASCADE for article -> ticket.
-        // In MySQL/MariaDB test environment, skip this check.
-        if drv := os.Getenv("DB_DRIVER"); drv == "mariadb" || drv == "mysql" {
-            t.Skip("Cascade delete not asserted on MySQL/MariaDB in tests")
-        }
+
+		assert.Error(t, err, "Should fail due to foreign key constraint")
+		// Different engines produce different messages; just assert error
+	})
+
+	t.Run("Verify cascade deletes work correctly", func(t *testing.T) {
+		// MySQL/MariaDB schema lacks ON DELETE CASCADE for article.ticket_id.
+		// Skip this check there since the delete will fail with foreign key errors.
+		if database.IsMySQL() {
+			t.Skip("Cascade delete not supported on MySQL/MariaDB schema")
+		}
 		// Create a test ticket
 		var ticketID int
-        err := db.QueryRow(database.ConvertPlaceholders(`
-            INSERT INTO ticket (tn, title, queue_id, ticket_state_id, ticket_priority_id, create_by, change_by, customer_user_id)
-            VALUES (CONCAT('TEST', UNIX_TIMESTAMP()), 'Cascade Test', 1, 1, 1, 1, 1, 'test@example.com')
+		err := db.QueryRow(database.ConvertPlaceholders(`
+			INSERT INTO ticket (
+				tn,
+				title,
+				queue_id,
+				ticket_state_id,
+				ticket_priority_id,
+				ticket_lock_id,
+				user_id,
+				responsible_user_id,
+				timeout,
+				until_time,
+				escalation_time,
+				escalation_update_time,
+				escalation_response_time,
+				escalation_solution_time,
+				create_time,
+				create_by,
+				change_time,
+				change_by,
+				customer_user_id
+			)
+			VALUES (
+				CONCAT('TEST', UNIX_TIMESTAMP()),
+				'Cascade Test',
+				1,
+				1,
+				1,
+				1,
+				1,
+				1,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				NOW(),
+				1,
+				NOW(),
+				1,
+				'test@example.com'
+			)
             RETURNING id
         `)).Scan(&ticketID)
 		require.NoError(t, err)
-		
+
 		// Add an article
-        // Create article with a corresponding article_data_mime row for OTRS schema
-        _, err = db.Exec(database.ConvertPlaceholders(`
+		// Create article with a corresponding article_data_mime row for OTRS schema
+		_, err = db.Exec(database.ConvertPlaceholders(`
             INSERT INTO article (ticket_id, article_sender_type_id, communication_channel_id, is_visible_for_customer, search_index_needs_rebuild, create_time, create_by, change_time, change_by)
             VALUES ($1, 1, 1, 1, 1, NOW(), 1, NOW(), 1)
         `), ticketID)
 		require.NoError(t, err)
-		
+
 		// Delete the ticket
-        _, err = db.Exec(database.ConvertPlaceholders(`DELETE FROM ticket WHERE id = $1`), ticketID)
+		_, err = db.Exec(database.ConvertPlaceholders(`DELETE FROM ticket WHERE id = $1`), ticketID)
 		require.NoError(t, err)
-		
+
 		// Verify article was also deleted (cascade)
 		var count int
-        err = db.QueryRow(database.ConvertPlaceholders(`SELECT COUNT(*) FROM article WHERE ticket_id = $1`), ticketID).Scan(&count)
+		err = db.QueryRow(database.ConvertPlaceholders(`SELECT COUNT(*) FROM article WHERE ticket_id = $1`), ticketID).Scan(&count)
 		assert.NoError(t, err)
 		assert.Equal(t, 0, count, "Articles should be cascade deleted with ticket")
 	})
@@ -334,27 +374,27 @@ func TestDatabaseIntegrity(t *testing.T) {
 
 // TestCleanupOldTestData ensures we don't accumulate test data over time
 func TestCleanupOldTestData(t *testing.T) {
-    if err := database.InitTestDB(); err != nil {
-        t.Skip("Database not available")
-    }
-	
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        t.Skip("Database not available")
-    }
-	
+	if err := database.InitTestDB(); err != nil {
+		t.Skip("Database not available")
+	}
+
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		t.Skip("Database not available")
+	}
+
 	// Clean up test tickets older than 1 hour
-    result, err := db.Exec(database.ConvertPlaceholders(`
+	result, err := db.Exec(database.ConvertPlaceholders(`
 		DELETE FROM ticket 
 		WHERE (title LIKE 'Test%' OR title LIKE 'Full Stack Test%' OR title LIKE 'Concurrent Test%')
         AND create_time < NOW() - INTERVAL '1 hour'
     `))
-	
+
 	if err == nil {
 		affected, _ := result.RowsAffected()
 		t.Logf("Cleaned up %d old test tickets", affected)
 	}
-	
+
 	// Clean up test storage files
 	// This would clean up old test files from ./internal/api/storage/tickets/
 	// Implementation depends on your storage structure

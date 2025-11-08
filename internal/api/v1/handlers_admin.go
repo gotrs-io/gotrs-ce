@@ -19,7 +19,7 @@ func (router *APIRouter) handleGetSystemInfo(c *gin.Context) {
 		"users":      25,
 		"disk_usage": "2.5 GB",
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    info,
@@ -29,14 +29,14 @@ func (router *APIRouter) handleGetSystemInfo(c *gin.Context) {
 func (router *APIRouter) handleGetSystemSettings(c *gin.Context) {
 	// TODO: Implement actual settings fetching
 	settings := gin.H{
-		"company_name":     "Example Corp",
-		"support_email":    "support@example.com",
-		"timezone":         "UTC",
-		"language":         "en",
-		"ticket_prefix":    "TICKET#",
+		"company_name":       "Example Corp",
+		"support_email":      "support@example.com",
+		"timezone":           "UTC",
+		"language":           "en",
+		"ticket_prefix":      "TICKET#",
 		"allow_registration": false,
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    settings,
@@ -45,12 +45,12 @@ func (router *APIRouter) handleGetSystemSettings(c *gin.Context) {
 
 func (router *APIRouter) handleUpdateSystemSettings(c *gin.Context) {
 	var req map[string]interface{}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual settings update
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
@@ -77,7 +77,7 @@ func (router *APIRouter) handleListBackups(c *gin.Context) {
 			"type":       "incremental",
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    backups,
@@ -89,12 +89,12 @@ func (router *APIRouter) handleCreateBackup(c *gin.Context) {
 		Type        string `json:"type"` // full or incremental
 		Description string `json:"description"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual backup creation
 	backup := gin.H{
 		"id":          3,
@@ -105,7 +105,7 @@ func (router *APIRouter) handleCreateBackup(c *gin.Context) {
 		"description": req.Description,
 		"created_at":  time.Now(),
 	}
-	
+
 	c.JSON(http.StatusAccepted, APIResponse{
 		Success: true,
 		Message: "Backup initiated",
@@ -115,7 +115,7 @@ func (router *APIRouter) handleCreateBackup(c *gin.Context) {
 
 func (router *APIRouter) handleRestoreBackup(c *gin.Context) {
 	backupID := c.Param("id")
-	
+
 	// TODO: Implement actual backup restoration
 	c.JSON(http.StatusAccepted, APIResponse{
 		Success: true,
@@ -143,7 +143,7 @@ func (router *APIRouter) handleGetAuditLogs(c *gin.Context) {
 			"timestamp": time.Now().Add(-2 * time.Hour),
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    logs,
@@ -166,7 +166,7 @@ func (router *APIRouter) handleGetEmailTemplates(c *gin.Context) {
 			"active":  true,
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    templates,
@@ -175,18 +175,18 @@ func (router *APIRouter) handleGetEmailTemplates(c *gin.Context) {
 
 func (router *APIRouter) handleUpdateEmailTemplate(c *gin.Context) {
 	templateID := c.Param("id")
-	
+
 	var req struct {
 		Subject string `json:"subject"`
 		Body    string `json:"body"`
 		Active  bool   `json:"active"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual template update
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
@@ -198,12 +198,12 @@ func (router *APIRouter) handleRunSystemMaintenance(c *gin.Context) {
 	var req struct {
 		Task string `json:"task" binding:"required"` // cleanup, optimize, reindex
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual maintenance tasks
 	c.JSON(http.StatusAccepted, APIResponse{
 		Success: true,
@@ -225,7 +225,7 @@ func (router *APIRouter) handleGetSystemLogs(c *gin.Context) {
 			"message":   "High memory usage detected",
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    logs,
@@ -240,12 +240,12 @@ func (router *APIRouter) handleGetAuditLog(c *gin.Context) {
 func (router *APIRouter) handleGetAuditStats(c *gin.Context) {
 	// TODO: Implement actual audit statistics
 	stats := gin.H{
-		"total_events":      1532,
-		"events_today":      45,
-		"most_active_user":  "admin",
+		"total_events":       1532,
+		"events_today":       45,
+		"most_active_user":   "admin",
 		"most_common_action": "ticket.update",
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    stats,
@@ -270,7 +270,7 @@ func (router *APIRouter) handleGetTicketReports(c *gin.Context) {
 			"created_at":  time.Now().AddDate(0, 0, -1),
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    reports,
@@ -297,12 +297,12 @@ func (router *APIRouter) handleToggleMaintenanceMode(c *gin.Context) {
 		Enabled bool   `json:"enabled"`
 		Message string `json:"message"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual maintenance mode toggle
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
@@ -324,7 +324,7 @@ func (router *APIRouter) handleGetUserReports(c *gin.Context) {
 			"format":      "pdf",
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    reports,
@@ -341,7 +341,7 @@ func (router *APIRouter) handleGetSLAReports(c *gin.Context) {
 			"format":      "pdf",
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    reports,
@@ -358,7 +358,7 @@ func (router *APIRouter) handleGetPerformanceReports(c *gin.Context) {
 			"format":      "pdf",
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    reports,
@@ -367,7 +367,7 @@ func (router *APIRouter) handleGetPerformanceReports(c *gin.Context) {
 
 func (router *APIRouter) handleExportReport(c *gin.Context) {
 	reportID := c.Param("id")
-	
+
 	// TODO: Implement actual report export
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Disposition", "attachment; filename=report_"+reportID+".pdf")

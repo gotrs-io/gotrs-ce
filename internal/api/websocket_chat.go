@@ -76,12 +76,12 @@ func (h *ChatHub) run() {
 			h.mu.Lock()
 			h.clients[client.sessionID] = client
 			h.mu.Unlock()
-			
+
 			log.Printf("Chat client connected: session=%s, page=%s", client.sessionID, client.page)
-			
+
 			// Send recent message history
 			h.sendHistory(client)
-			
+
 			// Send welcome message
 			welcome := ChatMessage{
 				ID:        generateMessageID(),
@@ -110,7 +110,7 @@ func (h *ChatHub) run() {
 			if len(h.messages) > 100 {
 				h.messages = h.messages[len(h.messages)-100:]
 			}
-			
+
 			// Broadcast to all connected clients
 			for _, client := range h.clients {
 				select {
@@ -122,7 +122,7 @@ func (h *ChatHub) run() {
 				}
 			}
 			h.mu.Unlock()
-			
+
 			// Process the message and generate response if needed
 			if message.Type == "user" {
 				go h.processUserMessage(message)
@@ -134,41 +134,41 @@ func (h *ChatHub) run() {
 // processUserMessage handles incoming user messages and generates responses
 func (h *ChatHub) processUserMessage(msg ChatMessage) {
 	log.Printf("Processing user message: %s", msg.Message)
-	
+
 	// Simulate Claude thinking (in production, this would call Claude API)
 	time.Sleep(500 * time.Millisecond)
-	
+
 	// Generate a contextual response
 	response := ChatMessage{
 		ID:        generateMessageID(),
 		Type:      "claude",
 		Timestamp: time.Now(),
 	}
-	
+
 	// Simple response logic (in production, use Claude API)
 	// Note: Error reports are handled via HTTP API to create tickets, not via WebSocket
 	switch {
 	case contains(msg.Message, "hello", "hi", "hey"):
 		response.Message = "Hello! I'm Claude Code, here to help in real-time. What can I assist you with?"
-	
+
 	case contains(msg.Message, "broken", "error", "bug", "issue", "500", "404", "fail"):
 		// Don't respond via WebSocket for error reports - let the HTTP API handle ticket creation
 		// The fallbackToHTTP function in claude-chat.js will handle this properly
 		return
-	
+
 	case contains(msg.Message, "dropdown", "select", "option"):
 		response.Message = "Dropdown issues are common! If it's showing IDs instead of names, that usually means we need to add a lookup table join. I can fix that for you."
-	
+
 	case contains(msg.Message, "slow", "performance", "loading"):
 		response.Message = "Performance issue noted. Let me check if there are any N+1 queries or missing indexes. What specific action is slow?"
-	
+
 	case contains(msg.Message, "color", "style", "css", "design"):
 		response.Message = "I can help with styling! Would you like me to update the colors to match the GOTRS theme, or do you have specific colors in mind?"
-	
+
 	default:
 		response.Message = "I understand. I'm analyzing the context of your message along with the page state. In production, I would provide more intelligent responses through the Claude API."
 	}
-	
+
 	// Broadcast the response
 	h.broadcast <- response
 }
@@ -177,13 +177,13 @@ func (h *ChatHub) processUserMessage(msg ChatMessage) {
 func (h *ChatHub) sendHistory(client *ChatClient) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	
+
 	// Send last 20 messages
 	start := len(h.messages) - 20
 	if start < 0 {
 		start = 0
 	}
-	
+
 	for i := start; i < len(h.messages); i++ {
 		select {
 		case client.send <- h.messages[i]:
@@ -200,13 +200,13 @@ func (c *ChatClient) readPump() {
 		chatHub.unregister <- c
 		c.conn.Close()
 	}()
-	
+
 	c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	c.conn.SetPongHandler(func(string) error {
 		c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		return nil
 	})
-	
+
 	for {
 		var msg ChatMessage
 		err := c.conn.ReadJSON(&msg)
@@ -216,13 +216,13 @@ func (c *ChatClient) readPump() {
 			}
 			break
 		}
-		
+
 		// Add metadata to message
 		msg.ID = generateMessageID()
 		msg.Timestamp = time.Now()
 		msg.SessionID = c.sessionID
 		msg.UserID = c.userID
-		
+
 		// Log message with context
 		if msg.Context != nil {
 			contextJSON, _ := json.Marshal(msg.Context)
@@ -230,7 +230,7 @@ func (c *ChatClient) readPump() {
 		} else {
 			log.Printf("Received message from %s: %s (No context)", c.sessionID, msg.Message)
 		}
-		
+
 		// Broadcast the message
 		chatHub.broadcast <- msg
 	}
@@ -243,7 +243,7 @@ func (c *ChatClient) writePump() {
 		ticker.Stop()
 		c.conn.Close()
 	}()
-	
+
 	for {
 		select {
 		case message, ok := <-c.send:
@@ -252,11 +252,11 @@ func (c *ChatClient) writePump() {
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			
+
 			if err := c.conn.WriteJSON(message); err != nil {
 				return
 			}
-			
+
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -273,21 +273,21 @@ var HandleWebSocketChat = func(c *gin.Context) {
 		log.Printf("WebSocket upgrade failed: %v", err)
 		return
 	}
-	
+
 	// Get session info
 	sessionID := c.Query("session")
 	if sessionID == "" {
 		sessionID = generateMessageID()
 	}
-	
+
 	page := c.Query("page")
 	userID := ""
-	
+
 	// Try to get user ID from context
 	if user := getUserFromContext(c); user != nil {
 		userID = fmt.Sprintf("%d", user.ID)
 	}
-	
+
 	// Create new client
 	client := &ChatClient{
 		conn:      conn,
@@ -296,10 +296,10 @@ var HandleWebSocketChat = func(c *gin.Context) {
 		userID:    userID,
 		page:      page,
 	}
-	
+
 	// Register the client
 	chatHub.register <- client
-	
+
 	// Start goroutines for reading and writing
 	go client.writePump()
 	go client.readPump()

@@ -17,7 +17,7 @@ func (router *APIRouter) handleListPriorities(c *gin.Context) {
 		{"id": 4, "name": "4 high"},
 		{"id": 5, "name": "5 very high"},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    priorities,
@@ -30,12 +30,12 @@ func (router *APIRouter) handleCreatePriority(c *gin.Context) {
 		Color   string `json:"color"`
 		Comment string `json:"comment"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual priority creation
 	priority := gin.H{
 		"id":         6,
@@ -44,7 +44,7 @@ func (router *APIRouter) handleCreatePriority(c *gin.Context) {
 		"comment":    req.Comment,
 		"created_at": time.Now(),
 	}
-	
+
 	c.JSON(http.StatusCreated, APIResponse{
 		Success: true,
 		Data:    priority,
@@ -53,7 +53,7 @@ func (router *APIRouter) handleCreatePriority(c *gin.Context) {
 
 func (router *APIRouter) handleGetPriority(c *gin.Context) {
 	priorityID := c.Param("id")
-	
+
 	// TODO: Implement actual priority fetching
 	priority := gin.H{
 		"id":         priorityID,
@@ -62,7 +62,7 @@ func (router *APIRouter) handleGetPriority(c *gin.Context) {
 		"created_at": time.Now().AddDate(-1, 0, 0),
 		"updated_at": time.Now(),
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    priority,
@@ -71,18 +71,18 @@ func (router *APIRouter) handleGetPriority(c *gin.Context) {
 
 func (router *APIRouter) handleUpdatePriority(c *gin.Context) {
 	priorityID := c.Param("id")
-	
+
 	var req struct {
 		Name    string `json:"name"`
 		Color   string `json:"color"`
 		Comment string `json:"comment"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual priority update
 	priority := gin.H{
 		"id":         priorityID,
@@ -91,7 +91,7 @@ func (router *APIRouter) handleUpdatePriority(c *gin.Context) {
 		"comment":    req.Comment,
 		"updated_at": time.Now(),
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    priority,
@@ -100,7 +100,7 @@ func (router *APIRouter) handleUpdatePriority(c *gin.Context) {
 
 func (router *APIRouter) handleDeletePriority(c *gin.Context) {
 	// priorityID := c.Param("id")
-	
+
 	// TODO: Implement actual priority deletion (or deactivation)
 	c.JSON(http.StatusNoContent, nil)
 }

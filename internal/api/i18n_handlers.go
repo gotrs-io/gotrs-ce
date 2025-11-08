@@ -32,23 +32,23 @@ func NewI18nHandlers() *I18nHandlers {
 func (h *I18nHandlers) GetSupportedLanguages(c *gin.Context) {
 	languages := h.i18n.GetSupportedLanguages()
 	currentLang := middleware.GetLanguage(c)
-	
+
 	// Build language list with display names
 	var languageList []LanguageInfo
 	for _, lang := range languages {
 		info := LanguageInfo{
-			Code:      lang,
-			Name:      h.getLanguageName(lang),
+			Code:       lang,
+			Name:       h.getLanguageName(lang),
 			NativeName: h.getLanguageNativeName(lang),
-			Active:    lang == currentLang,
+			Active:     lang == currentLang,
 		}
 		languageList = append(languageList, info)
 	}
-	
+
 	c.JSON(http.StatusOK, LanguagesResponse{
-		Languages:   languageList,
-		Current:     currentLang,
-		Default:     h.i18n.GetDefaultLanguage(),
+		Languages: languageList,
+		Current:   currentLang,
+		Default:   h.i18n.GetDefaultLanguage(),
 	})
 }
 
@@ -70,7 +70,7 @@ func (h *I18nHandlers) SetLanguage(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Check if language is supported
 	supported := false
 	for _, lang := range h.i18n.GetSupportedLanguages() {
@@ -79,27 +79,27 @@ func (h *I18nHandlers) SetLanguage(c *gin.Context) {
 			break
 		}
 	}
-	
+
 	if !supported {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": middleware.TranslateError(c, "unsupported"),
+			"error":   middleware.TranslateError(c, "unsupported"),
 			"message": "Language not supported",
 		})
 		return
 	}
-	
+
 	// Set language cookie
 	middleware.SetLanguageCookie(c, req.Language)
-	
+
 	// If user is authenticated, save preference to database
 	if userID, exists := c.Get("user_id"); exists {
 		// TODO: Save user language preference to database
 		_ = userID
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": middleware.TranslateSuccess(c, "saved"),
+		"success":  true,
+		"message":  middleware.TranslateSuccess(c, "saved"),
 		"language": req.Language,
 	})
 }
@@ -115,7 +115,7 @@ func (h *I18nHandlers) SetLanguage(c *gin.Context) {
 // @Router /api/v1/i18n/translations/{lang} [get]
 func (h *I18nHandlers) GetTranslations(c *gin.Context) {
 	lang := c.Param("lang")
-	
+
 	// Check if language is supported
 	supported := false
 	for _, supportedLang := range h.i18n.GetSupportedLanguages() {
@@ -124,17 +124,17 @@ func (h *I18nHandlers) GetTranslations(c *gin.Context) {
 			break
 		}
 	}
-	
+
 	if !supported {
 		c.JSON(http.StatusNotFound, gin.H{
-			"error": middleware.TranslateError(c, "not_found"),
+			"error":   middleware.TranslateError(c, "not_found"),
 			"message": "Language not found",
 		})
 		return
 	}
-	
+
 	translations := h.i18n.GetTranslations(lang)
-	
+
 	c.JSON(http.StatusOK, TranslationsResponse{
 		Language:     lang,
 		Translations: translations,
@@ -151,7 +151,7 @@ func (h *I18nHandlers) GetTranslations(c *gin.Context) {
 func (h *I18nHandlers) GetCurrentTranslations(c *gin.Context) {
 	lang := middleware.GetLanguage(c)
 	translations := h.i18n.GetTranslations(lang)
-	
+
 	c.JSON(http.StatusOK, TranslationsResponse{
 		Language:     lang,
 		Translations: translations,
@@ -175,18 +175,18 @@ func (h *I18nHandlers) Translate(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	lang := middleware.GetLanguage(c)
 	if req.Language != "" {
 		lang = req.Language
 	}
-	
-    // Convert args to interface slice
-    var args []interface{}
-    args = append(args, req.Args...)
-	
+
+	// Convert args to interface slice
+	var args []interface{}
+	args = append(args, req.Args...)
+
 	translation := h.i18n.T(lang, req.Key, args...)
-	
+
 	c.JSON(http.StatusOK, TranslateResponse{
 		Key:         req.Key,
 		Translation: translation,
@@ -216,7 +216,7 @@ func (h *I18nHandlers) GetLanguageStats(c *gin.Context) {
 		},
 		DefaultLanguage: h.i18n.GetDefaultLanguage(),
 	}
-	
+
 	c.JSON(http.StatusOK, stats)
 }
 
@@ -230,16 +230,16 @@ func (h *I18nHandlers) GetLanguageStats(c *gin.Context) {
 func (h *I18nHandlers) GetTranslationCoverage(c *gin.Context) {
 	baseKeys := h.i18n.GetAllKeys("en")
 	totalKeys := len(baseKeys)
-	
+
 	var languages []LanguageCoverage
 	var totalCoverage float64
-	
+
 	for _, lang := range h.i18n.GetSupportedLanguages() {
 		langKeys := h.i18n.GetAllKeys(lang)
 		translatedKeys := len(langKeys)
 		missingCount := totalKeys - translatedKeys
 		coverage := float64(translatedKeys) / float64(totalKeys) * 100.0
-		
+
 		languages = append(languages, LanguageCoverage{
 			Code:           lang,
 			Name:           h.getLanguageName(lang),
@@ -248,16 +248,16 @@ func (h *I18nHandlers) GetTranslationCoverage(c *gin.Context) {
 			MissingCount:   missingCount,
 			Coverage:       coverage,
 		})
-		
+
 		totalCoverage += coverage
 	}
-	
+
 	response := CoverageResponse{
 		Languages: languages,
 	}
 	response.Summary.TotalKeys = totalKeys
 	response.Summary.AverageCoverage = totalCoverage / float64(len(languages))
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -272,7 +272,7 @@ func (h *I18nHandlers) GetTranslationCoverage(c *gin.Context) {
 // @Router /api/v1/i18n/missing/{lang} [get]
 func (h *I18nHandlers) GetMissingTranslations(c *gin.Context) {
 	lang := c.Param("lang")
-	
+
 	// Check if language is supported
 	supported := false
 	for _, supportedLang := range h.i18n.GetSupportedLanguages() {
@@ -281,37 +281,37 @@ func (h *I18nHandlers) GetMissingTranslations(c *gin.Context) {
 			break
 		}
 	}
-	
+
 	if !supported {
 		c.JSON(http.StatusNotFound, gin.H{
-			"error": middleware.TranslateError(c, "not_found"),
+			"error":   middleware.TranslateError(c, "not_found"),
 			"message": "Language not found",
 		})
 		return
 	}
-	
+
 	baseKeys := h.i18n.GetAllKeys("en")
 	langKeys := h.i18n.GetAllKeys(lang)
-	
+
 	// Create a map for quick lookup
 	langKeyMap := make(map[string]bool)
 	for _, key := range langKeys {
 		langKeyMap[key] = true
 	}
-	
+
 	// Find missing keys
 	var missingKeys []MissingKey
 	for _, key := range baseKeys {
 		if !langKeyMap[key] {
 			// Get the English value
 			englishValue := h.i18n.T("en", key)
-			
+
 			// Extract category from key (e.g., "tickets.title" -> "tickets")
 			category := ""
 			if idx := strings.Index(key, "."); idx > 0 {
 				category = key[:idx]
 			}
-			
+
 			missingKeys = append(missingKeys, MissingKey{
 				Key:          key,
 				EnglishValue: englishValue,
@@ -319,7 +319,7 @@ func (h *I18nHandlers) GetMissingTranslations(c *gin.Context) {
 			})
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, MissingKeysResponse{
 		Language:    lang,
 		MissingKeys: missingKeys,
@@ -341,7 +341,7 @@ func (h *I18nHandlers) GetMissingTranslations(c *gin.Context) {
 func (h *I18nHandlers) ExportTranslations(c *gin.Context) {
 	lang := c.Param("lang")
 	format := c.DefaultQuery("format", "json")
-	
+
 	// Check if language is supported
 	supported := false
 	for _, supportedLang := range h.i18n.GetSupportedLanguages() {
@@ -350,30 +350,30 @@ func (h *I18nHandlers) ExportTranslations(c *gin.Context) {
 			break
 		}
 	}
-	
+
 	if !supported {
 		c.JSON(http.StatusNotFound, gin.H{
-			"error": middleware.TranslateError(c, "not_found"),
+			"error":   middleware.TranslateError(c, "not_found"),
 			"message": "Language not found",
 		})
 		return
 	}
-	
+
 	translations := h.i18n.GetTranslations(lang)
-	
+
 	switch format {
 	case "csv":
 		// Export as CSV
 		var csvContent strings.Builder
 		csvContent.WriteString("key,value\n")
-		
+
 		// Flatten translations for CSV
 		h.flattenTranslations(translations, "", &csvContent)
-		
+
 		c.Header("Content-Type", "text/csv")
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.csv\"", lang))
 		c.String(http.StatusOK, csvContent.String())
-		
+
 	default:
 		// Export as JSON
 		c.Header("Content-Type", "application/json")
@@ -389,7 +389,7 @@ func (h *I18nHandlers) flattenTranslations(m map[string]interface{}, prefix stri
 		if prefix != "" {
 			fullKey = prefix + "." + key
 		}
-		
+
 		if nestedMap, ok := value.(map[string]interface{}); ok {
 			h.flattenTranslations(nestedMap, fullKey, writer)
 		} else if str, ok := value.(string); ok {
@@ -411,7 +411,7 @@ func (h *I18nHandlers) flattenTranslations(m map[string]interface{}, prefix stri
 // @Router /api/v1/i18n/validate/{lang} [get]
 func (h *I18nHandlers) ValidateTranslations(c *gin.Context) {
 	lang := c.Param("lang")
-	
+
 	// Check if language is supported
 	supported := false
 	for _, supportedLang := range h.i18n.GetSupportedLanguages() {
@@ -420,31 +420,31 @@ func (h *I18nHandlers) ValidateTranslations(c *gin.Context) {
 			break
 		}
 	}
-	
+
 	if !supported {
 		c.JSON(http.StatusNotFound, gin.H{
-			"error": middleware.TranslateError(c, "not_found"),
+			"error":   middleware.TranslateError(c, "not_found"),
 			"message": "Language not found",
 		})
 		return
 	}
-	
+
 	baseKeys := h.i18n.GetAllKeys("en")
 	langKeys := h.i18n.GetAllKeys(lang)
-	
+
 	totalKeys := len(baseKeys)
 	translatedKeys := len(langKeys)
 	coverage := float64(translatedKeys) / float64(totalKeys) * 100.0
-	
+
 	var errors []string
 	var warnings []string
-	
+
 	// Check for missing keys
 	langKeyMap := make(map[string]bool)
 	for _, key := range langKeys {
 		langKeyMap[key] = true
 	}
-	
+
 	missingCount := 0
 	for _, key := range baseKeys {
 		if !langKeyMap[key] {
@@ -454,17 +454,17 @@ func (h *I18nHandlers) ValidateTranslations(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	if missingCount > 10 {
 		warnings = append(warnings, fmt.Sprintf("... and %d more missing keys", missingCount-10))
 	}
-	
+
 	// Check for extra keys not in base language
 	baseKeyMap := make(map[string]bool)
 	for _, key := range baseKeys {
 		baseKeyMap[key] = true
 	}
-	
+
 	extraCount := 0
 	for _, key := range langKeys {
 		if !baseKeyMap[key] {
@@ -474,14 +474,14 @@ func (h *I18nHandlers) ValidateTranslations(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	if extraCount > 5 {
 		warnings = append(warnings, fmt.Sprintf("... and %d more extra keys", extraCount-5))
 	}
-	
+
 	isValid := len(errors) == 0
 	isComplete := coverage == 100.0
-	
+
 	c.JSON(http.StatusOK, ValidationResponse{
 		Language:   lang,
 		IsValid:    isValid,
@@ -496,17 +496,17 @@ func (h *I18nHandlers) ValidateTranslations(c *gin.Context) {
 
 func (h *I18nHandlers) getLanguageName(code string) string {
 	names := map[string]string{
-		"en": "English",
-		"es": "Spanish",
-		"fr": "French",
-		"de": "German",
-		"pt": "Portuguese",
-		"ja": "Japanese",
-		"zh": "Chinese",
-		"ar": "Arabic",
-		"he": "Hebrew",
-		"fa": "Persian",
-		"ur": "Urdu",
+		"en":  "English",
+		"es":  "Spanish",
+		"fr":  "French",
+		"de":  "German",
+		"pt":  "Portuguese",
+		"ja":  "Japanese",
+		"zh":  "Chinese",
+		"ar":  "Arabic",
+		"he":  "Hebrew",
+		"fa":  "Persian",
+		"ur":  "Urdu",
 		"tlh": "Klingon",
 	}
 	if name, ok := names[code]; ok {
@@ -517,17 +517,17 @@ func (h *I18nHandlers) getLanguageName(code string) string {
 
 func (h *I18nHandlers) getLanguageNativeName(code string) string {
 	names := map[string]string{
-		"en": "English",
-		"es": "Español",
-		"fr": "Français",
-		"de": "Deutsch",
-		"pt": "Português",
-		"ja": "日本語",
-		"zh": "中文",
-		"ar": "العربية",
-		"he": "עברית",
-		"fa": "فارسی",
-		"ur": "اردو",
+		"en":  "English",
+		"es":  "Español",
+		"fr":  "Français",
+		"de":  "Deutsch",
+		"pt":  "Português",
+		"ja":  "日本語",
+		"zh":  "中文",
+		"ar":  "العربية",
+		"he":  "עברית",
+		"fa":  "فارسی",
+		"ur":  "اردو",
 		"tlh": "tlhIngan Hol",
 	}
 	if name, ok := names[code]; ok {

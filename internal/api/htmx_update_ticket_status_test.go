@@ -19,6 +19,7 @@ import (
 
 func TestHandleUpdateTicketStatus_PendingRequiresUntil(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	t.Setenv("TEST_DB_DRIVER", "mysql")
 
 	mockDB, mock, err := sqlmock.New()
 	if err != nil {
@@ -31,10 +32,11 @@ func TestHandleUpdateTicketStatus_PendingRequiresUntil(t *testing.T) {
 
 	stateRows := sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
 		AddRow(7, "pending auto close+", 5, 1, time.Now(), 1, time.Now(), 1)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, type_id, valid_id,
-	   create_time, create_by, change_time, change_by
+	stateQuery := database.ConvertPlaceholders(`SELECT id, name, type_id, valid_id,
+   create_time, create_by, change_time, change_by
 FROM ticket_state
-WHERE id = $1`)).
+WHERE id = $1`)
+	mock.ExpectQuery(regexp.QuoteMeta(stateQuery)).
 		WithArgs(7).
 		WillReturnRows(stateRows)
 
@@ -59,6 +61,7 @@ WHERE id = $1`)).
 
 func TestHandleUpdateTicketStatus_PendingReminderRequiresUntil(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	t.Setenv("TEST_DB_DRIVER", "mysql")
 
 	mockDB, mock, err := sqlmock.New()
 	if err != nil {
@@ -71,10 +74,11 @@ func TestHandleUpdateTicketStatus_PendingReminderRequiresUntil(t *testing.T) {
 
 	stateRows := sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
 		AddRow(4, "pending reminder", 4, 1, time.Now(), 1, time.Now(), 1)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, type_id, valid_id,
+	stateQuery := database.ConvertPlaceholders(`SELECT id, name, type_id, valid_id,
    create_time, create_by, change_time, change_by
 FROM ticket_state
-WHERE id = $1`)).
+WHERE id = $1`)
+	mock.ExpectQuery(regexp.QuoteMeta(stateQuery)).
 		WithArgs(4).
 		WillReturnRows(stateRows)
 
@@ -100,6 +104,7 @@ WHERE id = $1`)).
 func TestHandleUpdateTicketStatus_PendingSetsUntil(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	t.Setenv("DB_DRIVER", "postgres")
+	t.Setenv("TEST_DB_DRIVER", "postgres")
 
 	mockDB, mock, err := sqlmock.New()
 	if err != nil {
@@ -112,10 +117,11 @@ func TestHandleUpdateTicketStatus_PendingSetsUntil(t *testing.T) {
 
 	stateRows := sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
 		AddRow(7, "pending auto close+", 5, 1, time.Now(), 1, time.Now(), 1)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, type_id, valid_id,
-	   create_time, create_by, change_time, change_by
+	stateQuery := database.ConvertPlaceholders(`SELECT id, name, type_id, valid_id,
+   create_time, create_by, change_time, change_by
 FROM ticket_state
-WHERE id = $1`)).
+WHERE id = $1`)
+	mock.ExpectQuery(regexp.QuoteMeta(stateQuery)).
 		WithArgs(7).
 		WillReturnRows(stateRows)
 
@@ -130,23 +136,25 @@ WHERE id = $1`)).
 	FROM ticket t
 	WHERE t.id = $1`, database.QualifiedTicketTypeColumn("t"))
 
-	mock.ExpectQuery(regexp.QuoteMeta(ticketSnapshotQuery)).
+	snapshotQuery := database.ConvertPlaceholders(ticketSnapshotQuery)
+	mock.ExpectQuery(regexp.QuoteMeta(snapshotQuery)).
 		WithArgs(uint(123)).
 		WillReturnError(fmt.Errorf("mock pre-snapshot failure"))
 
 	pendingUntil := "2025-10-18T15:30"
 	pendingUnix := parsePendingUntil(pendingUntil)
 
-	mock.ExpectExec(regexp.QuoteMeta(`UPDATE ticket
+	updateQuery := database.ConvertPlaceholders(`UPDATE ticket
 SET ticket_state_id = $1,
 	until_time = $2,
 	change_time = CURRENT_TIMESTAMP,
 	change_by = $3
-WHERE id = $4`)).
+WHERE id = $4`)
+	mock.ExpectExec(regexp.QuoteMeta(updateQuery)).
 		WithArgs(7, pendingUnix, 42, 123).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	mock.ExpectQuery(regexp.QuoteMeta(ticketSnapshotQuery)).
+	mock.ExpectQuery(regexp.QuoteMeta(snapshotQuery)).
 		WithArgs(uint(123)).
 		WillReturnError(fmt.Errorf("mock post-snapshot failure"))
 

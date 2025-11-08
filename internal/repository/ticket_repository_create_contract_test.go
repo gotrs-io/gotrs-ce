@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/ticketnumber"
 )
@@ -15,12 +16,19 @@ import (
 // We reference interface methods used: Name(), IsDateBased(), Next()
 
 type fakeCounterStore struct{}
-func (f fakeCounterStore) Add(ctx context.Context, dateScoped bool, offset int64) (int64, error) { return 1, nil }
+
+func (f fakeCounterStore) Add(ctx context.Context, dateScoped bool, offset int64) (int64, error) {
+	return 1, nil
+}
 
 // minimal generator fulfilling methods used in repository
 
-type fakeGenerator struct{ name string; seq int }
-func (g *fakeGenerator) Name() string { return g.name }
+type fakeGenerator struct {
+	name string
+	seq  int
+}
+
+func (g *fakeGenerator) Name() string      { return g.name }
 func (g *fakeGenerator) IsDateBased() bool { return true }
 func (g *fakeGenerator) Next(ctx context.Context, store ticketnumber.CounterStore) (string, error) {
 	g.seq++
@@ -29,8 +37,15 @@ func (g *fakeGenerator) Next(ctx context.Context, store ticketnumber.CounterStor
 
 // TestTicketRepositoryCreate_UsesGeneratorAndInserts ensures Create() calls generator and inserts row.
 func TestTicketRepositoryCreate_UsesGeneratorAndInserts(t *testing.T) {
+	t.Setenv("TEST_DB_DRIVER", "postgres")
+	database.ResetAdapterForTest()
+	database.SetAdapter(&database.PostgreSQLAdapter{})
+	t.Cleanup(database.ResetAdapterForTest)
+
 	mockDB, mock, err := sqlmock.New()
-	if err != nil { t.Fatalf("sqlmock: %v", err) }
+	if err != nil {
+		t.Fatalf("sqlmock: %v", err)
+	}
 	defer mockDB.Close()
 
 	gen := &fakeGenerator{name: "Date"}
@@ -44,10 +59,20 @@ func TestTicketRepositoryCreate_UsesGeneratorAndInserts(t *testing.T) {
 
 	ticket := &models.Ticket{Title: "Alpha", QueueID: 1, TicketLockID: 1, TicketStateID: 1, TicketPriorityID: 3, CreateBy: 1, ChangeBy: 1}
 	err = r.Create(ticket)
-	if err != nil { t.Fatalf("Create returned error: %v", err) }
-	if ticket.ID != 42 { t.Fatalf("expected id 42 got %d", ticket.ID) }
-	if ticket.TicketNumber == "" { t.Fatalf("expected ticket number assigned") }
-	if gen.seq != 1 { t.Fatalf("expected generator called once got %d", gen.seq) }
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+	if ticket.ID != 42 {
+		t.Fatalf("expected id 42 got %d", ticket.ID)
+	}
+	if ticket.TicketNumber == "" {
+		t.Fatalf("expected ticket number assigned")
+	}
+	if gen.seq != 1 {
+		t.Fatalf("expected generator called once got %d", gen.seq)
+	}
 
-	if err := mock.ExpectationsWereMet(); err != nil { t.Fatalf("unmet expectations: %v", err) }
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
 }

@@ -72,7 +72,7 @@ func TestAdvancedTicketSearch(t *testing.T) {
 		{
 			name: "Search with date range",
 			query: url.Values{
-				"q":          []string{"*"},
+				"q":            []string{"*"},
 				"created_from": []string{time.Now().Add(-7 * 24 * time.Hour).Format("2006-01-02")},
 				"created_to":   []string{time.Now().Format("2006-01-02")},
 			},

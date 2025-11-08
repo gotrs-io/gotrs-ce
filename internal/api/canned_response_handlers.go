@@ -20,10 +20,10 @@ type CannedResponseHandlers struct {
 func NewCannedResponseHandlers() *CannedResponseHandlers {
 	repo := repository.NewMemoryCannedResponseRepository()
 	srv := service.NewCannedResponseService(repo)
-	
+
 	// Initialize with some default responses
 	initializeDefaultResponses(srv)
-	
+
 	return &CannedResponseHandlers{
 		service: srv,
 	}
@@ -87,7 +87,7 @@ func initializeDefaultResponses(srv *service.CannedResponseService) {
 			IsActive:    true,
 		},
 	}
-	
+
 	ctx := context.Background()
 	for _, resp := range defaults {
 		srv.CreateResponse(ctx, &resp)
@@ -101,7 +101,7 @@ func (h *CannedResponseHandlers) GetResponses(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, responses)
 }
 
@@ -112,26 +112,26 @@ func (h *CannedResponseHandlers) GetResponseByID(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid response ID"})
 		return
 	}
-	
+
 	response, err := h.service.GetResponse(c.Request.Context(), uint(id))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Response not found"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
 // GetResponsesByCategory retrieves responses by category
 func (h *CannedResponseHandlers) GetResponsesByCategory(c *gin.Context) {
 	category := c.Param("category")
-	
+
 	responses, err := h.service.GetResponsesByCategory(c.Request.Context(), category)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, responses)
 }
 
@@ -142,7 +142,7 @@ func (h *CannedResponseHandlers) GetQuickResponses(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, responses)
 }
 
@@ -150,13 +150,13 @@ func (h *CannedResponseHandlers) GetQuickResponses(c *gin.Context) {
 func (h *CannedResponseHandlers) GetResponsesForUser(c *gin.Context) {
 	// TODO: Get actual user ID from session/auth
 	userID := uint(1)
-	
+
 	responses, err := h.service.GetResponsesForUser(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, responses)
 }
 
@@ -173,18 +173,18 @@ func (h *CannedResponseHandlers) SearchResponses(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	// Default limit if not specified
 	if filter.Limit == 0 {
 		filter.Limit = 50
 	}
-	
+
 	responses, err := h.service.SearchResponses(c.Request.Context(), &filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, responses)
 }
 
@@ -196,13 +196,13 @@ func (h *CannedResponseHandlers) GetPopularResponses(c *gin.Context) {
 			limit = l
 		}
 	}
-	
+
 	responses, err := h.service.GetPopularResponses(c.Request.Context(), limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, responses)
 }
 
@@ -213,7 +213,7 @@ func (h *CannedResponseHandlers) GetCategories(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, categories)
 }
 
@@ -224,16 +224,16 @@ func (h *CannedResponseHandlers) CreateResponse(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// TODO: Set owner from current user
 	response.OwnerID = 1
 	response.CreatedBy = 1
-	
+
 	if err := h.service.CreateResponse(c.Request.Context(), &response); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, response)
 }
 
@@ -244,21 +244,21 @@ func (h *CannedResponseHandlers) UpdateResponse(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid response ID"})
 		return
 	}
-	
+
 	var response models.CannedResponse
 	if err := c.ShouldBindJSON(&response); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	response.ID = uint(id)
 	response.UpdatedBy = 1 // TODO: Get from current user
-	
+
 	if err := h.service.UpdateResponse(c.Request.Context(), &response); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -269,14 +269,14 @@ func (h *CannedResponseHandlers) DeleteResponse(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid response ID"})
 		return
 	}
-	
+
 	// TODO: Check permissions
-	
+
 	if err := h.service.DeleteResponse(c.Request.Context(), uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Response deleted successfully"})
 }
 
@@ -287,10 +287,10 @@ func (h *CannedResponseHandlers) ApplyResponse(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// TODO: Get actual user ID from session/auth
 	userID := uint(1)
-	
+
 	// Create auto-fill context
 	// TODO: Get actual context from ticket/user data
 	autoFillCtx := &models.AutoFillContext{
@@ -301,7 +301,7 @@ func (h *CannedResponseHandlers) ApplyResponse(c *gin.Context) {
 		CustomerEmail: "customer@example.com",
 		QueueName:     "General",
 	}
-	
+
 	result, err := h.service.ApplyResponseWithContext(
 		c.Request.Context(),
 		&application,
@@ -312,7 +312,7 @@ func (h *CannedResponseHandlers) ApplyResponse(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, result)
 }
 
@@ -323,7 +323,7 @@ func (h *CannedResponseHandlers) ExportResponses(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.Header("Content-Type", "application/json")
 	c.Header("Content-Disposition", "attachment; filename=canned_responses.json")
 	c.Data(http.StatusOK, "application/json", data)
@@ -336,7 +336,7 @@ func (h *CannedResponseHandlers) ImportResponses(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded"})
 		return
 	}
-	
+
 	// Open the file
 	src, err := file.Open()
 	if err != nil {
@@ -344,19 +344,19 @@ func (h *CannedResponseHandlers) ImportResponses(c *gin.Context) {
 		return
 	}
 	defer src.Close()
-	
+
 	// Read file content
 	data := make([]byte, file.Size)
 	if _, err := src.Read(data); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
 		return
 	}
-	
+
 	// Import the data
 	if err := h.service.ImportResponses(c.Request.Context(), data); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Responses imported successfully"})
 }

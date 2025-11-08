@@ -4,6 +4,7 @@ package integration
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -13,6 +14,50 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func requireGroupID(t *testing.T, raw interface{}) uint {
+	t.Helper()
+	switch v := raw.(type) {
+	case uint:
+		return v
+	case uint8:
+		return uint(v)
+	case uint16:
+		return uint(v)
+	case uint32:
+		return uint(v)
+	case uint64:
+		return uint(v)
+	case int:
+		require.GreaterOrEqual(t, v, 0)
+		return uint(v)
+	case int8:
+		require.GreaterOrEqual(t, int(v), 0)
+		return uint(v)
+	case int16:
+		require.GreaterOrEqual(t, int(v), 0)
+		return uint(v)
+	case int32:
+		require.GreaterOrEqual(t, int(v), 0)
+		return uint(v)
+	case int64:
+		require.GreaterOrEqual(t, v, int64(0))
+		return uint(v)
+	case float64:
+		require.GreaterOrEqual(t, v, float64(0))
+		return uint(v)
+	case string:
+		n, err := strconv.Atoi(v)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, n, 0)
+		return uint(n)
+	case nil:
+		t.Fatal("group ID is nil")
+	default:
+		t.Fatalf("unsupported group ID type %T", raw)
+	}
+	return 0
+}
 
 func TestGroupsCRUDOperations(t *testing.T) {
 	// Get database connection
@@ -29,7 +74,10 @@ func TestGroupsCRUDOperations(t *testing.T) {
 	testGroupDesc := "Test group for integration testing"
 	updatedDesc := "Updated description for test group"
 
-	var createdGroup *models.Group
+	var (
+		createdGroup   *models.Group
+		createdGroupID uint
+	)
 
 	t.Run("Create Group", func(t *testing.T) {
 		// Create new group
@@ -43,10 +91,11 @@ func TestGroupsCRUDOperations(t *testing.T) {
 
 		err := groupRepo.Create(group)
 		require.NoError(t, err, "Should create group successfully")
-		assert.NotEqual(t, 0, group.ID, "Group should have ID after creation")
 
 		createdGroup = group
-		t.Logf("Created group with ID: %d, Name: %s", group.ID, group.Name)
+		createdGroupID = requireGroupID(t, group.ID)
+		assert.NotZero(t, createdGroupID, "Group should have ID after creation")
+		t.Logf("Created group with ID: %d, Name: %s", createdGroupID, group.Name)
 	})
 
 	t.Run("Read Group", func(t *testing.T) {
@@ -61,7 +110,7 @@ func TestGroupsCRUDOperations(t *testing.T) {
 		assert.Equal(t, 1, group.ValidID, "Should be valid")
 
 		// Get by ID
-		groupByID, err := groupRepo.GetByID(createdGroup.ID)
+		groupByID, err := groupRepo.GetByID(createdGroupID)
 		require.NoError(t, err, "Should find group by ID")
 		assert.NotNil(t, groupByID, "Group should exist")
 		assert.Equal(t, testGroupName, groupByID.Name, "Name should match")
@@ -78,7 +127,7 @@ func TestGroupsCRUDOperations(t *testing.T) {
 		require.NoError(t, err, "Should update group successfully")
 
 		// Verify update
-		updated, err := groupRepo.GetByID(createdGroup.ID)
+		updated, err := groupRepo.GetByID(createdGroupID)
 		require.NoError(t, err, "Should find updated group")
 		assert.Equal(t, updatedDesc, updated.Comments, "Description should be updated")
 		t.Logf("Updated group description to: %s", updated.Comments)
@@ -126,15 +175,15 @@ func TestGroupsCRUDOperations(t *testing.T) {
 		require.NotNil(t, createdGroup, "Need created group for delete test")
 
 		// Delete the group
-		err := groupRepo.Delete(createdGroup.ID)
+		err := groupRepo.Delete(createdGroupID)
 		require.NoError(t, err, "Should delete group successfully")
 
 		// Verify deletion
-		deleted, err := groupRepo.GetByID(createdGroup.ID)
+		deleted, err := groupRepo.GetByID(createdGroupID)
 		assert.Error(t, err, "Should not find deleted group")
 		assert.Nil(t, deleted, "Deleted group should not exist")
 
-		t.Logf("Successfully deleted group with ID: %d", createdGroup.ID)
+		t.Logf("Successfully deleted group with ID: %d", createdGroupID)
 	})
 
 	t.Run("Cannot Delete System Groups", func(t *testing.T) {
@@ -187,11 +236,12 @@ func TestGroupsCRUDOperations(t *testing.T) {
 		// Create the inactive group
 		err := groupRepo.Create(inactiveGroup)
 		require.NoError(t, err, "Should create inactive group successfully")
-		assert.NotEqual(t, 0, inactiveGroup.ID, "Inactive group should have ID")
-		t.Logf("Created inactive group with ID: %d", inactiveGroup.ID)
+		inactiveGroupID := requireGroupID(t, inactiveGroup.ID)
+		assert.NotZero(t, inactiveGroupID, "Inactive group should have ID")
+		t.Logf("Created inactive group with ID: %d", inactiveGroupID)
 
 		// Retrieve and verify it's inactive
-		retrieved, err := groupRepo.GetByID(inactiveGroup.ID)
+		retrieved, err := groupRepo.GetByID(inactiveGroupID)
 		require.NoError(t, err, "Should find inactive group")
 		assert.Equal(t, 2, retrieved.ValidID, "Should have Invalid status (2)")
 		assert.Equal(t, inactiveGroup.Name, retrieved.Name, "Name should match")
@@ -199,10 +249,10 @@ func TestGroupsCRUDOperations(t *testing.T) {
 		// Get all groups and verify inactive group is included
 		allGroups, err := groupRepo.List()
 		require.NoError(t, err, "Should get all groups")
-		
+
 		foundInactive := false
 		for _, g := range allGroups {
-			if g.ID == inactiveGroup.ID {
+			if requireGroupID(t, g.ID) == inactiveGroupID {
 				foundInactive = true
 				assert.Equal(t, 2, g.ValidID, "Should still be invalid in list")
 				break
@@ -217,13 +267,13 @@ func TestGroupsCRUDOperations(t *testing.T) {
 		require.NoError(t, err, "Should update group status")
 
 		// Verify the status change
-		updated, err := groupRepo.GetByID(inactiveGroup.ID)
+		updated, err := groupRepo.GetByID(inactiveGroupID)
 		require.NoError(t, err, "Should find updated group")
 		assert.Equal(t, 1, updated.ValidID, "Should now have Valid status (1)")
 		assert.Equal(t, "Now this group is active", updated.Comments, "Comments should be updated")
 
 		// Clean up
-		err = groupRepo.Delete(inactiveGroup.ID)
+		err = groupRepo.Delete(inactiveGroupID)
 		require.NoError(t, err, "Should delete the test group")
 		t.Logf("Successfully cleaned up inactive group test")
 	})
@@ -233,7 +283,8 @@ func TestGroupsCRUDOperations(t *testing.T) {
 		adminGroup, err := groupRepo.GetByName("admin")
 		require.NoError(t, err, "Admin group should exist")
 
-		members, err := groupRepo.GetGroupMembers(adminGroup.ID)
+		adminGroupID := requireGroupID(t, adminGroup.ID)
+		members, err := groupRepo.GetGroupMembers(adminGroupID)
 		if err != nil {
 			t.Logf("GetGroupMembers not fully implemented: %v", err)
 		} else {
@@ -304,7 +355,7 @@ func TestGroupValidation(t *testing.T) {
 			assert.Contains(t, err.Error(), "valid", "Error should mention valid_id")
 		} else {
 			// Clean up if it succeeded
-			groupRepo.Delete(group.ID)
+			require.NoError(t, groupRepo.Delete(requireGroupID(t, group.ID)))
 		}
 	})
 }
@@ -328,7 +379,7 @@ func TestGroupSearch(t *testing.T) {
 	}
 
 	// Create test groups
-	createdIDs := []int{}
+	createdIDs := []uint{}
 	for _, tg := range testGroups {
 		group := &models.Group{
 			Name:     tg.name,
@@ -339,13 +390,13 @@ func TestGroupSearch(t *testing.T) {
 		}
 		err := groupRepo.Create(group)
 		require.NoError(t, err, "Should create test group")
-		createdIDs = append(createdIDs, int(group.ID))
+		createdIDs = append(createdIDs, requireGroupID(t, group.ID))
 	}
 
 	// Clean up after test
 	defer func() {
 		for _, id := range createdIDs {
-			groupRepo.Delete(uint(id))
+			_ = groupRepo.Delete(id)
 		}
 	}()
 

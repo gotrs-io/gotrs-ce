@@ -33,7 +33,7 @@ func TestAdminTypeHandlers(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		body := w.Body.String()
-		
+
 		// Check for key UI elements
 		assert.Contains(t, body, "Ticket Type Management")
 		assert.Contains(t, body, "Add New Type")
@@ -53,7 +53,7 @@ func TestAdminTypeHandlers(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusCreated, w.Code)
-		
+
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestAdminTypeHandlers(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusCreated, w.Code)
-		
+
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
@@ -94,7 +94,7 @@ func TestAdminTypeHandlers(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		
+
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
@@ -125,7 +125,7 @@ func TestAdminTypeHandlers(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		
+
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
@@ -168,7 +168,7 @@ func TestAdminTypeHandlers(t *testing.T) {
 		// This would need actual database to test properly
 		// Just verify the handler can handle the error path
 		formData := url.Values{
-			"name": {""},  // Empty name should fail validation
+			"name": {""}, // Empty name should fail validation
 		}
 
 		req := httptest.NewRequest("POST", "/admin/types/create", strings.NewReader(formData.Encode()))
@@ -202,7 +202,7 @@ func TestAdminTypeUIElements(t *testing.T) {
 		assert.Contains(t, body, "id=\"typeModal\"", "Type modal missing")
 		assert.Contains(t, body, "onclick=\"openTypeModal()\"", "Add button missing")
 		assert.Contains(t, body, "class=\"table\"", "Types table missing")
-		
+
 		// Check for JavaScript functions
 		assert.Contains(t, body, "function openTypeModal()", "Modal open function missing")
 		assert.Contains(t, body, "function saveType()", "Save function missing")
@@ -240,7 +240,7 @@ func TestAdminTypeValidation(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
-		
+
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
@@ -249,7 +249,7 @@ func TestAdminTypeValidation(t *testing.T) {
 	})
 
 	t.Run("Long name validation", func(t *testing.T) {
-		longName := strings.Repeat("a", 201)  // Assuming 200 char limit
+		longName := strings.Repeat("a", 201) // Assuming 200 char limit
 		formData := url.Values{
 			"name": {longName},
 		}

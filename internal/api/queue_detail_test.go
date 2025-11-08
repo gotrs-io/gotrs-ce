@@ -13,7 +13,9 @@ import (
 
 func TestQueueDetailAPI(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	if !dbAvailable() { t.Skip("DB not available - skipping queue detail API tests") }
+	if !dbAvailable() {
+		t.Skip("DB not available - skipping queue detail API tests")
+	}
 
 	tests := []struct {
 		name           string
@@ -63,8 +65,8 @@ func TestQueueDetailAPI(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-            router := gin.New()
-            router.GET("/api/queues/:id", handleQueueDetailJSON)
+			router := gin.New()
+			router.GET("/api/queues/:id", handleQueueDetailJSON)
 
 			req, _ := http.NewRequest("GET", "/api/queues/"+tt.queueID, nil)
 			w := httptest.NewRecorder()
@@ -80,7 +82,9 @@ func TestQueueDetailAPI(t *testing.T) {
 
 func TestQueueDetailJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	if !dbAvailable() { t.Skip("DB not available - skipping queue JSON tests") }
+	if !dbAvailable() {
+		t.Skip("DB not available - skipping queue JSON tests")
+	}
 
 	tests := []struct {
 		name           string
@@ -111,7 +115,7 @@ func TestQueueDetailJSON(t *testing.T) {
 						} `json:"tickets"`
 					} `json:"data"`
 				}
-				
+
 				err := json.Unmarshal([]byte(body), &response)
 				assert.NoError(t, err)
 				assert.True(t, response.Success)
@@ -125,8 +129,8 @@ func TestQueueDetailJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-            router := gin.New()
-            router.GET("/api/queues/:id", handleQueueDetailJSON)
+			router := gin.New()
+			router.GET("/api/queues/:id", handleQueueDetailJSON)
 
 			req, _ := http.NewRequest("GET", "/api/queues/"+tt.queueID, nil)
 			if tt.acceptHeader != "" {
@@ -145,7 +149,9 @@ func TestQueueDetailJSON(t *testing.T) {
 
 func TestQueueTicketsAPI(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	if !dbAvailable() { t.Skip("DB not available - skipping queue tickets API tests") }
+	if !dbAvailable() {
+		t.Skip("DB not available - skipping queue tickets API tests")
+	}
 
 	tests := []struct {
 		name           string
@@ -221,7 +227,9 @@ func TestQueueTicketsAPI(t *testing.T) {
 
 func TestQueueDetailHTMX(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	if !dbAvailable() { t.Skip("DB not available - skipping queue detail HTMX tests") }
+	if !dbAvailable() {
+		t.Skip("DB not available - skipping queue detail HTMX tests")
+	}
 
 	tests := []struct {
 		name           string
@@ -261,8 +269,8 @@ func TestQueueDetailHTMX(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-            router := gin.New()
-            router.GET("/api/queues/:id", handleQueueDetailJSON)
+			router := gin.New()
+			router.GET("/api/queues/:id", handleQueueDetailJSON)
 
 			req, _ := http.NewRequest("GET", "/api/queues/"+tt.queueID, nil)
 			if tt.htmxRequest {
@@ -281,7 +289,9 @@ func TestQueueDetailHTMX(t *testing.T) {
 
 func TestQueueDetailErrorHandling(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	if !dbAvailable() { t.Skip("DB not available - skipping queue error handling tests") }
+	if !dbAvailable() {
+		t.Skip("DB not available - skipping queue error handling tests")
+	}
 
 	tests := []struct {
 		name           string

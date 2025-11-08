@@ -406,30 +406,36 @@ func registerOneWithChain(g *gin.RouterGroup, method, path string, handlers ...g
 // fallbackAuthGuard provides a minimal auth gate when full middleware unavailable
 func fallbackAuthGuard() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if ensureTestAuthContext(c) {
-			c.Next()
-			return
-		}
 		if _, ok := c.Get("user_id"); ok {
 			c.Next()
 			return
 		}
-		if _, err := c.Cookie("access_token"); err == nil {
-			// Populate a minimal user context for downstream handlers
-			if _, exists := c.Get("user_id"); !exists {
-				c.Set("user_id", uint(1))
-			}
-			if _, exists := c.Get("user_email"); !exists {
-				c.Set("user_email", "demo@example.com")
-			}
-			if _, exists := c.Get("user_role"); !exists {
-				c.Set("user_role", "Admin")
-			}
-			if _, exists := c.Get("user_name"); !exists {
-				c.Set("user_name", "Demo User")
-			}
+
+		allowBypass := testAuthBypassAllowed()
+
+		if allowBypass && ensureTestAuthContext(c) {
 			c.Next()
 			return
+		}
+
+		if allowBypass {
+			if _, err := c.Cookie("access_token"); err == nil {
+				// Populate a minimal user context for downstream handlers when we explicitly allow bypass
+				if _, exists := c.Get("user_id"); !exists {
+					c.Set("user_id", uint(1))
+				}
+				if _, exists := c.Get("user_email"); !exists {
+					c.Set("user_email", "demo@example.com")
+				}
+				if _, exists := c.Get("user_role"); !exists {
+					c.Set("user_role", "Admin")
+				}
+				if _, exists := c.Get("user_name"); !exists {
+					c.Set("user_name", "Demo User")
+				}
+				c.Next()
+				return
+			}
 		}
 		accept := c.GetHeader("Accept")
 		if strings.Contains(accept, "text/html") {
@@ -453,6 +459,9 @@ func fallbackAuthGuard() gin.HandlerFunc {
 }
 
 func ensureTestAuthContext(c *gin.Context) bool {
+	if !testAuthBypassAllowed() {
+		return false
+	}
 	if gin.Mode() == gin.TestMode || isTestLikeEnvironment() {
 		if _, exists := c.Get("user_id"); !exists {
 			c.Set("user_id", uint(1))
@@ -479,6 +488,31 @@ func isTestLikeEnvironment() bool {
 	default:
 		return false
 	}
+}
+
+func testAuthBypassAllowed() bool {
+	disable := strings.ToLower(strings.TrimSpace(os.Getenv("GOTRS_DISABLE_TEST_AUTH_BYPASS")))
+	switch disable {
+	case "1", "true", "yes", "on":
+		return false
+	}
+
+	env := strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV")))
+	switch env {
+	case "production", "prod":
+		return false
+	}
+
+	if gin.Mode() == gin.TestMode {
+		return true
+	}
+
+	switch env {
+	case "", "test", "testing", "unit", "unit-test", "unit_real", "unit-real":
+		return true
+	}
+
+	return false
 }
 
 // Integrate with existing setup in setupHTMXRoutesWithAuth AFTER static/auth/basic have been initialized.

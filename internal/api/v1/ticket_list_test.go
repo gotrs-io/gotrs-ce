@@ -7,15 +7,15 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	. "github.com/gotrs-io/gotrs-ce/internal/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	. "github.com/gotrs-io/gotrs-ce/internal/api"
 )
 
 func TestListTickets_Pagination(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	
+
 	router.GET("/api/v1/tickets", func(c *gin.Context) {
 		c.Set("user_id", 1)
 		c.Set("is_authenticated", true)
@@ -36,7 +36,7 @@ func TestListTickets_Pagination(t *testing.T) {
 				assert.True(t, body["success"].(bool))
 				assert.NotNil(t, body["data"])
 				assert.NotNil(t, body["pagination"])
-				
+
 				pagination := body["pagination"].(map[string]interface{})
 				assert.Equal(t, float64(1), pagination["page"])
 				assert.Equal(t, float64(20), pagination["per_page"])
@@ -78,13 +78,13 @@ func TestListTickets_Pagination(t *testing.T) {
 			req := httptest.NewRequest("GET", "/api/v1/tickets"+tt.query, nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, tt.wantStatus, w.Code)
-			
+
 			var response map[string]interface{}
 			err := json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
-			
+
 			if tt.checkBody != nil {
 				tt.checkBody(t, response)
 			}
@@ -95,7 +95,7 @@ func TestListTickets_Pagination(t *testing.T) {
 func TestListTickets_Filtering(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	
+
 	router.GET("/api/v1/tickets", func(c *gin.Context) {
 		c.Set("user_id", 1)
 		c.Set("is_authenticated", true)
@@ -164,13 +164,13 @@ func TestListTickets_Filtering(t *testing.T) {
 			req := httptest.NewRequest("GET", "/api/v1/tickets"+tt.query, nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, tt.wantStatus, w.Code)
-			
+
 			var response map[string]interface{}
 			err := json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
-			
+
 			if tt.checkBody != nil {
 				tt.checkBody(t, response)
 			}
@@ -181,7 +181,7 @@ func TestListTickets_Filtering(t *testing.T) {
 func TestListTickets_Search(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	
+
 	router.GET("/api/v1/tickets", func(c *gin.Context) {
 		c.Set("user_id", 1)
 		c.Set("is_authenticated", true)
@@ -220,9 +220,9 @@ func TestListTickets_Search(t *testing.T) {
 			req := httptest.NewRequest("GET", "/api/v1/tickets"+tt.query, nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, tt.wantStatus, w.Code)
-			
+
 			var response map[string]interface{}
 			err := json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
@@ -234,7 +234,7 @@ func TestListTickets_Search(t *testing.T) {
 func TestListTickets_Sorting(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	
+
 	router.GET("/api/v1/tickets", func(c *gin.Context) {
 		c.Set("user_id", 1)
 		c.Set("is_authenticated", true)
@@ -288,7 +288,7 @@ func TestListTickets_Sorting(t *testing.T) {
 			req := httptest.NewRequest("GET", "/api/v1/tickets"+tt.query, nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
@@ -297,7 +297,7 @@ func TestListTickets_Sorting(t *testing.T) {
 func TestListTickets_ResponseFormat(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	
+
 	router.GET("/api/v1/tickets", func(c *gin.Context) {
 		c.Set("user_id", 1)
 		c.Set("is_authenticated", true)
@@ -307,18 +307,18 @@ func TestListTickets_ResponseFormat(t *testing.T) {
 	req := httptest.NewRequest("GET", "/api/v1/tickets", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
-	
+
 	assert.Equal(t, http.StatusOK, w.Code)
-	
+
 	var response map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
-	
+
 	// Check response structure
 	assert.True(t, response["success"].(bool))
 	assert.NotNil(t, response["data"])
 	assert.NotNil(t, response["pagination"])
-	
+
 	// Check pagination structure
 	pagination := response["pagination"].(map[string]interface{})
 	assert.Contains(t, pagination, "page")
@@ -327,7 +327,7 @@ func TestListTickets_ResponseFormat(t *testing.T) {
 	assert.Contains(t, pagination, "total_pages")
 	assert.Contains(t, pagination, "has_next")
 	assert.Contains(t, pagination, "has_prev")
-	
+
 	// Check data is array
 	data := response["data"].([]interface{})
 	if len(data) > 0 {
@@ -349,7 +349,7 @@ func TestListTickets_ResponseFormat(t *testing.T) {
 
 func TestListTickets_Permissions(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	tests := []struct {
 		name       string
 		setupAuth  func(c *gin.Context)
@@ -385,16 +385,16 @@ func TestListTickets_Permissions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
 			apiRouter := NewAPIRouter(nil, nil, nil)
-			
+
 			router.GET("/api/v1/tickets", func(c *gin.Context) {
 				tt.setupAuth(c)
 				apiRouter.HandleListTickets(c)
 			})
-			
+
 			req := httptest.NewRequest("GET", "/api/v1/tickets", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
@@ -403,7 +403,7 @@ func TestListTickets_Permissions(t *testing.T) {
 func TestListTickets_EdgeCases(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	
+
 	router.GET("/api/v1/tickets", func(c *gin.Context) {
 		c.Set("user_id", 1)
 		c.Set("is_authenticated", true)
@@ -452,13 +452,13 @@ func TestListTickets_EdgeCases(t *testing.T) {
 			req := httptest.NewRequest("GET", "/api/v1/tickets"+tt.query, nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, tt.wantStatus, w.Code)
-			
+
 			var response map[string]interface{}
 			err := json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
-			
+
 			// Even edge cases should return valid response
 			assert.NotNil(t, response["success"])
 			assert.NotNil(t, response["data"])
@@ -471,7 +471,7 @@ func TestListTickets_EdgeCases(t *testing.T) {
 func TestListTickets_IncludeRelations(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	
+
 	router.GET("/api/v1/tickets", func(c *gin.Context) {
 		c.Set("user_id", 1)
 		c.Set("is_authenticated", true)
@@ -479,8 +479,8 @@ func TestListTickets_IncludeRelations(t *testing.T) {
 	})
 
 	tests := []struct {
-		name  string
-		query string
+		name      string
+		query     string
 		checkBody func(t *testing.T, body map[string]interface{})
 	}{
 		{
@@ -515,13 +515,13 @@ func TestListTickets_IncludeRelations(t *testing.T) {
 			req := httptest.NewRequest("GET", "/api/v1/tickets"+tt.query, nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, http.StatusOK, w.Code)
-			
+
 			var response map[string]interface{}
 			err := json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
-			
+
 			if tt.checkBody != nil {
 				tt.checkBody(t, response)
 			}

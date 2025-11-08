@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
@@ -154,9 +155,9 @@ func HandleGetTypes(c *gin.Context) {
 			defer rows.Close()
 
 			if isHTMX {
-				// Return HTML options for HTMX
-				c.Header("Content-Type", "text/html")
-				c.String(http.StatusOK, `<option value="">Select type</option>`)
+				var builder strings.Builder
+				builder.WriteString(`<option value="">Select type</option>`)
+				wroteOption := false
 				for rows.Next() {
 					var (
 						id, validID int
@@ -166,12 +167,16 @@ func HandleGetTypes(c *gin.Context) {
 					if err := scanTypeRow(rows, &id, &name, &comments, &validID); err != nil {
 						continue
 					}
-					c.Writer.WriteString(fmt.Sprintf(`<option value="%d">%s</option>`, id, name))
+					builder.WriteString(fmt.Sprintf(`<option value="%d">%s</option>`, id, name))
+					wroteOption = true
 				}
-				return
+				if wroteOption {
+					c.Header("Content-Type", "text/html")
+					c.String(http.StatusOK, builder.String())
+					return
+				}
 			}
 
-			// Return JSON for API requests
 			data := make([]map[string]interface{}, 0)
 			for rows.Next() {
 				var (
@@ -189,8 +194,10 @@ func HandleGetTypes(c *gin.Context) {
 					"valid_id": validID,
 				})
 			}
-			c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
-			return
+			if len(data) > 0 {
+				c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
+				return
+			}
 		}
 	}
 

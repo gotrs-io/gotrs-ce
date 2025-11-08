@@ -50,7 +50,7 @@ func TestCreateQueueAPI(t *testing.T) {
 						Comment string `json:"comment"`
 					} `json:"data"`
 				}
-				
+
 				err := json.Unmarshal([]byte(body), &response)
 				assert.NoError(t, err)
 				assert.True(t, response.Success)
@@ -139,7 +139,7 @@ func TestUpdateQueueAPI(t *testing.T) {
 						Comment string `json:"comment"`
 					} `json:"data"`
 				}
-				
+
 				err := json.Unmarshal([]byte(body), &response)
 				assert.NoError(t, err)
 				assert.True(t, response.Success)
@@ -220,7 +220,7 @@ func TestDeleteQueueAPI(t *testing.T) {
 					Success bool   `json:"success"`
 					Message string `json:"message"`
 				}
-				
+
 				err := json.Unmarshal([]byte(body), &response)
 				assert.NoError(t, err)
 				assert.True(t, response.Success)

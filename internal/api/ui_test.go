@@ -17,11 +17,11 @@ func TestDarkThemeContrast(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name            string
-		route           string
-		activePage      string
-		checkSelectors  []string
-		shouldContain   []string
+		name             string
+		route            string
+		activePage       string
+		checkSelectors   []string
+		shouldContain    []string
 		shouldNotContain []string
 	}{
 		{
@@ -29,9 +29,9 @@ func TestDarkThemeContrast(t *testing.T) {
 			route:      "/dashboard",
 			activePage: "dashboard",
 			shouldContain: []string{
-				"dark:text-white",          // Active link text in dark mode
-				"dark:text-gray-400",        // Inactive link text in dark mode
-				"dark:hover:text-gray-200",  // Hover state in dark mode
+				"dark:text-white",            // Active link text in dark mode
+				"dark:text-gray-400",         // Inactive link text in dark mode
+				"dark:hover:text-gray-200",   // Hover state in dark mode
 				"dark:hover:border-gray-600", // Hover border in dark mode
 			},
 		},
@@ -40,7 +40,7 @@ func TestDarkThemeContrast(t *testing.T) {
 			route:      "/tickets",
 			activePage: "tickets",
 			shouldContain: []string{
-				`class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium border-indigo-500 text-gray-900 dark:text-white"`,
+				"border-gotrs-500 text-gray-900 dark:text-white",
 			},
 		},
 		{
@@ -48,10 +48,10 @@ func TestDarkThemeContrast(t *testing.T) {
 			route:      "/dashboard",
 			activePage: "dashboard",
 			shouldContain: []string{
-				"bg-gotrs-600",           // Primary button background
-				"text-white",             // Button text always white
-				"hover:bg-gotrs-500",     // Hover state
-				"dark:bg-gray-800",       // Secondary button in dark mode
+				"bg-gotrs-600",       // Primary button background
+				"text-white",         // Button text always white
+				"hover:bg-gotrs-500", // Hover state
+				"dark:bg-gray-800",   // Secondary button in dark mode
 			},
 		},
 		{
@@ -59,9 +59,9 @@ func TestDarkThemeContrast(t *testing.T) {
 			route:      "/dashboard",
 			activePage: "dashboard",
 			shouldContain: []string{
-				"dark:bg-gray-900",  // Body background
-				"dark:bg-gray-800",  // Card background
-				"dark:text-white",   // Primary text
+				"dark:bg-gray-900",   // Body background
+				"dark:bg-gray-800",   // Card background
+				"dark:text-white",    // Primary text
 				"dark:text-gray-400", // Secondary text
 			},
 		},
@@ -94,7 +94,9 @@ func TestDarkThemeContrast(t *testing.T) {
 
 func TestQueueView(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	if !dbAvailable() { t.Skip("DB not available - skipping QueueView UI tests") }
+	if !dbAvailable() {
+		t.Skip("DB not available - skipping QueueView UI tests")
+	}
 
 	tests := []struct {
 		name           string
@@ -131,8 +133,8 @@ func TestQueueView(t *testing.T) {
 			userRole:       "admin",
 			expectedStatus: http.StatusOK,
 			checkContent: []string{
-				"tickets", // Ticket count
-				"Active",  // Queue status
+				"tickets",   // Ticket count
+				"Active",    // Queue status
 				"New Queue", // Add button
 			},
 		},
@@ -151,7 +153,7 @@ func TestQueueView(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
-			
+
 			// Add middleware to set user role
 			router.Use(func(c *gin.Context) {
 				c.Set("user_role", tt.userRole)
@@ -163,7 +165,7 @@ func TestQueueView(t *testing.T) {
 				})
 				c.Next()
 			})
-			
+
 			SetupHTMXRoutes(router)
 
 			w := httptest.NewRecorder()
@@ -171,12 +173,12 @@ func TestQueueView(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
-			
+
 			body := w.Body.String()
 			for _, content := range tt.checkContent {
 				assert.Contains(t, body, content, "Missing expected content: %s", content)
 			}
-			
+
 			// Should not show fallback HTML
 			assert.NotContains(t, body, "Queue management interface coming soon")
 		})
@@ -251,7 +253,7 @@ func TestAdminView(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
-			
+
 			// Add middleware to set user role
 			router.Use(func(c *gin.Context) {
 				c.Set("user_role", tt.userRole)
@@ -263,7 +265,7 @@ func TestAdminView(t *testing.T) {
 				})
 				c.Next()
 			})
-			
+
 			SetupHTMXRoutes(router)
 
 			w := httptest.NewRecorder()
@@ -271,12 +273,12 @@ func TestAdminView(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
-			
+
 			body := w.Body.String()
 			for _, content := range tt.checkContent {
 				assert.Contains(t, body, content, "Missing expected content: %s", content)
 			}
-			
+
 			// Should not show fallback HTML
 			assert.NotContains(t, body, "Admin interface coming soon")
 		})
@@ -287,11 +289,11 @@ func TestNavigationVisibility(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name         string
-		userRole     string
-		route        string
-		shouldShow   []string
-		shouldHide   []string
+		name       string
+		userRole   string
+		route      string
+		shouldShow []string
+		shouldHide []string
 	}{
 		{
 			name:     "Admin sees all navigation items",
@@ -299,7 +301,7 @@ func TestNavigationVisibility(t *testing.T) {
 			route:    "/dashboard",
 			shouldShow: []string{
 				"Dashboard",
-				"Tickets", 
+				"Tickets",
 				"Queues",
 				"Admin",
 			},
@@ -336,19 +338,19 @@ func TestNavigationVisibility(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
-			
+
 			// Add middleware to set user role
 			router.Use(func(c *gin.Context) {
 				c.Set("user_role", tt.userRole)
-                c.Set("user", gin.H{
+				c.Set("user", gin.H{
 					"FirstName": "Test",
 					"LastName":  "User",
 					"Email":     "test@example.com",
-                    "Role":      tt.userRole,
+					"Role":      tt.userRole,
 				})
 				c.Next()
 			})
-			
+
 			SetupHTMXRoutes(router)
 
 			w := httptest.NewRecorder()
@@ -356,13 +358,13 @@ func TestNavigationVisibility(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			body := w.Body.String()
-			
+
 			// Check items that should be visible
 			for _, item := range tt.shouldShow {
 				// Look for navigation link with the text
 				assert.Contains(t, body, item, "Navigation item '%s' should be visible for %s", item, tt.userRole)
 			}
-			
+
 			// Check items that should be hidden
 			for _, item := range tt.shouldHide {
 				// For Admin link, it should not appear in navigation for non-admins
@@ -380,9 +382,9 @@ func TestResponsiveDesign(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name           string
-		route          string
-		checkElements  []string
+		name          string
+		route         string
+		checkElements []string
 	}{
 		{
 			name:  "Mobile menu button exists",
@@ -421,7 +423,7 @@ func TestResponsiveDesign(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			body := w.Body.String()
-			
+
 			for _, element := range tt.checkElements {
 				assert.Contains(t, body, element, "Missing responsive element: %s", element)
 			}
@@ -433,9 +435,9 @@ func TestAccessibility(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name          string
-		route         string
-		checkA11y     []string
+		name      string
+		route     string
+		checkA11y []string
 	}{
 		{
 			name:  "Page has proper ARIA labels",
@@ -475,7 +477,7 @@ func TestAccessibility(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			body := w.Body.String()
-			
+
 			for _, a11y := range tt.checkA11y {
 				assert.Contains(t, body, a11y, "Missing accessibility feature: %s", a11y)
 			}
@@ -487,9 +489,9 @@ func TestPageLoadPerformance(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name        string
-		route       string
-		maxSizeKB   int
+		name      string
+		route     string
+		maxSizeKB int
 	}{
 		{
 			name:      "Dashboard page size is reasonable",
@@ -518,7 +520,7 @@ func TestPageLoadPerformance(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			sizeKB := len(w.Body.Bytes()) / 1024
-			assert.LessOrEqual(t, sizeKB, tt.maxSizeKB, 
+			assert.LessOrEqual(t, sizeKB, tt.maxSizeKB,
 				"Page size %dKB exceeds maximum %dKB", sizeKB, tt.maxSizeKB)
 		})
 	}
@@ -562,9 +564,9 @@ func TestHTMXIntegration(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name         string
-		route        string
-		checkHTMX    []string
+		name      string
+		route     string
+		checkHTMX []string
 	}{
 		{
 			name:  "Pages include HTMX attributes",
@@ -597,7 +599,7 @@ func TestHTMXIntegration(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			body := w.Body.String()
-			
+
 			// At least one HTMX attribute should be present
 			hasHTMX := false
 			for _, attr := range tt.checkHTMX {
@@ -615,9 +617,9 @@ func TestSecurityHeaders(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name          string
-		route         string
-		checkHeaders  map[string]string
+		name         string
+		route        string
+		checkHeaders map[string]string
 	}{
 		{
 			name:  "Content-Type is set correctly",

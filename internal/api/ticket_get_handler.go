@@ -85,8 +85,7 @@ func HandleGetTicketAPI(c *gin.Context) {
 				},
 			})
 		} else {
-			// Fallback when template renderer is not available
-			c.String(http.StatusOK, "Template renderer not available")
+			renderTicketCreationFallback(c, "email")
 		}
 		return
 	}

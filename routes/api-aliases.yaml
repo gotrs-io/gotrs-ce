@@ -33,6 +33,31 @@ spec:
     handler: HandleCreateTicketAPI
     description: "Alias ticket creation (maps to /api/v1/tickets)"
 
+  - path: /tickets
+    method: GET
+    handler: HandleListTicketsAPI
+    description: "Alias ticket list (maps to /api/v1/tickets)"
+
+  - path: /dashboard/stats
+    method: GET
+    handler: dashboard_stats
+    description: "Alias dashboard stats fragment"
+
+  - path: /dashboard/recent-tickets
+    method: GET
+    handler: dashboard_recent_tickets
+    description: "Alias recent tickets fragment"
+
+  - path: /dashboard/activity
+    method: GET
+    handler: dashboard_activity
+    description: "Alias dashboard activity fragment"
+
+  - path: /dashboard/activity-stream
+    method: GET
+    handler: dashboard_activity_stream
+    description: "Alias dashboard activity stream endpoint"
+
   # (Optional future) Add other needed aliases if more 404s appear
   # - path: /tickets
   #   method: GET

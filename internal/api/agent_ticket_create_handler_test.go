@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql/driver"
+	"fmt"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -58,6 +59,13 @@ func (e equalsInt) Match(v driver.Value) bool {
 	return false
 }
 
+func articleColumnCheckQuery(column string) string {
+	if database.IsMySQL() {
+		return fmt.Sprintf("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'article' AND COLUMN_NAME = '%s'", column)
+	}
+	return fmt.Sprintf("SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'article' AND column_name = '%s'", column)
+}
+
 func TestHandleAgentCreateTicket_UsesSelectedNextState(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -65,7 +73,10 @@ func TestHandleAgentCreateTicket_UsesSelectedNextState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock setup failed: %v", err)
 	}
-	defer mockDB.Close()
+	t.Cleanup(func() {
+		database.ResetDB()
+		_ = mockDB.Close()
+	})
 
 	repository.SetTicketNumberGenerator(ticketNumberStub{value: "202510050001"}, noopCounterStore{})
 	t.Cleanup(func() { repository.SetTicketNumberGenerator(nil, nil) })
@@ -74,66 +85,83 @@ func TestHandleAgentCreateTicket_UsesSelectedNextState(t *testing.T) {
 	stateRows := sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
 		AddRow(5, "pending reminder", 4, 1, time.Now(), 1, time.Now(), 1)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, type_id, valid_id,
+	stateQuery := database.ConvertPlaceholders(`
+		SELECT id, name, type_id, valid_id,
 	       create_time, create_by, change_time, change_by
 	FROM ticket_state
-	WHERE id = $1`)).
+	WHERE id = $1`)
+
+	mock.ExpectQuery(regexp.QuoteMeta(stateQuery)).
 		WithArgs(5).
 		WillReturnRows(stateRows)
 
 	pendingUntil := "2025-10-18T15:30"
 	pendingUnix := parsePendingUntil(pendingUntil)
 
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO ticket (")).
-		WithArgs(
-			"202510050001",
-			"Pending state ticket",
-			1,
-			1,
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			equalsInt{want: 5},
-			3,
-			sqlmock.AnyArg(),
-			equalsInt{want: pendingUnix},
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			equalsInt{want: 42},
-			sqlmock.AnyArg(),
-			equalsInt{want: 42},
-		).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(987))
+	ticketArgs := []driver.Value{
+		"202510050001",
+		"Pending state ticket",
+		1,
+		1,
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		equalsInt{want: 5},
+		3,
+		sqlmock.AnyArg(),
+		equalsInt{want: pendingUnix},
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		equalsInt{want: 42},
+		sqlmock.AnyArg(),
+		equalsInt{want: 42},
+	}
+	if database.IsMySQL() {
+		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO ticket (")).
+			WithArgs(ticketArgs...).
+			WillReturnResult(sqlmock.NewResult(987, 1))
+	} else {
+		mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO ticket (")).
+			WithArgs(ticketArgs...).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(987))
+	}
 
 	mock.ExpectBegin()
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'article' AND column_name = 'article_type_id'")).
+	mock.ExpectQuery(regexp.QuoteMeta(articleColumnCheckQuery("article_type_id"))).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'article' AND column_name = 'communication_channel_id'")).
+	mock.ExpectQuery(regexp.QuoteMeta(articleColumnCheckQuery("communication_channel_id"))).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO article (")).
-		WithArgs(
-			987,
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-		).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(321))
+	articleArgs := []driver.Value{
+		987,
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+	}
+	if database.IsMySQL() {
+		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO article (")).
+			WithArgs(articleArgs...).
+			WillReturnResult(sqlmock.NewResult(321, 1))
+	} else {
+		mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO article (")).
+			WithArgs(articleArgs...).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(321))
+	}
 
 	mock.ExpectExec("INSERT INTO article_data_mime").
 		WillReturnResult(sqlmock.NewResult(0, 1))
@@ -202,7 +230,10 @@ func TestHandleAgentCreateTicket_PendingStateRequiresPendingUntil(t *testing.T) 
 	if err != nil {
 		t.Fatalf("sqlmock setup failed: %v", err)
 	}
-	defer mockDB.Close()
+	t.Cleanup(func() {
+		database.ResetDB()
+		_ = mockDB.Close()
+	})
 
 	repository.SetTicketNumberGenerator(ticketNumberStub{value: "202510050002"}, noopCounterStore{})
 	t.Cleanup(func() { repository.SetTicketNumberGenerator(nil, nil) })
@@ -210,10 +241,13 @@ func TestHandleAgentCreateTicket_PendingStateRequiresPendingUntil(t *testing.T) 
 
 	stateRows := sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
 		AddRow(5, "pending auto close+", 5, 1, time.Now(), 1, time.Now(), 1)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, type_id, valid_id,
+	stateQuery := database.ConvertPlaceholders(`
+		SELECT id, name, type_id, valid_id,
 	       create_time, create_by, change_time, change_by
 	FROM ticket_state
-	WHERE id = $1`)).
+	WHERE id = $1`)
+
+	mock.ExpectQuery(regexp.QuoteMeta(stateQuery)).
 		WithArgs(5).
 		WillReturnRows(stateRows)
 
@@ -270,7 +304,10 @@ func TestHandleAgentCreateTicket_PendingStateSetsPendingUntil(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sqlmock setup failed: %v", err)
 	}
-	defer mockDB.Close()
+	t.Cleanup(func() {
+		database.ResetDB()
+		_ = mockDB.Close()
+	})
 
 	repository.SetTicketNumberGenerator(ticketNumberStub{value: "202510050003"}, noopCounterStore{})
 	t.Cleanup(func() { repository.SetTicketNumberGenerator(nil, nil) })
@@ -278,66 +315,83 @@ func TestHandleAgentCreateTicket_PendingStateSetsPendingUntil(t *testing.T) {
 
 	stateRows := sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
 		AddRow(5, "pending auto close+", 5, 1, time.Now(), 1, time.Now(), 1)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, type_id, valid_id,
+	stateQuery := database.ConvertPlaceholders(`
+		SELECT id, name, type_id, valid_id,
 	       create_time, create_by, change_time, change_by
 	FROM ticket_state
-	WHERE id = $1`)).
+	WHERE id = $1`)
+
+	mock.ExpectQuery(regexp.QuoteMeta(stateQuery)).
 		WithArgs(5).
 		WillReturnRows(stateRows)
 
 	pendingUntil := "2025-10-18T15:30"
 	pendingUnix := parsePendingUntil(pendingUntil)
 
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO ticket (")).
-		WithArgs(
-			"202510050003",
-			"Pending auto-close",
-			1,
-			1,
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			equalsInt{want: 5},
-			3,
-			sqlmock.AnyArg(),
-			equalsInt{want: pendingUnix},
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			equalsInt{want: 42},
-			sqlmock.AnyArg(),
-			equalsInt{want: 42},
-		).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(654))
+	ticketArgs2 := []driver.Value{
+		"202510050003",
+		"Pending auto-close",
+		1,
+		1,
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		equalsInt{want: 5},
+		3,
+		sqlmock.AnyArg(),
+		equalsInt{want: pendingUnix},
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		equalsInt{want: 42},
+		sqlmock.AnyArg(),
+		equalsInt{want: 42},
+	}
+	if database.IsMySQL() {
+		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO ticket (")).
+			WithArgs(ticketArgs2...).
+			WillReturnResult(sqlmock.NewResult(654, 1))
+	} else {
+		mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO ticket (")).
+			WithArgs(ticketArgs2...).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(654))
+	}
 
 	mock.ExpectBegin()
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'article' AND column_name = 'article_type_id'")).
+	mock.ExpectQuery(regexp.QuoteMeta(articleColumnCheckQuery("article_type_id"))).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'article' AND column_name = 'communication_channel_id'")).
+	mock.ExpectQuery(regexp.QuoteMeta(articleColumnCheckQuery("communication_channel_id"))).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO article (")).
-		WithArgs(
-			654,
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-		).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(777))
+	articleArgs2 := []driver.Value{
+		654,
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+	}
+	if database.IsMySQL() {
+		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO article (")).
+			WithArgs(articleArgs2...).
+			WillReturnResult(sqlmock.NewResult(777, 1))
+	} else {
+		mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO article (")).
+			WithArgs(articleArgs2...).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(777))
+	}
 
 	mock.ExpectExec("INSERT INTO article_data_mime").
 		WillReturnResult(sqlmock.NewResult(0, 1))

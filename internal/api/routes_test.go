@@ -11,16 +11,16 @@ import (
 
 func TestNewRouter(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	router := NewSimpleRouter()
-	
+
 	assert.NotNil(t, router)
 	// Simple router just creates a gin engine with HTMX routes
 }
 
 func TestSetupRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	router := NewSimpleRouter()
 
 	tests := []struct {
@@ -44,7 +44,7 @@ func TestSetupRoutes(t *testing.T) {
 		{
 			name:       "Dashboard page endpoint",
 			method:     "GET",
-			path:       "/dashboard", 
+			path:       "/dashboard",
 			statusCode: http.StatusOK,
 		},
 		{
@@ -71,9 +71,9 @@ func TestSetupRoutes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(tt.method, tt.path, nil)
 			w := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, tt.statusCode, w.Code)
 		})
 	}
@@ -81,7 +81,7 @@ func TestSetupRoutes(t *testing.T) {
 
 func TestHTMXEndpoints(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	router := NewSimpleRouter()
 
 	tests := []struct {
@@ -120,9 +120,9 @@ func TestHTMXEndpoints(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(tt.method, tt.path, nil)
 			w := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, tt.statusCode, w.Code)
 		})
 	}
@@ -130,30 +130,30 @@ func TestHTMXEndpoints(t *testing.T) {
 
 func TestHealthEndpoint(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	router := NewSimpleRouter()
-	
+
 	req := httptest.NewRequest("GET", "/health", nil)
 	w := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(w, req)
-	
-    assert.Equal(t, http.StatusOK, w.Code)
-    assert.Contains(t, w.Body.String(), "healthy")
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "healthy")
 }
 
 func TestRouteGroups(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	router := NewSimpleRouter()
 
 	// Get all routes
 	routes := router.Routes()
-	
+
 	// Check that routes are properly set up
 	pageRoutes := 0
 	apiRoutes := 0
-	
+
 	for _, route := range routes {
 		if len(route.Path) > 4 && route.Path[:4] == "/api" {
 			apiRoutes++
@@ -161,17 +161,17 @@ func TestRouteGroups(t *testing.T) {
 			pageRoutes++
 		}
 	}
-	
+
 	assert.Greater(t, apiRoutes, 0, "Should have API routes for HTMX")
 	assert.Greater(t, pageRoutes, 0, "Should have page routes")
 }
 
 func BenchmarkRouting(b *testing.B) {
 	gin.SetMode(gin.ReleaseMode)
-	
+
 	router := NewSimpleRouter()
 	req := httptest.NewRequest("GET", "/health", nil)
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		w := httptest.NewRecorder()

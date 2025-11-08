@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/routing"
 )
 
 // Simple global handler registry to decouple YAML route loader from hardcoded map.
@@ -57,6 +58,7 @@ func ensureCoreHandlers() {
 	pairs := map[string]gin.HandlerFunc{
 		"handleLoginPage":           handleLoginPage,
 		"handleDashboard":           handleDashboard,
+		"handleAuthLogin":           HandleAuthLogin,
 		"handleTickets":             handleTickets,
 		"handleTicketDetail":        handleTicketDetail,
 		"HandleQueueDetail":         handleQueueDetail,
@@ -75,14 +77,20 @@ func ensureCoreHandlers() {
 			HandleAgentNewTicket(db)(c)
 		},
 		// Attachment handlers exposed for API routes
-		"HandleGetAttachments":     handleGetAttachments,
-		"HandleUploadAttachment":   handleUploadAttachment,
-		"HandleDownloadAttachment": handleDownloadAttachment,
-		"HandleDeleteAttachment":   handleDeleteAttachment,
-		"HandleGetThumbnail":       handleGetThumbnail,
-		"HandleViewAttachment":     handleViewAttachment,
-		"handleGetTicketMessages":  handleGetTicketMessages,
-		"handleAddTicketMessage":   handleAddTicketMessage,
+		"HandleGetAttachments":        handleGetAttachments,
+		"HandleUploadAttachment":      handleUploadAttachment,
+		"HandleDownloadAttachment":    handleDownloadAttachment,
+		"HandleDeleteAttachment":      handleDeleteAttachment,
+		"HandleGetThumbnail":          handleGetThumbnail,
+		"HandleViewAttachment":        handleViewAttachment,
+		"handleGetTicketMessages":     handleGetTicketMessages,
+		"handleAddTicketMessage":      handleAddTicketMessage,
+		"HandleGetQueues":             HandleGetQueues,
+		"HandleGetPriorities":         HandleGetPriorities,
+		"HandleGetTypes":              HandleGetTypes,
+		"HandleGetStatuses":           HandleGetStatuses,
+		"HandleGetFormData":           HandleGetFormData,
+		"HandleInvalidateLookupCache": HandleInvalidateLookupCache,
 		// Optional customer info partial used by YAML
 		"HandleCustomerInfoPanel": func(c *gin.Context) { c.String(200, "") },
 		"handleSettings":          handleSettings,
@@ -93,15 +101,18 @@ func ensureCoreHandlers() {
 		"HandleSetSessionTimeout": HandleSetSessionTimeout,
 
 		// Static and basic routes
-		"handleStaticFiles": HandleStaticFiles,
-		"handleLogout":      handleLogout,
+		"handleStaticFiles":       HandleStaticFiles,
+		"handleLogout":            handleLogout,
+		"handleDemoCustomerLogin": handleDemoCustomerLogin,
 		"handleLogoutRedirect": func(c *gin.Context) {
 			// clear tokens then redirect to login
 			c.SetCookie("auth_token", "", -1, "/", "", false, true)
 			c.SetCookie("access_token", "", -1, "/", "", false, true)
 			c.Redirect(http.StatusFound, "/login")
 		},
-		"handleRoot": func(c *gin.Context) { c.Redirect(http.StatusFound, "/login") },
+		"handleRoot":         func(c *gin.Context) { c.Redirect(http.StatusFound, "/login") },
+		"handleAuthRefresh":  handleAuthRefresh,
+		"handleAuthRegister": handleAuthRegister,
 
 		// Health and metrics (lightweight for tests/dev)
 		"handleHealthCheck": func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "healthy"}) },
@@ -161,6 +172,90 @@ func ensureCoreHandlers() {
 		"handleAdminServices":           handleAdminServices,
 		"handleAdminSLA":                handleAdminSLA,
 		"handleAdminLookups":            handleAdminLookups,
+		"dashboard_stats":               handleDashboardStats,
+		"dashboard_recent_tickets":      handleRecentTickets,
+		"dashboard_activity":            handleActivity,
+		"dashboard_activity_stream":     handleActivityStream,
+		"dashboard_queue_status":        dashboard_queue_status,
+
+		// Customer company handlers - full implementations
+		"handleAdminCustomerCompanies": HandleAdminCustomerCompanies,
+		"handleAdminNewCustomerCompany": func(c *gin.Context) {
+			db, err := database.GetDB()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+				return
+			}
+			handleAdminNewCustomerCompany(db)(c)
+		},
+		"handleAdminCreateCustomerCompany": func(c *gin.Context) {
+			db, err := database.GetDB()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+				return
+			}
+			handleAdminCreateCustomerCompany(db)(c)
+		},
+		"handleAdminEditCustomerCompany": func(c *gin.Context) {
+			db, err := database.GetDB()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+				return
+			}
+			handleAdminEditCustomerCompany(db)(c)
+		},
+		"handleAdminUpdateCustomerCompany": func(c *gin.Context) {
+			db, err := database.GetDB()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+				return
+			}
+			handleAdminUpdateCustomerCompany(db)(c)
+		},
+		"handleAdminDeleteCustomerCompany": func(c *gin.Context) {
+			db, err := database.GetDB()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+				return
+			}
+			handleAdminDeleteCustomerCompany(db)(c)
+		},
+		"handleAdminActivateCustomerCompany": func(c *gin.Context) {
+			db, err := database.GetDB()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+				return
+			}
+			handleAdminActivateCustomerCompany(db)(c)
+		},
+		"handleAdminCustomerCompanyUsers":    HandleAdminCustomerCompanyUsers,
+		"handleAdminCustomerCompanyTickets":  HandleAdminCustomerCompanyTickets,
+		"handleAdminCustomerCompanyServices": HandleAdminCustomerCompanyServices,
+		"handleAdminUpdateCustomerCompanyServices": func(c *gin.Context) {
+			db, err := database.GetDB()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+				return
+			}
+			handleAdminUpdateCustomerCompanyServices(db)(c)
+		},
+		"handleAdminCustomerPortalSettings": HandleAdminCustomerPortalSettings,
+		"handleAdminUpdateCustomerPortalSettings": func(c *gin.Context) {
+			db, err := database.GetDB()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+				return
+			}
+			handleAdminUpdateCustomerPortalSettings(db)(c)
+		},
+		"handleAdminUploadCustomerPortalLogo": func(c *gin.Context) {
+			db, err := database.GetDB()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+				return
+			}
+			handleAdminUploadCustomerPortalLogo(db)(c)
+		},
 
 		// Agent handlers (wrap to avoid DB in tests)
 		"handleAgentTickets": func(c *gin.Context) {
@@ -192,11 +287,39 @@ func ensureCoreHandlers() {
 		},
 		"handleAgentSearch": AgentHandlerExports.HandleAgentSearch,
 		// Time accounting API (YAML route)
-		"handleAddTicketTime": handleAddTicketTime,
+		"handleAddTicketTime":        handleAddTicketTime,
+		"HandleAPIQueueGet":          HandleAPIQueueGet,
+		"HandleAPIQueueDetails":      HandleAPIQueueDetails,
+		"HandleAPIQueueStatus":       HandleAPIQueueStatus,
+		"HandleLoginAPI":             HandleLoginAPI,
+		"HandleListTicketsAPI":       HandleListTicketsAPI,
+		"HandleCreateTicketAPI":      HandleCreateTicketAPI,
+		"HandleGetTicketAPI":         HandleGetTicketAPI,
+		"HandleUpdateTicketAPI":      HandleUpdateTicketAPI,
+		"HandleDeleteTicketAPI":      HandleDeleteTicketAPI,
+		"HandleReopenTicketAPI":      HandleReopenTicketAPI,
+		"HandleListArticlesAPI":      HandleListArticlesAPI,
+		"HandleCreateArticleAPI":     HandleCreateArticleAPI,
+		"HandleUpdateArticleAPI":     HandleUpdateArticleAPI,
+		"HandleDeleteArticleAPI":     HandleDeleteArticleAPI,
+		"HandleListUsersAPI":         HandleListUsersAPI,
+		"HandleGetUserAPI":           HandleGetUserAPI,
+		"HandleCreateUserAPI":        HandleCreateUserAPI,
+		"HandleUpdateUserAPI":        HandleUpdateUserAPI,
+		"HandleDeleteUserAPI":        HandleDeleteUserAPI,
+		"HandleSearchAPI":            HandleSearchAPI,
+		"HandleSearchSuggestionsAPI": HandleSearchSuggestionsAPI,
+		"HandleReindexAPI":           HandleReindexAPI,
+		"HandleSearchHealthAPI":      HandleSearchHealthAPI,
 	}
 	for n, h := range pairs {
 		if _, ok := GetHandler(n); !ok {
 			RegisterHandler(n, h)
+		}
+		// Also register to GlobalHandlerMap for YAML routing
+		if _, exists := routing.GlobalHandlerMap[n]; !exists {
+			routing.GlobalHandlerMap[n] = h
+			log.Printf("DEBUG: Registered handler %s to GlobalHandlerMap", n)
 		}
 	}
 	// Diagnostic (once): log total registry size
@@ -204,4 +327,11 @@ func ensureCoreHandlers() {
 	sz := len(handlerRegistry)
 	handlerRegistryMu.RUnlock()
 	log.Printf("handler registry initialized (%d handlers)", sz)
+}
+
+// init automatically registers all handlers when the package is imported
+func init() {
+	log.Printf("🔧 Initializing handler registry...")
+	ensureCoreHandlers()
+	log.Printf("✅ Handler registry initialized")
 }

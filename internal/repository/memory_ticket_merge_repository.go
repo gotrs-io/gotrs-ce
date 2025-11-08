@@ -20,7 +20,7 @@ type TicketMergeRepository interface {
 	IsMerged(ctx context.Context, ticketID uint) (bool, error)
 	GetAllChildren(ctx context.Context, parentID uint) ([]uint, error)
 	GetMergeStatistics(ctx context.Context, from, to time.Time) (*models.MergeStatistics, error)
-	
+
 	// Ticket relations
 	CreateTicketRelation(ctx context.Context, relation *models.TicketRelation) error
 	GetTicketRelations(ctx context.Context, ticketID uint) ([]models.TicketRelation, error)
@@ -50,29 +50,29 @@ func NewMemoryTicketMergeRepository() *MemoryTicketMergeRepository {
 func (r *MemoryTicketMergeRepository) CreateMerge(ctx context.Context, merge *models.TicketMerge) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	// Check if child is already merged
 	for _, existing := range r.merges {
 		if existing.ChildTicketID == merge.ChildTicketID && existing.IsActive {
-			return fmt.Errorf("ticket %d is already merged into ticket %d", 
+			return fmt.Errorf("ticket %d is already merged into ticket %d",
 				merge.ChildTicketID, existing.ParentTicketID)
 		}
 		// Prevent circular merges
 		if existing.ChildTicketID == merge.ParentTicketID && existing.IsActive {
-			return fmt.Errorf("ticket %d is already merged as a child, cannot be a parent", 
+			return fmt.Errorf("ticket %d is already merged as a child, cannot be a parent",
 				merge.ParentTicketID)
 		}
 	}
-	
+
 	merge.ID = r.nextID
 	r.nextID++
 	merge.MergedAt = time.Now()
 	merge.IsActive = true
-	
+
 	// Create a copy to store
 	stored := *merge
 	r.merges[merge.ID] = &stored
-	
+
 	return nil
 }
 
@@ -80,12 +80,12 @@ func (r *MemoryTicketMergeRepository) CreateMerge(ctx context.Context, merge *mo
 func (r *MemoryTicketMergeRepository) GetMerge(ctx context.Context, id uint) (*models.TicketMerge, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	merge, exists := r.merges[id]
 	if !exists {
 		return nil, fmt.Errorf("merge %d not found", id)
 	}
-	
+
 	// Return a copy
 	result := *merge
 	return &result, nil
@@ -95,14 +95,14 @@ func (r *MemoryTicketMergeRepository) GetMerge(ctx context.Context, id uint) (*m
 func (r *MemoryTicketMergeRepository) GetMergesByParent(ctx context.Context, parentID uint) ([]models.TicketMerge, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	var merges []models.TicketMerge
 	for _, merge := range r.merges {
 		if merge.ParentTicketID == parentID && merge.IsActive {
 			merges = append(merges, *merge)
 		}
 	}
-	
+
 	return merges, nil
 }
 
@@ -110,14 +110,14 @@ func (r *MemoryTicketMergeRepository) GetMergesByParent(ctx context.Context, par
 func (r *MemoryTicketMergeRepository) GetMergeByChild(ctx context.Context, childID uint) (*models.TicketMerge, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	for _, merge := range r.merges {
 		if merge.ChildTicketID == childID && merge.IsActive {
 			result := *merge
 			return &result, nil
 		}
 	}
-	
+
 	return nil, fmt.Errorf("no active merge found for child ticket %d", childID)
 }
 
@@ -125,21 +125,21 @@ func (r *MemoryTicketMergeRepository) GetMergeByChild(ctx context.Context, child
 func (r *MemoryTicketMergeRepository) UnmergeTicket(ctx context.Context, mergeID uint, unmergedBy uint) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	merge, exists := r.merges[mergeID]
 	if !exists {
 		return fmt.Errorf("merge %d not found", mergeID)
 	}
-	
+
 	if !merge.IsActive {
 		return fmt.Errorf("merge %d is already inactive", mergeID)
 	}
-	
+
 	now := time.Now()
 	merge.IsActive = false
 	merge.UnmergedBy = &unmergedBy
 	merge.UnmergedAt = &now
-	
+
 	return nil
 }
 
@@ -147,14 +147,14 @@ func (r *MemoryTicketMergeRepository) UnmergeTicket(ctx context.Context, mergeID
 func (r *MemoryTicketMergeRepository) GetMergeHistory(ctx context.Context, ticketID uint) ([]models.TicketMerge, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	var history []models.TicketMerge
 	for _, merge := range r.merges {
 		if merge.ParentTicketID == ticketID || merge.ChildTicketID == ticketID {
 			history = append(history, *merge)
 		}
 	}
-	
+
 	return history, nil
 }
 
@@ -162,13 +162,13 @@ func (r *MemoryTicketMergeRepository) GetMergeHistory(ctx context.Context, ticke
 func (r *MemoryTicketMergeRepository) IsMerged(ctx context.Context, ticketID uint) (bool, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	for _, merge := range r.merges {
 		if merge.ChildTicketID == ticketID && merge.IsActive {
 			return true, nil
 		}
 	}
-	
+
 	return false, nil
 }
 
@@ -176,14 +176,14 @@ func (r *MemoryTicketMergeRepository) IsMerged(ctx context.Context, ticketID uin
 func (r *MemoryTicketMergeRepository) GetAllChildren(ctx context.Context, parentID uint) ([]uint, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	var children []uint
 	for _, merge := range r.merges {
 		if merge.ParentTicketID == parentID && merge.IsActive {
 			children = append(children, merge.ChildTicketID)
 		}
 	}
-	
+
 	return children, nil
 }
 
@@ -191,16 +191,16 @@ func (r *MemoryTicketMergeRepository) GetAllChildren(ctx context.Context, parent
 func (r *MemoryTicketMergeRepository) GetMergeStatistics(ctx context.Context, from, to time.Time) (*models.MergeStatistics, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	stats := &models.MergeStatistics{
 		TopMergeReasons: []models.MergeReasonStat{},
 		MergesByMonth:   []models.MergeMonthStat{},
 	}
-	
+
 	reasonCount := make(map[string]int)
 	monthCount := make(map[string]*models.MergeMonthStat)
 	childCounts := []int{}
-	
+
 	// Process merges
 	for _, merge := range r.merges {
 		if merge.MergedAt.After(from) && merge.MergedAt.Before(to) {
@@ -210,10 +210,10 @@ func (r *MemoryTicketMergeRepository) GetMergeStatistics(ctx context.Context, fr
 			} else {
 				stats.UnmergedCount++
 			}
-			
+
 			// Count reasons
 			reasonCount[merge.Reason]++
-			
+
 			// Count by month
 			monthKey := merge.MergedAt.Format("2006-01")
 			if _, exists := monthCount[monthKey]; !exists {
@@ -223,7 +223,7 @@ func (r *MemoryTicketMergeRepository) GetMergeStatistics(ctx context.Context, fr
 				}
 			}
 			monthCount[monthKey].Merges++
-			
+
 			if !merge.IsActive && merge.UnmergedAt != nil {
 				unmergeKey := merge.UnmergedAt.Format("2006-01")
 				if _, exists := monthCount[unmergeKey]; !exists {
@@ -236,7 +236,7 @@ func (r *MemoryTicketMergeRepository) GetMergeStatistics(ctx context.Context, fr
 			}
 		}
 	}
-	
+
 	// Count children per parent
 	parentChildCount := make(map[uint]int)
 	for _, merge := range r.merges {
@@ -244,11 +244,11 @@ func (r *MemoryTicketMergeRepository) GetMergeStatistics(ctx context.Context, fr
 			parentChildCount[merge.ParentTicketID]++
 		}
 	}
-	
+
 	for _, count := range parentChildCount {
 		childCounts = append(childCounts, count)
 	}
-	
+
 	// Calculate average child count
 	if len(childCounts) > 0 {
 		sum := 0
@@ -257,7 +257,7 @@ func (r *MemoryTicketMergeRepository) GetMergeStatistics(ctx context.Context, fr
 		}
 		stats.AverageChildCount = float64(sum) / float64(len(childCounts))
 	}
-	
+
 	// Convert reason counts to sorted list
 	for reason, count := range reasonCount {
 		stats.TopMergeReasons = append(stats.TopMergeReasons, models.MergeReasonStat{
@@ -265,22 +265,22 @@ func (r *MemoryTicketMergeRepository) GetMergeStatistics(ctx context.Context, fr
 			Count:  count,
 		})
 	}
-	
+
 	// Sort by count descending
 	for i := 0; i < len(stats.TopMergeReasons); i++ {
 		for j := i + 1; j < len(stats.TopMergeReasons); j++ {
 			if stats.TopMergeReasons[j].Count > stats.TopMergeReasons[i].Count {
-				stats.TopMergeReasons[i], stats.TopMergeReasons[j] = 
+				stats.TopMergeReasons[i], stats.TopMergeReasons[j] =
 					stats.TopMergeReasons[j], stats.TopMergeReasons[i]
 			}
 		}
 	}
-	
+
 	// Convert month stats to list
 	for _, monthStat := range monthCount {
 		stats.MergesByMonth = append(stats.MergesByMonth, *monthStat)
 	}
-	
+
 	return stats, nil
 }
 
@@ -288,25 +288,25 @@ func (r *MemoryTicketMergeRepository) GetMergeStatistics(ctx context.Context, fr
 func (r *MemoryTicketMergeRepository) CreateTicketRelation(ctx context.Context, relation *models.TicketRelation) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	// Check for duplicate relations
 	for _, existing := range r.relations {
-		if existing.TicketID == relation.TicketID && 
-		   existing.RelatedTicketID == relation.RelatedTicketID &&
-		   existing.RelationType == relation.RelationType {
-			return fmt.Errorf("relation already exists between tickets %d and %d", 
+		if existing.TicketID == relation.TicketID &&
+			existing.RelatedTicketID == relation.RelatedTicketID &&
+			existing.RelationType == relation.RelationType {
+			return fmt.Errorf("relation already exists between tickets %d and %d",
 				relation.TicketID, relation.RelatedTicketID)
 		}
 	}
-	
+
 	relation.ID = r.nextRelID
 	r.nextRelID++
 	relation.CreatedAt = time.Now()
-	
+
 	// Create a copy to store
 	stored := *relation
 	r.relations[relation.ID] = &stored
-	
+
 	return nil
 }
 
@@ -314,14 +314,14 @@ func (r *MemoryTicketMergeRepository) CreateTicketRelation(ctx context.Context, 
 func (r *MemoryTicketMergeRepository) GetTicketRelations(ctx context.Context, ticketID uint) ([]models.TicketRelation, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	var relations []models.TicketRelation
 	for _, relation := range r.relations {
 		if relation.TicketID == ticketID || relation.RelatedTicketID == ticketID {
 			relations = append(relations, *relation)
 		}
 	}
-	
+
 	return relations, nil
 }
 
@@ -329,11 +329,11 @@ func (r *MemoryTicketMergeRepository) GetTicketRelations(ctx context.Context, ti
 func (r *MemoryTicketMergeRepository) DeleteTicketRelation(ctx context.Context, relationID uint) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	if _, exists := r.relations[relationID]; !exists {
 		return fmt.Errorf("relation %d not found", relationID)
 	}
-	
+
 	delete(r.relations, relationID)
 	return nil
 }

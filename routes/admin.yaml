@@ -242,8 +242,8 @@ spec:
       template: pages/admin/customer_company_form.pongo2
       description: "Display customer company edit form"
 
-    - path: /customer/companies/:id
-      method: PUT
+    - path: /customer/companies/:id/edit
+      method: POST
       handler: handleAdminUpdateCustomerCompany
       description: "Update customer company"
 
@@ -251,6 +251,16 @@ spec:
       method: DELETE
       handler: handleAdminDeleteCustomerCompany
       description: "Delete customer company"
+
+    - path: /customer/companies/:id/delete
+      method: POST
+      handler: handleAdminDeleteCustomerCompany
+      description: "Delete customer company (legacy POST route)"
+
+    - path: /customer/companies/:id/activate
+      method: POST
+      handler: handleAdminActivateCustomerCompany
+      description: "Activate customer company"
 
     - path: /customer/companies/:id/users
       method: GET
@@ -271,9 +281,24 @@ spec:
       description: "Display customer company services"
 
     - path: /customer/companies/:id/services
+      method: POST
+      handler: handleAdminUpdateCustomerCompanyServices
+      description: "Update customer company services"
+
+    - path: /customer/companies/:id/services
       method: PUT
       handler: handleAdminUpdateCustomerCompanyServices
       description: "Update customer company services"
+
+    - path: /customer/companies/:id/portal-settings
+      method: GET
+      handler: handleAdminCustomerPortalSettings
+      description: "Display customer portal settings for a company"
+
+    - path: /customer/companies/:id/portal-settings
+      method: POST
+      handler: handleAdminUpdateCustomerPortalSettings
+      description: "Update customer portal settings for a company"
 
     - path: /customer/portal/settings
       method: GET

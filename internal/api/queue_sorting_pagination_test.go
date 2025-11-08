@@ -25,7 +25,7 @@ func TestQueueSortingInterface(t *testing.T) {
 				// Should have sort dropdown
 				assert.Contains(t, body, `name="sort"`)
 				assert.Contains(t, body, `id="queue-sort"`)
-				
+
 				// Should have sort options
 				assert.Contains(t, body, "Sort by")
 				assert.Contains(t, body, `value="name_asc"`)
@@ -38,7 +38,7 @@ func TestQueueSortingInterface(t *testing.T) {
 				assert.Contains(t, body, "Tickets (High to Low)")
 				assert.Contains(t, body, `value="status_asc"`)
 				assert.Contains(t, body, "Status")
-				
+
 				// Should have HTMX attributes for dynamic sorting
 				assert.Contains(t, body, `hx-get="/queues"`)
 				assert.Contains(t, body, `hx-trigger="change"`)
@@ -84,7 +84,7 @@ func TestQueueSortingFunctionality(t *testing.T) {
 				miscIndex := indexOf(body, "Misc")
 				rawIndex := indexOf(body, "Raw")
 				supportIndex := indexOf(body, "Support")
-				
+
 				// Alphabetical order: Junk, Misc, Raw, Support
 				assert.True(t, junkIndex < miscIndex, "Junk should appear before Misc")
 				assert.True(t, miscIndex < rawIndex, "Misc should appear before Raw")
@@ -101,7 +101,7 @@ func TestQueueSortingFunctionality(t *testing.T) {
 				miscIndex := indexOf(body, "Misc")
 				rawIndex := indexOf(body, "Raw")
 				supportIndex := indexOf(body, "Support")
-				
+
 				// Reverse alphabetical order: Support, Raw, Misc, Junk
 				assert.True(t, supportIndex < rawIndex, "Support should appear before Raw")
 				assert.True(t, rawIndex < miscIndex, "Raw should appear before Misc")
@@ -118,7 +118,7 @@ func TestQueueSortingFunctionality(t *testing.T) {
 				junkIndex := indexOf(body, "Junk")
 				rawIndex := indexOf(body, "Raw")
 				supportIndex := indexOf(body, "Support")
-				
+
 				assert.True(t, miscIndex < junkIndex, "Misc (0 tickets) should appear first")
 				assert.True(t, junkIndex < rawIndex, "Junk (1 ticket) should appear before Raw (2 tickets)")
 				assert.True(t, rawIndex < supportIndex, "Raw (2 tickets) should appear before Support (3 tickets)")
@@ -134,7 +134,7 @@ func TestQueueSortingFunctionality(t *testing.T) {
 				junkIndex := indexOf(body, "Junk")
 				rawIndex := indexOf(body, "Raw")
 				supportIndex := indexOf(body, "Support")
-				
+
 				assert.True(t, supportIndex < rawIndex, "Support (3 tickets) should appear first")
 				assert.True(t, rawIndex < junkIndex, "Raw (2 tickets) should appear before Junk (1 ticket)")
 				assert.True(t, junkIndex < miscIndex, "Junk (1 ticket) should appear before Misc (0 tickets)")
@@ -174,19 +174,19 @@ func TestQueuePaginationInterface(t *testing.T) {
 			checkResponse: func(t *testing.T, body string) {
 				// Should have pagination container
 				assert.Contains(t, body, `id="queue-pagination"`)
-				
+
 				// Should show page info
 				assert.Contains(t, body, "Showing")
 				assert.Contains(t, body, "of")
 				assert.Contains(t, body, "queues")
-				
+
 				// Should have items per page selector
 				assert.Contains(t, body, `name="per_page"`)
 				assert.Contains(t, body, `value="10"`)
 				assert.Contains(t, body, `value="25"`)
 				assert.Contains(t, body, `value="50"`)
 				assert.Contains(t, body, `value="100"`)
-				
+
 				// Should have HTMX attributes for per page change
 				assert.Contains(t, body, `hx-trigger="change"`)
 			},
@@ -226,7 +226,7 @@ func TestQueuePaginationFunctionality(t *testing.T) {
 			checkResponse: func(t *testing.T, body string) {
 				// Should show page 1 indicator
 				assert.Contains(t, body, "Page 1")
-				
+
 				// Should show all 4 queues when per_page not specified
 				assert.Contains(t, body, "Raw")
 				assert.Contains(t, body, "Junk")
@@ -242,7 +242,7 @@ func TestQueuePaginationFunctionality(t *testing.T) {
 				// Should only show 2 queues
 				queueCount := countOccurrences(body, `<li>`)
 				assert.LessOrEqual(t, queueCount, 2, "Should show maximum 2 queues")
-				
+
 				// Should show Next button
 				assert.Contains(t, body, "Next")
 				assert.Contains(t, body, `hx-get="/queues?page=2&per_page=2"`)
@@ -255,7 +255,7 @@ func TestQueuePaginationFunctionality(t *testing.T) {
 			checkResponse: func(t *testing.T, body string) {
 				// Should show page 2 indicator
 				assert.Contains(t, body, "Page 2")
-				
+
 				// Should show Previous button
 				assert.Contains(t, body, "Previous")
 				assert.Contains(t, body, `hx-get="/queues?page=1&per_page=2"`)
@@ -268,7 +268,7 @@ func TestQueuePaginationFunctionality(t *testing.T) {
 			checkResponse: func(t *testing.T, body string) {
 				// Should maintain sort parameter in pagination links
 				assert.Contains(t, body, `sort=name_asc`)
-				
+
 				// On page 2 with alphabetical sort, should show Raw and Support
 				assert.Contains(t, body, "Raw")
 				assert.Contains(t, body, "Support")
@@ -283,7 +283,7 @@ func TestQueuePaginationFunctionality(t *testing.T) {
 				if countOccurrences(body, `<li>`) > 1 {
 					assert.Contains(t, body, `search=default`)
 				}
-				
+
 				// Should only show queues containing 'default' (Raw has "by default" in comment)
 				assert.Contains(t, body, "Raw")
 				assert.NotContains(t, body, "Junk")
@@ -405,13 +405,13 @@ func TestQueueSortingWithPagination(t *testing.T) {
 			checkResponse: func(t *testing.T, body string) {
 				// First page with descending sort should show Support and Raw
 				supportIndex := indexOf(body, "Support")
-				rawIndex := indexOf(body, "Raw") 
-				
+				rawIndex := indexOf(body, "Raw")
+
 				// Support should appear before Raw in descending order
 				if supportIndex != -1 && rawIndex != -1 {
 					assert.True(t, supportIndex < rawIndex, "Support should appear before Raw")
 				}
-				
+
 				// Pagination links should preserve sort parameter
 				assert.Contains(t, body, "sort=name_desc")
 			},

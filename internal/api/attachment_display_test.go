@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
@@ -35,7 +36,7 @@ func (g *attachmentTicketNumberGenerator) Next(ctx context.Context, store ticket
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.seq++
-	return fmt.Sprintf("990000990%04d", g.seq), nil
+	return fmt.Sprintf("99%s%04d", time.Now().Format("060102150405"), g.seq), nil
 }
 
 type attachmentCounterStore struct{}

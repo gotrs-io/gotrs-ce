@@ -31,15 +31,15 @@ func handleTicketEditForm(c *gin.Context) {
 
 	// Mock ticket data for edit form
 	ticket := gin.H{
-		"ID":           id,
-		"TicketNumber": fmt.Sprintf("TICKET-%06d", id),
-		"Subject":      "Current ticket subject",
-		"Priority":     "3 normal",
-		"QueueID":      1,
-		"TypeID":       1,
-		"Status":       "open",
+		"ID":            id,
+		"TicketNumber":  fmt.Sprintf("TICKET-%06d", id),
+		"Subject":       "Current ticket subject",
+		"Priority":      "3 normal",
+		"QueueID":       1,
+		"TypeID":        1,
+		"Status":        "open",
 		"CustomerEmail": "customer@example.com",
-		"AssignedTo":   nil,
+		"AssignedTo":    nil,
 	}
 
 	// Get dynamic form data from lookup service with language support
@@ -114,34 +114,36 @@ func handleUpdateTicketEnhanced(c *gin.Context) {
 	}
 
 	// Get user context (mock for testing)
-    userRoleVal, _ := c.Get("user_role")
-    userIDVal, _ := c.Get("user_id")
+	userRoleVal, _ := c.Get("user_role")
+	userIDVal, _ := c.Get("user_id")
 
-    // Get ticket assignment (mock). Tests inject a custom context key type; fall back to
-    // deterministic mapping by ticket ID so permissions work without relying on that key type.
-    var assignedTo int
-    if val := c.Request.Context().Value("ticket_assigned_to"); val != nil {
-        if v, ok := val.(int); ok { assignedTo = v }
-    }
-    if assignedTo == 0 {
-        switch id {
-        case 201:
-            assignedTo = 3 // agent can edit assigned ticket
-        case 202:
-            assignedTo = 0 // unassigned
-        case 203:
-            assignedTo = 4 // assigned to someone else
-        }
-    }
+	// Get ticket assignment (mock). Tests inject a custom context key type; fall back to
+	// deterministic mapping by ticket ID so permissions work without relying on that key type.
+	var assignedTo int
+	if val := c.Request.Context().Value("ticket_assigned_to"); val != nil {
+		if v, ok := val.(int); ok {
+			assignedTo = v
+		}
+	}
+	if assignedTo == 0 {
+		switch id {
+		case 201:
+			assignedTo = 3 // agent can edit assigned ticket
+		case 202:
+			assignedTo = 0 // unassigned
+		case 203:
+			assignedTo = 4 // assigned to someone else
+		}
+	}
 
 	// Check permissions
-    if userRoleVal != nil && strings.ToLower(userRoleVal.(string)) != "admin" {
-        if strings.ToLower(userRoleVal.(string)) == "customer" {
+	if userRoleVal != nil && strings.ToLower(userRoleVal.(string)) != "admin" {
+		if strings.ToLower(userRoleVal.(string)) == "customer" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Customers are not authorized to edit tickets"})
 			return
 		}
-        if strings.ToLower(userRoleVal.(string)) == "agent" {
-            if assignedTo == 0 || (userIDVal != nil && userIDVal.(int) != assignedTo) {
+		if strings.ToLower(userRoleVal.(string)) == "agent" {
+			if assignedTo == 0 || (userIDVal != nil && userIDVal.(int) != assignedTo) {
 				c.JSON(http.StatusForbidden, gin.H{"error": "You are not authorized to edit this ticket"})
 				return
 			}
@@ -259,7 +261,7 @@ func handleUpdateTicketEnhanced(c *gin.Context) {
 	}
 
 	response := gin.H{
-		"message": "Ticket updated successfully",
+		"message":   "Ticket updated successfully",
 		"ticket_id": id,
 	}
 
@@ -341,7 +343,7 @@ func handleBulkUpdateTickets(c *gin.Context) {
 			failedCount++
 			failures = append(failures, gin.H{
 				"ticket_id": id,
-				"error": "Ticket not found",
+				"error":     "Ticket not found",
 			})
 			continue
 		}
@@ -350,7 +352,7 @@ func handleBulkUpdateTickets(c *gin.Context) {
 		updatedCount++
 		results = append(results, gin.H{
 			"ticket_id": id,
-			"status": "updated",
+			"status":    "updated",
 		})
 	}
 
@@ -363,9 +365,9 @@ func handleBulkUpdateTickets(c *gin.Context) {
 	}
 
 	response := gin.H{
-		"message": "Tickets updated successfully",
+		"message":       "Tickets updated successfully",
 		"updated_count": float64(updatedCount),
-		"results": results,
+		"results":       results,
 	}
 
 	if failedCount > 0 {

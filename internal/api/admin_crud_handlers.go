@@ -1,11 +1,16 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/models"
+	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	"github.com/gotrs-io/gotrs-ce/internal/services/adapter"
 )
 
@@ -14,12 +19,14 @@ import (
 // HandleAdminUsersCreate handles POST /admin/users
 func HandleAdminUsersCreate(c *gin.Context) {
 	var req struct {
-		Login     string `json:"login" form:"login"`
-		FirstName string `json:"first_name" form:"first_name"`
-		LastName  string `json:"last_name" form:"last_name"`
-		Email     string `json:"email" form:"email"`
-		Password  string `json:"password" form:"password"`
-		ValidID   int    `json:"valid_id" form:"valid_id"`
+		Login     string   `json:"login" form:"login"`
+		FirstName string   `json:"first_name" form:"first_name"`
+		LastName  string   `json:"last_name" form:"last_name"`
+		Title     string   `json:"title" form:"title"`
+		Email     string   `json:"email" form:"email"`
+		Password  string   `json:"password" form:"password"`
+		ValidID   int      `json:"valid_id" form:"valid_id"`
+		Groups    []string `json:"groups" form:"groups"`
 	}
 
 	if err := c.ShouldBind(&req); err != nil {
@@ -27,16 +34,88 @@ func HandleAdminUsersCreate(c *gin.Context) {
 		return
 	}
 
+	login := strings.TrimSpace(req.Login)
+	password := strings.TrimSpace(req.Password)
+	firstName := strings.TrimSpace(req.FirstName)
+	lastName := strings.TrimSpace(req.LastName)
+	title := strings.TrimSpace(req.Title)
+	if login == "" || password == "" || firstName == "" || lastName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields"})
+		return
+	}
+
+	validID := req.ValidID
+	if validID == 0 {
+		validID = 1
+	}
+
 	db, err := database.GetDB()
-	if err != nil {
+	if err != nil || db == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
 
-	// TODO: Hash password and create user
-	_ = db
+	// Check for existing user with same login
+	var exists bool
+	if err := db.QueryRow(database.ConvertPlaceholders("SELECT EXISTS(SELECT 1 FROM users WHERE login = $1)"), login).Scan(&exists); err == nil && exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User already exists"})
+		return
+	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "User created"})
+	user := &models.User{
+		Login:      login,
+		Email:      login,
+		Password:   "",
+		Title:      title,
+		FirstName:  firstName,
+		LastName:   lastName,
+		ValidID:    validID,
+		CreateBy:   1,
+		ChangeBy:   1,
+		CreateTime: time.Now(),
+		ChangeTime: time.Now(),
+	}
+
+	if err := user.SetPassword(password); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process password"})
+		return
+	}
+
+	userRepo := repository.NewUserRepository(db)
+	if err := userRepo.Create(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create user: %v", err)})
+		return
+	}
+
+	groupIDs := req.Groups
+	if len(groupIDs) == 0 {
+		groupIDs = c.PostFormArray("groups")
+	}
+
+	if len(groupIDs) > 0 {
+		groupRepo := repository.NewGroupRepository(db)
+		for _, rawID := range groupIDs {
+			idStr := strings.TrimSpace(rawID)
+			if idStr == "" {
+				continue
+			}
+			groupID, convErr := strconv.Atoi(idStr)
+			if convErr != nil {
+				db.Exec(database.ConvertPlaceholders("DELETE FROM group_user WHERE user_id = $1"), user.ID)
+				db.Exec(database.ConvertPlaceholders("DELETE FROM users WHERE id = $1"), user.ID)
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid group ID"})
+				return
+			}
+			if err := groupRepo.AddUserToGroup(user.ID, uint(groupID)); err != nil {
+				db.Exec(database.ConvertPlaceholders("DELETE FROM group_user WHERE user_id = $1"), user.ID)
+				db.Exec(database.ConvertPlaceholders("DELETE FROM users WHERE id = $1"), user.ID)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign groups"})
+				return
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "User created", "user_id": user.ID})
 }
 
 // HandleAdminUsersUpdate handles PUT /admin/users/:id

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/ticketnumber"
 )
@@ -33,6 +34,11 @@ func (noopStore) Add(ctx context.Context, dateScoped bool, offset int64) (int64,
 }
 
 func TestTicketRepository_Create_ConcurrencyUnique(t *testing.T) {
+	t.Setenv("TEST_DB_DRIVER", "postgres")
+	database.ResetAdapterForTest()
+	database.SetAdapter(&database.PostgreSQLAdapter{})
+	t.Cleanup(database.ResetAdapterForTest)
+
 	mockDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("sqlmock: %v", err)

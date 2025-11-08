@@ -20,7 +20,7 @@ func HandleGetSessionTimeout(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	var userID int
 	switch v := userIDInterface.(type) {
 	case uint:
@@ -44,7 +44,7 @@ func HandleGetSessionTimeout(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Get database connection
 	db, err := database.GetDB()
 	if err != nil {
@@ -54,13 +54,13 @@ func HandleGetSessionTimeout(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Get preference service
 	prefService := service.NewUserPreferencesService(db)
-	
+
 	// Get session timeout preference
 	timeout := prefService.GetSessionTimeout(userID)
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"value":   timeout,
@@ -78,7 +78,7 @@ func HandleSetSessionTimeout(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	var userID int
 	switch v := userIDInterface.(type) {
 	case uint:
@@ -102,12 +102,12 @@ func HandleSetSessionTimeout(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Parse request body
 	var request struct {
 		Value int `json:"value"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -115,7 +115,7 @@ func HandleSetSessionTimeout(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Get database connection
 	db, err := database.GetDB()
 	if err != nil {
@@ -125,10 +125,10 @@ func HandleSetSessionTimeout(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Get preference service
 	prefService := service.NewUserPreferencesService(db)
-	
+
 	// Set session timeout preference
 	if err := prefService.SetSessionTimeout(userID, request.Value); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -137,7 +137,7 @@ func HandleSetSessionTimeout(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Session timeout preference saved successfully",

@@ -15,9 +15,9 @@ import (
 
 func TestQueueAPI(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-    if err := database.InitTestDB(); err != nil {
-        t.Skip("Database not available; skipping queue API tests")
-    }
+	if err := database.InitTestDB(); err != nil {
+		t.Skip("Database not available; skipping queue API tests")
+	}
 
 	t.Run("List Queues", func(t *testing.T) {
 		t.Run("should require authentication", func(t *testing.T) {
@@ -84,7 +84,7 @@ func TestQueueAPI(t *testing.T) {
 				var response map[string]interface{}
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				require.NoError(t, err)
-				
+
 				if data, ok := response["data"].([]interface{}); ok && len(data) > 0 {
 					queue := data[0].(map[string]interface{})
 					// Should have ticket counts if stats included
@@ -142,7 +142,7 @@ func TestQueueAPI(t *testing.T) {
 				var response map[string]interface{}
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				require.NoError(t, err)
-				
+
 				data := response["data"].(map[string]interface{})
 				assert.NotNil(t, data["id"])
 				assert.NotNil(t, data["name"])
@@ -201,11 +201,11 @@ func TestQueueAPI(t *testing.T) {
 			router.POST("/api/v1/queues", HandleCreateQueueAPI)
 
 			body := map[string]interface{}{
-				"name":            "Support Queue",
-				"group_id":        1,
+				"name":              "Support Queue",
+				"group_id":          1,
 				"system_address_id": 1,
-				"comment":         "General support queue",
-				"valid_id":        1,
+				"comment":           "General support queue",
+				"valid_id":          1,
 			}
 			jsonBody, _ := json.Marshal(body)
 
@@ -219,7 +219,7 @@ func TestQueueAPI(t *testing.T) {
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				require.NoError(t, err)
 				assert.Equal(t, true, response["success"])
-				
+
 				data := response["data"].(map[string]interface{})
 				assert.NotNil(t, data["id"])
 				assert.Equal(t, "Support Queue", data["name"])
@@ -281,8 +281,8 @@ func TestQueueAPI(t *testing.T) {
 			router.PUT("/api/v1/queues/:id", HandleUpdateQueueAPI)
 
 			body := map[string]interface{}{
-				"comment":      "Updated queue comment",
-				"group_id":     2,
+				"comment":        "Updated queue comment",
+				"group_id":       2,
 				"unlock_timeout": 60,
 			}
 			jsonBody, _ := json.Marshal(body)
@@ -421,7 +421,7 @@ func TestQueueAPI(t *testing.T) {
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				require.NoError(t, err)
 				assert.Equal(t, true, response["success"])
-				
+
 				data := response["data"].(map[string]interface{})
 				// Should have various counts
 				assert.NotNil(t, data["total_tickets"])

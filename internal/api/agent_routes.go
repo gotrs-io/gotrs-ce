@@ -546,6 +546,38 @@ func handleAgentTicketReply(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		if strings.TrimSpace(to) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "recipient required"})
+			return
+		}
+		if !strings.Contains(to, "@") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid email"})
+			return
+		}
+
+		if db == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+
+		ticketID = strings.TrimSpace(ticketID)
+		tid, convErr := strconv.Atoi(ticketID)
+		if convErr != nil || tid <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ticket id"})
+			return
+		}
+
+		ticketRepo := repository.NewTicketRepository(db)
+		if _, err := ticketRepo.GetByID(uint(tid)); err != nil {
+			if err == sql.ErrNoRows {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Ticket not found"})
+			} else {
+				log.Printf("Error loading ticket %s before reply: %v", ticketID, err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load ticket"})
+			}
+			return
+		}
+
 		// Get user info
 		userID := c.GetUint("user_id")
 		userName := c.GetString("user_name")
@@ -575,27 +607,55 @@ func handleAgentTicketReply(db *sql.DB) gin.HandlerFunc {
 		defer tx.Rollback()
 
 		// Insert article (sender_type_id = 1 for agent reply, communication_channel_id = 1 for email)
-		var articleID int64
-		err = tx.QueryRow(database.ConvertPlaceholders(`
+		rawInsert := `
 			INSERT INTO article (ticket_id, article_sender_type_id, communication_channel_id, is_visible_for_customer,
-								create_time, create_by, change_time, change_by)
+				create_time, create_by, change_time, change_by)
 			VALUES ($1, 1, 1, 1, CURRENT_TIMESTAMP, $2, CURRENT_TIMESTAMP, $2)
 			RETURNING id
-		`), ticketID, userID, userID).Scan(&articleID)
-
-		if err != nil {
-			log.Printf("Error creating article: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add reply"})
-			return
+		`
+		placeholderInsert := database.ConvertPlaceholders(rawInsert)
+		insertQuery, _ := database.ConvertReturning(placeholderInsert)
+		args := []interface{}{int64(tid), int64(userID)}
+		var articleID int64
+		if database.IsMySQL() {
+			execArgs := database.RemapArgsForMySQL(rawInsert, args)
+			result, execErr := tx.Exec(insertQuery, execArgs...)
+			if execErr != nil {
+				log.Printf("Error creating article: %v", execErr)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add reply"})
+				return
+			}
+			lastID, idErr := result.LastInsertId()
+			if idErr != nil || lastID == 0 {
+				var fallback int64
+				scanErr := tx.QueryRow("SELECT LAST_INSERT_ID()").Scan(&fallback)
+				if scanErr != nil || fallback == 0 {
+					log.Printf("Error fetching article id: execErr=%v, lastIdErr=%v, fallbackErr=%v", execErr, idErr, scanErr)
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to determine article id"})
+					return
+				}
+				lastID = fallback
+			}
+			articleID = lastID
+		} else {
+			if err := tx.QueryRow(insertQuery, args...).Scan(&articleID); err != nil {
+				log.Printf("Error creating article: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add reply"})
+				return
+			}
 		}
 
-		// Insert article data in mime table (incoming_time is unix timestamp)
 		// Insert article MIME data with content type
-		_, err = tx.Exec(database.ConvertPlaceholders(`
+		rawMimeInsert := `
 			INSERT INTO article_data_mime (article_id, a_from, a_to, a_subject, a_body, a_content_type, incoming_time, create_time, create_by, change_time, change_by)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, CURRENT_TIMESTAMP, $8)
-		`), articleID, userName, to, subject, body, contentType, time.Now().Unix(), userID, userID)
-
+		`
+		mimeQuery := database.ConvertPlaceholders(rawMimeInsert)
+		mimeArgs := []interface{}{articleID, userName, to, subject, body, contentType, time.Now().Unix(), userID}
+		if database.IsMySQL() {
+			mimeArgs = database.RemapArgsForMySQL(rawMimeInsert, mimeArgs)
+		}
+		_, err = tx.Exec(mimeQuery, mimeArgs...)
 		if err != nil {
 			log.Printf("Error adding article data: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add reply data"})
@@ -627,12 +687,18 @@ func handleAgentTicketReply(db *sql.DB) gin.HandlerFunc {
 				}
 
 				// Insert attachment
-				_, err = tx.Exec(database.ConvertPlaceholders(`
+				rawAttachmentInsert := `
 					INSERT INTO article_data_mime_attachment (
 						article_id, filename, content_type, content, content_size,
 						create_time, create_by, change_time, change_by
 					) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, CURRENT_TIMESTAMP, $6)
-				`), articleID, fileHeader.Filename, contentType, content, len(content), userID)
+				`
+				attachmentQuery := database.ConvertPlaceholders(rawAttachmentInsert)
+				attachmentArgs := []interface{}{articleID, fileHeader.Filename, contentType, content, len(content), userID}
+				if database.IsMySQL() {
+					attachmentArgs = database.RemapArgsForMySQL(rawAttachmentInsert, attachmentArgs)
+				}
+				_, err = tx.Exec(attachmentQuery, attachmentArgs...)
 
 				if err != nil {
 					log.Printf("Error saving attachment %s: %v", fileHeader.Filename, err)
@@ -643,7 +709,7 @@ func handleAgentTicketReply(db *sql.DB) gin.HandlerFunc {
 		}
 
 		// Update ticket change time
-		_, err = tx.Exec("UPDATE ticket SET change_time = CURRENT_TIMESTAMP, change_by = $1 WHERE id = $2", userID, ticketID)
+		_, err = tx.Exec(database.ConvertPlaceholders("UPDATE ticket SET change_time = CURRENT_TIMESTAMP, change_by = $1 WHERE id = $2"), userID, tid)
 		if err != nil {
 			log.Printf("Error updating ticket: %v", err)
 		}
@@ -819,18 +885,42 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 		defer tx.Rollback()
 
 		// Insert article (sender_type_id = 1 for agent)
-		var articleID int64
-		err = tx.QueryRow(database.ConvertPlaceholders(`
+		rawInsert := `
 			INSERT INTO article (ticket_id, article_sender_type_id, communication_channel_id, is_visible_for_customer,
-								create_time, create_by, change_time, change_by)
+					create_time, create_by, change_time, change_by)
 			VALUES ($1, 1, $2, $3, CURRENT_TIMESTAMP, $4, CURRENT_TIMESTAMP, $4)
 			RETURNING id
-		`), tid, channelID, isVisibleForCustomer, userID, userID).Scan(&articleID)
-
-		if err != nil {
-			log.Printf("Error creating article: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add note"})
-			return
+		`
+		placeholderInsert := database.ConvertPlaceholders(rawInsert)
+		insertQuery, _ := database.ConvertReturning(placeholderInsert)
+		args := []interface{}{int64(tid), channelID, isVisibleForCustomer, int64(userID)}
+		var articleID int64
+		if database.IsMySQL() {
+			execArgs := database.RemapArgsForMySQL(rawInsert, args)
+			result, execErr := tx.Exec(insertQuery, execArgs...)
+			if execErr != nil {
+				log.Printf("Error creating article: %v", execErr)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add note"})
+				return
+			}
+			lastID, idErr := result.LastInsertId()
+			if idErr != nil || lastID == 0 {
+				var fallback int64
+				scanErr := tx.QueryRow("SELECT LAST_INSERT_ID()").Scan(&fallback)
+				if scanErr != nil || fallback == 0 {
+					log.Printf("Error fetching article id for note: execErr=%v, lastIdErr=%v, fallbackErr=%v", execErr, idErr, scanErr)
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to determine article id"})
+					return
+				}
+				lastID = fallback
+			}
+			articleID = lastID
+		} else {
+			if err := tx.QueryRow(insertQuery, args...).Scan(&articleID); err != nil {
+				log.Printf("Error creating article: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add note"})
+				return
+			}
 		}
 
 		// Use subject from form or default based on communication channel
@@ -851,11 +941,16 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 
 		// Insert article data in mime table (incoming_time is unix timestamp)
 		// Insert article MIME data with content type
-		_, err = tx.Exec(database.ConvertPlaceholders(`
+		rawMimeInsert := `
 			INSERT INTO article_data_mime (article_id, a_from, a_subject, a_body, a_content_type, incoming_time, create_time, create_by, change_time, change_by)
 			VALUES ($1, 'Agent', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, CURRENT_TIMESTAMP, $6)
-		`), articleID, subject, body, contentType, time.Now().Unix(), userID, userID)
-
+		`
+		mimeQuery := database.ConvertPlaceholders(rawMimeInsert)
+		mimeArgs := []interface{}{articleID, subject, body, contentType, time.Now().Unix(), userID}
+		if database.IsMySQL() {
+			mimeArgs = database.RemapArgsForMySQL(rawMimeInsert, mimeArgs)
+		}
+		_, err = tx.Exec(mimeQuery, mimeArgs...)
 		if err != nil {
 			log.Printf("Error adding article data: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add note data"})
@@ -979,7 +1074,7 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 						FROM customer_user cu
 						WHERE cu.login = $1
 					`), *ticket.CustomerUserID).Scan(&customerEmail)
-					
+
 					if err != nil || customerEmail == "" {
 						log.Printf("Failed to find email for customer user %s: %v", *ticket.CustomerUserID, err)
 						return
@@ -1013,7 +1108,7 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 					if cfg := config.Get(); cfg != nil {
 						senderEmail = cfg.Email.From
 					}
-					
+
 					// Extract domain from sender email for Message-ID generation
 					domain := "gotrs.local" // default
 					if strings.Contains(senderEmail, "@") {
@@ -1022,15 +1117,15 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 							domain = parts[1]
 						}
 					}
-					
+
 					queueItem := &mailqueue.MailQueueItem{
-						Sender:       &senderEmail,
-						Recipient:    customerEmail,
-						RawMessage:   mailqueue.BuildEmailMessageWithThreading(senderEmail, customerEmail, emailSubject, emailBody, domain, inReplyTo, references),
-						Attempts:     0,
-						CreateTime:   time.Now(),
+						Sender:     &senderEmail,
+						Recipient:  customerEmail,
+						RawMessage: mailqueue.BuildEmailMessageWithThreading(senderEmail, customerEmail, emailSubject, emailBody, domain, inReplyTo, references),
+						Attempts:   0,
+						CreateTime: time.Now(),
 					}
-					
+
 					if err := queueRepo.Insert(context.Background(), queueItem); err != nil {
 						log.Printf("Failed to queue note notification email for %s: %v", customerEmail, err)
 					} else {
@@ -1116,6 +1211,18 @@ func handleAgentTicketPhone(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		if db == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+
+		ticketID = strings.TrimSpace(ticketID)
+		tid, convErr := strconv.Atoi(ticketID)
+		if convErr != nil || tid <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ticket id"})
+			return
+		}
+
 		// Start transaction
 		tx, err := db.Begin()
 		if err != nil {
@@ -1125,29 +1232,66 @@ func handleAgentTicketPhone(db *sql.DB) gin.HandlerFunc {
 		defer tx.Rollback()
 
 		// Insert article (sender_type_id = 1 for agent, phone communication type)
-		var articleID int64
-		err = tx.QueryRow(database.ConvertPlaceholders(`
+		rawInsert := `
 			INSERT INTO article (ticket_id, article_sender_type_id, communication_channel_id, is_visible_for_customer,
-								create_time, create_by, change_time, change_by)
+				create_time, create_by, change_time, change_by)
 			VALUES ($1, 1, 2, 1, CURRENT_TIMESTAMP, $2, CURRENT_TIMESTAMP, $2)
 			RETURNING id
-		`), ticketID, userID).Scan(&articleID)
-		if err != nil {
-			log.Printf("Error inserting phone article: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save phone note"})
-			return
+		`
+		placeholderInsert := database.ConvertPlaceholders(rawInsert)
+		insertQuery, _ := database.ConvertReturning(placeholderInsert)
+		args := []interface{}{int64(tid), int64(userID)}
+		var articleID int64
+		if database.IsMySQL() {
+			execArgs := database.RemapArgsForMySQL(rawInsert, args)
+			result, execErr := tx.Exec(insertQuery, execArgs...)
+			if execErr != nil {
+				log.Printf("Error inserting phone article: %v", execErr)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save phone note"})
+				return
+			}
+			lastID, idErr := result.LastInsertId()
+			if idErr != nil || lastID == 0 {
+				var fallback int64
+				scanErr := tx.QueryRow("SELECT LAST_INSERT_ID()").Scan(&fallback)
+				if scanErr != nil || fallback == 0 {
+					log.Printf("Error fetching article id for phone note: execErr=%v, lastIdErr=%v, fallbackErr=%v", execErr, idErr, scanErr)
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to determine article id"})
+					return
+				}
+				lastID = fallback
+			}
+			articleID = lastID
+		} else {
+			if err := tx.QueryRow(insertQuery, args...).Scan(&articleID); err != nil {
+				log.Printf("Error inserting phone article: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save phone note"})
+				return
+			}
 		}
 
-		// Insert MIME data with content type
-		_, err = tx.Exec(database.ConvertPlaceholders(`
+		// Insert MIME data with content type and unix incoming time for compatibility
+		rawMimeInsert := `
 			INSERT INTO article_data_mime (article_id, a_from, a_subject, a_body, a_content_type,
-											incoming_time, create_time, create_by, change_time, change_by)
-			VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $6, CURRENT_TIMESTAMP, $6)
-		`), articleID, "Agent Phone Call", subject, body, contentType, userID)
+				incoming_time, create_time, create_by, change_time, change_by)
+			VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7, CURRENT_TIMESTAMP, $7)
+		`
+		mimeQuery := database.ConvertPlaceholders(rawMimeInsert)
+		mimeArgs := []interface{}{articleID, "Agent Phone Call", subject, body, contentType, time.Now().Unix(), userID}
+		if database.IsMySQL() {
+			mimeArgs = database.RemapArgsForMySQL(rawMimeInsert, mimeArgs)
+		}
+		_, err = tx.Exec(mimeQuery, mimeArgs...)
 		if err != nil {
 			log.Printf("Error inserting phone article MIME data: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save phone note data"})
 			return
+		}
+
+		if _, err = tx.Exec(database.ConvertPlaceholders(`
+			UPDATE ticket SET change_time = CURRENT_TIMESTAMP, change_by = $1 WHERE id = $2
+		`), userID, tid); err != nil {
+			log.Printf("Error updating ticket change time for phone note: %v", err)
 		}
 
 		if err = tx.Commit(); err != nil {

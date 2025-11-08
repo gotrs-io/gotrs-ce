@@ -102,11 +102,9 @@ func (r *TicketRepository) GetDB() *sql.DB {
 
 // Create creates a new ticket in the database
 func (r *TicketRepository) Create(ticket *models.Ticket) error {
-	log.Println("DEBUG: SENTINEL TicketRepository.Create entered")
 	if (r.generator == nil || r.store == nil) && (defaultTicketNumberGen != nil && defaultTicketNumberStore != nil) {
 		r.generator = defaultTicketNumberGen
 		r.store = defaultTicketNumberStore
-		log.Printf("DEBUG: late-binding ticket number generator=%s", r.generator.Name())
 	}
 	if r.generator == nil || r.store == nil {
 		return fmt.Errorf("ticket number generator not initialized")
@@ -161,20 +159,18 @@ func (r *TicketRepository) insertTicket(ticket *models.Ticket) error {
 
 	// Use adapter for database-specific handling
 	adapter := database.GetAdapter()
-	ticketID, err := adapter.InsertWithReturning(
-		r.db,
-		query,
+	args := []interface{}{
 		ticket.TicketNumber,
 		ticket.Title,
 		ticket.QueueID,
 		ticket.TicketLockID,
-		ticket.TypeID,
-		ticket.ServiceID,
-		ticket.SLAID,
-		ticket.UserID,
-		ticket.ResponsibleUserID,
-		ticket.CustomerID,
-		ticket.CustomerUserID,
+		valueOrNil(ticket.TypeID),
+		valueOrNil(ticket.ServiceID),
+		valueOrNil(ticket.SLAID),
+		valueOrNil(ticket.UserID),
+		valueOrNil(ticket.ResponsibleUserID),
+		valueOrNil(ticket.CustomerID),
+		valueOrNil(ticket.CustomerUserID),
 		ticket.TicketStateID,
 		ticket.TicketPriorityID,
 		ticket.Timeout,
@@ -188,12 +184,24 @@ func (r *TicketRepository) insertTicket(ticket *models.Ticket) error {
 		ticket.CreateBy,
 		ticket.ChangeTime,
 		ticket.ChangeBy,
+	}
+	ticketID, err := adapter.InsertWithReturning(
+		r.db,
+		query,
+		args...,
 	)
 	if err != nil {
 		return err
 	}
 	ticket.ID = int(ticketID)
 	return nil
+}
+
+func valueOrNil[T any](ptr *T) interface{} {
+	if ptr == nil {
+		return nil
+	}
+	return *ptr
 }
 
 // isUniqueTNError detects a unique constraint violation on the ticket number.

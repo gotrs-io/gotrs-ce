@@ -40,17 +40,18 @@ func init() {
 }
 
 func ensureTestEnvironment() {
+	_ = os.Unsetenv("DATABASE_URL")
 	setDefaultEnv("APP_ENV", "test")
-	setDefaultEnv("DB_DRIVER", "postgres")
-	setDefaultEnv("DB_HOST", "postgres-test")
-	setDefaultEnv("DB_PORT", "5432")
-	setDefaultEnv("DB_NAME", "gotrs_test")
-	setDefaultEnv("DB_USER", "gotrs_user")
-	setDefaultEnv("DB_PASSWORD", "gotrs_password")
+	setDefaultEnv("TEST_DB_DRIVER", "mysql")
+	setDefaultEnv("TEST_DB_HOST", "mariadb-test")
+	setDefaultEnv("TEST_DB_PORT", "3306")
+	setDefaultEnv("TEST_DB_NAME", "otrs_test")
+	setDefaultEnv("TEST_DB_USER", "otrs")
+	setDefaultEnv("TEST_DB_PASSWORD", "LetClaude.1n")
 }
 
 func waitForTestDatabase(timeout time.Duration) error {
-	driver := strings.ToLower(os.Getenv("DB_DRIVER"))
+	driver := strings.ToLower(os.Getenv("TEST_DB_DRIVER"))
 
 	var waitErr error
 	switch driver {
@@ -71,14 +72,14 @@ func waitForTestDatabase(timeout time.Duration) error {
 }
 
 func waitForPostgresDatabase(timeout time.Duration) error {
-	host := os.Getenv("DB_HOST")
-	port := os.Getenv("DB_PORT")
-	user := os.Getenv("DB_USER")
-	password := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
-	sslMode := os.Getenv("DB_SSLMODE")
+	host := os.Getenv("TEST_DB_HOST")
+	port := os.Getenv("TEST_DB_PORT")
+	user := os.Getenv("TEST_DB_USER")
+	password := os.Getenv("TEST_DB_PASSWORD")
+	dbName := os.Getenv("TEST_DB_NAME")
+	sslMode := os.Getenv("TEST_DB_SSLMODE")
 	if sslMode == "" {
-		sslMode = os.Getenv("DB_SSL_MODE")
+		sslMode = os.Getenv("TEST_DB_SSL_MODE")
 	}
 	if sslMode == "" {
 		sslMode = "disable"
@@ -95,7 +96,7 @@ func waitForPostgresDatabase(timeout time.Duration) error {
 		currentHost := host
 		if resolved := resolveHost(host); resolved != "" && resolved != host {
 			currentHost = resolved
-			_ = os.Setenv("DB_HOST", currentHost)
+			_ = os.Setenv("TEST_DB_HOST", currentHost)
 		}
 
 		dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", currentHost, port, user, password, dbName, sslMode)
@@ -122,11 +123,11 @@ func waitForPostgresDatabase(timeout time.Duration) error {
 }
 
 func waitForMySQLDatabase(timeout time.Duration) error {
-	host := os.Getenv("DB_HOST")
-	port := os.Getenv("DB_PORT")
-	user := os.Getenv("DB_USER")
-	password := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
+	host := os.Getenv("TEST_DB_HOST")
+	port := os.Getenv("TEST_DB_PORT")
+	user := os.Getenv("TEST_DB_USER")
+	password := os.Getenv("TEST_DB_PASSWORD")
+	dbName := os.Getenv("TEST_DB_NAME")
 
 	if host == "" || port == "" {
 		return fmt.Errorf("test database host/port not configured")
@@ -139,7 +140,7 @@ func waitForMySQLDatabase(timeout time.Duration) error {
 		currentHost := host
 		if resolved := resolveHost(host); resolved != "" && resolved != host {
 			currentHost = resolved
-			_ = os.Setenv("DB_HOST", currentHost)
+			_ = os.Setenv("TEST_DB_HOST", currentHost)
 		}
 
 		dsn := buildMySQLDSN(user, password, currentHost, port, dbName)

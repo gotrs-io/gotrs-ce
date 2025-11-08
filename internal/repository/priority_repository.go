@@ -1,9 +1,9 @@
 package repository
 
 import (
-	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"database/sql"
 	"fmt"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 )

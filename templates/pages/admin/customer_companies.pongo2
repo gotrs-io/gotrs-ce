@@ -3,7 +3,7 @@
 {% block title %}Customer Companies - Admin{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="container mx-auto px-4 py-8">
     <!-- Header -->
     <div class="mb-6 flex items-center justify-between">
         <div>
@@ -12,18 +12,18 @@
                 Manage customer organizations and their branded portals
             </p>
         </div>
-        <a href="/admin/customer-companies/new" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+        <a href="/admin/customer/companies/new" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
             <svg class="mr-2 -ml-1 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
             </svg>
-            Add Company
+            Add New Company
         </a>
     </div>
 
     <!-- Filters -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow mb-6">
         <div class="p-4">
-            <form method="get" action="/admin/customer-companies" class="flex items-center space-x-4">
+            <form method="get" action="/admin/customer/companies" class="flex items-center space-x-4">
                 <div class="flex-1">
                     <input type="text" name="search" value="{{ CurrentFilters.search }}"
                            placeholder="Search by company name, ID, or city..."
@@ -37,7 +37,7 @@
                 <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                     Search
                 </button>
-                <a href="/admin/customer-companies" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
+                <a href="/admin/customer/companies" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
                     Clear
                 </a>
             </form>
@@ -135,7 +135,7 @@
                                 </svg>
                             </button>
                             <!-- Edit -->
-                            <a href="/admin/customer-companies/{{ company.customer_id }}/edit" 
+                            <a href="/admin/customer/companies/{{ company.customer_id }}/edit" 
                                class="text-blue-600 hover:text-blue-700 dark:text-blue-400"
                                title="Edit Company">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -166,7 +166,7 @@
                 {% empty %}
                 <tr>
                     <td colspan="7" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                        No customer companies found. <a href="/admin/customer-companies/new" class="text-blue-600 hover:text-blue-700 dark:text-blue-400">Add the first company</a>
+                        No customer companies found. <a href="/admin/customer/companies/new" class="text-blue-600 hover:text-blue-700 dark:text-blue-400">Add the first company</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -194,7 +194,7 @@
 
 <script>
 function showCompanyUsers(companyId) {
-    fetch(`/admin/customer-companies/${companyId}/users`)
+    fetch(`/admin/customer/companies/${companyId}/users`)
         .then(res => res.json())
         .then(data => {
             document.getElementById('modalTitle').textContent = `Users in ${data.company_name}`;
@@ -208,11 +208,11 @@ function showCompanyUsers(companyId) {
             
             data.users.forEach(user => {
                 content += '<tr class="hover:bg-gray-50 dark:hover:bg-gray-700">';
-                content += `<td class="px-4 py-2 text-sm">${user.login}</td>`;
-                content += `<td class="px-4 py-2 text-sm">${user.first_name} ${user.last_name}</td>`;
-                content += `<td class="px-4 py-2 text-sm">${user.email}</td>`;
-                content += `<td class="px-4 py-2 text-sm">${user.ticket_count}</td>`;
-                content += `<td class="px-4 py-2 text-sm"><span class="px-2 py-1 text-xs rounded-full ${user.valid_id === 1 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${user.valid_name}</span></td>`;
+                content += `<td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${user.login}</td>`;
+                content += `<td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${user.first_name} ${user.last_name}</td>`;
+                content += `<td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${user.email}</td>`;
+                content += `<td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${user.ticket_count}</td>`;
+                content += `<td class="px-4 py-2 text-sm"><span class="px-2 py-1 text-xs rounded-full ${user.valid_id === 1 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}">${user.valid_name}</span></td>`;
                 content += '</tr>';
             });
             
@@ -223,7 +223,7 @@ function showCompanyUsers(companyId) {
 }
 
 function showCompanyTickets(companyId) {
-    fetch(`/admin/customer-companies/${companyId}/tickets`)
+    fetch(`/admin/customer/companies/${companyId}/tickets`)
         .then(res => res.json())
         .then(data => {
             document.getElementById('modalTitle').textContent = 'Recent Tickets';
@@ -237,11 +237,11 @@ function showCompanyTickets(companyId) {
             
             data.tickets.forEach(ticket => {
                 content += '<tr class="hover:bg-gray-50 dark:hover:bg-gray-700">';
-                content += `<td class="px-4 py-2 text-sm font-mono">#${ticket.tn}</td>`;
-                content += `<td class="px-4 py-2 text-sm">${ticket.title}</td>`;
-                content += `<td class="px-4 py-2 text-sm">${ticket.state}</td>`;
-                content += `<td class="px-4 py-2 text-sm">${ticket.priority}</td>`;
-                content += `<td class="px-4 py-2 text-sm">${ticket.create_time}</td>`;
+                content += `<td class="px-4 py-2 text-sm font-mono text-gray-900 dark:text-white">#${ticket.tn}</td>`;
+                content += `<td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${ticket.title}</td>`;
+                content += `<td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${ticket.state}</td>`;
+                content += `<td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${ticket.priority}</td>`;
+                content += `<td class="px-4 py-2 text-sm text-gray-900 dark:text-white">${ticket.create_time}</td>`;
                 content += '</tr>';
             });
             
@@ -252,16 +252,16 @@ function showCompanyTickets(companyId) {
 }
 
 function showPortalSettings(companyId) {
-    window.location.href = `/admin/customer-companies/${companyId}/edit?tab=portal`;
+    window.location.href = `/admin/customer/companies/${companyId}/edit?tab=portal`;
 }
 
 function showCompanyServices(companyId) {
-    window.location.href = `/admin/customer-companies/${companyId}/edit?tab=services`;
+    window.location.href = `/admin/customer/companies/${companyId}/edit?tab=services`;
 }
 
 function deleteCompany(companyId, companyName) {
     if (confirm(`Are you sure you want to deactivate "${companyName}"? This will prevent all users from this company from accessing the portal.`)) {
-        fetch(`/admin/customer-companies/${companyId}/delete`, {
+        fetch(`/admin/customer/companies/${companyId}/delete`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         })
@@ -278,7 +278,7 @@ function deleteCompany(companyId, companyName) {
 
 function activateCompany(companyId, companyName) {
     if (confirm(`Are you sure you want to activate "${companyName}"? This will allow users from this company to access the portal.`)) {
-        fetch(`/admin/customer-companies/${companyId}/activate`, {
+        fetch(`/admin/customer/companies/${companyId}/activate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         })

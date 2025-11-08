@@ -139,7 +139,11 @@ func ResetAdapterForTest() {
 }
 
 func buildAdapterFromEnv() DBAdapter {
-	dbDriver := os.Getenv("DB_DRIVER")
+	// In test mode, prefer TEST_ prefixed environment variables
+	dbDriver := os.Getenv("TEST_DB_DRIVER")
+	if dbDriver == "" {
+		dbDriver = os.Getenv("DB_DRIVER")
+	}
 	if dbDriver == "" {
 		dbDriver = "postgres"
 	}
@@ -159,7 +163,11 @@ func ConvertQuery(query string) string {
 	query = ConvertPlaceholders(query)
 
 	// Then handle ILIKE conversion for MySQL
-	if os.Getenv("DB_DRIVER") == "mysql" || os.Getenv("DB_DRIVER") == "mariadb" {
+	driver := os.Getenv("TEST_DB_DRIVER")
+	if driver == "" {
+		driver = os.Getenv("DB_DRIVER")
+	}
+	if driver == "mysql" || driver == "mariadb" {
 		query = convertILIKE(query)
 		query = convertTypeCasting(query)
 	}

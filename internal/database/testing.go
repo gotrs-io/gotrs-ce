@@ -15,6 +15,11 @@ var (
 	testDBOverride bool
 )
 
+// IsTestDBOverride reports whether a test database has been explicitly injected via SetDB.
+func IsTestDBOverride() bool {
+	return testDBOverride && testDB != nil
+}
+
 // InitTestDB initializes a database connection for tests using the
 // project service adapter. It is safe to call multiple times.
 // It does not create schema by default; individual tests should
@@ -22,7 +27,7 @@ var (
 func InitTestDB() error {
 	// In test environment with no DB configured, fast-return success (DB-less)
 	if v := os.Getenv("APP_ENV"); v == "test" {
-		if os.Getenv("DB_HOST") == "" && os.Getenv("DATABASE_URL") == "" {
+		if os.Getenv("TEST_DB_HOST") == "" && os.Getenv("TEST_DB_NAME") == "" && os.Getenv("DATABASE_URL") == "" {
 			// Leave testDB nil so callers that require DB can detect absence,
 			// but allow DB-less tests to proceed quickly.
 			return nil

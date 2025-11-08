@@ -112,7 +112,7 @@ func HandleUserMeAPI(c *gin.Context) {
 				})
 			}
 		}
-		
+
 		// Return user information with groups
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,

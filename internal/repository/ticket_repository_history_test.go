@@ -15,8 +15,10 @@ import (
 )
 
 func TestAddTicketHistoryEntryInsertsRow(t *testing.T) {
-	t.Setenv("DB_DRIVER", "postgres")
+	t.Setenv("TEST_DB_DRIVER", "postgres")
 	database.ResetAdapterForTest()
+	database.SetAdapter(&database.PostgreSQLAdapter{})
+	t.Cleanup(database.ResetAdapterForTest)
 
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
@@ -64,8 +66,10 @@ func TestAddTicketHistoryEntryInsertsRow(t *testing.T) {
 }
 
 func TestAddTicketHistoryEntryCachesTypeLookup(t *testing.T) {
-	t.Setenv("DB_DRIVER", "postgres")
+	t.Setenv("TEST_DB_DRIVER", "postgres")
 	database.ResetAdapterForTest()
+	database.SetAdapter(&database.PostgreSQLAdapter{})
+	t.Cleanup(database.ResetAdapterForTest)
 
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
@@ -134,8 +138,10 @@ func TestAddTicketHistoryEntryCachesTypeLookup(t *testing.T) {
 }
 
 func TestAddTicketHistoryEntryCreatesMissingType(t *testing.T) {
-	t.Setenv("DB_DRIVER", "postgres")
+	t.Setenv("TEST_DB_DRIVER", "postgres")
 	database.ResetAdapterForTest()
+	database.SetAdapter(&database.PostgreSQLAdapter{})
+	t.Cleanup(database.ResetAdapterForTest)
 
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)

@@ -2,9 +2,10 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
-	"io"
 	"html"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -14,20 +15,20 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/config"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	"github.com/gotrs-io/gotrs-ce/internal/service"
-	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
 	// Register additional decoders for thumbnails
-	_ "golang.org/x/image/webp"
-	_ "golang.org/x/image/tiff"
-	_ "golang.org/x/image/bmp"
-	"image/png"
 	"bytes"
+	_ "golang.org/x/image/bmp"
+	_ "golang.org/x/image/tiff"
+	_ "golang.org/x/image/webp"
+	"image/png"
 	"log"
 )
 
@@ -94,9 +95,9 @@ var attachmentsByTicket = map[int][]int{
 
 // File upload limits
 const (
-	MaxFileSize        = 10 * 1024 * 1024 // 10MB per file
-	MaxTotalSize       = 50 * 1024 * 1024 // 50MB total per ticket
-	MaxAttachments     = 20               // Max 20 attachments per ticket
+	MaxFileSize    = 10 * 1024 * 1024 // 10MB per file
+	MaxTotalSize   = 50 * 1024 * 1024 // 50MB total per ticket
+	MaxAttachments = 20               // Max 20 attachments per ticket
 )
 
 // Blocked file extensions
@@ -117,8 +118,8 @@ var allowedMimeTypes = map[string]bool{
 	"application/x-rar":        true,
 	"application/msword":       true,
 	"application/vnd.ms-excel": true,
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document":   true,
-	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":         true,
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":       true,
 	"image/jpeg":               true,
 	"image/png":                true,
 	"image/gif":                true,
@@ -133,16 +134,39 @@ var allowedMimeTypes = map[string]bool{
 	"image/heif":               true,
 	"image/apng":               true,
 	// optional modern formats
-	"image/jxl":                true,
-	"video/mp4":                true,
-	"video/webm":               true,
-	"audio/mpeg":               true,
-	"audio/wav":                true,
+	"image/jxl":  true,
+	"video/mp4":  true,
+	"video/webm": true,
+	"audio/mpeg": true,
+	"audio/wav":  true,
+}
+
+// attachmentsDB returns a usable database connection for attachments or nil when mock data should be used.
+func attachmentsDB() *sql.DB {
+	useDB := true
+	if strings.EqualFold(os.Getenv("APP_ENV"), "test") && !database.IsTestDBOverride() {
+		switch strings.ToLower(strings.TrimSpace(os.Getenv("ATTACHMENTS_USE_DB"))) {
+		case "", "0", "false", "no", "off":
+			useDB = false
+		}
+	}
+	if !useDB {
+		return nil
+	}
+
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		return nil
+	}
+
+	return db
 }
 
 // normalizeMimeType maps common aliases and strips parameters; returns lowercased canonical type
 func normalizeMimeType(ct string) string {
-	if ct == "" { return ct }
+	if ct == "" {
+		return ct
+	}
 	ct = strings.ToLower(strings.TrimSpace(strings.Split(ct, ";")[0]))
 	switch ct {
 	case "image/jpg", "image/pjpeg":
@@ -170,7 +194,7 @@ func normalizeMimeType(ct string) string {
 // resolveTicketID resolves the :id path param which can be a numeric TN or a DB ID
 func resolveTicketID(idStr string) (int, error) {
 	// Prefer resolving by TN if DB is available (handles numeric TNs)
-	if db, err := database.GetDB(); err == nil && db != nil {
+	if db := attachmentsDB(); db != nil {
 		var realID int
 		// Try TN first
 		row := db.QueryRow(database.ConvertPlaceholders(`SELECT id FROM ticket WHERE tn = $1 LIMIT 1`), idStr)
@@ -279,7 +303,9 @@ func handleUploadAttachment(c *gin.Context) {
 	// 2) If empty or generic, sniff from content
 	if contentType == "" || contentType == "application/octet-stream" {
 		buf := make([]byte, 512)
-		if n, _ := file.Read(buf); n > 0 { contentType = detectContentType(header.Filename, buf[:n]) }
+		if n, _ := file.Read(buf); n > 0 {
+			contentType = detectContentType(header.Filename, buf[:n])
+		}
 		file.Seek(0, 0)
 		// Normalize again in case of aliases from extension-based detection
 		contentType = normalizeMimeType(contentType)
@@ -319,7 +345,9 @@ func handleUploadAttachment(c *gin.Context) {
 		case uint64:
 			uploaderID = int(t)
 		case string:
-			if n, err := strconv.Atoi(t); err == nil { uploaderID = n }
+			if n, err := strconv.Atoi(t); err == nil {
+				uploaderID = n
+			}
 		}
 	}
 
@@ -350,7 +378,7 @@ func handleUploadAttachment(c *gin.Context) {
 	}
 
 	// If DB is available and storage is DB, use storage abstraction
-	if db, err := database.GetDB(); err == nil && db != nil {
+	if db := attachmentsDB(); db != nil {
 		// Find or create an article for this ticket
 		articleRepo := repository.NewArticleRepository(db)
 		latest, latestErr := articleRepo.GetLatestArticleForTicket(uint(ticketID))
@@ -403,7 +431,9 @@ func handleUploadAttachment(c *gin.Context) {
 				}
 				// Fallback content type
 				ct := contentType
-				if ct == "" { ct = "application/octet-stream" }
+				if ct == "" {
+					ct = "application/octet-stream"
+				}
 				_, ierr := db.Exec(database.ConvertPlaceholders(`
 					INSERT INTO article_data_mime_attachment (
 						article_id, filename, content_type, content_size, content,
@@ -430,7 +460,9 @@ func handleUploadAttachment(c *gin.Context) {
 	} else {
 		// Fallback in-memory mock storage to keep API usable without DB
 		attachments[nextAttachmentID] = attachment
-		if attachmentsByTicket[ticketID] == nil { attachmentsByTicket[ticketID] = []int{} }
+		if attachmentsByTicket[ticketID] == nil {
+			attachmentsByTicket[ticketID] = []int{}
+		}
 		attachmentsByTicket[ticketID] = append(attachmentsByTicket[ticketID], nextAttachmentID)
 		nextAttachmentID++
 		// Also attempt to store on filesystem for manual inspection
@@ -443,11 +475,11 @@ func handleUploadAttachment(c *gin.Context) {
 
 	// Generate response
 	response := gin.H{
-		"message":      "Attachment uploaded successfully",
+		"message":       "Attachment uploaded successfully",
 		"attachment_id": attachment.ID,
-		"filename":     attachment.Filename,
-		"size":         attachment.Size,
-		"content_type": attachment.ContentType,
+		"filename":      attachment.Filename,
+		"size":          attachment.Size,
+		"content_type":  attachment.ContentType,
 	}
 
 	// Add thumbnail URL for images
@@ -474,33 +506,33 @@ func handleGetAttachments(c *gin.Context) {
 	}
 
 	// Get database connection
-    if db, err := database.GetDB(); err != nil || db == nil {
-        // Fallback to mock attachments when DB unavailable
-        list := []gin.H{}
-        if ids, ok := attachmentsByTicket[ticketID]; ok {
-            for _, id := range ids {
-                if att, ok := attachments[id]; ok {
-                    list = append(list, gin.H{
-                        "id":           att.ID,
-                        "filename":     att.Filename,
-                        "size":         att.Size,
-                        "size_formatted": formatFileSize(att.Size),
-                        "content_type": att.ContentType,
-                        "uploaded_at":  att.UploadedAt.Format("Jan 2, 2006 3:04 PM"),
-                        "uploaded_by":  att.UploadedBy,
-                        "article_id":   0,
-                        "download_url": fmt.Sprintf("/api/attachments/%d/download", att.ID),
-                    })
-                }
-            }
-        }
+	db := attachmentsDB()
+	if db == nil {
+		// Fallback to mock attachments when DB unavailable
+		list := []gin.H{}
+		if ids, ok := attachmentsByTicket[ticketID]; ok {
+			for _, id := range ids {
+				if att, ok := attachments[id]; ok {
+					list = append(list, gin.H{
+						"id":             att.ID,
+						"filename":       att.Filename,
+						"size":           att.Size,
+						"size_formatted": formatFileSize(att.Size),
+						"content_type":   att.ContentType,
+						"uploaded_at":    att.UploadedAt.Format("Jan 2, 2006 3:04 PM"),
+						"uploaded_by":    att.UploadedBy,
+						"article_id":     0,
+						"download_url":   fmt.Sprintf("/api/attachments/%d/download", att.ID),
+					})
+				}
+			}
+		}
 		c.JSON(http.StatusOK, gin.H{"attachments": list, "total": len(list)})
-        return
-    }
+		return
+	}
 
-    // Query attachments from database - get all attachments for all articles of this ticket
-    db2, _ := database.GetDB()
-    rows, err := db2.Query(database.ConvertPlaceholders(`
+	// Query attachments from database - get all attachments for all articles of this ticket
+	rows, err := db.Query(database.ConvertPlaceholders(`
 		SELECT att.id, att.filename,
 		       COALESCE(att.content_type, 'application/octet-stream'),
 		       COALESCE(att.content_size, 0),
@@ -530,14 +562,14 @@ func handleGetAttachments(c *gin.Context) {
 		}
 
 		publicAtt := gin.H{
-			"id":           attID,
-			"filename":     filename,
-			"size":         contentSize,
+			"id":             attID,
+			"filename":       filename,
+			"size":           contentSize,
 			"size_formatted": formatFileSize(contentSize),
-			"content_type": contentType,
-			"uploaded_at":  createTime.Format("Jan 2, 2006 3:04 PM"),
-			"uploaded_by":  createBy,
-			"article_id":   articleID,
+			"content_type":   contentType,
+			"uploaded_at":    createTime.Format("Jan 2, 2006 3:04 PM"),
+			"uploaded_by":    createBy,
+			"article_id":     articleID,
 			// Keep download URL under /api/tickets/:id/attachments/:attachment_id for consistency
 			"download_url": fmt.Sprintf("/api/tickets/%s/attachments/%d", ticketIDStr, attID),
 		}
@@ -587,11 +619,11 @@ func handleDownloadAttachment(c *gin.Context) {
 	}
 
 	// Try DB-backed retrieval first
-	if db, err := database.GetDB(); err == nil && db != nil {
+	if db := attachmentsDB(); db != nil {
 		var (
-			filename string
-			contentType string
-			contentSize int
+			filename     string
+			contentType  string
+			contentSize  int
 			contentBytes []byte
 		)
 		row := db.QueryRow(database.ConvertPlaceholders(`
@@ -635,7 +667,9 @@ func handleDownloadAttachment(c *gin.Context) {
 				if buf, ok := findLocalStoredAttachmentBytes(ticketID, fn); ok {
 					ct := detectContentType(fn, buf)
 					disposition := "attachment"
-					if strings.HasPrefix(ct, "image/") || ct == "application/pdf" { disposition = "inline" }
+					if strings.HasPrefix(ct, "image/") || ct == "application/pdf" {
+						disposition = "inline"
+					}
 					c.Header("Content-Disposition", fmt.Sprintf("%s; filename=\"%s\"", disposition, fn))
 					c.Header("Content-Type", ct)
 					c.Header("Content-Length", strconv.Itoa(len(buf)))
@@ -660,17 +694,30 @@ func handleDownloadAttachment(c *gin.Context) {
 
 	// Initialize storage service for mock attachments
 	storagePath := os.Getenv("STORAGE_PATH")
-	if storagePath == "" { storagePath = "/tmp" }
+	if storagePath == "" {
+		storagePath = "/tmp"
+	}
 	storageService, err := service.NewLocalStorageService(storagePath)
-	if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to initialize storage"}); return }
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to initialize storage"})
+		return
+	}
 
 	// Retrieve file from storage for mock
 	fileReader, err := storageService.Retrieve(c.Request.Context(), attachment.StoragePath)
 	if err != nil {
 		var content []byte
-		if attachment.ID == 1 { content = []byte("This is a test file content") } else if attachment.ID == 2 { content = []byte("PNG image content") } else { content = []byte("File content") }
+		if attachment.ID == 1 {
+			content = []byte("This is a test file content")
+		} else if attachment.ID == 2 {
+			content = []byte("PNG image content")
+		} else {
+			content = []byte("File content")
+		}
 		disposition := "attachment"
-		if strings.HasPrefix(attachment.ContentType, "image/") || attachment.ContentType == "application/pdf" { disposition = "inline" }
+		if strings.HasPrefix(attachment.ContentType, "image/") || attachment.ContentType == "application/pdf" {
+			disposition = "inline"
+		}
 		c.Header("Content-Disposition", fmt.Sprintf("%s; filename=\"%s\"", disposition, attachment.Filename))
 		c.Header("Content-Type", attachment.ContentType)
 		c.Header("Content-Length", strconv.FormatInt(int64(len(content)), 10))
@@ -680,11 +727,16 @@ func handleDownloadAttachment(c *gin.Context) {
 	defer fileReader.Close()
 
 	disposition := "attachment"
-	if strings.HasPrefix(attachment.ContentType, "image/") || attachment.ContentType == "application/pdf" { disposition = "inline" }
+	if strings.HasPrefix(attachment.ContentType, "image/") || attachment.ContentType == "application/pdf" {
+		disposition = "inline"
+	}
 	c.Header("Content-Disposition", fmt.Sprintf("%s; filename=\"%s\"", disposition, attachment.Filename))
 	c.Header("Content-Type", attachment.ContentType)
 	c.Header("Content-Length", strconv.FormatInt(attachment.Size, 10))
-	if _, err := io.Copy(c.Writer, fileReader); err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to stream file"}); return }
+	if _, err := io.Copy(c.Writer, fileReader); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to stream file"})
+		return
+	}
 }
 
 // handleDeleteAttachment deletes an attachment
@@ -710,7 +762,7 @@ func handleDeleteAttachment(c *gin.Context) {
 	}
 
 	// If DB available, delete using a guarded join on ticket
-	if db, err := database.GetDB(); err == nil && db != nil {
+	if db := attachmentsDB(); db != nil {
 		// Basic permission check: require authenticated user
 		if _, ok := c.Get("user_id"); !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
@@ -749,10 +801,10 @@ func handleDeleteAttachment(c *gin.Context) {
 	}
 
 	// Initialize storage service
-    storagePath := os.Getenv("STORAGE_PATH")
-    if storagePath == "" {
-        storagePath = "/tmp"
-    }
+	storagePath := os.Getenv("STORAGE_PATH")
+	if storagePath == "" {
+		storagePath = "/tmp"
+	}
 	storageService, err := service.NewLocalStorageService(storagePath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to initialize storage"})
@@ -798,7 +850,10 @@ func handleViewAttachment(c *gin.Context) {
 		return
 	}
 	attID, err := strconv.Atoi(attachmentIDStr)
-	if err != nil { c.JSON(400, gin.H{"error":"Invalid attachment ID"}); return }
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid attachment ID"})
+		return
+	}
 
 	// Debug: trace entry
 	log.Printf("ATTACH: view start path=%s tn=%s ticketID=%d attID=%d", c.Request.URL.Path, ticketIDStr, ticketID, attID)
@@ -816,7 +871,7 @@ func handleViewAttachment(c *gin.Context) {
 	// Determine prev/next attachment ids for this ticket
 	prevID, nextID := 0, 0
 	// Try DB metadata path first
-	if db, derr := database.GetDB(); derr == nil && db != nil {
+	if db := attachmentsDB(); db != nil {
 		// content type + filename
 		_ = db.QueryRow(database.ConvertPlaceholders(`
 			SELECT att.filename, COALESCE(att.content_type,'')
@@ -835,26 +890,39 @@ func handleViewAttachment(c *gin.Context) {
 			ids := []int{}
 			for rows.Next() {
 				var id int
-				if err := rows.Scan(&id); err == nil { ids = append(ids, id) }
+				if err := rows.Scan(&id); err == nil {
+					ids = append(ids, id)
+				}
 			}
 			rows.Close()
 			// find index
 			for i, id := range ids {
 				if id == attID {
-					if i > 0 { prevID = ids[i-1] }
-					if i < len(ids)-1 { nextID = ids[i+1] }
+					if i > 0 {
+						prevID = ids[i-1]
+					}
+					if i < len(ids)-1 {
+						nextID = ids[i+1]
+					}
 					break
 				}
 			}
 		}
 	} else {
 		// Fallback to mock storage for neighbors and meta
-		if att, ok := attachments[attID]; ok { filename = att.Filename; contentType = att.ContentType }
+		if att, ok := attachments[attID]; ok {
+			filename = att.Filename
+			contentType = att.ContentType
+		}
 		if ids, ok := attachmentsByTicket[ticketID]; ok {
 			for i, id := range ids {
 				if id == attID {
-					if i > 0 { prevID = ids[i-1] }
-					if i < len(ids)-1 { nextID = ids[i+1] }
+					if i > 0 {
+						prevID = ids[i-1]
+					}
+					if i < len(ids)-1 {
+						nextID = ids[i+1]
+					}
 					break
 				}
 			}
@@ -884,8 +952,12 @@ func handleViewAttachment(c *gin.Context) {
 	// Navigation URLs
 	prevURL := ""
 	nextURL := ""
-	if prevID > 0 { prevURL = fmt.Sprintf("/api/tickets/%s/attachments/%d/view", ticketIDStr, prevID) }
-	if nextID > 0 { nextURL = fmt.Sprintf("/api/tickets/%s/attachments/%d/view", ticketIDStr, nextID) }
+	if prevID > 0 {
+		prevURL = fmt.Sprintf("/api/tickets/%s/attachments/%d/view", ticketIDStr, prevID)
+	}
+	if nextID > 0 {
+		nextURL = fmt.Sprintf("/api/tickets/%s/attachments/%d/view", ticketIDStr, nextID)
+	}
 
 	// Build HTML page
 	html := fmt.Sprintf(`<!doctype html>
@@ -954,16 +1026,30 @@ func handleViewAttachment(c *gin.Context) {
 		embed,
 		// left and right overlays
 		func() string {
-			if prevURL == "" { return "" }
+			if prevURL == "" {
+				return ""
+			}
 			return fmt.Sprintf(`<div class="nav left"><a class="btn" href="%s" aria-label="Previous">&#x2039;</a></div>`, prevURL)
 		}(),
 		func() string {
-			if nextURL == "" { return "" }
+			if nextURL == "" {
+				return ""
+			}
 			return fmt.Sprintf(`<div class="nav right"><a class="btn" href="%s" aria-label="Next">&#x203A;</a></div>`, nextURL)
 		}(),
 		// create elements so we can toggle classes even if absent
-		func() string { if prevURL == "" { return "/* no prev */" } ; return "const leftEl = document.querySelector('.nav.left'); if (leftEl) left = leftEl;" }(),
-		func() string { if nextURL == "" { return "/* no next */" } ; return "const rightEl = document.querySelector('.nav.right'); if (rightEl) right = rightEl;" }(),
+		func() string {
+			if prevURL == "" {
+				return "/* no prev */"
+			}
+			return "const leftEl = document.querySelector('.nav.left'); if (leftEl) left = leftEl;"
+		}(),
+		func() string {
+			if nextURL == "" {
+				return "/* no next */"
+			}
+			return "const rightEl = document.querySelector('.nav.right'); if (rightEl) right = rightEl;"
+		}(),
 		// go-back target uses original id param for nicer TN links
 		ticketIDStr,
 		prevURL != "", prevURL,
@@ -979,7 +1065,7 @@ func handleViewAttachment(c *gin.Context) {
 // serveAttachmentInlineRaw serves the original inline content for /view?raw=1 and internal use
 func serveAttachmentInlineRaw(c *gin.Context, ticketIDStr string, ticketID int, attID int) {
 	// DB path first
-	if db, derr := database.GetDB(); derr == nil && db != nil {
+	if db := attachmentsDB(); db != nil {
 		var filename, contentType string
 		var content []byte
 		row := db.QueryRow(database.ConvertPlaceholders(`
@@ -994,17 +1080,24 @@ func serveAttachmentInlineRaw(c *gin.Context, ticketIDStr string, ticketID int, 
 					sp := service.GenerateOTRSStoragePath(ticketID, 0, filename)
 					if rc, rerr := ss.Retrieve(c.Request.Context(), sp); rerr == nil {
 						defer rc.Close()
-						if buf, berr := io.ReadAll(rc); berr == nil { content = buf }
+						if buf, berr := io.ReadAll(rc); berr == nil {
+							content = buf
+						}
 					}
 				}
 				if len(content) == 0 {
-					if buf, ok := findLocalStoredAttachmentBytes(ticketID, filename); ok { content = buf }
+					if buf, ok := findLocalStoredAttachmentBytes(ticketID, filename); ok {
+						content = buf
+					}
 				}
 			}
 			ct := strings.ToLower(contentType)
 			if ct == "" || ct == "application/octet-stream" {
 				detected := detectContentType(filename, content)
-				if detected != "" { contentType = detected; ct = strings.ToLower(detected) }
+				if detected != "" {
+					contentType = detected
+					ct = strings.ToLower(detected)
+				}
 			}
 			disposition := "inline"
 			if !(strings.HasPrefix(ct, "image/") || ct == "application/pdf" || strings.HasPrefix(ct, "text/") || ct == "application/json" || ct == "application/xml" || strings.Contains(ct, "html")) {
@@ -1022,25 +1115,32 @@ func serveAttachmentInlineRaw(c *gin.Context, ticketIDStr string, ticketID int, 
 	if att, ok := attachments[attID]; ok {
 		ct := strings.ToLower(att.ContentType)
 		disposition := "inline"
-		if !(strings.HasPrefix(ct, "image/") || ct == "application/pdf" || strings.HasPrefix(ct, "text/")) { disposition = "attachment" }
+		if !(strings.HasPrefix(ct, "image/") || ct == "application/pdf" || strings.HasPrefix(ct, "text/")) {
+			disposition = "attachment"
+		}
 		c.Header("Content-Disposition", fmt.Sprintf("%s; filename=\"%s\"", disposition, att.Filename))
 		c.Header("Content-Type", att.ContentType)
 		c.Header("Cache-Control", "no-store")
 		// Attempt to stream from local storage if present
-		storagePath := os.Getenv("STORAGE_PATH"); if storagePath == "" { storagePath = "/tmp" }
+		storagePath := os.Getenv("STORAGE_PATH")
+		if storagePath == "" {
+			storagePath = "/tmp"
+		}
 		if storageService, err := service.NewLocalStorageService(storagePath); err == nil {
 			if rc, err := storageService.Retrieve(c.Request.Context(), att.StoragePath); err == nil {
-				defer rc.Close(); io.Copy(c.Writer, rc); return
+				defer rc.Close()
+				io.Copy(c.Writer, rc)
+				return
 			}
 		}
 		// Fallback small content
 		c.String(200, "Attachment")
 		return
 	}
-	c.JSON(404, gin.H{"error":"Attachment not viewable"})
+	c.JSON(404, gin.H{"error": "Attachment not viewable"})
 
 	// DB path first
-	if db, derr := database.GetDB(); derr == nil && db != nil {
+	if db := attachmentsDB(); db != nil {
 		var filename, contentType string
 		var content []byte
 		row := db.QueryRow(database.ConvertPlaceholders(`
@@ -1058,7 +1158,9 @@ func serveAttachmentInlineRaw(c *gin.Context, ticketIDStr string, ticketID int, 
 					sp := service.GenerateOTRSStoragePath(ticketID, 0, filename)
 					if rc, rerr := ss.Retrieve(c.Request.Context(), sp); rerr == nil {
 						defer rc.Close()
-						if buf, berr := io.ReadAll(rc); berr == nil { content = buf }
+						if buf, berr := io.ReadAll(rc); berr == nil {
+							content = buf
+						}
 					}
 				}
 				// If still empty, try to find the stored file under storage/tickets/<ticketID>/**
@@ -1185,7 +1287,7 @@ func serveAttachmentInlineRaw(c *gin.Context, ticketIDStr string, ticketID int, 
 								return
 							}
 						}
-					// If we found bytes but can't confidently render inline, fall through to 404 below
+						// If we found bytes but can't confidently render inline, fall through to 404 below
 					}
 				}
 			}
@@ -1197,16 +1299,25 @@ func serveAttachmentInlineRaw(c *gin.Context, ticketIDStr string, ticketID int, 
 		ct := strings.ToLower(att.ContentType)
 		if strings.HasPrefix(ct, "image/") || ct == "application/pdf" || strings.HasPrefix(ct, "text/") {
 			// Read from local storage service
-			storagePath := os.Getenv("STORAGE_PATH"); if storagePath == "" { storagePath = "/tmp" }
+			storagePath := os.Getenv("STORAGE_PATH")
+			if storagePath == "" {
+				storagePath = "/tmp"
+			}
 			storageService, err := service.NewLocalStorageService(storagePath)
 			if err == nil {
 				rc, err := storageService.Retrieve(c.Request.Context(), att.StoragePath)
-				if err == nil { defer rc.Close(); buf, _ := io.ReadAll(rc); c.Header("Content-Type", att.ContentType); c.Data(200, att.ContentType, buf); return }
+				if err == nil {
+					defer rc.Close()
+					buf, _ := io.ReadAll(rc)
+					c.Header("Content-Type", att.ContentType)
+					c.Data(200, att.ContentType, buf)
+					return
+				}
 			}
 		}
 	}
 	log.Printf("ATTACH: view not viewable attID=%d ticketID=%d (returning 404 JSON)", attID, ticketID)
-	c.JSON(404, gin.H{"error":"Attachment not viewable"})
+	c.JSON(404, gin.H{"error": "Attachment not viewable"})
 }
 
 // findLocalStoredAttachmentBytes tries to locate a file stored by LocalStorageService for a given ticket and filename
@@ -1231,7 +1342,9 @@ func findLocalStoredAttachmentBytes(ticketID int, filename string) ([]byte, bool
 			ticketSeg := string(os.PathSeparator) + strconv.Itoa(ticketID) + string(os.PathSeparator)
 			var found []byte
 			_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-				if err != nil || d.IsDir() { return nil }
+				if err != nil || d.IsDir() {
+					return nil
+				}
 				// quick filter by filename
 				if strings.EqualFold(d.Name(), safeFile) || strings.EqualFold(d.Name(), filepath.Base(filename)) {
 					// ensure the ticketID appears as a path segment
@@ -1244,7 +1357,9 @@ func findLocalStoredAttachmentBytes(ticketID int, filename string) ([]byte, bool
 				}
 				return nil
 			})
-			if found != nil { return found, true }
+			if found != nil {
+				return found, true
+			}
 		}
 	}
 
@@ -1275,8 +1390,12 @@ func sanitizeFilenameForMatch(name string) string {
 		"'", "_",
 	)
 	safe := repl.Replace(name)
-	if safe == "" { safe = "unnamed_file" }
-	if len(safe) > 255 { safe = safe[:255] }
+	if safe == "" {
+		safe = "unnamed_file"
+	}
+	if len(safe) > 255 {
+		safe = safe[:255]
+	}
 	return safe
 }
 
@@ -1377,16 +1496,22 @@ func handleGetThumbnail(c *gin.Context) {
 	ticketIDStr := c.Param("id")
 	attachmentIDStr := c.Param("attachment_id")
 	ticketID, err := resolveTicketID(ticketIDStr)
-	if err != nil { c.JSON(404, gin.H{"error":"Ticket not found"}); return }
+	if err != nil {
+		c.JSON(404, gin.H{"error": "Ticket not found"})
+		return
+	}
 	attID, err := strconv.Atoi(attachmentIDStr)
-	if err != nil { c.JSON(400, gin.H{"error":"Invalid attachment id"}); return }
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid attachment id"})
+		return
+	}
 
 	// Try DB first: fetch bytes and content type
-	if db, derr := database.GetDB(); derr == nil && db != nil {
+	if db := attachmentsDB(); db != nil {
 		var (
-			content []byte
+			content     []byte
 			contentType string
-			filename string
+			filename    string
 		)
 		row := db.QueryRow(database.ConvertPlaceholders(`
 			SELECT att.content, COALESCE(att.content_type,''), att.filename
@@ -1400,7 +1525,9 @@ func handleGetThumbnail(c *gin.Context) {
 					sp := service.GenerateOTRSStoragePath(ticketID, 0, filename)
 					if rc, rerr := ss.Retrieve(c.Request.Context(), sp); rerr == nil {
 						defer rc.Close()
-						if buf, berr := io.ReadAll(rc); berr == nil { content = buf }
+						if buf, berr := io.ReadAll(rc); berr == nil {
+							content = buf
+						}
 					}
 				}
 				if len(content) == 0 {
@@ -1425,7 +1552,8 @@ func handleGetThumbnail(c *gin.Context) {
 			cachePath := filepath.Join(cacheDir, fmt.Sprintf("%d.png", attID))
 			if fi, err := os.Stat(cachePath); err == nil && fi.Size() > 0 {
 				// Serve cached
-				f, _ := os.Open(cachePath); defer f.Close()
+				f, _ := os.Open(cachePath)
+				defer f.Close()
 				c.Header("Content-Type", "image/png")
 				io.Copy(c.Writer, f)
 				return
@@ -1440,22 +1568,33 @@ func handleGetThumbnail(c *gin.Context) {
 				return
 			}
 			// Simple nearest-neighbor resize to max 320x240 preserving aspect
-			w := img.Bounds().Dx(); h := img.Bounds().Dy()
+			w := img.Bounds().Dx()
+			h := img.Bounds().Dy()
 			maxW, maxH := 320, 240
 			scale := 1.0
 			if w > maxW || h > maxH {
-				sx := float64(maxW)/float64(w)
-				sy := float64(maxH)/float64(h)
-				if sx < sy { scale = sx } else { scale = sy }
+				sx := float64(maxW) / float64(w)
+				sy := float64(maxH) / float64(h)
+				if sx < sy {
+					scale = sx
+				} else {
+					scale = sy
+				}
 			}
-			tw := int(float64(w)*scale); th := int(float64(h)*scale)
-			if tw < 1 { tw = 1 }; if th < 1 { th = 1 }
+			tw := int(float64(w) * scale)
+			th := int(float64(h) * scale)
+			if tw < 1 {
+				tw = 1
+			}
+			if th < 1 {
+				th = 1
+			}
 			// Manual resize (box filter)
-			dst := image.NewRGBA(image.Rect(0,0,tw,th))
+			dst := image.NewRGBA(image.Rect(0, 0, tw, th))
 			for y := 0; y < th; y++ {
 				for x := 0; x < tw; x++ {
-					sx := int(float64(x)/float64(tw)*float64(w))
-					sy := int(float64(y)/float64(th)*float64(h))
+					sx := int(float64(x) / float64(tw) * float64(w))
+					sy := int(float64(y) / float64(th) * float64(h))
 					dst.Set(x, y, img.At(sx, sy))
 				}
 			}
@@ -1478,9 +1617,15 @@ func handleGetThumbnail(c *gin.Context) {
 			return
 		}
 		// Use storage service to retrieve original then thumbnail it
-		storagePath := os.Getenv("STORAGE_PATH"); if storagePath == "" { storagePath = "/tmp" }
+		storagePath := os.Getenv("STORAGE_PATH")
+		if storagePath == "" {
+			storagePath = "/tmp"
+		}
 		storageService, err := service.NewLocalStorageService(storagePath)
-		if err != nil { c.JSON(500, gin.H{"error":"init storage failed"}); return }
+		if err != nil {
+			c.JSON(500, gin.H{"error": "init storage failed"})
+			return
+		}
 		rc, err := storageService.Retrieve(c.Request.Context(), att.StoragePath)
 		if err != nil {
 			// Serve placeholder if we cannot read original
@@ -1499,17 +1644,41 @@ func handleGetThumbnail(c *gin.Context) {
 			c.Data(http.StatusOK, phType, ph)
 			return
 		}
-		w := img.Bounds().Dx(); h := img.Bounds().Dy(); maxW, maxH := 320, 240
-		scale := 1.0; if w > maxW || h > maxH { sx := float64(maxW)/float64(w); sy := float64(maxH)/float64(h); if sx < sy { scale = sx } else { scale = sy } }
-		tw := int(float64(w)*scale); th := int(float64(h)*scale); if tw < 1 { tw = 1 }; if th < 1 { th = 1 }
-		dst := image.NewRGBA(image.Rect(0,0,tw,th))
-		for y := 0; y < th; y++ { for x := 0; x < tw; x++ { sx := int(float64(x)/float64(tw)*float64(w)); sy := int(float64(y)/float64(th)*float64(h)); dst.Set(x, y, img.At(sx, sy)) } }
+		w := img.Bounds().Dx()
+		h := img.Bounds().Dy()
+		maxW, maxH := 320, 240
+		scale := 1.0
+		if w > maxW || h > maxH {
+			sx := float64(maxW) / float64(w)
+			sy := float64(maxH) / float64(h)
+			if sx < sy {
+				scale = sx
+			} else {
+				scale = sy
+			}
+		}
+		tw := int(float64(w) * scale)
+		th := int(float64(h) * scale)
+		if tw < 1 {
+			tw = 1
+		}
+		if th < 1 {
+			th = 1
+		}
+		dst := image.NewRGBA(image.Rect(0, 0, tw, th))
+		for y := 0; y < th; y++ {
+			for x := 0; x < tw; x++ {
+				sx := int(float64(x) / float64(tw) * float64(w))
+				sy := int(float64(y) / float64(th) * float64(h))
+				dst.Set(x, y, img.At(sx, sy))
+			}
+		}
 		c.Header("Content-Type", "image/png")
 		png.Encode(c.Writer, dst)
 		return
 	}
 
-	c.JSON(404, gin.H{"error":"Attachment not found"})
+	c.JSON(404, gin.H{"error": "Attachment not found"})
 }
 
 // validateFile validates uploaded file
@@ -1517,15 +1686,15 @@ func validateFile(header *multipart.FileHeader) error {
 	filename := header.Filename
 
 	// Check for hidden files
-    if strings.HasPrefix(filename, ".") {
-        return fmt.Errorf("hidden files are not allowed")
+	if strings.HasPrefix(filename, ".") {
+		return fmt.Errorf("hidden files are not allowed")
 	}
 
-    // Check extension
+	// Check extension
 	ext := strings.ToLower(filepath.Ext(filename))
 	for _, blocked := range blockedExtensions {
 		if ext == blocked {
-            return fmt.Errorf("File type not allowed")
+			return fmt.Errorf("File type not allowed")
 		}
 	}
 
@@ -1546,7 +1715,7 @@ func validateFile(header *multipart.FileHeader) error {
 // ValidateUploadedFile is a small exported wrapper around validateFile to enable
 // focused unit tests from an external test package without importing all api tests.
 func ValidateUploadedFile(header *multipart.FileHeader) error {
-    return validateFile(header)
+	return validateFile(header)
 }
 
 // renderAttachmentListHTML renders attachment list as HTML for HTMX

@@ -1,8 +1,8 @@
 package api
 
 import (
-	"net/http"
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
 // handleRedirectTickets redirects to the appropriate tickets page based on user role
@@ -12,7 +12,7 @@ func handleRedirectTickets(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, "/login")
 		return
 	}
-	
+
 	switch role.(string) {
 	case "Admin":
 		c.Redirect(http.StatusSeeOther, "/agent/tickets")
@@ -32,7 +32,7 @@ func handleRedirectTicketsNew(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, "/login")
 		return
 	}
-	
+
 	switch role.(string) {
 	case "Admin", "Agent":
 		// Agents create tickets via the main tickets page
@@ -51,7 +51,7 @@ func handleRedirectQueues(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, "/login")
 		return
 	}
-	
+
 	switch role.(string) {
 	case "Admin", "Agent":
 		// Show the standard queues list page (not the admin management UI)
@@ -73,7 +73,7 @@ func handleRedirectProfile(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, "/login")
 		return
 	}
-	
+
 	switch role.(string) {
 	case "Admin", "Agent":
 		// Redirect to agent profile page
@@ -92,7 +92,7 @@ func handleRedirectSettings(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, "/login")
 		return
 	}
-	
+
 	switch role.(string) {
 	case "Admin":
 		c.Redirect(http.StatusSeeOther, "/admin")

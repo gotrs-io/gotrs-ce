@@ -3,9 +3,11 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,7 +15,28 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/auth"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func cleanupPriorityTestData(t *testing.T, names ...string) {
+	t.Helper()
+	if len(names) == 0 {
+		return
+	}
+	db, err := database.GetDB()
+	require.NoError(t, err)
+
+	placeholders := make([]string, len(names))
+	args := make([]interface{}, len(names))
+	for i, name := range names {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = name
+	}
+	query := fmt.Sprintf("DELETE FROM ticket_priority WHERE name IN (%s)", strings.Join(placeholders, ", "))
+	query = database.ConvertPlaceholders(query)
+	_, err = db.Exec(query, args...)
+	require.NoError(t, err)
+}
 
 func TestPriorityAPI(t *testing.T) {
 	// Initialize test database
@@ -84,6 +107,9 @@ func TestPriorityAPI(t *testing.T) {
 	})
 
 	t.Run("Get Priority", func(t *testing.T) {
+		cleanupPriorityTestData(t, "Test Priority")
+		t.Cleanup(func() { cleanupPriorityTestData(t, "Test Priority") })
+
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
 			c.Set("user_id", 1)
@@ -132,6 +158,9 @@ func TestPriorityAPI(t *testing.T) {
 	})
 
 	t.Run("Create Priority", func(t *testing.T) {
+		cleanupPriorityTestData(t, "New Priority")
+		t.Cleanup(func() { cleanupPriorityTestData(t, "New Priority") })
+
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
 			c.Set("user_id", 1)
@@ -183,6 +212,9 @@ func TestPriorityAPI(t *testing.T) {
 	})
 
 	t.Run("Update Priority", func(t *testing.T) {
+		cleanupPriorityTestData(t, "Update Test Priority", "Updated Priority Name")
+		t.Cleanup(func() { cleanupPriorityTestData(t, "Update Test Priority", "Updated Priority Name") })
+
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
 			c.Set("user_id", 1)
@@ -244,6 +276,9 @@ func TestPriorityAPI(t *testing.T) {
 	})
 
 	t.Run("Delete Priority", func(t *testing.T) {
+		cleanupPriorityTestData(t, "Delete Test Priority")
+		t.Cleanup(func() { cleanupPriorityTestData(t, "Delete Test Priority") })
+
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
 			c.Set("user_id", 1)

@@ -17,7 +17,7 @@ func (router *APIRouter) handleUploadFile(c *gin.Context) {
 		"mime_type":  "application/pdf",
 		"created_at": time.Now(),
 	}
-	
+
 	c.JSON(http.StatusCreated, APIResponse{
 		Success: true,
 		Data:    file,
@@ -26,7 +26,7 @@ func (router *APIRouter) handleUploadFile(c *gin.Context) {
 
 func (router *APIRouter) handleDownloadFile(c *gin.Context) {
 	// fileID := c.Param("id")
-	
+
 	// TODO: Implement actual file download
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Disposition", "attachment; filename=document.pdf")
@@ -35,14 +35,14 @@ func (router *APIRouter) handleDownloadFile(c *gin.Context) {
 
 func (router *APIRouter) handleDeleteFile(c *gin.Context) {
 	// fileID := c.Param("id")
-	
+
 	// TODO: Implement actual file deletion
 	c.JSON(http.StatusNoContent, nil)
 }
 
 func (router *APIRouter) handleGetFileInfo(c *gin.Context) {
 	fileID := c.Param("id")
-	
+
 	// TODO: Implement actual file info fetching
 	file := gin.H{
 		"id":         fileID,
@@ -52,7 +52,7 @@ func (router *APIRouter) handleGetFileInfo(c *gin.Context) {
 		"created_at": time.Now().AddDate(0, 0, -7),
 		"created_by": "admin",
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    file,

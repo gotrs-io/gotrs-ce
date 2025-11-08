@@ -1,10 +1,15 @@
 package v1
 
 import (
+	"sync"
 	"testing"
 
-	"github.com/gotrs-io/gotrs-ce/internal/services/adapter"
-	"github.com/stretchr/testify/require"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
+)
+
+var (
+	initDBOnce sync.Once
+	initDBErr  error
 )
 
 func requireDatabase(t *testing.T) {
@@ -13,10 +18,20 @@ func requireDatabase(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	_, err := adapter.InitializeServiceRegistry()
-	require.NoError(t, err)
+	if db, err := database.GetDB(); err == nil && db != nil {
+		return
+	}
 
-	if err := adapter.AutoConfigureDatabase(); err != nil {
+	initDBOnce.Do(func() {
+		initDBErr = database.InitTestDB()
+	})
+
+	if initDBErr != nil {
+		t.Skipf("skipping integration test: %v", initDBErr)
+	}
+
+	db, err := database.GetDB()
+	if err != nil || db == nil {
 		t.Skipf("skipping integration test: %v", err)
 	}
 }

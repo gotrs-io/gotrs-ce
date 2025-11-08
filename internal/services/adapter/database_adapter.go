@@ -58,7 +58,7 @@ func InitializeServiceRegistry() (*registry.ServiceRegistry, error) {
 // AutoConfigureDatabase configures database from environment variables
 func AutoConfigureDatabase() error {
 	// In tests with no DB configured, treat as no-op (allow DB-less tests)
-	if os.Getenv("APP_ENV") == "test" && os.Getenv("DB_HOST") == "" && os.Getenv("DATABASE_URL") == "" {
+	if os.Getenv("APP_ENV") == "test" && os.Getenv("TEST_DB_HOST") == "" && os.Getenv("TEST_DB_NAME") == "" && os.Getenv("DATABASE_URL") == "" {
 		return nil
 	}
 	// Initialize registry if not already done
@@ -164,11 +164,20 @@ func ensureDatabaseConnection(dbSvc database.DatabaseService) error {
 
 // buildDatabaseConfig builds database configuration from environment
 func buildDatabaseConfig() *registry.ServiceConfig {
-	// Determine database provider from DB_DRIVER
-	driver := os.Getenv("DB_DRIVER")
-	provider := registry.ProviderPostgres // default
-	if driver == "mysql" || driver == "mariadb" {
-		provider = registry.ProviderMySQL
+	// In test mode, prefer TEST_ prefixed environment variables
+	driver := os.Getenv("TEST_DB_DRIVER")
+	if driver == "" {
+		driver = os.Getenv("DB_DRIVER")
+	}
+	if driver == "" {
+		driver = "mysql"
+	}
+	driver = strings.ToLower(driver)
+
+	provider := registry.ProviderMySQL
+	switch driver {
+	case "postgres", "postgresql":
+		provider = registry.ProviderPostgres
 	}
 
 	config := &registry.ServiceConfig{
@@ -186,15 +195,21 @@ func buildDatabaseConfig() *registry.ServiceConfig {
 		// This is simplified - use a proper URL parser in production
 		config.Options["connection_url"] = dbURL
 	} else {
-		// Use individual environment variables
-		config.Host = getEnvOrDefault("DB_HOST", "localhost")
-		config.Port = getEnvAsIntOrDefault("DB_PORT", 5432)
-		config.Username = getEnvOrDefault("DB_USER", "gotrs_user")
-		config.Password = getEnvOrDefault("DB_PASSWORD", "gotrs_password")
-		config.Database = getEnvOrDefault("DB_NAME", "gotrs")
+		// Use individual environment variables (prefer TEST_ prefixed in test mode)
+		config.Host = getEnvOrDefault("TEST_DB_HOST", getEnvOrDefault("DB_HOST", "localhost"))
+		defaultPort := 3306
+		if provider == registry.ProviderPostgres {
+			defaultPort = 5432
+		}
+		config.Port = getEnvAsIntOrDefault("TEST_DB_PORT", getEnvAsIntOrDefault("DB_PORT", defaultPort))
+		config.Username = getEnvOrDefault("TEST_DB_USER", getEnvOrDefault("DB_USER", "gotrs_user"))
+		config.Password = getEnvOrDefault("TEST_DB_PASSWORD", getEnvOrDefault("DB_PASSWORD", "gotrs_password"))
+		config.Database = getEnvOrDefault("TEST_DB_NAME", getEnvOrDefault("DB_NAME", "gotrs"))
 
 		// SSL mode
-		if sslMode := os.Getenv("DB_SSLMODE"); sslMode != "" {
+		if sslMode := os.Getenv("TEST_DB_SSLMODE"); sslMode != "" {
+			config.Options["sslmode"] = sslMode
+		} else if sslMode := os.Getenv("DB_SSLMODE"); sslMode != "" {
 			config.Options["sslmode"] = sslMode
 		}
 

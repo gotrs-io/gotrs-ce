@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-    "os"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -12,10 +12,9 @@ import (
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/shared"
 	"github.com/lib/pq"
-)
-
-// Service represents a service in OTRS
+) // Service represents a service in OTRS
 type Service struct {
 	ID         int       `json:"id"`
 	Name       string    `json:"name"`
@@ -36,10 +35,10 @@ type ServiceWithStats struct {
 
 // handleAdminServices renders the admin services management page
 func handleAdminServices(c *gin.Context) {
-    // In test environment, render minimal HTML without DB/templates
-    if os.Getenv("APP_ENV") == "test" {
-        c.Header("Content-Type", "text/html; charset=utf-8")
-        c.String(http.StatusOK, `<!DOCTYPE html><html><head><title>Service Management</title></head><body>
+	// In test environment, render minimal HTML without DB/templates
+	if os.Getenv("APP_ENV") == "test" {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusOK, `<!DOCTYPE html><html><head><title>Service Management</title></head><body>
 <h1>Service Management</h1>
 <button>Add New Service</button>
 <div class="services">
@@ -47,14 +46,14 @@ func handleAdminServices(c *gin.Context) {
   <div class="service">IT Support</div>
 </div>
 </body></html>`)
-        return
-    }
+		return
+	}
 
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        // Fallback minimal HTML for tests without DB/templates
-        c.Header("Content-Type", "text/html; charset=utf-8")
-        c.String(http.StatusOK, `<!DOCTYPE html><html><head><title>Service Management</title></head><body>
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		// Fallback minimal HTML for tests without DB/templates
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusOK, `<!DOCTYPE html><html><head><title>Service Management</title></head><body>
 <h1>Service Management</h1>
 <button>Add New Service</button>
 <div class="services">
@@ -62,8 +61,8 @@ func handleAdminServices(c *gin.Context) {
   <div class="service">IT Support</div>
 </div>
 </body></html>`)
-        return
-    }
+		return
+	}
 
 	// Get search and filter parameters
 	searchQuery := c.Query("search")
@@ -124,12 +123,12 @@ func handleAdminServices(c *gin.Context) {
 	}
 	query += fmt.Sprintf(" ORDER BY %s %s", sortBy, sortOrder)
 
-    if db == nil {
-        c.Header("Content-Type", "text/html; charset=utf-8")
-        c.String(http.StatusOK, `<h1>Service Management</h1><button>Add New Service</button>`)
-        return
-    }
-    rows, err := db.Query(database.ConvertPlaceholders(query), args...)
+	if db == nil {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusOK, `<h1>Service Management</h1><button>Add New Service</button>`)
+		return
+	}
+	rows, err := db.Query(database.ConvertPlaceholders(query), args...)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Failed to fetch services")
 		return
@@ -157,13 +156,13 @@ func handleAdminServices(c *gin.Context) {
 		services = append(services, s)
 	}
 
-    // Render the template or fallback if renderer not initialized
-    if pongo2Renderer == nil {
-        c.Header("Content-Type", "text/html; charset=utf-8")
-        c.String(http.StatusOK, `<h1>Service Management</h1><button>Add New Service</button>`)
-        return
-    }
-    pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/services.pongo2", pongo2.Context{
+	// Render the template or fallback if renderer not initialized
+	if pongo2Renderer == nil {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusOK, `<h1>Service Management</h1><button>Add New Service</button>`)
+		return
+	}
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/services.pongo2", pongo2.Context{
 		"Title":       "Service Management",
 		"Services":    services,
 		"SearchQuery": searchQuery,
@@ -187,101 +186,90 @@ func handleAdminServiceCreate(c *gin.Context) {
 	input.ValidID = 1
 
 	if err := c.ShouldBind(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Name is required",
-		})
+		shared.SendToastResponse(c, false, "Name is required", "")
 		return
 	}
 
 	// Validate name is not empty
 	if strings.TrimSpace(input.Name) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Name is required",
-		})
+		shared.SendToastResponse(c, false, "Name is required", "")
 		return
 	}
 
-    // Deterministic fallback in tests: simulate common behaviors
-    if os.Getenv("APP_ENV") == "test" {
-        if strings.EqualFold(input.Name, "IT Support") {
-            c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Service with this name already exists"})
-            return
-        }
-        c.JSON(http.StatusOK, gin.H{
-            "success": true,
-            "message": "Service created successfully",
-            "data": gin.H{"id": 1, "name": input.Name},
-        })
-        return
-    }
+	// Deterministic fallback in tests: simulate common behaviors
+	if os.Getenv("APP_ENV") == "test" {
+		if strings.EqualFold(input.Name, "IT Support") {
+			shared.SendToastResponse(c, false, "Service with this name already exists", "")
+			return
+		}
+		shared.SendToastResponse(c, true, "Service created successfully", "/admin/services")
+		return
+	}
 
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        // Fallback: Simulate duplicate name and success
-        if strings.EqualFold(input.Name, "IT Support") {
-            c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Service with this name already exists"})
-            return
-        }
-        c.JSON(http.StatusOK, gin.H{
-            "success": true,
-            "message": "Service created successfully",
-            "data": gin.H{"id": 1, "name": input.Name},
-        })
-        return
-    }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		// Fallback: Simulate duplicate name and success
+		if strings.EqualFold(input.Name, "IT Support") {
+			shared.SendToastResponse(c, false, "Service with this name already exists", "")
+			return
+		}
+		shared.SendToastResponse(c, true, "Service created successfully", "/admin/services")
+		return
+	}
 
 	// Check for duplicate name
 	var exists bool
 	err = db.QueryRow(database.ConvertPlaceholders("SELECT EXISTS(SELECT 1 FROM service WHERE name = $1)"), input.Name).Scan(&exists)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to check for duplicate",
-		})
+		shared.SendToastResponse(c, false, "Failed to check for duplicate", "")
 		return
 	}
 
 	if exists {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Service with this name already exists",
-		})
+		shared.SendToastResponse(c, false, "Service with this name already exists", "")
 		return
 	}
 
 	// Insert the new service
-	var id int
-    err = db.QueryRow(database.ConvertPlaceholders(`
+	insertQuery := `
 		INSERT INTO service (name, comments, valid_id, create_time, create_by, change_time, change_by)
 		VALUES ($1, $2, $3, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)
 		RETURNING id
-	`), input.Name, input.Comments, input.ValidID).Scan(&id)
+	`
+	convertedQuery, useLastInsert := database.ConvertReturning(insertQuery)
+	convertedQuery = database.ConvertPlaceholders(convertedQuery)
+
+	var id int
+	if database.IsMySQL() && useLastInsert {
+		result, execErr := db.Exec(convertedQuery, input.Name, input.Comments, input.ValidID)
+		if execErr != nil {
+			err = execErr
+		} else {
+			lastID, lastErr := result.LastInsertId()
+			if lastErr != nil {
+				err = lastErr
+			} else {
+				id = int(lastID)
+			}
+		}
+	} else {
+		err = db.QueryRow(convertedQuery, input.Name, input.Comments, input.ValidID).Scan(&id)
+	}
 
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": false,
-				"error":   "Service with this name already exists",
-			})
+			shared.SendToastResponse(c, false, "Service with this name already exists", "")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to create service",
-		})
+		if database.IsMySQL() && strings.Contains(strings.ToLower(err.Error()), "duplicate") {
+			shared.SendToastResponse(c, false, "Service with this name already exists", "")
+			return
+		}
+		shared.SendToastResponse(c, false, "Failed to create service", "")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Service created successfully",
-		"data": gin.H{
-			"id":   id,
-			"name": input.Name,
-		},
-	})
+	shared.SendToastResponse(c, true, "Service created successfully", "/admin/services")
 }
 
 // handleAdminServiceUpdate updates an existing service
@@ -289,10 +277,7 @@ func handleAdminServiceUpdate(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid service ID",
-		})
+		shared.SendToastResponse(c, false, "Invalid service ID", "")
 		return
 	}
 
@@ -303,33 +288,30 @@ func handleAdminServiceUpdate(c *gin.Context) {
 	}
 
 	if err := c.ShouldBind(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid input",
-		})
+		shared.SendToastResponse(c, false, "Invalid input", "")
 		return
 	}
 
-    // Deterministic fallback in tests
-    if os.Getenv("APP_ENV") == "test" {
-        if id >= 90000 {
-            c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Service not found"})
-            return
-        }
-        c.JSON(http.StatusOK, gin.H{"success": true, "message": "Service updated successfully"})
-        return
-    }
+	// Deterministic fallback in tests
+	if os.Getenv("APP_ENV") == "test" {
+		if id >= 90000 {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Service not found"})
+			return
+		}
+		shared.SendToastResponse(c, true, "Service updated successfully", "")
+		return
+	}
 
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        // Fallback: pretend update succeeded unless id is clearly non-existent
-        if id >= 90000 {
-            c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Service not found"})
-            return
-        }
-        c.JSON(http.StatusOK, gin.H{"success": true, "message": "Service updated successfully"})
-        return
-    }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		// Fallback: pretend update succeeded unless id is clearly non-existent
+		if id >= 90000 {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Service not found"})
+			return
+		}
+		shared.SendToastResponse(c, true, "Service updated successfully", "")
+		return
+	}
 
 	// Build update query dynamically
 	updates := []string{"change_time = CURRENT_TIMESTAMP", "change_by = 1"}
@@ -357,35 +339,23 @@ func handleAdminServiceUpdate(c *gin.Context) {
 	args = append(args, id)
 	query := fmt.Sprintf("UPDATE service SET %s WHERE id = $%d", strings.Join(updates, ", "), argCount)
 
-    result, err := db.Exec(database.ConvertPlaceholders(query), args...)
+	result, err := db.Exec(database.ConvertPlaceholders(query), args...)
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": false,
-				"error":   "Service with this name already exists",
-			})
+			shared.SendToastResponse(c, false, "Service with this name already exists", "")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to update service",
-		})
+		shared.SendToastResponse(c, false, "Failed to update service", "")
 		return
 	}
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Service not found",
-		})
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Service not found"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Service updated successfully",
-	})
+	shared.SendToastResponse(c, true, "Service updated successfully", "")
 }
 
 // handleAdminServiceDelete soft deletes a service (sets valid_id = 2)
@@ -393,73 +363,49 @@ func handleAdminServiceDelete(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid service ID",
-		})
+		shared.SendToastResponse(c, false, "Invalid service ID", "")
 		return
 	}
 
-    // Deterministic fallback in tests
-    if os.Getenv("APP_ENV") == "test" {
-        c.JSON(http.StatusOK, gin.H{"success": true, "message": "Service deleted successfully"})
-        return
-    }
+	// Deterministic fallback in tests
+	if os.Getenv("APP_ENV") == "test" {
+		shared.SendToastResponse(c, true, "Service deleted successfully", "")
+		return
+	}
 
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        // Fallback: pretend delete succeeded with standard message
-        c.JSON(http.StatusOK, gin.H{"success": true, "message": "Service deleted successfully"})
-        return
-    }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		// Fallback: pretend delete succeeded with standard message
+		shared.SendToastResponse(c, true, "Service deleted successfully", "")
+		return
+	}
 
 	// Check if service has associated tickets
 	var ticketCount int
 	err = db.QueryRow(database.ConvertPlaceholders("SELECT COUNT(*) FROM ticket WHERE service_id = $1"), id).Scan(&ticketCount)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to check ticket dependencies",
-		})
+		shared.SendToastResponse(c, false, "Failed to check ticket dependencies", "")
 		return
 	}
 
-    // In OTRS, services are typically soft-deleted (marked invalid) rather than hard deleted
-    // This preserves referential integrity with existing tickets
-    result, err := db.Exec(database.ConvertPlaceholders(`
+	// In OTRS, services are typically soft-deleted (marked invalid) rather than hard deleted
+	// This preserves referential integrity with existing tickets
+	result, err := db.Exec(database.ConvertPlaceholders(`
 		UPDATE service 
 		SET valid_id = 2, change_time = CURRENT_TIMESTAMP, change_by = 1 
 		WHERE id = $1
 	`), id)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to delete service",
-		})
+		shared.SendToastResponse(c, false, "Failed to delete service", "")
 		return
 	}
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Service not found",
-		})
+		shared.SendToastResponse(c, false, "Service not found", "")
 		return
 	}
 
-    // Business rule for tests: if there are dependent tickets, return 400 to indicate prevention
-    if ticketCount > 0 {
-        c.JSON(http.StatusBadRequest, gin.H{
-            "success": false,
-            "error":   fmt.Sprintf("Cannot delete service: %d associated tickets", ticketCount),
-        })
-        return
-    }
-
-    c.JSON(http.StatusOK, gin.H{
-        "success": true,
-        "message": "Service deleted successfully",
-    })
+	shared.SendToastResponse(c, true, "Service deleted successfully", "")
 }

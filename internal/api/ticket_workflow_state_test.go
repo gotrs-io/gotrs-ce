@@ -27,12 +27,12 @@ func TestTicketWorkflowStates(t *testing.T) {
 			checkResponse: func(t *testing.T, body string) {
 				// Should display current state
 				assert.Contains(t, body, `data-current-state="open"`)
-				
+
 				// Should show available transitions
 				assert.Contains(t, body, "Mark as Pending")
 				assert.Contains(t, body, "Resolve Ticket")
 				assert.Contains(t, body, "Close Ticket")
-				
+
 				// Should show state history
 				assert.Contains(t, body, "State History")
 				assert.Contains(t, body, "Changed from new to open")
@@ -44,11 +44,11 @@ func TestTicketWorkflowStates(t *testing.T) {
 			expectedStatus: http.StatusOK,
 			checkResponse: func(t *testing.T, body string) {
 				// State badges with appropriate colors
-				assert.Contains(t, body, `class="state-badge state-new"`)     // Blue
-				assert.Contains(t, body, `class="state-badge state-open"`)    // Green
-				assert.Contains(t, body, `class="state-badge state-pending"`) // Yellow
+				assert.Contains(t, body, `class="state-badge state-new"`)      // Blue
+				assert.Contains(t, body, `class="state-badge state-open"`)     // Green
+				assert.Contains(t, body, `class="state-badge state-pending"`)  // Yellow
 				assert.Contains(t, body, `class="state-badge state-resolved"`) // Purple
-				assert.Contains(t, body, `class="state-badge state-closed"`)  // Gray
+				assert.Contains(t, body, `class="state-badge state-closed"`)   // Gray
 			},
 		},
 	}
@@ -215,7 +215,7 @@ func TestTicketStateTransitions(t *testing.T) {
 			if tt.newState == "resolved" && tt.shouldSucceed {
 				formData += "&reason=Test resolution notes"
 			}
-			req, _ := http.NewRequest("POST", "/tickets/"+tt.ticketID+"/transition", 
+			req, _ := http.NewRequest("POST", "/tickets/"+tt.ticketID+"/transition",
 				strings.NewReader(formData))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			req.Header.Set("HX-Request", "true")
@@ -295,7 +295,7 @@ func TestTicketWorkflowReasons(t *testing.T) {
 			router.POST("/tickets/:id/transition", handleTicketTransition)
 
 			formData := "new_state=" + tt.newState + "&reason=" + tt.reason
-			req, _ := http.NewRequest("POST", "/tickets/"+tt.ticketID+"/transition", 
+			req, _ := http.NewRequest("POST", "/tickets/"+tt.ticketID+"/transition",
 				strings.NewReader(formData))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			req.Header.Set("HX-Request", "true")
@@ -330,7 +330,7 @@ func TestTicketWorkflowHistory(t *testing.T) {
 				assert.Contains(t, body, "Changed to open")
 				assert.Contains(t, body, "by Demo User")
 				assert.Contains(t, body, "ago")
-				
+
 				// Should show transition reasons
 				assert.Contains(t, body, "Reason:")
 			},
@@ -409,7 +409,7 @@ func TestTicketWorkflowAutomation(t *testing.T) {
 			router.POST("/tickets/:id/auto-transition", handleTicketAutoTransition)
 
 			formData := "trigger=" + tt.trigger
-			req, _ := http.NewRequest("POST", "/tickets/"+tt.ticketID+"/auto-transition", 
+			req, _ := http.NewRequest("POST", "/tickets/"+tt.ticketID+"/auto-transition",
 				strings.NewReader(formData))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			w := httptest.NewRecorder()
@@ -480,7 +480,7 @@ func TestTicketWorkflowPermissions(t *testing.T) {
 			router.POST("/tickets/:id/transition", handleTicketTransition)
 
 			formData := "new_state=" + tt.newState
-			req, _ := http.NewRequest("POST", "/tickets/"+tt.ticketID+"/transition", 
+			req, _ := http.NewRequest("POST", "/tickets/"+tt.ticketID+"/transition",
 				strings.NewReader(formData))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			w := httptest.NewRecorder()

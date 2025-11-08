@@ -13,11 +13,11 @@ import (
 
 // MemoryCannedResponseRepository is an in-memory implementation of CannedResponseRepository
 type MemoryCannedResponseRepository struct {
-	mu          sync.RWMutex
-	responses   map[uint]*models.CannedResponse
+	mu           sync.RWMutex
+	responses    map[uint]*models.CannedResponse
 	usageHistory map[uint][]models.CannedResponseUsage
-	nextID      uint
-	nextUsageID uint
+	nextID       uint
+	nextUsageID  uint
 }
 
 // NewMemoryCannedResponseRepository creates a new in-memory canned response repository
@@ -324,7 +324,7 @@ func (r *MemoryCannedResponseRepository) SearchResponses(ctx context.Context, fi
 				!strings.Contains(strings.ToLower(resp.Content), query) &&
 				!strings.Contains(strings.ToLower(resp.Subject), query) &&
 				!strings.Contains(strings.ToLower(resp.Shortcut), query) {
-				
+
 				// Check in tags
 				tagMatch := false
 				for _, tag := range resp.Tags {

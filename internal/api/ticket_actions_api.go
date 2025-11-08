@@ -94,9 +94,9 @@ func HandleCloseTicketAPI(c *gin.Context) {
 
 	// Determine close state based on resolution
 	var newStateID int
-	if strings.ToLower(closeRequest.Resolution) == "successful" || 
-	   strings.ToLower(closeRequest.Resolution) == "resolved" ||
-	   strings.ToLower(closeRequest.Resolution) == "fixed" {
+	if strings.ToLower(closeRequest.Resolution) == "successful" ||
+		strings.ToLower(closeRequest.Resolution) == "resolved" ||
+		strings.ToLower(closeRequest.Resolution) == "fixed" {
 		newStateID = 2 // closed successful
 	} else {
 		newStateID = 3 // closed unsuccessful
@@ -152,14 +152,14 @@ func HandleCloseTicketAPI(c *gin.Context) {
 		articleResult, err := tx.Exec(insertArticleQuery, ticketID, userID, userID)
 		if err == nil {
 			articleID, _ := articleResult.LastInsertId()
-			
+
 			// Insert article content
 			subject := fmt.Sprintf("Ticket Closed: %s", closeRequest.Resolution)
 			body := closeRequest.Comment
 			if body == "" {
 				body = fmt.Sprintf("Ticket has been closed as %s.", closeRequest.Resolution)
 			}
-			
+
 			insertMimeQuery := database.ConvertPlaceholders(`
 				INSERT INTO article_data_mime (
 					article_id,
@@ -176,7 +176,7 @@ func HandleCloseTicketAPI(c *gin.Context) {
 					$4, NOW(), $5, NOW(), $6
 				)
 			`)
-			
+
 			tx.Exec(insertMimeQuery, articleID, subject, body, time.Now().Unix(), userID, userID)
 		}
 	}
@@ -336,7 +336,7 @@ func HandleReopenTicketAPI(c *gin.Context) {
 	articleResult, err := tx.Exec(insertArticleQuery, ticketID, userID, userID)
 	if err == nil {
 		articleID, _ := articleResult.LastInsertId()
-		
+
 		// Insert article content
 		insertMimeQuery := database.ConvertPlaceholders(`
 			INSERT INTO article_data_mime (
@@ -354,7 +354,7 @@ func HandleReopenTicketAPI(c *gin.Context) {
 				$3, NOW(), $4, NOW(), $5
 			)
 		`)
-		
+
 		body := fmt.Sprintf("Ticket has been reopened. Reason: %s", reopenRequest.Reason)
 		tx.Exec(insertMimeQuery, articleID, body, time.Now().Unix(), userID, userID)
 	}
@@ -521,7 +521,7 @@ func HandleAssignTicketAPI(c *gin.Context) {
 		articleResult, err := tx.Exec(insertArticleQuery, ticketID, userID, userID)
 		if err == nil {
 			articleID, _ := articleResult.LastInsertId()
-			
+
 			// Build assignment message
 			var previousAssignee string
 			if currentResponsibleID.Valid {
@@ -529,18 +529,18 @@ func HandleAssignTicketAPI(c *gin.Context) {
 					"SELECT login FROM users WHERE id = $1",
 				), currentResponsibleID.Int32).Scan(&previousAssignee)
 			}
-			
+
 			var body string
 			if previousAssignee != "" {
 				body = fmt.Sprintf("Ticket reassigned from %s to %s.", previousAssignee, assigneeLogin)
 			} else {
 				body = fmt.Sprintf("Ticket assigned to %s.", assigneeLogin)
 			}
-			
+
 			if assignRequest.Comment != "" {
 				body += "\n\nComment: " + assignRequest.Comment
 			}
-			
+
 			// Insert article content
 			insertMimeQuery := database.ConvertPlaceholders(`
 				INSERT INTO article_data_mime (
@@ -558,7 +558,7 @@ func HandleAssignTicketAPI(c *gin.Context) {
 					$3, NOW(), $4, NOW(), $5
 				)
 			`)
-			
+
 			tx.Exec(insertMimeQuery, articleID, body, time.Now().Unix(), userID, userID)
 		}
 	}
@@ -574,11 +574,11 @@ func HandleAssignTicketAPI(c *gin.Context) {
 
 	// Return success response
 	c.JSON(http.StatusOK, gin.H{
-		"success":      true,
-		"id":           ticketID,
-		"assigned_to":  assignRequest.AssignedTo,
-		"assignee":     assigneeLogin,
-		"comment":      assignRequest.Comment,
-		"assigned_at":  time.Now().UTC(),
+		"success":     true,
+		"id":          ticketID,
+		"assigned_to": assignRequest.AssignedTo,
+		"assignee":    assigneeLogin,
+		"comment":     assignRequest.Comment,
+		"assigned_at": time.Now().UTC(),
 	})
 }

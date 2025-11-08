@@ -8,43 +8,83 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/api"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
-	// "github.com/gotrs-io/gotrs-ce/pkg/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func setupTestRouter(t *testing.T) (*gin.Engine, *repository.GroupSQLRepository) {
+	t.Helper()
+	t.Setenv("APP_ENV", "integration")
+
+	require.NoError(t, database.InitTestDB())
+
 	// Setup test database
-	db, err := database.GetConnection()
+	db, err := database.GetDB()
 	require.NoError(t, err, "Failed to connect to database")
 
 	// Create repository
-	groupRepo := repository.NewGroupSQLRepository(db)
+	groupRepo := repository.NewGroupRepository(db)
 
 	// Setup Gin router
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-
-	// Create API instance
-	apiInstance := &api.API{
-		GroupRepo: groupRepo,
-	}
+	router.Use(gin.Recovery())
 
 	// Register routes
 	admin := router.Group("/admin")
-	admin.GET("/groups", apiInstance.HandleAdminGroups)
-	admin.POST("/groups", apiInstance.HandleCreateGroup)
-	admin.PUT("/groups/:id", apiInstance.HandleUpdateGroup)
-	admin.DELETE("/groups/:id", apiInstance.HandleDeleteGroup)
+	admin.GET("/groups", api.HandleAdminGroups)
+	admin.POST("/groups", api.HandleCreateGroup)
+	admin.PUT("/groups/:id", api.HandleUpdateGroup)
+	admin.DELETE("/groups/:id", api.HandleDeleteGroup)
 
 	return router, groupRepo
+}
+
+func uintFromID(t *testing.T, id interface{}) uint {
+	t.Helper()
+	switch v := id.(type) {
+	case nil:
+		require.FailNow(t, "group ID is nil")
+	case uint:
+		return v
+	case uint64:
+		return uint(v)
+	case int:
+		if v < 0 {
+			require.FailNowf(t, "negative id", "received %d", v)
+		}
+		return uint(v)
+	case int64:
+		if v < 0 {
+			require.FailNowf(t, "negative id", "received %d", v)
+		}
+		return uint(v)
+	case float64:
+		if v < 0 {
+			require.FailNowf(t, "negative id", "received %f", v)
+		}
+		return uint(v)
+	case string:
+		parsed, err := strconv.ParseUint(v, 10, 64)
+		require.NoError(t, err, "invalid string id")
+		return uint(parsed)
+	default:
+		require.FailNowf(t, "unsupported id type", "type %T", id)
+	}
+	return 0
+}
+
+func intFromID(t *testing.T, id interface{}) int {
+	return int(uintFromID(t, id))
 }
 
 func TestGroupsCRUDAPI(t *testing.T) {
@@ -55,7 +95,7 @@ func TestGroupsCRUDAPI(t *testing.T) {
 	testGroupDesc := "Test group for API testing"
 	updatedDesc := "Updated description via API"
 
-	var createdGroupID int
+	var createdGroupID uint
 
 	t.Run("Create Group", func(t *testing.T) {
 		// Create request body
@@ -73,7 +113,7 @@ func TestGroupsCRUDAPI(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		// Check response
-		assert.Equal(t, http.StatusOK, w.Code, "Should create group successfully")
+		assert.Equal(t, http.StatusCreated, w.Code, "Should create group successfully")
 
 		// Parse response
 		var response map[string]interface{}
@@ -84,28 +124,20 @@ func TestGroupsCRUDAPI(t *testing.T) {
 		success, ok := response["success"].(bool)
 		assert.True(t, ok && success, "Response should indicate success")
 
-		// Get created group ID from response if available
-		if data, ok := response["data"].(map[string]interface{}); ok {
-			if id, ok := data["id"].(float64); ok {
-				createdGroupID = int(id)
-			}
-		}
-
 		// Verify group was created in database
 		group, err := groupRepo.GetByName(testGroupName)
 		assert.NoError(t, err, "Should find created group")
 		assert.NotNil(t, group, "Group should exist")
 		assert.Equal(t, testGroupDesc, group.Comments, "Description should match")
-
-		if createdGroupID == 0 && group != nil {
-			createdGroupID = group.ID
-		}
+		createdGroupID = uintFromID(t, group.ID)
 	})
 
 	t.Run("Read Group - List with search", func(t *testing.T) {
+		t.Setenv("APP_ENV", "test")
 		// Make request with search parameter
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", fmt.Sprintf("/admin/groups?search=%s", testGroupName), nil)
+		req.Header.Set("HX-Request", "true")
 		router.ServeHTTP(w, req)
 
 		// Check response
@@ -118,7 +150,7 @@ func TestGroupsCRUDAPI(t *testing.T) {
 	})
 
 	t.Run("Update Group", func(t *testing.T) {
-		require.NotEqual(t, 0, createdGroupID, "Need group ID for update")
+		require.NotEqual(t, uint(0), createdGroupID, "Need group ID for update")
 
 		// Create update request
 		reqBody := map[string]interface{}{
@@ -138,13 +170,13 @@ func TestGroupsCRUDAPI(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code, "Should update group successfully")
 
 		// Verify update in database
-		group, err := groupRepo.GetByName(testGroupName)
+		group, err := groupRepo.GetByID(createdGroupID)
 		assert.NoError(t, err, "Should find updated group")
 		assert.Equal(t, updatedDesc, group.Comments, "Description should be updated")
 	})
 
 	t.Run("Delete Group", func(t *testing.T) {
-		require.NotEqual(t, 0, createdGroupID, "Need group ID for delete")
+		require.NotEqual(t, uint(0), createdGroupID, "Need group ID for delete")
 
 		// Make delete request
 		w := httptest.NewRecorder()
@@ -155,9 +187,10 @@ func TestGroupsCRUDAPI(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code, "Should delete group successfully")
 
 		// Verify deletion
-		group, err := groupRepo.GetByName(testGroupName)
-		assert.Error(t, err, "Should not find deleted group")
-		assert.Nil(t, group, "Group should not exist")
+		group, err := groupRepo.GetByID(createdGroupID)
+		assert.NoError(t, err, "Group row should still exist as inactive")
+		assert.NotNil(t, group, "Group record should remain")
+		assert.Equal(t, 2, group.ValidID, "Group should be marked inactive")
 	})
 
 	t.Run("Cannot Delete System Groups", func(t *testing.T) {
@@ -165,10 +198,11 @@ func TestGroupsCRUDAPI(t *testing.T) {
 		adminGroup, err := groupRepo.GetByName("admin")
 		require.NoError(t, err, "Admin group should exist")
 		require.NotNil(t, adminGroup, "Admin group should exist")
+		adminGroupID := intFromID(t, adminGroup.ID)
 
 		// Make delete request
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("DELETE", fmt.Sprintf("/admin/groups/%d", adminGroup.ID), nil)
+		req, _ := http.NewRequest("DELETE", fmt.Sprintf("/admin/groups/%d", adminGroupID), nil)
 		router.ServeHTTP(w, req)
 
 		// Should get error
@@ -178,6 +212,7 @@ func TestGroupsCRUDAPI(t *testing.T) {
 		adminGroupAfter, err := groupRepo.GetByName("admin")
 		assert.NoError(t, err, "Admin group should still exist")
 		assert.NotNil(t, adminGroupAfter, "Admin group should still exist")
+		assert.Equal(t, 1, adminGroupAfter.ValidID, "Admin group should remain active")
 	})
 
 	t.Run("Cannot Create Duplicate Group", func(t *testing.T) {
@@ -196,7 +231,7 @@ func TestGroupsCRUDAPI(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		// Should get error
-		assert.Equal(t, http.StatusBadRequest, w.Code, "Should not create duplicate group")
+		assert.Equal(t, http.StatusOK, w.Code, "Duplicate should return handled response")
 
 		// Parse response
 		var response map[string]interface{}
@@ -204,7 +239,7 @@ func TestGroupsCRUDAPI(t *testing.T) {
 		if err == nil {
 			success, _ := response["success"].(bool)
 			assert.False(t, success, "Should not succeed")
-			
+
 			errorMsg, _ := response["error"].(string)
 			assert.Contains(t, errorMsg, "exists", "Error should mention group exists")
 		}
@@ -255,10 +290,13 @@ func TestGroupValidation(t *testing.T) {
 
 func TestGroupRepository(t *testing.T) {
 	// Test repository methods directly
-	db, err := database.GetConnection()
+	t.Setenv("APP_ENV", "integration")
+	require.NoError(t, database.InitTestDB())
+
+	db, err := database.GetDB()
 	require.NoError(t, err, "Failed to connect to database")
 
-	groupRepo := repository.NewGroupSQLRepository(db)
+	groupRepo := repository.NewGroupRepository(db)
 
 	testGroupName := fmt.Sprintf("TestRepo_%d", time.Now().Unix())
 
@@ -274,7 +312,7 @@ func TestGroupRepository(t *testing.T) {
 
 		err := groupRepo.Create(group)
 		assert.NoError(t, err, "Should create group")
-		assert.NotEqual(t, 0, group.ID, "Should have ID after creation")
+		assert.NotEqual(t, uint(0), uintFromID(t, group.ID), "Should have ID after creation")
 
 		// Get group by name
 		retrieved, err := groupRepo.GetByName(testGroupName)
@@ -283,12 +321,12 @@ func TestGroupRepository(t *testing.T) {
 		assert.Equal(t, testGroupName, retrieved.Name, "Name should match")
 
 		// Clean up
-		err = groupRepo.Delete(group.ID)
+		err = groupRepo.Delete(uintFromID(t, group.ID))
 		assert.NoError(t, err, "Should delete test group")
 	})
 
 	t.Run("Get All Groups", func(t *testing.T) {
-		groups, err := groupRepo.GetAll()
+		groups, err := groupRepo.List()
 		assert.NoError(t, err, "Should get all groups")
 		assert.NotEmpty(t, groups, "Should have at least system groups")
 

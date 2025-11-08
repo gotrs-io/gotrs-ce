@@ -98,10 +98,10 @@ func TestTicketDetailTemplateBlockquoteIndent(t *testing.T) {
 		"subject": "Test",
 		"notes": []interface{}{
 			pongo2.Context{
-				"id":                       1,
-				"author":                   "Agent",
-				"time":                     "now",
-				"body":                     noteBody,
+				"id":                      1,
+				"author":                  "Agent",
+				"time":                    "now",
+				"body":                    noteBody,
 				"has_html":                true,
 				"is_visible_for_customer": false,
 			},
@@ -141,10 +141,10 @@ func TestTicketDetailTemplatePlainNoteTrimmed(t *testing.T) {
 		"subject": "Test",
 		"notes": []interface{}{
 			pongo2.Context{
-				"id":                       1,
-				"author":                   "Agent",
-				"time":                     "now",
-				"body":                     "Plain text note",
+				"id":                      1,
+				"author":                  "Agent",
+				"time":                    "now",
+				"body":                    "Plain text note",
 				"has_html":                false,
 				"is_visible_for_customer": false,
 			},

@@ -25,7 +25,7 @@ func TestUserAPI(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			assert.Equal(t, http.StatusUnauthorized, w.Code)
-			
+
 			var response map[string]interface{}
 			err := json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
@@ -67,7 +67,7 @@ func TestUserAPI(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			// Should process the filter
-            assert.NotEqual(t, http.StatusInternalServerError, w.Code)
+			assert.NotEqual(t, http.StatusInternalServerError, w.Code)
 		})
 
 		t.Run("should search by login or name", func(t *testing.T) {
@@ -82,7 +82,7 @@ func TestUserAPI(t *testing.T) {
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
-            assert.NotEqual(t, http.StatusInternalServerError, w.Code)
+			assert.NotEqual(t, http.StatusInternalServerError, w.Code)
 		})
 	})
 
@@ -135,7 +135,7 @@ func TestUserAPI(t *testing.T) {
 				var response map[string]interface{}
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				require.NoError(t, err)
-				
+
 				data := response["data"].(map[string]interface{})
 				assert.NotNil(t, data["id"])
 				assert.NotNil(t, data["login"])
@@ -214,7 +214,7 @@ func TestUserAPI(t *testing.T) {
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				require.NoError(t, err)
 				assert.Equal(t, true, response["success"])
-				
+
 				data := response["data"].(map[string]interface{})
 				assert.NotNil(t, data["id"])
 				assert.Equal(t, "newuser", data["login"])
@@ -247,7 +247,7 @@ func TestUserAPI(t *testing.T) {
 				var response map[string]interface{}
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				require.NoError(t, err)
-				
+
 				data := response["data"].(map[string]interface{})
 				// Password should never be in response
 				assert.Nil(t, data["password"])
@@ -400,7 +400,7 @@ func TestUserAPI(t *testing.T) {
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				require.NoError(t, err)
 				assert.Equal(t, true, response["success"])
-				
+
 				data := response["data"].([]interface{})
 				// Should return array of groups
 				assert.NotNil(t, data)

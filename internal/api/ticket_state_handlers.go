@@ -25,16 +25,16 @@ func HandleGetTicketStateAPI(c *gin.Context) {
 		return
 	}
 
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        // DB-less fallback
-        if stateID == 1 {
-            c.JSON(http.StatusOK, gin.H{"id": 1, "name": "new", "type_id": 1, "valid_id": 1})
-            return
-        }
-        c.JSON(http.StatusNotFound, gin.H{"error": "Ticket state not found"})
-        return
-    }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		// DB-less fallback
+		if stateID == 1 {
+			c.JSON(http.StatusOK, gin.H{"id": 1, "name": "new", "type_id": 1, "valid_id": 1})
+			return
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "Ticket state not found"})
+		return
+	}
 
 	// Get state details
 	var state struct {
@@ -78,11 +78,11 @@ func HandleCreateTicketStateAPI(c *gin.Context) {
 		return
 	}
 
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        c.JSON(http.StatusCreated, gin.H{"id": 1000, "name": req.Name, "type_id": req.TypeID, "valid_id": 1})
-        return
-    }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		c.JSON(http.StatusCreated, gin.H{"id": 1000, "name": req.Name, "type_id": req.TypeID, "valid_id": 1})
+		return
+	}
 
 	// Check if state with this name already exists
 	var count int
@@ -103,7 +103,7 @@ func HandleCreateTicketStateAPI(c *gin.Context) {
 		VALUES ($1, $2, 1, NOW(), $3, NOW(), $3)
 		RETURNING id
 	`)
-	
+
 	err = db.QueryRow(insertQuery, req.Name, req.TypeID, userID).Scan(&stateID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create ticket state"})
@@ -144,11 +144,11 @@ func HandleUpdateTicketStateAPI(c *gin.Context) {
 		return
 	}
 
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        c.JSON(http.StatusOK, gin.H{"id": stateID, "name": req.Name, "type_id": req.TypeID, "valid_id": 1})
-        return
-    }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		c.JSON(http.StatusOK, gin.H{"id": stateID, "name": req.Name, "type_id": req.TypeID, "valid_id": 1})
+		return
+	}
 
 	// Check if state exists
 	var count int
@@ -211,15 +211,15 @@ func HandleDeleteTicketStateAPI(c *gin.Context) {
 		return
 	}
 
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        if stateID <= 5 {
-            c.JSON(http.StatusForbidden, gin.H{"error": "Cannot delete system state"})
-            return
-        }
-        c.JSON(http.StatusOK, gin.H{"message": "Ticket state deleted successfully", "id": stateID})
-        return
-    }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		if stateID <= 5 {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Cannot delete system state"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Ticket state deleted successfully", "id": stateID})
+		return
+	}
 
 	// Check if state exists
 	var count int
@@ -242,8 +242,8 @@ func HandleDeleteTicketStateAPI(c *gin.Context) {
 	db.QueryRow(ticketQuery, stateID).Scan(&ticketCount)
 	if ticketCount > 0 {
 		c.JSON(http.StatusConflict, gin.H{
-			"error": "State is in use",
-			"message": "Cannot delete state that is assigned to tickets",
+			"error":        "State is in use",
+			"message":      "Cannot delete state that is assigned to tickets",
 			"ticket_count": ticketCount,
 		})
 		return
@@ -255,7 +255,7 @@ func HandleDeleteTicketStateAPI(c *gin.Context) {
 		SET valid_id = 2, change_time = NOW(), change_by = $1
 		WHERE id = $2
 	`)
-	
+
 	result, err := db.Exec(deleteQuery, userID, stateID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete ticket state"})
@@ -270,7 +270,7 @@ func HandleDeleteTicketStateAPI(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Ticket state deleted successfully",
-		"id": stateID,
+		"id":      stateID,
 	})
 }
 
@@ -284,18 +284,18 @@ func HandleTicketStateStatisticsAPI(c *gin.Context) {
 	}
 	_ = userID
 
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        // Return canned statistics
-        c.JSON(http.StatusOK, gin.H{
-            "statistics": []gin.H{
-                {"state_id": 1, "state_name": "new", "type_id": 1, "ticket_count": 2},
-                {"state_id": 2, "state_name": "open", "type_id": 1, "ticket_count": 1},
-            },
-            "total_tickets": 3,
-        })
-        return
-    }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		// Return canned statistics
+		c.JSON(http.StatusOK, gin.H{
+			"statistics": []gin.H{
+				{"state_id": 1, "state_name": "new", "type_id": 1, "ticket_count": 2},
+				{"state_id": 2, "state_name": "open", "type_id": 1, "ticket_count": 1},
+			},
+			"total_tickets": 3,
+		})
+		return
+	}
 
 	// Get ticket counts by state
 	query := database.ConvertPlaceholders(`
@@ -331,7 +331,7 @@ func HandleTicketStateStatisticsAPI(c *gin.Context) {
 		if err := rows.Scan(&stat.StateID, &stat.StateName, &stat.TypeID, &stat.TicketCount); err != nil {
 			continue
 		}
-		
+
 		statistics = append(statistics, gin.H{
 			"state_id":     stat.StateID,
 			"state_name":   stat.StateName,

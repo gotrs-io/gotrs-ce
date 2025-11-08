@@ -59,8 +59,8 @@ func TestTicketCreationModes_GetEmailForm(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200 got %d", w.Code)
 	}
-	if !strings.Contains(w.Body.String(), "Email Ticket Creation") {
-		t.Fatalf("email form missing marker text; body=%s", w.Body.String())
+	if !strings.Contains(w.Body.String(), "Create a new ticket via email.") {
+		t.Fatalf("email form missing intro text; body=%s", w.Body.String())
 	}
 	if !strings.Contains(w.Body.String(), "name=\"customer_email\"") {
 		t.Fatalf("expected email field in email ticket form")
@@ -75,8 +75,8 @@ func TestTicketCreationModes_GetPhoneForm(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200 got %d", w.Code)
 	}
-	if !strings.Contains(w.Body.String(), "Phone Ticket Creation") {
-		t.Fatalf("phone form missing marker text; body=%s", w.Body.String())
+	if !strings.Contains(w.Body.String(), "Create Ticket by Phone") {
+		t.Fatalf("phone form missing heading; body=%s", w.Body.String())
 	}
 	if !strings.Contains(w.Body.String(), "name=\"customer_phone\"") {
 		t.Fatalf("expected phone field in phone ticket form")

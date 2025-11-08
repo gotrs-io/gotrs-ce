@@ -54,15 +54,15 @@ func HandleAssignQueueGroupAPI(c *gin.Context) {
 		return
 	}
 
-    // Ensure mapping exists without using vendor-specific UPSERT
-    var existsMap int
-    db.QueryRow(database.ConvertPlaceholders(`SELECT 1 FROM queue_group WHERE queue_id = $1 AND group_id = $2`), queueID, req.GroupID).Scan(&existsMap)
-    if existsMap != 1 {
-        if _, err := db.Exec(database.ConvertPlaceholders(`INSERT INTO queue_group (queue_id, group_id) VALUES ($1, $2)`), queueID, req.GroupID); err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to assign group"})
-            return
-        }
-    }
+	// Ensure mapping exists without using vendor-specific UPSERT
+	var existsMap int
+	db.QueryRow(database.ConvertPlaceholders(`SELECT 1 FROM queue_group WHERE queue_id = $1 AND group_id = $2`), queueID, req.GroupID).Scan(&existsMap)
+	if existsMap != 1 {
+		if _, err := db.Exec(database.ConvertPlaceholders(`INSERT INTO queue_group (queue_id, group_id) VALUES ($1, $2)`), queueID, req.GroupID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to assign group"})
+			return
+		}
+	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Group assigned", "data": gin.H{"queue_id": queueID, "group_id": req.GroupID, "permissions": req.Permissions}})
 }

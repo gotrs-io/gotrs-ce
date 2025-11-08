@@ -1,10 +1,12 @@
 package repository
 
 import (
-	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 )
 
@@ -103,7 +105,7 @@ func (r *GroupSQLRepository) GetByID(id uint) (*models.Group, error) {
 		&group.ChangeTime,
 		&group.ChangeBy,
 	)
-	
+
 	if comments.Valid {
 		group.Comments = comments.String
 	}
@@ -124,20 +126,20 @@ func (r *GroupSQLRepository) AddUserToGroup(userID uint, groupID uint) error {
 	if err != nil {
 		return fmt.Errorf("failed to check user-group relationship: %w", err)
 	}
-	
+
 	if exists {
 		return nil // Already a member
 	}
-	
+
 	// Insert the relationship with required OTRS fields
-    insertQuery := database.ConvertPlaceholders(`
+	insertQuery := database.ConvertPlaceholders(`
         INSERT INTO group_user (user_id, group_id, permission_key, create_time, create_by, change_time, change_by) 
         VALUES ($1, $2, 'rw', CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)`)
 	_, err = r.db.Exec(insertQuery, userID, groupID)
 	if err != nil {
 		return fmt.Errorf("failed to add user to group: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -148,21 +150,28 @@ func (r *GroupSQLRepository) RemoveUserFromGroup(userID uint, groupID uint) erro
 	if err != nil {
 		return fmt.Errorf("failed to remove user from group: %w", err)
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
-	
+
 	if rowsAffected == 0 {
 		return fmt.Errorf("user-group relationship not found")
 	}
-	
+
 	return nil
 }
 
 // Create creates a new group
 func (r *GroupSQLRepository) Create(group *models.Group) error {
+	if group == nil {
+		return errors.New("group is required")
+	}
+	if strings.TrimSpace(group.Name) == "" {
+		return errors.New("group name is required")
+	}
+
 	query := database.ConvertPlaceholders(`
 		INSERT INTO groups (name, comments, valid_id, create_time, create_by, change_time, change_by)
 		VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4, CURRENT_TIMESTAMP, $5)
@@ -223,10 +232,10 @@ func (r *GroupSQLRepository) Delete(id uint) error {
 	if err != nil {
 		return fmt.Errorf("failed to remove group members: %w", err)
 	}
-	
+
 	// Then delete the group itself
 	query := database.ConvertPlaceholders(`DELETE FROM groups WHERE id = $1`)
-	
+
 	result, err := r.db.Exec(query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete group: %w", err)
@@ -246,14 +255,26 @@ func (r *GroupSQLRepository) Delete(id uint) error {
 
 // GetByName retrieves a group by name
 func (r *GroupSQLRepository) GetByName(name string) (*models.Group, error) {
-	query := database.ConvertPlaceholders(`
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return nil, errors.New("group name is required")
+	}
+
+	baseQuery := `
 		SELECT id, name, comments, valid_id, create_time, create_by, change_time, change_by
 		FROM groups
-		WHERE name = $1 AND valid_id = 1`)
+		WHERE name = $1 AND valid_id = 1`
+	if database.IsMySQL() {
+		baseQuery = `
+		SELECT id, name, comments, valid_id, create_time, create_by, change_time, change_by
+		FROM groups
+		WHERE BINARY name = $1 AND valid_id = 1`
+	}
+	query := database.ConvertPlaceholders(baseQuery)
 
 	var group models.Group
 	var comments sql.NullString
-	err := r.db.QueryRow(query, name).Scan(
+	err := r.db.QueryRow(query, trimmed).Scan(
 		&group.ID,
 		&group.Name,
 		&comments,
@@ -263,7 +284,7 @@ func (r *GroupSQLRepository) GetByName(name string) (*models.Group, error) {
 		&group.ChangeTime,
 		&group.ChangeBy,
 	)
-	
+
 	if comments.Valid {
 		group.Comments = comments.String
 	}

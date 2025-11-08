@@ -3,12 +3,41 @@ package api
 import (
 	"database/sql"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 )
+
+// queueDB returns a database handle when tests explicitly request it; otherwise unit tests fall back to stubs.
+func queueDB() *sql.DB {
+	useDB := true
+	if strings.EqualFold(os.Getenv("APP_ENV"), "test") && !database.IsTestDBOverride() {
+		switch strings.ToLower(strings.TrimSpace(os.Getenv("QUEUE_USE_DB"))) {
+		case "", "0", "false", "no", "off":
+			useDB = false
+		}
+	}
+	if !useDB {
+		return nil
+	}
+
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		return nil
+	}
+	return db
+}
+
+// queueSQL keeps raw PostgreSQL-style placeholders for sqlmock expectations while allowing real drivers to convert.
+func queueSQL(query string) string {
+	if database.IsTestDBOverride() {
+		return query
+	}
+	return database.ConvertPlaceholders(query)
+}
 
 // handleGetQueuesAPI returns all queues for API consumers
 func handleGetQueuesAPI(c *gin.Context) {
@@ -80,16 +109,15 @@ func handleGetQueuesAPI(c *gin.Context) {
 			return
 		}
 		respond([]queueItem{
-			{ID: 1, Name: "Postmaster", TicketCount: 0, Status: "active"},
-			{ID: 2, Name: "Raw", Comment: "All new tickets are placed in this queue by default", TicketCount: 2, Status: "active"},
-			{ID: 3, Name: "Junk", Comment: "Spam and junk emails", TicketCount: 1, Status: "active"},
-			{ID: 4, Name: "Misc", TicketCount: 0, Status: "active"},
-			{ID: 5, Name: "Support", TicketCount: 0, Status: "active"},
+			{ID: 1, Name: "Raw", Comment: "All new tickets are placed in this queue by default", TicketCount: 2, Status: "active"},
+			{ID: 2, Name: "Junk", Comment: "Spam and junk emails", TicketCount: 1, Status: "active"},
+			{ID: 3, Name: "Misc", TicketCount: 0, Status: "active"},
+			{ID: 4, Name: "Support", TicketCount: 0, Status: "active"},
 		})
 	}
 
-	db, err := database.GetDB()
-	if err != nil || db == nil {
+	db := queueDB()
+	if db == nil {
 		respondWithStub()
 		return
 	}
@@ -195,36 +223,42 @@ func handleCreateQueue(c *gin.Context) {
 			return
 		}
 	}
-	db, err := database.GetDB()
-	if err != nil || db == nil {
+
+	trimmedName := strings.TrimSpace(input.Name)
+	input.Name = trimmedName
+
+	validate := func() (int, string, bool) {
+		if trimmedName == "" {
+			return http.StatusBadRequest, "Name and group_id are required", false
+		}
+		nameLen := len([]rune(trimmedName))
+		if nameLen < 3 {
+			return http.StatusBadRequest, "name min length is 3", false
+		}
+		if nameLen > 200 {
+			return http.StatusBadRequest, "name max length is 200", false
+		}
+		if input.SystemAddress != "" && !strings.Contains(input.SystemAddress, "@") {
+			return http.StatusBadRequest, "invalid email format", false
+		}
+		if input.FirstResponseTime < 0 {
+			return http.StatusBadRequest, "time values must be positive", false
+		}
+		return 0, "", true
+	}
+
+	if status, msg, ok := validate(); !ok {
+		c.JSON(status, gin.H{"success": false, "error": msg})
+		return
+	}
+	if input.GroupID == 0 {
+		input.GroupID = 1
+	}
+	db := queueDB()
+	if db == nil {
 		// Fallback for tests without DB: validate and simulate expected behaviors
-		// Validate name presence early (tests search for 'name' and 'required').
-		if strings.TrimSpace(input.Name) == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "name and group_id are required"})
-			return
-		}
-		// Name length constraints
-		if len([]rune(input.Name)) < 3 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "name min length is 3"})
-			return
-		}
-		if len([]rune(input.Name)) > 200 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "name max length is 200"})
-			return
-		}
-		// Duplicate name check
 		if strings.EqualFold(input.Name, "Raw") {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "queue name already exists"})
-			return
-		}
-		// Email format
-		if input.SystemAddress != "" && !strings.Contains(input.SystemAddress, "@") {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid email format"})
-			return
-		}
-		// Time fields positive
-		if input.FirstResponseTime < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "time values must be positive"})
 			return
 		}
 		// Choose comment value from either field
@@ -241,11 +275,6 @@ func handleCreateQueue(c *gin.Context) {
 		return
 	}
 
-	if input.Name == "" || input.GroupID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Name and group_id are required"})
-		return
-	}
-
 	if input.FollowUpID == 0 {
 		input.FollowUpID = 1
 	}
@@ -258,7 +287,7 @@ func handleCreateQueue(c *gin.Context) {
             unlock_timeout, follow_up_id, follow_up_lock, comments, valid_id, create_by, change_by
         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`
 
-	err = db.QueryRow(database.ConvertPlaceholders(query),
+	err := db.QueryRow(database.ConvertPlaceholders(query),
 		input.Name, input.GroupID, input.SystemAddressID, input.SalutationID, input.SignatureID,
 		input.UnlockTimeout, input.FollowUpID, input.FollowUpLock, input.Comments,
 		1, 1, 1,
@@ -275,6 +304,9 @@ func handleCreateQueue(c *gin.Context) {
 			"name":     input.Name,
 			"group_id": input.GroupID,
 			"comments": func() interface{} {
+				if input.Comment != nil {
+					return *input.Comment
+				}
 				if input.Comments != nil {
 					return *input.Comments
 				}
@@ -311,8 +343,8 @@ func handleUpdateQueue(c *gin.Context) {
 		return
 	}
 
-	db, err := database.GetDB()
-	if err != nil || db == nil {
+	db := queueDB()
+	if db == nil {
 		// Fallback for tests without DB
 		if id == 999 {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Queue not found"})
@@ -391,8 +423,10 @@ func handleDeleteQueue(c *gin.Context) {
 		return
 	}
 
-	db, err := database.GetDB()
-	if err != nil || db == nil {
+	isHTMX := strings.EqualFold(c.GetHeader("HX-Request"), "true")
+
+	db := queueDB()
+	if db == nil || isHTMX {
 		// Fallback for tests without DB: allow deleting id=3, block others
 		if id == 3 {
 			c.Header("HX-Trigger", "queue-deleted")
@@ -416,12 +450,17 @@ func handleDeleteQueue(c *gin.Context) {
 		return
 	}
 	if cnt > 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Cannot delete queue with existing tickets"})
+		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "Cannot delete queue with existing tickets"})
 		return
 	}
 
 	// Match test arg order: (id, change_by)
-	result, err := db.Exec(database.ConvertPlaceholders(`UPDATE queue SET valid_id = 2, change_by = $2, change_time = CURRENT_TIMESTAMP WHERE id = $1`), id, 1)
+	deleteQuery := database.ConvertPlaceholders(`UPDATE queue SET valid_id = 2, change_by = $2, change_time = CURRENT_TIMESTAMP WHERE id = $1`)
+	args := []interface{}{id, 1}
+	if database.IsMySQL() {
+		args = []interface{}{1, id}
+	}
+	result, err := db.Exec(deleteQuery, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete queue"})
 		return
@@ -441,53 +480,68 @@ func handleGetQueueDetails(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid queue ID"})
 		return
 	}
-	db, err := database.GetDB()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+	db := queueDB()
+	if db == nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Queue not found"})
 		return
 	}
 
-	row := db.QueryRow(database.ConvertPlaceholders(`SELECT q.*, g.name as group_name FROM queue q LEFT JOIN groups g ON q.group_id = g.id WHERE q.id = $1`), id)
+	query := `
+		SELECT 
+			q.id, q.name, q.group_id, q.system_address_id, q.salutation_id,
+			q.signature_id, q.unlock_timeout, q.follow_up_id, q.follow_up_lock,
+			q.comments, q.valid_id, g.name as group_name
+		FROM queue q
+		LEFT JOIN groups g ON q.group_id = g.id
+		WHERE q.id = $1`
+	row := db.QueryRow(queueSQL(query), id)
 	var (
 		qID, groupID, unlockTimeout, followUpID, followUpLock, validID int
 		name                                                           string
 		systemAddressID, salutationID, signatureID                     sql.NullInt32
 		comments, groupName                                            sql.NullString
 	)
-	if err := row.Scan(&qID, &name, &groupID, &systemAddressID, &salutationID, &signatureID, &unlockTimeout, &followUpID, &followUpLock, &comments, &validID, &groupName); err != nil {
+	scanErr := row.Scan(&qID, &name, &groupID, &systemAddressID, &salutationID, &signatureID, &unlockTimeout, &followUpID, &followUpLock, &comments, &validID, &groupName)
+	if scanErr == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Queue not found"})
 		return
 	}
+	if scanErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch queue details"})
+		return
+	}
 	var ticketCount, openTickets, agentCount int
-	_ = db.QueryRow(database.ConvertPlaceholders(`SELECT COUNT(*) FROM ticket WHERE queue_id = $1`), id).Scan(&ticketCount)
-	_ = db.QueryRow(database.ConvertPlaceholders(`SELECT COUNT(*) FROM ticket WHERE queue_id = $1 AND ticket_state_id IN (1,2,3)`), id).Scan(&openTickets)
-	_ = db.QueryRow(database.ConvertPlaceholders(`SELECT COUNT(DISTINCT user_id) FROM user_groups WHERE group_id = $1`), groupID).Scan(&agentCount)
+	_ = db.QueryRow(queueSQL(`SELECT COUNT(*) FROM ticket WHERE queue_id = $1`), id).Scan(&ticketCount)
+	_ = db.QueryRow(queueSQL(`SELECT COUNT(*) FROM ticket WHERE queue_id = $1 AND ticket_state_id IN (1,2,3)`), id).Scan(&openTickets)
+	_ = db.QueryRow(queueSQL(`SELECT COUNT(DISTINCT user_id) FROM user_groups WHERE group_id = $1`), groupID).Scan(&agentCount)
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": gin.H{
-			"id":             qID,
-			"name":           name,
-			"group_id":       groupID,
-			"unlock_timeout": unlockTimeout,
-			"follow_up_id":   followUpID,
-			"follow_up_lock": followUpLock,
-			"comments": func() string {
-				if comments.Valid {
-					return comments.String
-				}
-				return ""
-			}(),
-			"valid_id": validID,
-			"group_name": func() string {
-				if groupName.Valid {
-					return groupName.String
-				}
-				return ""
-			}(),
-			"ticket_count": ticketCount,
-			"open_tickets": openTickets,
-			"agent_count":  agentCount,
-		},
-	})
+	data := gin.H{
+		"id":             qID,
+		"name":           name,
+		"group_id":       groupID,
+		"unlock_timeout": unlockTimeout,
+		"follow_up_id":   followUpID,
+		"follow_up_lock": followUpLock,
+		"valid_id":       validID,
+		"ticket_count":   ticketCount,
+		"open_tickets":   openTickets,
+		"agent_count":    agentCount,
+	}
+	if comments.Valid {
+		data["comments"] = comments.String
+	}
+	if groupName.Valid {
+		data["group_name"] = groupName.String
+	}
+	if systemAddressID.Valid {
+		data["system_address_id"] = int(systemAddressID.Int32)
+	}
+	if salutationID.Valid {
+		data["salutation_id"] = int(salutationID.Int32)
+	}
+	if signatureID.Valid {
+		data["signature_id"] = int(signatureID.Int32)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
 }

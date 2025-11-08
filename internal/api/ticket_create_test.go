@@ -29,7 +29,7 @@ func TestTicketCreation(t *testing.T) {
 			name: "Create ticket with all required fields",
 			formData: map[string]string{
 				"subject":        "Test Ticket",
-				"body":          "This is a test ticket body",
+				"body":           "This is a test ticket body",
 				"customer_email": "test@example.com",
 				"customer_name":  "Test User",
 				"priority":       "normal",
@@ -40,17 +40,17 @@ func TestTicketCreation(t *testing.T) {
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				// Check for redirect header
 				assert.NotEmpty(t, w.Header().Get("HX-Redirect"), "Should have HX-Redirect header")
-				
+
 				// Parse response
 				var resp map[string]interface{}
 				err := json.Unmarshal(w.Body.Bytes(), &resp)
 				require.NoError(t, err)
-				
+
 				// Check response contains ticket info
 				assert.NotNil(t, resp["id"], "Should have ticket ID")
 				assert.NotEmpty(t, resp["ticket_number"], "Should have ticket number")
 				assert.Equal(t, "Ticket created successfully", resp["message"])
-				
+
 				// Verify ticket ID is not a mock (123)
 				ticketID, ok := resp["id"].(float64)
 				assert.True(t, ok, "ID should be a number")
@@ -61,7 +61,7 @@ func TestTicketCreation(t *testing.T) {
 			name: "Create ticket with attachment",
 			formData: map[string]string{
 				"subject":        "Ticket with Attachment",
-				"body":          "This ticket has an attachment",
+				"body":           "This ticket has an attachment",
 				"customer_email": "attach@example.com",
 				"priority":       "high",
 				"queue_id":       "2",
@@ -70,11 +70,11 @@ func TestTicketCreation(t *testing.T) {
 			expectedStatus: http.StatusCreated,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				assert.NotEmpty(t, w.Header().Get("HX-Redirect"))
-				
+
 				var resp map[string]interface{}
 				err := json.Unmarshal(w.Body.Bytes(), &resp)
 				require.NoError(t, err)
-				
+
 				// Check if attachment was processed
 				if attachments, ok := resp["attachments"].([]interface{}); ok {
 					assert.Greater(t, len(attachments), 0, "Should have attachments")
@@ -84,7 +84,7 @@ func TestTicketCreation(t *testing.T) {
 		{
 			name: "Fail when missing required subject",
 			formData: map[string]string{
-				"body":          "Body without subject",
+				"body":           "Body without subject",
 				"customer_email": "test@example.com",
 			},
 			expectedStatus: http.StatusBadRequest,
@@ -113,7 +113,7 @@ func TestTicketCreation(t *testing.T) {
 			name: "Use default values for optional fields",
 			formData: map[string]string{
 				"subject":        "Minimal Ticket",
-				"body":          "Minimal body",
+				"body":           "Minimal body",
 				"customer_email": "minimal@example.com",
 			},
 			expectedStatus: http.StatusCreated,
@@ -121,7 +121,7 @@ func TestTicketCreation(t *testing.T) {
 				var resp map[string]interface{}
 				err := json.Unmarshal(w.Body.Bytes(), &resp)
 				require.NoError(t, err)
-				
+
 				// Check defaults were applied
 				assert.Equal(t, float64(1), resp["queue_id"], "Should default to queue 1")
 				assert.Equal(t, float64(1), resp["type_id"], "Should default to type 1")
@@ -142,17 +142,17 @@ func TestTicketCreation(t *testing.T) {
 				// Create multipart form with file
 				body := &bytes.Buffer{}
 				writer := multipart.NewWriter(body)
-				
+
 				// Add form fields
 				for key, val := range tt.formData {
 					writer.WriteField(key, val)
 				}
-				
+
 				// Add test file
 				part, err := writer.CreateFormFile("attachment", "test.txt")
 				require.NoError(t, err)
 				part.Write([]byte("test file content"))
-				
+
 				writer.Close()
 				req = httptest.NewRequest("POST", "/api/tickets", body)
 				req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -192,23 +192,23 @@ func TestTicketPersistence(t *testing.T) {
 		// Create a ticket
 		form := url.Values{
 			"subject":        {"Persistence Test"},
-			"body":          {"Testing if ticket persists"},
+			"body":           {"Testing if ticket persists"},
 			"customer_email": {"persist@example.com"},
 		}
 
 		createReq := httptest.NewRequest("POST", "/api/tickets", strings.NewReader(form.Encode()))
 		createReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		
+
 		createResp := httptest.NewRecorder()
 		router.ServeHTTP(createResp, createReq)
-		
+
 		assert.Equal(t, http.StatusCreated, createResp.Code)
 
 		// Parse response to get ticket ID
 		var createResult map[string]interface{}
 		err := json.Unmarshal(createResp.Body.Bytes(), &createResult)
 		require.NoError(t, err)
-		
+
 		ticketID := int(createResult["id"].(float64))
 		assert.NotEqual(t, 123, ticketID, "Should not be mock ID")
 
@@ -227,13 +227,13 @@ func TestTicketRedirect(t *testing.T) {
 
 		form := url.Values{
 			"subject":        {"Redirect Test"},
-			"body":          {"Testing redirect"},
+			"body":           {"Testing redirect"},
 			"customer_email": {"redirect@example.com"},
 		}
 
 		req := httptest.NewRequest("POST", "/api/tickets", strings.NewReader(form.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		
+
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
@@ -241,7 +241,7 @@ func TestTicketRedirect(t *testing.T) {
 		redirectURL := w.Header().Get("HX-Redirect")
 		assert.NotEmpty(t, redirectURL)
 		assert.Regexp(t, `^/tickets/\d+$`, redirectURL, "Should redirect to /tickets/{id}")
-		
+
 		// Extract ID from redirect URL
 		parts := strings.Split(redirectURL, "/")
 		assert.Equal(t, 3, len(parts))
@@ -266,7 +266,7 @@ func TestFormSubmissionFromUI(t *testing.T) {
 
 		req := httptest.NewRequest("POST", "/tickets/create", strings.NewReader(form.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		
+
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
@@ -274,7 +274,7 @@ func TestFormSubmissionFromUI(t *testing.T) {
 		body := w.Body.String()
 		assert.Contains(t, body, "success", "Should contain success indicator")
 		assert.NotContains(t, body, "TICK-2024", "Should not use mock ticket number")
-		
+
 		// Check for HX-Trigger to update ticket list
 		assert.Equal(t, "ticket-created", w.Header().Get("HX-Trigger"))
 	})

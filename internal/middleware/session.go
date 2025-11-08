@@ -2,13 +2,13 @@ package middleware
 
 import (
 	"context"
-    "net/http"
-    "strconv"
-    "strings"
+	"net/http"
+	"strconv"
+	"strings"
 
-    "github.com/gin-gonic/gin"
-    "github.com/gotrs-io/gotrs-ce/internal/auth"
-    "github.com/gotrs-io/gotrs-ce/internal/models"
+	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/auth"
+	"github.com/gotrs-io/gotrs-ce/internal/models"
 )
 
 // contextKey is a private type to avoid key collisions in context
@@ -34,7 +34,7 @@ func SessionMiddleware(jwtManager *auth.JWTManager) gin.HandlerFunc {
 				}
 			}
 		}
-		
+
 		// If no token found, redirect to login
 		if token == "" {
 			if isAPIRequest(c) {
@@ -46,14 +46,14 @@ func SessionMiddleware(jwtManager *auth.JWTManager) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// Check for demo token (only in demo mode)
 		if strings.HasPrefix(token, "demo_session_") || strings.HasPrefix(token, "demo_customer_") {
 			// In demo mode, accept demo tokens
-			// Token formats: 
+			// Token formats:
 			//   - demo_session_{userID}_{timestamp} for agents
 			//   - demo_customer_{username} for customers
-			
+
 			if strings.HasPrefix(token, "demo_customer_") {
 				// Customer demo session
 				parts := strings.Split(token, "_")
@@ -61,7 +61,7 @@ func SessionMiddleware(jwtManager *auth.JWTManager) gin.HandlerFunc {
 				if len(parts) >= 3 {
 					username = parts[2]
 				}
-				
+
 				// Set customer context
 				c.Set("is_customer", true)
 				c.Set("username", username)
@@ -80,7 +80,7 @@ func SessionMiddleware(jwtManager *auth.JWTManager) gin.HandlerFunc {
 						userID = uint(id)
 					}
 				}
-				
+
 				// Set agent context
 				c.Set("user_id", userID)
 				c.Set("user_email", "demo@example.com")
@@ -88,11 +88,11 @@ func SessionMiddleware(jwtManager *auth.JWTManager) gin.HandlerFunc {
 				c.Set("user_name", "Demo User")
 				c.Set("is_demo", true)
 			}
-			
+
 			c.Next()
 			return
 		}
-		
+
 		// Validate real JWT token (if JWT manager is available)
 		if jwtManager == nil {
 			// No JWT manager configured and not a demo token
@@ -107,13 +107,13 @@ func SessionMiddleware(jwtManager *auth.JWTManager) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		claims, err := jwtManager.ValidateToken(token)
 		if err != nil {
 			// Clear invalid cookie
 			c.SetCookie("access_token", "", -1, "/", "", false, true)
 			c.SetCookie("auth_token", "", -1, "/", "", false, true)
-			
+
 			if isAPIRequest(c) {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 				c.Abort()
@@ -123,26 +123,26 @@ func SessionMiddleware(jwtManager *auth.JWTManager) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// Store user info in context
 		c.Set("user_id", claims.UserID)
 		c.Set("user_email", claims.Email)
 		c.Set("user_role", claims.Role)
 		c.Set("user_name", claims.Email) // Use email as name for now
-		
+
 		// Set is_customer based on role
 		if claims.Role == "Customer" {
 			c.Set("is_customer", true)
 		} else {
 			c.Set("is_customer", false)
 		}
-		
-        // Add user info to request context for services using typed keys
-        ctx := context.WithValue(c.Request.Context(), contextKey("user_id"), claims.UserID)
-        ctx = context.WithValue(ctx, contextKey("user_email"), claims.Email)
-        ctx = context.WithValue(ctx, contextKey("user_role"), claims.Role)
+
+		// Add user info to request context for services using typed keys
+		ctx := context.WithValue(c.Request.Context(), contextKey("user_id"), claims.UserID)
+		ctx = context.WithValue(ctx, contextKey("user_email"), claims.Email)
+		ctx = context.WithValue(ctx, contextKey("user_role"), claims.Role)
 		c.Request = c.Request.WithContext(ctx)
-		
+
 		c.Next()
 	}
 }
@@ -156,14 +156,14 @@ func RequireRole(roles ...string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		roleStr, ok := userRole.(string)
 		if !ok {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Invalid role"})
 			c.Abort()
 			return
 		}
-		
+
 		// Check if user has one of the required roles
 		for _, role := range roles {
 			if roleStr == role {
@@ -171,7 +171,7 @@ func RequireRole(roles ...string) gin.HandlerFunc {
 				return
 			}
 		}
-		
+
 		c.JSON(http.StatusForbidden, gin.H{"error": "Insufficient permissions"})
 		c.Abort()
 	}
@@ -182,26 +182,26 @@ func GetCurrentUser(c *gin.Context) (uint, string, string, bool) {
 	userID, idExists := c.Get("user_id")
 	email, emailExists := c.Get("user_email")
 	role, roleExists := c.Get("user_role")
-	
+
 	if !idExists || !emailExists || !roleExists {
 		return 0, "", "", false
 	}
-	
+
 	id, ok := userID.(uint)
 	if !ok {
 		return 0, "", "", false
 	}
-	
+
 	emailStr, ok := email.(string)
 	if !ok {
 		return 0, "", "", false
 	}
-	
+
 	roleStr, ok := role.(string)
 	if !ok {
 		return 0, "", "", false
 	}
-	
+
 	return id, emailStr, roleStr, true
 }
 
@@ -239,7 +239,7 @@ func OptionalAuth(jwtManager *auth.JWTManager) gin.HandlerFunc {
 				}
 			}
 		}
-		
+
 		// If token found, validate it
 		if token != "" {
 			claims, err := jwtManager.ValidateToken(token)
@@ -252,7 +252,7 @@ func OptionalAuth(jwtManager *auth.JWTManager) gin.HandlerFunc {
 				c.Set("authenticated", true)
 			}
 		}
-		
+
 		c.Next()
 	}
 }
@@ -270,7 +270,7 @@ func RequirePermission(rbac *auth.RBAC, permission auth.Permission) gin.HandlerF
 			c.Abort()
 			return
 		}
-		
+
 		roleStr, ok := userRole.(string)
 		if !ok {
 			if isAPIRequest(c) {
@@ -281,7 +281,7 @@ func RequirePermission(rbac *auth.RBAC, permission auth.Permission) gin.HandlerF
 			c.Abort()
 			return
 		}
-		
+
 		// Check if user has the required permission
 		if !rbac.HasPermission(roleStr, permission) {
 			if isAPIRequest(c) {
@@ -293,7 +293,7 @@ func RequirePermission(rbac *auth.RBAC, permission auth.Permission) gin.HandlerF
 			c.Abort()
 			return
 		}
-		
+
 		c.Next()
 	}
 }
@@ -311,7 +311,7 @@ func RequireAnyPermission(rbac *auth.RBAC, permissions ...auth.Permission) gin.H
 			c.Abort()
 			return
 		}
-		
+
 		roleStr, ok := userRole.(string)
 		if !ok {
 			if isAPIRequest(c) {
@@ -322,7 +322,7 @@ func RequireAnyPermission(rbac *auth.RBAC, permissions ...auth.Permission) gin.H
 			c.Abort()
 			return
 		}
-		
+
 		// Check if user has any of the required permissions
 		for _, permission := range permissions {
 			if rbac.HasPermission(roleStr, permission) {
@@ -330,7 +330,7 @@ func RequireAnyPermission(rbac *auth.RBAC, permissions ...auth.Permission) gin.H
 				return
 			}
 		}
-		
+
 		if isAPIRequest(c) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Insufficient permissions"})
 		} else {
@@ -354,7 +354,7 @@ func RequireTicketAccess(rbac *auth.RBAC) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// Debug logging to understand what's happening
 		// Get ticket ID from URL parameter
 		ticketIDStr := c.Param("id")
@@ -363,18 +363,18 @@ func RequireTicketAccess(rbac *auth.RBAC) gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		
+
 		// For admins and agents, allow access to any ticket
 		// For customers, we'd need to check database ownership
 		if userRole == string(models.RoleAdmin) || userRole == string(models.RoleAgent) {
 			c.Next()
 			return
 		}
-		
+
 		// For customers, would need actual ticket lookup from database
 		// For now, simplified implementation
 		ticketOwnerID := userID // This needs proper DB lookup in production
-		
+
 		if !rbac.CanAccessTicket(userRole, ticketOwnerID, userID) {
 			if isAPIRequest(c) {
 				c.JSON(http.StatusForbidden, gin.H{"error": "Cannot access this ticket"})
@@ -385,7 +385,7 @@ func RequireTicketAccess(rbac *auth.RBAC) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		c.Next()
 	}
 }
@@ -397,7 +397,7 @@ func RequireAdminAccess(rbac *auth.RBAC) gin.HandlerFunc {
 
 // RequireAgentAccess allows both admins and agents
 func RequireAgentAccess(rbac *auth.RBAC) gin.HandlerFunc {
-	return RequireAnyPermission(rbac, 
+	return RequireAnyPermission(rbac,
 		auth.PermissionAdminAccess,
 		auth.PermissionTicketRead,
 	)

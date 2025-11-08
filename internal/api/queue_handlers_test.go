@@ -357,13 +357,13 @@ func TestDeleteQueue(t *testing.T) {
 			queueID: "2",
 			setupMock: func(mock sqlmock.Sqlmock) {
 				// Check for tickets in queue
-				mock.ExpectQuery(`SELECT COUNT\(\*\) FROM ticket WHERE queue_id = \$1`).
+				mock.ExpectQuery(`SELECT COUNT\(\*\) FROM ticket WHERE queue_id = \?`).
 					WithArgs(2).
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
 
 				// Soft delete
 				mock.ExpectExec(`UPDATE queue SET valid_id = 2`).
-					WithArgs(2, 1).
+					WithArgs(1, 2).
 					WillReturnResult(sqlmock.NewResult(0, 1))
 			},
 			expectedStatus: http.StatusOK,
@@ -376,11 +376,11 @@ func TestDeleteQueue(t *testing.T) {
 			name:    "queue has tickets",
 			queueID: "1",
 			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(`SELECT COUNT\(\*\) FROM ticket WHERE queue_id = \$1`).
+				mock.ExpectQuery(`SELECT COUNT\(\*\) FROM ticket WHERE queue_id = \?`).
 					WithArgs(1).
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(5))
 			},
-			expectedStatus: http.StatusBadRequest,
+			expectedStatus: http.StatusConflict,
 			expectedBody: map[string]interface{}{
 				"success": false,
 				"error":   "Cannot delete queue with existing tickets",
@@ -400,12 +400,12 @@ func TestDeleteQueue(t *testing.T) {
 			name:    "queue not found",
 			queueID: "999",
 			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(`SELECT COUNT\(\*\) FROM ticket WHERE queue_id = \$1`).
+				mock.ExpectQuery(`SELECT COUNT\(\*\) FROM ticket WHERE queue_id = \?`).
 					WithArgs(999).
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
 
 				mock.ExpectExec(`UPDATE queue SET valid_id = 2`).
-					WithArgs(999, 1).
+					WithArgs(1, 999).
 					WillReturnResult(sqlmock.NewResult(0, 0))
 			},
 			expectedStatus: http.StatusNotFound,

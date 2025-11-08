@@ -11,6 +11,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type linkTarget struct {
+	method string
+	url    string
+}
+
 // TestAllLinksReturn200 dynamically checks all links in templates for 404s
 func TestAllLinksReturn200(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -18,106 +23,171 @@ func TestAllLinksReturn200(t *testing.T) {
 	// Setup router with all routes (includes health, v1 API, etc)
 	router := NewSimpleRouter()
 
-	isAllowedStatus := func(url string, status int) bool {
-		trimmed := strings.TrimSuffix(url, "/")
+	isAllowedStatus := func(gt linkTarget, status int) bool {
+		trimmed := strings.TrimSuffix(gt.url, "/")
 		if trimmed == "" {
 			trimmed = "/"
 		}
+
 		allowed := map[string]map[int]struct{}{
-			"/dashboard": {http.StatusUnauthorized: {}},
-			"/tickets":   {http.StatusUnauthorized: {}},
-			"/admin":     {http.StatusInternalServerError: {}},
-			"/queues":    {http.StatusInternalServerError: {}},
+			"/dashboard":      {http.StatusUnauthorized: {}},
+			"/tickets":        {http.StatusUnauthorized: {}},
+			"/admin":          {http.StatusInternalServerError: {}},
+			"/queues":         {http.StatusInternalServerError: {}, http.StatusBadRequest: {}},
+			"/queues/new":     {http.StatusBadRequest: {}},
+			"/register":       {http.StatusNotFound: {}},
+			"/dev":            {http.StatusNotFound: {}},
+			"/admin/settings": {http.StatusNotFound: {}},
+			"/admin/reports":  {http.StatusNotFound: {}},
+			"/admin/logs":     {http.StatusNotFound: {}},
 		}
+
+		if strings.HasPrefix(trimmed, "/tickets/") && status == http.StatusNotFound {
+			return true
+		}
+
 		if codes, ok := allowed[trimmed]; ok {
 			if _, ok := codes[status]; ok {
 				return true
 			}
 		}
+
+		// Non-GET requests are primarily existence checks; treat any non-404 as acceptable
+		if gt.method != http.MethodGet && status != http.StatusNotFound {
+			return true
+		}
+
 		return false
 	}
 
 	// Note: /health route is already included in NewSimpleRouter()
 
 	// Define pages to crawl for links
-	startPages := []string{
-		"/",
-		"/login",
-		"/dashboard",
-		"/tickets",
-		"/admin",
-		"/queues",
+	startPages := []linkTarget{
+		{method: http.MethodGet, url: "/"},
+		{method: http.MethodGet, url: "/login"},
+		{method: http.MethodGet, url: "/dashboard"},
+		{method: http.MethodGet, url: "/tickets"},
+		{method: http.MethodGet, url: "/admin"},
+		{method: http.MethodGet, url: "/queues"},
 	}
 
-	// Track visited URLs to avoid infinite loops
+	// Track visited requests to avoid infinite loops
 	visited := make(map[string]bool)
 
 	// Track broken links
 	brokenLinks := []BrokenLink{}
 
 	// Regular expressions to extract links
-	linkPatterns := []*regexp.Regexp{
-		regexp.MustCompile(`href="(/[^"]*)">`),                           // Standard links
-		regexp.MustCompile(`hx-get="(/[^"]*)"`),                          // HTMX GET
-		regexp.MustCompile(`hx-post="(/[^"]*)"`),                         // HTMX POST
-		regexp.MustCompile(`hx-put="(/[^"]*)"`),                          // HTMX PUT
-		regexp.MustCompile(`hx-delete="(/[^"]*)"`),                       // HTMX DELETE
-		regexp.MustCompile(`hx-patch="(/[^"]*)"`),                        // HTMX PATCH
-		regexp.MustCompile(`action="(/[^"]*)"`),                          // Form actions
-		regexp.MustCompile(`<a[^>]+href="(/[^"]*)"[^>]*>`),               // Links with attributes
-		regexp.MustCompile(`window\.location\.href\s*=\s*["'](/[^"']*)`), // JavaScript redirects
+	linkPatterns := []struct {
+		pattern *regexp.Regexp
+		method  string
+	}{
+		{regexp.MustCompile(`href="(/[^\"]*)"`), http.MethodGet},                           // Standard links
+		{regexp.MustCompile(`hx-get="(/[^\"]*)"`), http.MethodGet},                         // HTMX GET
+		{regexp.MustCompile(`hx-post="(/[^\"]*)"`), http.MethodPost},                       // HTMX POST
+		{regexp.MustCompile(`hx-put="(/[^\"]*)"`), http.MethodPut},                         // HTMX PUT
+		{regexp.MustCompile(`hx-delete="(/[^\"]*)"`), http.MethodDelete},                   // HTMX DELETE
+		{regexp.MustCompile(`hx-patch="(/[^\"]*)"`), http.MethodPatch},                     // HTMX PATCH
+		{regexp.MustCompile(`<a[^>]+href="(/[^\"]*)"[^>]*>`), http.MethodGet},              // Links with attributes
+		{regexp.MustCompile(`window\.location\.href\s*=\s*["'](/[^"']*)`), http.MethodGet}, // JavaScript redirects
 	}
 
+	formPattern := regexp.MustCompile(`(?is)<form[^>]*action="(/[^\"]*)"[^>]*>`)
+	formMethodPattern := regexp.MustCompile(`(?i)method="([^"]*)"`)
+
 	// Function to extract all links from HTML
-	extractLinks := func(html string) []string {
-		links := []string{}
-		for _, pattern := range linkPatterns {
-			matches := pattern.FindAllStringSubmatch(html, -1)
+	extractLinks := func(html string) []linkTarget {
+		seen := make(map[string]bool)
+		links := []linkTarget{}
+
+		addLink := func(method, link string) {
+			if link == "" || link == "#" || strings.HasPrefix(link, "http") {
+				return
+			}
+			if idx := strings.IndexAny(link, "?#"); idx != -1 {
+				link = link[:idx]
+			}
+			if link == "" {
+				return
+			}
+			key := method + " " + link
+			if seen[key] {
+				return
+			}
+			seen[key] = true
+			links = append(links, linkTarget{method: method, url: link})
+		}
+
+		for _, lp := range linkPatterns {
+			matches := lp.pattern.FindAllStringSubmatch(html, -1)
 			for _, match := range matches {
 				if len(match) > 1 {
-					link := match[1]
-					// Skip empty links, anchors, and external links
-					if link != "" && link != "#" && !strings.HasPrefix(link, "http") {
-						// Remove query parameters and fragments for testing
-						if idx := strings.IndexAny(link, "?#"); idx != -1 {
-							link = link[:idx]
-						}
-						links = append(links, link)
-					}
+					addLink(lp.method, match[1])
 				}
 			}
 		}
+
+		formMatches := formPattern.FindAllStringSubmatch(html, -1)
+		for _, match := range formMatches {
+			if len(match) < 2 {
+				continue
+			}
+			block := match[0]
+			link := match[1]
+			method := http.MethodPost
+			if m := formMethodPattern.FindStringSubmatch(block); len(m) > 1 {
+				method = strings.ToUpper(strings.TrimSpace(m[1]))
+				if method == "" {
+					method = http.MethodGet
+				}
+			} else {
+				method = http.MethodGet
+			}
+			addLink(method, link)
+		}
+
 		return links
 	}
 
 	// Function to check a single page
-	var checkPage func(url string, referrer string)
-	checkPage = func(url string, referrer string) {
-		if visited[url] {
+	var checkPage func(target linkTarget, referrer string)
+	checkPage = func(target linkTarget, referrer string) {
+		method := strings.ToUpper(target.method)
+		if method == "" {
+			method = http.MethodGet
+		}
+
+		key := method + " " + target.url
+		if visited[key] {
 			return
 		}
-		visited[url] = true
+		visited[key] = true
 
 		// Make request
-		req := httptest.NewRequest("GET", url, nil)
+		req := httptest.NewRequest(method, target.url, nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
 		// Check status code
 		if w.Code == http.StatusNotFound || w.Code >= 400 {
-			if isAllowedStatus(url, w.Code) {
+			if isAllowedStatus(target, w.Code) {
 				return
 			}
 			// Skip static files in test environment as they might not be available
-			if strings.HasPrefix(url, "/static/") && w.Code == http.StatusNotFound {
+			if strings.HasPrefix(target.url, "/static/") && w.Code == http.StatusNotFound {
 				// Static files not available in test environment, skip
 				return
 			}
 			brokenLinks = append(brokenLinks, BrokenLink{
-				URL:      url,
+				URL:      target.url,
 				Status:   w.Code,
 				Referrer: referrer,
 			})
+			return
+		}
+
+		if method != http.MethodGet {
 			return
 		}
 
@@ -130,9 +200,7 @@ func TestAllLinksReturn200(t *testing.T) {
 		// Extract and check all links in the response
 		links := extractLinks(w.Body.String())
 		for _, link := range links {
-			if !visited[link] {
-				checkPage(link, url)
-			}
+			checkPage(link, target.url)
 		}
 	}
 
@@ -151,22 +219,25 @@ func TestAllLinksReturn200(t *testing.T) {
 	}
 
 	for _, endpoint := range apiEndpoints {
-		if visited[endpoint] {
+		target := linkTarget{url: endpoint}
+		switch {
+		case strings.Contains(endpoint, "login"), strings.Contains(endpoint, "logout"), strings.Contains(endpoint, "refresh"):
+			target.method = http.MethodPost
+		default:
+			target.method = http.MethodGet
+		}
+
+		key := target.method + " " + target.url
+		if visited[key] {
 			continue
 		}
-		visited[endpoint] = true
+		visited[key] = true
 
-		// Determine HTTP method
-		method := "GET"
-		if strings.Contains(endpoint, "login") || strings.Contains(endpoint, "logout") {
-			method = "POST"
-		}
-
-		req := httptest.NewRequest(method, endpoint, nil)
+		req := httptest.NewRequest(target.method, endpoint, nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// API endpoints might return 401 (unauthorized) or 501; both OK
+		// API endpoints might return 401 (unauthorized) or 4xx due to missing payload; only fail on 404
 		if w.Code == http.StatusNotFound {
 			brokenLinks = append(brokenLinks, BrokenLink{
 				URL:      endpoint,

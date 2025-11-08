@@ -19,7 +19,7 @@ func TestQueueListAPI(t *testing.T) {
 		expectedStatus int
 		checkResponse  func(t *testing.T, body string)
 	}{
-        {
+		{
 			name:           "should return all active queues",
 			expectedStatus: http.StatusOK,
 			checkResponse: func(t *testing.T, body string) {
@@ -28,7 +28,7 @@ func TestQueueListAPI(t *testing.T) {
 				assert.Contains(t, body, "Support")
 				assert.Contains(t, body, "Misc")
 				assert.Contains(t, body, "Junk")
-				
+
 				// Should show ticket counts (HTML formatted)
 				assert.Contains(t, body, ">2</span> tickets") // Raw queue has 2 tickets
 				assert.Contains(t, body, ">1</span> ticket")  // Junk queue has 1 ticket
@@ -40,8 +40,8 @@ func TestQueueListAPI(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
-            router.GET("/api/queues", handleQueuesAPI)
-            req, _ := http.NewRequest("GET", "/api/queues", nil)
+			router.GET("/api/queues", handleQueuesAPI)
+			req, _ := http.NewRequest("GET", "/api/queues", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -56,13 +56,13 @@ func TestQueueListAPI(t *testing.T) {
 func TestQueueListJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-    tests := []struct {
-        name           string
-        acceptHeader   string
-        expectedStatus int
-        checkResponse  func(t *testing.T, body string)
-        setupError     bool
-    }{
+	tests := []struct {
+		name           string
+		acceptHeader   string
+		expectedStatus int
+		checkResponse  func(t *testing.T, body string)
+		setupError     bool
+	}{
 		{
 			name:           "should return JSON when requested",
 			acceptHeader:   "application/json",
@@ -78,12 +78,12 @@ func TestQueueListJSON(t *testing.T) {
 						Status      string `json:"status"`
 					} `json:"data"`
 				}
-				
+
 				err := json.Unmarshal([]byte(body), &response)
 				assert.NoError(t, err)
 				assert.True(t, response.Success)
 				assert.Equal(t, 4, len(response.Data))
-				
+
 				// Check specific queue data
 				foundRaw := false
 				for _, queue := range response.Data {
@@ -101,13 +101,13 @@ func TestQueueListJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
-            router.GET("/api/queues", handleQueuesAPI)
+			router.GET("/api/queues", handleQueuesAPI)
 
-            path := "/api/queues"
-            if tt.setupError {
-                path += "?force_error=true"
-            }
-            req, _ := http.NewRequest("GET", path, nil)
+			path := "/api/queues"
+			if tt.setupError {
+				path += "?force_error=true"
+			}
+			req, _ := http.NewRequest("GET", path, nil)
 			if tt.acceptHeader != "" {
 				req.Header.Set("Accept", tt.acceptHeader)
 			}
@@ -144,13 +144,13 @@ func TestQueueListErrorHandling(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
-            router.GET("/api/queues", handleQueuesAPI)
+			router.GET("/api/queues", handleQueuesAPI)
 
-            path := "/api/queues"
-            if tt.setupError {
-                path += "?force_error=true"
-            }
-            req, _ := http.NewRequest("GET", path, nil)
+			path := "/api/queues"
+			if tt.setupError {
+				path += "?force_error=true"
+			}
+			req, _ := http.NewRequest("GET", path, nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 

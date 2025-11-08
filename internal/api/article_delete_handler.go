@@ -2,8 +2,8 @@ package api
 
 import (
 	"net/http"
+	"os"
 	"strconv"
-    "os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
@@ -18,36 +18,36 @@ func HandleDeleteArticleAPI(c *gin.Context) {
 		return
 	}
 
-    // Parse IDs (accept both :ticket_id and :id, article :article_id or :id)
-    ticketParam := c.Param("ticket_id")
-    if ticketParam == "" {
-        ticketParam = c.Param("id")
-    }
-    ticketID, err := strconv.Atoi(ticketParam)
+	// Parse IDs (accept both :ticket_id and :id, article :article_id or :id)
+	ticketParam := c.Param("ticket_id")
+	if ticketParam == "" {
+		ticketParam = c.Param("id")
+	}
+	ticketID, err := strconv.Atoi(ticketParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
 
-    articleParam := c.Param("article_id")
-    if articleParam == "" {
-        articleParam = c.Param("id")
-    }
-    articleID, err := strconv.Atoi(articleParam)
+	articleParam := c.Param("article_id")
+	if articleParam == "" {
+		articleParam = c.Param("id")
+	}
+	articleID, err := strconv.Atoi(articleParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid article ID"})
 		return
 	}
 
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        if os.Getenv("APP_ENV") == "test" {
-            c.JSON(http.StatusOK, gin.H{"message": "Article deleted successfully", "id": articleID})
-            return
-        }
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
-        return
-    }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		if os.Getenv("APP_ENV") == "test" {
+			c.JSON(http.StatusOK, gin.H{"message": "Article deleted successfully", "id": articleID})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+		return
+	}
 
 	// Check if article exists and belongs to the ticket
 	var count int
@@ -55,15 +55,15 @@ func HandleDeleteArticleAPI(c *gin.Context) {
 		SELECT 1 FROM article
 		WHERE id = $1 AND ticket_id = $2
 	`)
-    db.QueryRow(checkQuery, articleID, ticketID).Scan(&count)
-    if count != 1 {
-        if os.Getenv("APP_ENV") == "test" {
-            c.JSON(http.StatusOK, gin.H{"message": "Article deleted successfully", "id": articleID})
-            return
-        }
-        c.JSON(http.StatusNotFound, gin.H{"error": "Article not found"})
-        return
-    }
+	db.QueryRow(checkQuery, articleID, ticketID).Scan(&count)
+	if count != 1 {
+		if os.Getenv("APP_ENV") == "test" {
+			c.JSON(http.StatusOK, gin.H{"message": "Article deleted successfully", "id": articleID})
+			return
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "Article not found"})
+		return
+	}
 
 	// Start transaction to delete article and its attachments
 	tx, err := db.Begin()
@@ -87,7 +87,7 @@ func HandleDeleteArticleAPI(c *gin.Context) {
 		DELETE FROM article 
 		WHERE id = $1 AND ticket_id = $2
 	`)
-	
+
 	result, err := tx.Exec(deleteQuery, articleID, ticketID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete article"})
@@ -107,7 +107,7 @@ func HandleDeleteArticleAPI(c *gin.Context) {
 	}
 
 	// Update ticket change time
-    updateTicketQuery := database.ConvertPlaceholders(`
+	updateTicketQuery := database.ConvertPlaceholders(`
         UPDATE ticket 
         SET change_time = NOW(), change_by = $1
         WHERE id = $2
@@ -116,6 +116,6 @@ func HandleDeleteArticleAPI(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Article deleted successfully",
-		"id": articleID,
+		"id":      articleID,
 	})
 }

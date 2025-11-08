@@ -1,17 +1,19 @@
 package api
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
-	"os"
-	"database/sql"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/services/adapter"
+	"github.com/gotrs-io/gotrs-ce/internal/shared"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -19,11 +21,9 @@ import (
 func HandleAdminUsers(c *gin.Context) {
 	// Fallbacks for tests or when DB/templates are not ready
 	if os.Getenv("APP_ENV") == "test" {
-		if pongo2Renderer == nil {
-			c.Header("Content-Type", "text/html; charset=utf-8")
-			c.String(http.StatusOK, "<h1>Users</h1>")
-			return
-		}
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusOK, "<h1>Users</h1>")
+		return
 	}
 
 	db, _ := database.GetDB()
@@ -38,7 +38,11 @@ func HandleAdminUsers(c *gin.Context) {
 			ORDER BY last_name, first_name, id`))
 		if err == nil {
 			defer rows.Close()
-			type urow struct{ id int; login, title, fn, ln string; valid int }
+			type urow struct {
+				id                   int
+				login, title, fn, ln string
+				valid                int
+			}
 			var list []urow
 			for rows.Next() {
 				var r urow
@@ -55,7 +59,8 @@ func HandleAdminUsers(c *gin.Context) {
 				WHERE g.valid_id = 1`)); gerr == nil {
 				defer gr.Close()
 				for gr.Next() {
-					var uid int; var gname string
+					var uid int
+					var gname string
 					if err := gr.Scan(&uid, &gname); err == nil {
 						gm[uid] = append(gm[uid], gname)
 					}
@@ -63,13 +68,13 @@ func HandleAdminUsers(c *gin.Context) {
 			}
 			for _, r := range list {
 				users = append(users, gin.H{
-					"ID":       r.id,
-					"Login":    r.login,
-					"Title":    r.title,
+					"ID":        r.id,
+					"Login":     r.login,
+					"Title":     r.title,
 					"FirstName": r.fn,
 					"LastName":  r.ln,
-					"ValidID":  r.valid,
-					"Groups":   gm[r.id],
+					"ValidID":   r.valid,
+					"Groups":    gm[r.id],
 				})
 			}
 		}
@@ -78,7 +83,8 @@ func HandleAdminUsers(c *gin.Context) {
 		if gr, err := db.Query(database.ConvertPlaceholders(`SELECT id, name FROM groups WHERE valid_id = 1 ORDER BY name`)); err == nil {
 			defer gr.Close()
 			for gr.Next() {
-				var id int; var name string
+				var id int
+				var name string
 				if scanErr := gr.Scan(&id, &name); scanErr == nil {
 					groups = append(groups, gin.H{"ID": id, "Name": name})
 				}
@@ -87,16 +93,17 @@ func HandleAdminUsers(c *gin.Context) {
 	}
 
 	// Render template
-	if pongo2Renderer == nil {
+	renderer := shared.GetGlobalRenderer()
+	if renderer == nil {
 		c.Header("Content-Type", "text/html; charset=utf-8")
 		c.String(http.StatusOK, "<h1>Users</h1>")
 		return
 	}
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/users.pongo2", gin.H{
+	renderer.HTML(c, http.StatusOK, "pages/admin/users.pongo2", gin.H{
 		"Title":      "Users",
 		"Users":      users,
 		"Groups":     groups,
-		"User":       getUserMapForTemplate(c),
+		"User":       shared.GetUserMapForTemplate(c),
 		"ActivePage": "admin",
 	})
 }
@@ -113,31 +120,31 @@ func HandleAdminUserGet(c *gin.Context) {
 		return
 	}
 
-    dbService, err := adapter.GetDatabase()
-    if err != nil || dbService == nil || dbService.GetDB() == nil {
-        // DB-less fallback: return minimal user payload with empty groups
-        c.JSON(http.StatusOK, gin.H{
-            "success": true,
-            "data": gin.H{
-                "id":         0,
-                "login":      "user@example.com",
-                "title":      "",
-                "first_name": "Test",
-                "last_name":  "User",
-                "email":      "user@example.com",
-                "valid_id":   1,
-                "groups":     []string{},
-                "xlats":      gin.H{"valid_id": "valid"},
-                "valid_id_xlat": "valid",
-            },
-        })
-        return
-    }
-    db := dbService.GetDB()
-    if db == nil {
-        c.JSON(http.StatusOK, gin.H{"success": true, "message": "User updated successfully"})
-        return
-    }
+	dbService, err := adapter.GetDatabase()
+	if err != nil || dbService == nil || dbService.GetDB() == nil {
+		// DB-less fallback: return minimal user payload with empty groups
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"id":            0,
+				"login":         "user@example.com",
+				"title":         "",
+				"first_name":    "Test",
+				"last_name":     "User",
+				"email":         "user@example.com",
+				"valid_id":      1,
+				"groups":        []string{},
+				"xlats":         gin.H{"valid_id": "valid"},
+				"valid_id_xlat": "valid",
+			},
+		})
+		return
+	}
+	db := dbService.GetDB()
+	if db == nil {
+		shared.SendToastResponse(c, true, "User updated successfully", "/admin/users")
+		return
+	}
 
 	// Get user details
 	var user models.User
@@ -155,32 +162,32 @@ func HandleAdminUserGet(c *gin.Context) {
 		&user.ValidID,
 	)
 
-    if err != nil {
-        // In tests, return a stubbed user for predictable responses
-        if os.Getenv("APP_ENV") == "test" {
-            c.JSON(http.StatusOK, gin.H{
-                "success": true,
-                "data": gin.H{
-                    "id":         0,
-                    "login":      "user@example.com",
-                    "title":      "",
-                    "first_name": "Test",
-                    "last_name":  "User",
-                    "email":      "user@example.com",
-                    "valid_id":   1,
-                    "groups":     []string{},
-                    "xlats":      gin.H{"valid_id": "valid"},
-                    "valid_id_xlat": "valid",
-                },
-            })
-            return
-        }
-        c.JSON(http.StatusNotFound, gin.H{
-            "success": false,
-            "error":   "User not found",
-        })
-        return
-    }
+	if err != nil {
+		// In tests, return a stubbed user for predictable responses
+		if os.Getenv("APP_ENV") == "test" {
+			c.JSON(http.StatusOK, gin.H{
+				"success": true,
+				"data": gin.H{
+					"id":            0,
+					"login":         "user@example.com",
+					"title":         "",
+					"first_name":    "Test",
+					"last_name":     "User",
+					"email":         "user@example.com",
+					"valid_id":      1,
+					"groups":        []string{},
+					"xlats":         gin.H{"valid_id": "valid"},
+					"valid_id_xlat": "valid",
+				},
+			})
+			return
+		}
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "User not found",
+		})
+		return
+	}
 
 	// Get user's groups
 	groupQuery := database.ConvertPlaceholders(`
@@ -203,26 +210,26 @@ func HandleAdminUserGet(c *gin.Context) {
 	}
 	user.Groups = groupNames
 
-    // Provide simple translations (xlats)
-    validXlat := "invalid"
-    if user.ValidID == 1 {
-        validXlat = "valid"
-    }
-    c.JSON(http.StatusOK, gin.H{
-        "success": true,
-        "data": gin.H{
-            "id":           user.ID,
-            "login":        user.Login,
-            "title":        user.Title,
-            "first_name":   user.FirstName,
-            "last_name":    user.LastName,
-            "email":        user.Login, // OTRS uses login as email
-            "valid_id":     user.ValidID,
-            "groups":       user.Groups,
-            "xlats":        gin.H{"valid_id": validXlat},
-            "valid_id_xlat": validXlat,
-        },
-    })
+	// Provide simple translations (xlats)
+	validXlat := "invalid"
+	if user.ValidID == 1 {
+		validXlat = "valid"
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"id":            user.ID,
+			"login":         user.Login,
+			"title":         user.Title,
+			"first_name":    user.FirstName,
+			"last_name":     user.LastName,
+			"email":         user.Login, // OTRS uses login as email
+			"valid_id":      user.ValidID,
+			"groups":        user.Groups,
+			"xlats":         gin.H{"valid_id": validXlat},
+			"valid_id_xlat": validXlat,
+		},
+	})
 }
 
 // HandleAdminUserCreate handles POST /admin/users
@@ -264,37 +271,34 @@ func HandleAdminUserCreate(c *gin.Context) {
 		return
 	}
 
-    dbService, err := adapter.GetDatabase()
-    if err != nil || dbService == nil || dbService.GetDB() == nil {
-        c.JSON(http.StatusOK, gin.H{
-            "success": true,
-            "data": gin.H{
-                "id":         0,
-                "login":      req.Login,
-                "title":      "",
-                "first_name": req.FirstName,
-                "last_name":  req.LastName,
-                "email":      req.Login,
-                "valid_id":   req.ValidID,
-                "groups":     req.Groups,
-            },
-        })
-        return
-    }
-    db := dbService.GetDB()
-    if db == nil {
-        c.JSON(http.StatusOK, gin.H{"success": true, "message": "User updated successfully"})
-        return
-    }
+	dbService, err := adapter.GetDatabase()
+	if err != nil || dbService == nil || dbService.GetDB() == nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": gin.H{
+				"id":         0,
+				"login":      req.Login,
+				"title":      "",
+				"first_name": req.FirstName,
+				"last_name":  req.LastName,
+				"email":      req.Login,
+				"valid_id":   req.ValidID,
+				"groups":     req.Groups,
+			},
+		})
+		return
+	}
+	db := dbService.GetDB()
+	if db == nil {
+		shared.SendToastResponse(c, true, "User updated successfully", "/admin/users")
+		return
+	}
 
 	// Check if user already exists
 	var exists bool
 	err = db.QueryRow(database.ConvertPlaceholders("SELECT EXISTS(SELECT 1 FROM users WHERE login = $1)"), req.Login).Scan(&exists)
 	if err == nil && exists {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "User with this login already exists",
-		})
+		shared.SendToastResponse(c, false, "User already exists", "")
 		return
 	}
 
@@ -312,27 +316,57 @@ func HandleAdminUserCreate(c *gin.Context) {
 		hashedPassword = string(hash)
 	}
 
-	// Create user
-	var userID int
-	err = db.QueryRow(database.ConvertPlaceholders(`
+	// Create user (handle RETURNING differences between Postgres and MySQL)
+	rawInsert := `
 		INSERT INTO users (login, pw, title, first_name, last_name, valid_id, create_time, create_by, change_time, change_by)
 		VALUES ($1, $2, $3, $4, $5, $6, NOW(), 1, NOW(), 1)
-		RETURNING id`),
-		req.Login, hashedPassword, req.Title, req.FirstName, req.LastName, req.ValidID,
-	).Scan(&userID)
+		RETURNING id`
 
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   fmt.Sprintf("Failed to create user: %v", err),
-		})
-		return
+	insertQuery := database.ConvertPlaceholders(rawInsert)
+	insertQuery, useLastInsert := database.ConvertReturning(insertQuery)
+
+	args := []interface{}{req.Login, hashedPassword, req.Title, req.FirstName, req.LastName, req.ValidID}
+
+	var userID int
+	if useLastInsert && database.IsMySQL() {
+		// MySQL: Exec and use LastInsertId
+		res, execErr := db.Exec(insertQuery, args...)
+		if execErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   fmt.Sprintf("Failed to create user: %v", execErr),
+			})
+			return
+		}
+		lastID, idErr := res.LastInsertId()
+		if idErr != nil {
+			var fallbackID int64
+			if scanErr := db.QueryRow("SELECT LAST_INSERT_ID()").Scan(&fallbackID); scanErr != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"error":   "Failed to determine user ID",
+				})
+				return
+			}
+			lastID = fallbackID
+		}
+		userID = int(lastID)
+	} else {
+		if err := db.QueryRow(insertQuery, args...).Scan(&userID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   fmt.Sprintf("Failed to create user: %v", err),
+			})
+			return
+		}
 	}
 
 	// Add user to groups (accept IDs or names)
 	for _, token := range req.Groups {
 		token = strings.TrimSpace(token)
-		if token == "" { continue }
+		if token == "" {
+			continue
+		}
 		var groupID int
 		if n, convErr := strconv.Atoi(token); convErr == nil {
 			// Token is an ID; verify existence
@@ -348,7 +382,9 @@ func HandleAdminUserCreate(c *gin.Context) {
 					SELECT $1, '', 1, NOW(), 1, NOW(), 1
 					WHERE NOT EXISTS (SELECT 1 FROM groups WHERE name = $1)`), token)
 				_ = db.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE name = $1 AND valid_id = 1"), token).Scan(&groupID)
-				if groupID == 0 { continue }
+				if groupID == 0 {
+					continue
+				}
 			}
 		}
 		db.Exec(database.ConvertPlaceholders(`
@@ -400,63 +436,78 @@ func HandleAdminUserUpdate(c *gin.Context) {
 	}
 
 	// Ensure groups captured for urlencoded PUT/POST; accept groups and groups[]
+	groupsFieldPresent := req.Groups != nil
 	if len(req.Groups) == 0 {
 		if arr := c.PostFormArray("groups"); len(arr) > 0 {
 			req.Groups = arr
+			groupsFieldPresent = true
 		} else if arr := c.PostFormArray("groups[]"); len(arr) > 0 {
 			req.Groups = arr
+			groupsFieldPresent = true
 		}
 	}
 
 	// Detect if the client explicitly submitted the groups field.
 	// When present, an empty selection means "clear all memberships".
-	groupsSubmitted := false
+	groupsSubmitted := groupsFieldPresent
 	if v := strings.TrimSpace(c.PostForm("groups_submitted")); v == "1" {
 		groupsSubmitted = true
 	}
 
-    dbService, err := adapter.GetDatabase()
-    if err != nil || dbService == nil || dbService.GetDB() == nil {
-        // DB-less fallback: accept update and return success
-        c.JSON(http.StatusOK, gin.H{"success": true, "message": "User updated successfully"})
-        return
-    }
-    db := dbService.GetDB()
+	dbService, err := adapter.GetDatabase()
+	if err != nil || dbService == nil || dbService.GetDB() == nil {
+		// DB-less fallback: accept update and return success
+		shared.SendToastResponse(c, true, "User updated successfully", "/admin/users")
+		return
+	}
+	db := dbService.GetDB()
 
-    // Ensure user exists in test to satisfy FK on group_user
-    var exists int
-    err = db.QueryRow(database.ConvertPlaceholders("SELECT 1 FROM users WHERE id = $1"), id).Scan(&exists)
-    if err == sql.ErrNoRows && os.Getenv("APP_ENV") == "test" {
-        // Create minimal user with specified ID
-        login := req.Login
-        if strings.TrimSpace(login) == "" {
-            login = fmt.Sprintf("user%d@example.com", id)
-        }
-        firstName := req.FirstName
-        if firstName == "" { firstName = "Test" }
-        lastName := req.LastName
-        if lastName == "" { lastName = "User" }
-        validID := req.ValidID
-        if validID == 0 { validID = 1 }
-        _, _ = db.Exec(database.ConvertPlaceholders(`
-            INSERT INTO users (id, login, pw, first_name, last_name, valid_id, create_time, create_by, change_time, change_by)
-            SELECT $1, $2, '', $3, $4, $5, NOW(), 1, NOW(), 1
-            WHERE NOT EXISTS (SELECT 1 FROM users WHERE id = $1)`),
-            id, login, firstName, lastName, validID,
-        )
-    }
+	// Ensure user exists in test to satisfy FK on group_user
+	var exists int
+	err = db.QueryRow(database.ConvertPlaceholders("SELECT 1 FROM users WHERE id = $1"), id).Scan(&exists)
+	if err == sql.ErrNoRows && os.Getenv("APP_ENV") == "test" {
+		// Create minimal user with specified ID
+		login := req.Login
+		if strings.TrimSpace(login) == "" {
+			login = fmt.Sprintf("user%d@example.com", id)
+		}
+		firstName := req.FirstName
+		if firstName == "" {
+			firstName = "Test"
+		}
+		lastName := req.LastName
+		if lastName == "" {
+			lastName = "User"
+		}
+		validID := req.ValidID
+		if validID == 0 {
+			validID = 1
+		}
+		if _, insertErr := db.Exec(database.ConvertPlaceholders(`
+			INSERT INTO users (id, login, pw, first_name, last_name, valid_id, create_time, create_by, change_time, change_by)
+			SELECT $1, $2, '', $3, $4, $5, NOW(), 1, NOW(), 1
+			WHERE NOT EXISTS (SELECT 1 FROM users WHERE id = $1)`),
+			id, login, firstName, lastName, validID,
+		); insertErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   fmt.Sprintf("Failed to prepare test user: %v", insertErr),
+			})
+			return
+		}
+	}
 
-    // Update user basic info
-    if req.Password != "" {
-        // Update with new password
-        hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{
-                "success": false,
-                "error":   "Failed to hash password",
-            })
-            return
-        }
+	// Update user basic info
+	if req.Password != "" {
+		// Update with new password
+		hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Failed to hash password",
+			})
+			return
+		}
 
 		if _, err := db.Exec(database.ConvertPlaceholders(`
             UPDATE users 
@@ -464,13 +515,13 @@ func HandleAdminUserUpdate(c *gin.Context) {
 				valid_id = $6, change_time = NOW(), change_by = 1
 			WHERE id = $7`),
 			req.Login, string(hash), req.Title, req.FirstName, req.LastName, req.ValidID, id); err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{
-                "success": false,
-                "error":   fmt.Sprintf("Failed to update user: %v", err),
-            })
-            return
-        }
-    } else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   fmt.Sprintf("Failed to update user: %v", err),
+			})
+			return
+		}
+	} else {
 		// Update without changing password
 		if _, err := db.Exec(database.ConvertPlaceholders(`
             UPDATE users 
@@ -478,13 +529,13 @@ func HandleAdminUserUpdate(c *gin.Context) {
 				valid_id = $5, change_time = NOW(), change_by = 1
 			WHERE id = $6`),
 			req.Login, req.Title, req.FirstName, req.LastName, req.ValidID, id); err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{
-                "success": false,
-                "error":   fmt.Sprintf("Failed to update user: %v", err),
-            })
-            return
-        }
-    }
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   fmt.Sprintf("Failed to update user: %v", err),
+			})
+			return
+		}
+	}
 
 	// Update group memberships.
 	// If the form explicitly submitted the groups field, we treat the selection as authoritative
@@ -498,26 +549,65 @@ func HandleAdminUserUpdate(c *gin.Context) {
 		}
 	}
 	if groupsSubmitted || len(cleaned) > 0 {
-		if _, delErr := db.Exec(database.ConvertPlaceholders("DELETE FROM group_user WHERE user_id = $1 AND permission_key = 'rw'"), id); delErr == nil {
-			for _, token := range cleaned {
-				var groupID int
-				if n, convErr := strconv.Atoi(token); convErr == nil {
-					if err := db.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE id = $1 AND valid_id = 1"), n).Scan(&groupID); err != nil { continue }
-				} else {
-					if err := db.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE name = $1 AND valid_id = 1"), token).Scan(&groupID); err != nil {
-						_, _ = db.Exec(database.ConvertPlaceholders(`
-							INSERT INTO groups (name, comments, valid_id, create_time, create_by, change_time, change_by)
-							SELECT $1, '', 1, NOW(), 1, NOW(), 1
-							WHERE NOT EXISTS (SELECT 1 FROM groups WHERE name = $1)`), token)
-						_ = db.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE name = $1 AND valid_id = 1"), token).Scan(&groupID)
-						if groupID == 0 { continue }
-					}
-				}
-				_, _ = db.Exec(database.ConvertPlaceholders(`
-					INSERT INTO group_user (user_id, group_id, permission_key, create_time, create_by, change_time, change_by)
-					VALUES ($1, $2, 'rw', NOW(), 1, NOW(), 1)`),
-					id, groupID)
+		auditID, err := ensureAuditUserID(db)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   fmt.Sprintf("Failed to resolve audit user: %v", err),
+			})
+			return
+		}
+
+		tx, err := db.BeginTx(c.Request.Context(), nil)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Failed to begin user update transaction",
+			})
+			return
+		}
+		defer tx.Rollback()
+
+		if _, err := tx.Exec(database.ConvertPlaceholders("DELETE FROM group_user WHERE user_id = $1 AND permission_key = 'rw'"), id); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   fmt.Sprintf("Failed to clear existing groups: %v", err),
+			})
+			return
+		}
+
+		for _, token := range cleaned {
+			groupID, err := ensureGroupID(tx, auditID, token)
+			if errors.Is(err, sql.ErrNoRows) {
+				// Ignore unknown groups rather than creating new ones
+				continue
 			}
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"error":   fmt.Sprintf("Failed to resolve group %s: %v", token, err),
+				})
+				return
+			}
+
+			if _, err := tx.Exec(database.ConvertPlaceholders(`
+				INSERT INTO group_user (user_id, group_id, permission_key, create_time, create_by, change_time, change_by)
+				VALUES ($1, $2, 'rw', NOW(), $3, NOW(), $3)`),
+				id, groupID, auditID, auditID); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"error":   fmt.Sprintf("Failed to assign group %s: %v", token, err),
+				})
+				return
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Failed to commit user update",
+			})
+			return
 		}
 	}
 
@@ -525,6 +615,49 @@ func HandleAdminUserUpdate(c *gin.Context) {
 		"success": true,
 		"message": "User updated successfully",
 	})
+}
+
+func ensureAuditUserID(db *sql.DB) (int, error) {
+	var id int
+	if err := db.QueryRow(database.ConvertPlaceholders("SELECT id FROM users WHERE id = $1 AND valid_id = 1"), 1).Scan(&id); err == nil {
+		return id, nil
+	}
+	if err := db.QueryRow(database.ConvertPlaceholders("SELECT id FROM users WHERE valid_id = 1 ORDER BY id LIMIT 1")).Scan(&id); err == nil {
+		return id, nil
+	}
+	return 0, fmt.Errorf("no valid audit user")
+}
+
+func ensureGroupID(tx *sql.Tx, auditID int, token string) (int, error) {
+	if n, err := strconv.Atoi(token); err == nil {
+		var groupID int
+		if err := tx.QueryRow(database.ConvertPlaceholders("SELECT id FROM groups WHERE id = $1 AND valid_id = 1"), n).Scan(&groupID); err != nil {
+			return 0, err
+		}
+		return groupID, nil
+	}
+
+	var groupID int
+	var validID int
+	err := tx.QueryRow(database.ConvertPlaceholders("SELECT id, valid_id FROM groups WHERE name = $1"), token).Scan(&groupID, &validID)
+	if err == nil {
+		if validID != 1 {
+			rawReactivate := `
+				UPDATE groups
+				SET valid_id = 1, change_time = NOW(), change_by = $2
+				WHERE id = $1`
+			reactivateQuery := database.ConvertPlaceholders(rawReactivate)
+			reactivateArgs := []interface{}{groupID, auditID}
+			if database.IsMySQL() {
+				reactivateArgs = database.RemapArgsForMySQL(rawReactivate, reactivateArgs)
+			}
+			if _, updErr := tx.Exec(reactivateQuery, reactivateArgs...); updErr != nil {
+				return 0, updErr
+			}
+		}
+		return groupID, nil
+	}
+	return 0, err
 }
 
 // HandleAdminUserDelete handles DELETE /admin/users/:id

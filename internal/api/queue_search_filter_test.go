@@ -26,18 +26,18 @@ func TestQueueSearchInterface(t *testing.T) {
 				assert.Contains(t, body, `<input`)
 				assert.Contains(t, body, `name="search"`)
 				assert.Contains(t, body, `placeholder="Search queues..."`)
-				
+
 				// Should have search functionality with HTMX
 				assert.Contains(t, body, `hx-get="/queues"`)
 				assert.Contains(t, body, `hx-trigger="input changed delay:300ms"`)
 				assert.Contains(t, body, `hx-target="#queue-list-container"`)
-				
+
 				// Should have status filter dropdown
 				assert.Contains(t, body, `name="status"`)
 				assert.Contains(t, body, "All Statuses")
 				assert.Contains(t, body, "Active")
 				assert.Contains(t, body, "Inactive")
-				
+
 				// Should have clear search button
 				assert.Contains(t, body, "Clear")
 			},
@@ -78,7 +78,7 @@ func TestQueueSearchFunctionality(t *testing.T) {
 				// Should find Raw queue
 				assert.Contains(t, body, "Raw")
 				assert.Contains(t, body, "All new tickets are placed in this queue by default")
-				
+
 				// Should NOT find other queues
 				assert.NotContains(t, body, "Junk")
 				assert.NotContains(t, body, "Misc")
@@ -93,7 +93,7 @@ func TestQueueSearchFunctionality(t *testing.T) {
 				// Should find Junk queue (has "spam" in description)
 				assert.Contains(t, body, "Junk")
 				assert.Contains(t, body, "Spam and junk emails")
-				
+
 				// Should NOT find other queues
 				assert.NotContains(t, body, "Raw")
 				assert.NotContains(t, body, "Misc")
@@ -107,7 +107,7 @@ func TestQueueSearchFunctionality(t *testing.T) {
 				// Should show no results message
 				assert.Contains(t, body, "No queues found")
 				assert.Contains(t, body, "matching your search")
-				
+
 				// Should not show any queue names
 				assert.NotContains(t, body, "Raw")
 				assert.NotContains(t, body, "Junk")
@@ -174,7 +174,7 @@ func TestQueueStatusFiltering(t *testing.T) {
 				assert.Contains(t, body, "Junk")
 				assert.Contains(t, body, "Misc")
 				assert.Contains(t, body, "Support")
-				
+
 				// Should show active status badges
 				assert.Contains(t, body, "Active")
 			},
@@ -301,7 +301,7 @@ func TestQueueSearchClearFunctionality(t *testing.T) {
 				assert.Contains(t, body, "Junk")
 				assert.Contains(t, body, "Misc")
 				assert.Contains(t, body, "Support")
-				
+
 				// Should not show any search/filter indicators
 				assert.NotContains(t, body, "matching your search")
 				assert.NotContains(t, body, "No queues found")
@@ -343,10 +343,10 @@ func TestQueueSearchPersistence(t *testing.T) {
 			checkResponse: func(t *testing.T, body string) {
 				// Search input should be populated with current search
 				assert.Contains(t, body, `value="Raw"`)
-				
+
 				// Status dropdown should show selected status
 				assert.Contains(t, body, `value="active" selected`)
-				
+
 				// Should show search results
 				assert.Contains(t, body, "Raw")
 			},
@@ -359,7 +359,7 @@ func TestQueueSearchPersistence(t *testing.T) {
 				// When returning HTML fragment, should maintain search context
 				assert.Contains(t, body, "Junk")
 				assert.NotContains(t, body, "Raw")
-				
+
 				// Should show search is active
 				if strings.Contains(body, "input") {
 					assert.Contains(t, body, `value="Junk"`)

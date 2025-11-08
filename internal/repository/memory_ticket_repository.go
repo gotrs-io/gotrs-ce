@@ -31,7 +31,7 @@ func (r *MemoryTicketRepository) Create(ticket *models.Ticket) error {
 
 	// Convert to SimpleTicket for internal storage
 	simpleTicket := models.FromORTSTicket(ticket)
-	
+
 	// Generate ID and ticket number
 	simpleTicket.ID = r.nextID
 	simpleTicket.TicketNumber = fmt.Sprintf("TICKET-%06d", r.nextID)
@@ -141,10 +141,10 @@ func (r *MemoryTicketRepository) List(req *models.TicketListRequest) (*models.Ti
 	if perPage < 1 {
 		perPage = 20 // Default page size
 	}
-	
+
 	start := (page - 1) * perPage
 	end := start + perPage
-	
+
 	if start > len(allTickets) {
 		start = len(allTickets)
 	}
@@ -164,12 +164,11 @@ func (r *MemoryTicketRepository) List(req *models.TicketListRequest) (*models.Ti
 	}, nil
 }
 
-
 // containsIgnoreCase checks if a string contains another string (case-insensitive)
 func containsIgnoreCase(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && 
-		   (s == substr || len(s) > len(substr) && 
-		   (s[:len(substr)] == substr || containsIgnoreCase(s[1:], substr)))
+	return len(s) > 0 && len(substr) > 0 &&
+		(s == substr || len(s) > len(substr) &&
+			(s[:len(substr)] == substr || containsIgnoreCase(s[1:], substr)))
 }
 
 // GetByTicketNumber retrieves a ticket by its ticket number

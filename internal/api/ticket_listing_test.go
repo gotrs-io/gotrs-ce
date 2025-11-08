@@ -41,7 +41,7 @@ func TestTicketListSorting(t *testing.T) {
 				urgentPos := strings.Index(body, `class="priority-urgent"`)
 				highPos := strings.Index(body, `class="priority-high"`)
 				normalPos := strings.Index(body, `class="priority-normal"`)
-				
+
 				if urgentPos != -1 && highPos != -1 {
 					assert.True(t, urgentPos < highPos, "Urgent should appear before high")
 				}
@@ -58,7 +58,7 @@ func TestTicketListSorting(t *testing.T) {
 				// Open tickets should appear before closed
 				openPos := strings.Index(body, `class="status-open"`)
 				closedPos := strings.Index(body, `class="status-closed"`)
-				
+
 				if openPos != -1 && closedPos != -1 {
 					assert.True(t, openPos < closedPos, "Open should appear before closed")
 				}

@@ -17,6 +17,7 @@ var ticketEventClients = struct {
 }
 
 // handleTicketEvents provides Server-Sent Events for real-time ticket updates.
+//
 //nolint:unused
 func handleTicketEvents(c *gin.Context) {
 	// Set headers for SSE
@@ -24,15 +25,15 @@ func handleTicketEvents(c *gin.Context) {
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
 	c.Header("X-Accel-Buffering", "no")
-	
+
 	// Create a channel for this client
 	clientChan := make(chan string, 10)
-	
+
 	// Register the client
 	ticketEventClients.Lock()
 	ticketEventClients.clients[clientChan] = true
 	ticketEventClients.Unlock()
-	
+
 	// Remove client on disconnect
 	defer func() {
 		ticketEventClients.Lock()
@@ -40,15 +41,15 @@ func handleTicketEvents(c *gin.Context) {
 		ticketEventClients.Unlock()
 		close(clientChan)
 	}()
-	
+
 	// Send initial connection message
 	c.SSEvent("connected", "Connected to ticket event stream")
 	c.Writer.Flush()
-	
+
 	// Send heartbeat every 30 seconds to keep connection alive
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	// Keep connection alive and send events
 	for {
 		select {
@@ -68,16 +69,16 @@ func handleTicketEvents(c *gin.Context) {
 func BroadcastTicketUpdate(eventType string, ticketData interface{}) {
 	ticketEventClients.RLock()
 	defer ticketEventClients.RUnlock()
-	
+
 	// Create JSON message
 	data, _ := json.Marshal(map[string]interface{}{
-		"type": eventType,
-		"data": ticketData,
+		"type":      eventType,
+		"data":      ticketData,
 		"timestamp": time.Now().Unix(),
 	})
-	
+
 	message := string(data)
-	
+
 	// Send to all connected clients
 	for client := range ticketEventClients.clients {
 		select {

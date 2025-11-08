@@ -29,7 +29,7 @@ type InternalNoteRepository interface {
 
 	// Statistics
 	GetNoteStatistics(ctx context.Context, ticketID uint) (*models.NoteStatistics, error)
-	
+
 	// Categories
 	GetCategories(ctx context.Context) ([]models.NoteCategory, error)
 	CreateCategory(ctx context.Context, category *models.NoteCategory) error

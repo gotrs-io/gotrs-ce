@@ -59,6 +59,130 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+normalize_test_db_env() {
+    local requested_driver="${TEST_DB_DRIVER:-postgres}"
+    local driver_lower
+    driver_lower=$(printf '%s' "$requested_driver" | tr '[:upper:]' '[:lower:]')
+
+    local driver_family driver_value
+    case "$driver_lower" in
+        postgres|pgsql|pg)
+            driver_family="postgres"
+            driver_value="postgres"
+            ;;
+        mysql|mariadb)
+            driver_family="mysql"
+            driver_value="mysql"
+            ;;
+        *)
+            echo -e "${RED}Unsupported TEST_DB_DRIVER '$requested_driver'. Use 'postgres' or 'mysql'.${NC}" >&2
+            exit 1
+            ;;
+    esac
+
+    local default_name default_user default_password default_host default_port
+    if [ "$driver_family" = "postgres" ]; then
+        default_name="${TEST_DB_POSTGRES_NAME:-gotrs_test}"
+        default_user="${TEST_DB_POSTGRES_USER:-gotrs_user}"
+        default_password="${TEST_DB_POSTGRES_PASSWORD:-gotrs_password}"
+        default_host="${TEST_DB_POSTGRES_HOST:-postgres-test}"
+        if [ "$IN_CONTAINER" = true ]; then
+            default_port="${TEST_DB_POSTGRES_INTERNAL_PORT:-5432}"
+        else
+            default_port="${TEST_DB_POSTGRES_PORT:-5432}"
+        fi
+    else
+        default_name="${TEST_DB_MYSQL_NAME:-otrs_test}"
+        default_user="${TEST_DB_MYSQL_USER:-otrs}"
+        default_password="${TEST_DB_MYSQL_PASSWORD:-LetClaude.1n}"
+        default_host="${TEST_DB_MYSQL_HOST:-mariadb-test}"
+        if [ "$IN_CONTAINER" = true ]; then
+            default_port="${TEST_DB_MYSQL_INTERNAL_PORT:-3306}"
+        else
+            default_port="${TEST_DB_MYSQL_PORT:-3306}"
+        fi
+    fi
+
+    local name="${TEST_DB_NAME:-$default_name}"
+    if [[ "$name" != *_test ]]; then
+        echo -e "${YELLOW}TEST_DB_NAME '$name' does not end with '_test'; enforcing suffix${NC}"
+        name="${name}_test"
+    fi
+
+    local host="${TEST_DB_HOST:-$default_host}"
+    local port="${TEST_DB_PORT:-$default_port}"
+    local user="${TEST_DB_USER:-$default_user}"
+    local password="${TEST_DB_PASSWORD:-$default_password}"
+
+    export TEST_DB_DRIVER="$driver_value"
+    export TEST_DB_NAME="$name"
+    export TEST_DB_HOST="$host"
+    export TEST_DB_PORT="$port"
+    export TEST_DB_USER="$user"
+    export TEST_DB_PASSWORD="$password"
+    export APP_ENV="${APP_ENV:-test}"
+
+    export DB_DRIVER="$TEST_DB_DRIVER"
+    export DB_NAME="$TEST_DB_NAME"
+    export DB_HOST="$TEST_DB_HOST"
+    export DB_PORT="$TEST_DB_PORT"
+    export DB_USER="$TEST_DB_USER"
+    export DB_PASSWORD="$TEST_DB_PASSWORD"
+}
+
+verify_db_env_alignment() {
+    local key
+    for key in DRIVER HOST PORT NAME USER PASSWORD; do
+        local test_var="TEST_DB_${key}"
+        local prod_var="DB_${key}"
+        if [ "${!test_var}" != "${!prod_var}" ]; then
+            echo -e "${RED}Environment mismatch: ${prod_var}='${!prod_var}' differs from ${test_var}='${!test_var}'${NC}" >&2
+            echo -e "${RED}Tests must use the TEST_DB_* environment exclusively.${NC}" >&2
+            exit 1
+        fi
+    done
+}
+
+resolve_container_db_host() {
+    local driver="$1"
+    local host="$2"
+
+    if [[ "$driver" == "postgres" ]]; then
+        case "$host" in
+            localhost|127.0.0.1|::1|postgres)
+                echo "postgres-test"
+                ;;
+            postgres-test)
+                echo "postgres-test"
+                ;;
+            *)
+                echo "$host"
+                ;;
+        esac
+    else
+        case "$host" in
+            localhost|127.0.0.1|::1|mariadb)
+                echo "mariadb-test"
+                ;;
+            mariadb-test)
+                echo "mariadb-test"
+                ;;
+            *)
+                echo "$host"
+                ;;
+        esac
+    fi
+}
+
+resolve_container_db_port() {
+    local driver="$1"
+    if [[ "$driver" == "postgres" ]]; then
+        echo "5432"
+    else
+        echo "3306"
+    fi
+}
+
 echo "======================================"
 echo "    GOTRS Safe Test Runner            "
 echo "======================================"
@@ -102,6 +226,9 @@ else
     fi
 fi
 
+normalize_test_db_env
+verify_db_env_alignment
+
 # Safety Check 1: Environment Detection
 check_environment() {
     local env="${APP_ENV:-development}"
@@ -121,26 +248,21 @@ check_environment() {
 
 # Safety Check 2: Database Name Verification
 check_database_name() {
-    local db_name="${DB_NAME:-gotrs}"
-    
-    # Ensure we're using a test database
-    if [[ ! "$db_name" =~ _test$ ]] && [[ "$db_name" != "gotrs_test" ]]; then
-        echo -e "${YELLOW}Warning: Database name doesn't end with '_test'${NC}"
-        echo "Current DB_NAME: $db_name"
-        echo ""
-        echo "Switching to test database..."
-        export DB_NAME="${db_name}_test"
-        echo -e "${GREEN}✓ Now using DB_NAME=${DB_NAME}${NC}"
-    else
-        echo -e "${GREEN}✓ Using test database: $db_name${NC}"
+    local db_name="$TEST_DB_NAME"
+
+    if [[ "$db_name" != *_test ]]; then
+        echo -e "${RED}ERROR: TEST_DB_NAME '$db_name' is invalid. It must end with '_test'.${NC}" >&2
+        exit 1
     fi
+
+    echo -e "${GREEN}✓ Using test database: $db_name${NC}"
 }
 
 # Safety Check 3: Hostname Check (prevent remote DB access during tests)
 check_hostname() {
-    local db_host="${DB_HOST:-localhost}"
-    local db_driver="${DB_DRIVER:-postgres}"
-    
+    local db_host="$TEST_DB_HOST"
+    local db_driver="$TEST_DB_DRIVER"
+
     # Only allow localhost/postgres container for tests
     if [[ "$db_driver" == "postgres" ]]; then
         if [[ "$db_host" != "localhost" ]] && \
@@ -178,21 +300,30 @@ check_hostname() {
         fi
     fi
     
-    echo -e "${GREEN}✓ Database host check passed (DB_HOST=$db_host)${NC}"
+    echo -e "${GREEN}✓ Database host check passed (TEST_DB_HOST=$db_host)${NC}"
 }
 
 # Safety Check 4: Port Check (warn if using non-standard port)
 check_port() {
-    local db_driver="${DB_DRIVER:-postgres}"
-    local default_port="5432"
+    local db_driver="$TEST_DB_DRIVER"
+    local db_port="$TEST_DB_PORT"
+    local allowed_ports=""
 
-    if [[ "$db_driver" != "postgres" ]]; then
-        default_port="3306"
+    if [[ "$db_driver" == "postgres" ]]; then
+        allowed_ports="5432 ${TEST_DB_POSTGRES_PORT:-}"
+    else
+        allowed_ports="3306 ${TEST_DB_MYSQL_PORT:-}"
     fi
 
-    local db_port="${DB_PORT:-$default_port}"
+    local port_ok=false
+    for candidate in $allowed_ports; do
+        if [[ -n "$candidate" && "$db_port" == "$candidate" ]]; then
+            port_ok=true
+            break
+        fi
+    done
 
-    if [[ "$db_port" != "$default_port" ]]; then
+    if [[ "$port_ok" != true ]]; then
         echo -e "${YELLOW}Notice: Using non-standard ${db_driver} port: $db_port${NC}"
         if [[ "${DB_SAFE_ASSUME_YES:-0}" =~ ^(1|y|Y|true|TRUE)$ ]]; then
             echo "Auto-confirm enabled (DB_SAFE_ASSUME_YES). Continuing."
@@ -205,17 +336,19 @@ check_port() {
             fi
         fi
     else
-        echo -e "${GREEN}✓ Using standard ${db_driver} port: $db_port${NC}"
+        echo -e "${GREEN}✓ Using approved ${db_driver} port: $db_port${NC}"
     fi
 }
 
 # Safety Check 5: Create test database if needed
 ensure_test_database() {
-    local db_driver="${DB_DRIVER:-postgres}"
-    local db_name="${DB_NAME}"
-    local db_user="${DB_USER:-gotrs}"
-    local db_pass="${DB_PASSWORD:-gotrs_password}"
-    local db_host="${DB_HOST:-postgres}"
+    local db_driver="$TEST_DB_DRIVER"
+    local db_name="$TEST_DB_NAME"
+    local db_user="$TEST_DB_USER"
+    local db_pass="$TEST_DB_PASSWORD"
+    local db_host="$TEST_DB_HOST"
+    local connect_host
+    local connect_port
     
     echo ""
     echo "Ensuring test database exists..."
@@ -224,21 +357,24 @@ ensure_test_database() {
         echo -e "${GREEN}✓ MariaDB test database handled by container init (DB_NAME=$db_name)${NC}"
         return
     fi
+
+    connect_host=$(resolve_container_db_host "$db_driver" "$db_host")
+    connect_port=$(resolve_container_db_port "$db_driver")
     
     if [ "$IN_CONTAINER" = true ]; then
         # Running in container - can use psql directly
-        PGPASSWORD="$db_pass" psql -h "$db_host" -U "$db_user" -d postgres -tc \
+        PGPASSWORD="$db_pass" psql -h "$connect_host" -p "$connect_port" -U "$db_user" -d postgres -tc \
             "SELECT 1 FROM pg_database WHERE datname = '$db_name'" | grep -q 1 || \
-        PGPASSWORD="$db_pass" psql -h "$db_host" -U "$db_user" -d postgres -c \
+        PGPASSWORD="$db_pass" psql -h "$connect_host" -p "$connect_port" -U "$db_user" -d postgres -c \
             "CREATE DATABASE \"$db_name\"" && \
         echo -e "${GREEN}✓ Created test database: $db_name${NC}" || \
         echo -e "${GREEN}✓ Test database already exists: $db_name${NC}"
     else
         # Running on host - use docker compose exec to run psql in postgres container
         ensure_postgres_service
-        $COMPOSE_CMD $COMPOSE_TEST_FILES exec -e PGPASSWORD="$db_pass" postgres-test psql -U "$db_user" -d postgres -tc \
+        $COMPOSE_CMD $COMPOSE_TEST_FILES exec -e PGPASSWORD="$db_pass" postgres-test psql -p "$connect_port" -U "$db_user" -d postgres -tc \
             "SELECT 1 FROM pg_database WHERE datname = '$db_name'" | grep -q 1 || \
-        $COMPOSE_CMD $COMPOSE_TEST_FILES exec -e PGPASSWORD="$db_pass" postgres-test psql -U "$db_user" -d postgres -c \
+        $COMPOSE_CMD $COMPOSE_TEST_FILES exec -e PGPASSWORD="$db_pass" postgres-test psql -p "$connect_port" -U "$db_user" -d postgres -c \
             "CREATE DATABASE \"$db_name\"" && \
         echo -e "${GREEN}✓ Created test database: $db_name${NC}" || \
         echo -e "${GREEN}✓ Test database already exists: $db_name${NC}"
@@ -253,12 +389,12 @@ ensure_postgres_service() {
     fi
 
     echo -e "${YELLOW}Ensuring postgres-test container is running...${NC}"
-    APP_ENV=test DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" \
+    APP_ENV=test TEST_DB_DRIVER=postgres TEST_DB_NAME="$TEST_DB_NAME" TEST_DB_USER="$TEST_DB_USER" TEST_DB_PASSWORD="$TEST_DB_PASSWORD" TEST_DB_HOST="$TEST_DB_HOST" TEST_DB_PORT="$TEST_DB_PORT" \
         $COMPOSE_CMD $COMPOSE_TEST_FILES up -d postgres-test >/dev/null
 
     echo -n "Waiting for postgres-test to accept connections"
     for _ in {1..40}; do
-        if $COMPOSE_CMD $COMPOSE_TEST_FILES exec -T postgres-test pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1; then
+        if $COMPOSE_CMD $COMPOSE_TEST_FILES exec -T postgres-test pg_isready -U "$TEST_DB_USER" -d "$TEST_DB_NAME" >/dev/null 2>&1; then
             echo -e "\r${GREEN}✓ postgres-test is ready${NC}          "
             return
         fi
@@ -277,12 +413,12 @@ ensure_mariadb_service() {
     fi
 
     echo -e "${YELLOW}Ensuring mariadb-test container is running...${NC}"
-    APP_ENV=test DB_DRIVER=mysql \
+    APP_ENV=test TEST_DB_DRIVER=mysql TEST_DB_NAME="$TEST_DB_NAME" TEST_DB_USER="$TEST_DB_USER" TEST_DB_PASSWORD="$TEST_DB_PASSWORD" TEST_DB_HOST="$TEST_DB_HOST" TEST_DB_PORT="$TEST_DB_PORT" \
         $COMPOSE_CMD $COMPOSE_TEST_FILES up -d mariadb-test >/dev/null
 
     echo -n "Waiting for mariadb-test to accept connections"
     for _ in {1..60}; do
-        if $COMPOSE_CMD $COMPOSE_TEST_FILES exec -T mariadb-test mariadb-admin --ssl=0 ping -h 127.0.0.1 -P 3306 -u "$DB_USER" -p"$DB_PASSWORD" >/dev/null 2>&1; then
+    if $COMPOSE_CMD $COMPOSE_TEST_FILES exec -T mariadb-test mariadb-admin --ssl=0 ping -h 127.0.0.1 -P 3306 -u "$TEST_DB_USER" -p"$TEST_DB_PASSWORD" >/dev/null 2>&1; then
             echo -e "\r${GREEN}✓ mariadb-test is ready${NC}          "
             return
         fi
@@ -313,10 +449,14 @@ run_safety_checks() {
 
 # Clean test database (with confirmation)
 clean_test_database() {
-    local db_name="${DB_NAME}"
-    local db_user="${DB_USER:-gotrs}"
-    local db_pass="${DB_PASSWORD:-gotrs_password}"
-    local db_driver="${DB_DRIVER:-postgres}"
+    local db_name="$TEST_DB_NAME"
+    local db_user="$TEST_DB_USER"
+    local db_pass="$TEST_DB_PASSWORD"
+    local db_driver="$TEST_DB_DRIVER"
+    local db_host="$TEST_DB_HOST"
+    local db_port="$TEST_DB_PORT"
+    local connect_host
+    local connect_port
     
     if [[ ! "$db_name" =~ _test$ ]]; then
         echo -e "${RED}ERROR: Will not clean non-test database: $db_name${NC}"
@@ -337,12 +477,15 @@ clean_test_database() {
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         # Drop and recreate
         if [ "$IN_CONTAINER" = true ]; then
-            PGPASSWORD="$db_pass" psql -h "${DB_HOST:-postgres}" \
+            connect_host=$(resolve_container_db_host "$db_driver" "$db_host")
+            connect_port=$(resolve_container_db_port "$db_driver")
+            PGPASSWORD="$db_pass" psql -h "$connect_host" -p "$connect_port" \
                 -U "$db_user" -d postgres -c \
                 "DROP DATABASE IF EXISTS \"$db_name\"; CREATE DATABASE \"$db_name\";"
         else
-            $COMPOSE_CMD exec -e PGPASSWORD="$db_pass" postgres psql \
-                -U "$db_user" -d postgres -c \
+            connect_port=$(resolve_container_db_port "$db_driver")
+            $COMPOSE_CMD $COMPOSE_TEST_FILES exec -e PGPASSWORD="$db_pass" postgres-test psql \
+                -U "$db_user" -p "$connect_port" -d postgres -c \
                 "DROP DATABASE IF EXISTS \"$db_name\"; CREATE DATABASE \"$db_name\";"
         fi
         echo -e "${GREEN}✓ Test database cleaned${NC}"
@@ -361,29 +504,45 @@ run_tests() {
         go test -v -race -coverprofile=generated/coverage.out -covermode=atomic ./...
     else
         mkdir -p generated
-        if [[ "${DB_DRIVER:-postgres}" == "postgres" ]]; then
+        if [[ "$TEST_DB_DRIVER" == "postgres" ]]; then
             ensure_postgres_service
         else
             ensure_mariadb_service
         fi
+        local toolbox_host
+        local toolbox_port
+        toolbox_host=$(resolve_container_db_host "$TEST_DB_DRIVER" "$TEST_DB_HOST")
+        toolbox_port=$(resolve_container_db_port "$TEST_DB_DRIVER")
         local test_command='mkdir -p generated && go test -v -race -coverprofile=generated/coverage.out -covermode=atomic ./...'
         if echo "$COMPOSE_CMD" | grep -q "podman-compose"; then
             COMPOSE_PROFILES=toolbox $COMPOSE_CMD $COMPOSE_TEST_FILES run --rm \
                 -e APP_ENV="$APP_ENV" \
+                -e TEST_DB_NAME="$TEST_DB_NAME" \
+                -e TEST_DB_HOST="$toolbox_host" \
+                -e TEST_DB_DRIVER="$TEST_DB_DRIVER" \
+                -e TEST_DB_PORT="$toolbox_port" \
+                -e TEST_DB_USER="$TEST_DB_USER" \
+                -e TEST_DB_PASSWORD="$TEST_DB_PASSWORD" \
                 -e DB_NAME="$DB_NAME" \
-                -e DB_HOST="$DB_HOST" \
+                -e DB_HOST="$toolbox_host" \
                 -e DB_DRIVER="$DB_DRIVER" \
-                -e DB_PORT="$DB_PORT" \
+                -e DB_PORT="$toolbox_port" \
                 -e DB_USER="$DB_USER" \
                 -e DB_PASSWORD="$DB_PASSWORD" \
                 toolbox bash -c "$test_command"
         else
             $COMPOSE_CMD $COMPOSE_TEST_FILES --profile toolbox run --rm \
                 -e APP_ENV="$APP_ENV" \
+                -e TEST_DB_NAME="$TEST_DB_NAME" \
+                -e TEST_DB_HOST="$toolbox_host" \
+                -e TEST_DB_DRIVER="$TEST_DB_DRIVER" \
+                -e TEST_DB_PORT="$toolbox_port" \
+                -e TEST_DB_USER="$TEST_DB_USER" \
+                -e TEST_DB_PASSWORD="$TEST_DB_PASSWORD" \
                 -e DB_NAME="$DB_NAME" \
-                -e DB_HOST="$DB_HOST" \
+                -e DB_HOST="$toolbox_host" \
                 -e DB_DRIVER="$DB_DRIVER" \
-                -e DB_PORT="$DB_PORT" \
+                -e DB_PORT="$toolbox_port" \
                 -e DB_USER="$DB_USER" \
                 -e DB_PASSWORD="$DB_PASSWORD" \
                 toolbox bash -c "$test_command"
@@ -420,7 +579,7 @@ main() {
 
         up)
             run_safety_checks
-            if [[ "${DB_DRIVER:-postgres}" == "postgres" ]]; then
+            if [[ "$TEST_DB_DRIVER" == "postgres" ]]; then
                 ensure_postgres_service
             else
                 ensure_mariadb_service
@@ -431,7 +590,7 @@ main() {
             if [ "$IN_CONTAINER" = true ]; then
                 echo -e "${YELLOW}Skipping test database shutdown inside container${NC}"
             else
-                if [[ "${DB_DRIVER:-postgres}" == "postgres" ]]; then
+                if [[ "$TEST_DB_DRIVER" == "postgres" ]]; then
                     $COMPOSE_CMD $COMPOSE_TEST_FILES stop postgres-test >/dev/null 2>&1 || true
                     $COMPOSE_CMD $COMPOSE_TEST_FILES rm -f postgres-test >/dev/null 2>&1 || true
                     echo -e "${GREEN}✓ postgres-test container stopped${NC}"
@@ -455,47 +614,21 @@ main() {
     esac
 }
 
-# Export test environment variables
-export APP_ENV="${APP_ENV:-test}"
-export DB_DRIVER="${DB_DRIVER:-mysql}"
-
-if [ -z "${DB_NAME:-}" ] || [[ ! "${DB_NAME}" =~ _test$ ]]; then
-    default_db_name="gotrs_test"
-    if [[ "${DB_DRIVER}" != "postgres" ]]; then
-        default_db_name="otrs_test"
-    fi
-    DB_NAME="$default_db_name"
-fi
-export DB_NAME
-export TEST_DB_NAME="$DB_NAME"
-
-if [[ "${DB_DRIVER}" == "postgres" ]]; then
-    DB_HOST="${TEST_DB_POSTGRES_HOST:-postgres-test}"
-    DB_USER="${TEST_DB_POSTGRES_USER:-gotrs_user}"
-    DB_PASSWORD="${TEST_DB_POSTGRES_PASSWORD:-gotrs_password}"
-    DB_PORT="${TEST_DB_POSTGRES_PORT:-5433}"
-else
-    DB_HOST="${TEST_DB_MYSQL_HOST:-mariadb-test}"
-    DB_USER="${TEST_DB_MYSQL_USER:-otrs}"
-    DB_PASSWORD="${TEST_DB_MYSQL_PASSWORD:-CHANGEME}"
-    DB_PORT="${TEST_DB_MYSQL_PORT:-3308}"
-fi
-
-export DB_HOST
-export DB_USER
-export DB_PASSWORD
-export DB_PORT
-export TEST_DB_USER="$DB_USER"
-export TEST_DB_PASSWORD="$DB_PASSWORD"
-
 # Show current configuration
 echo "Current test configuration:"
 echo "  APP_ENV: $APP_ENV"
+echo "  TEST_DB_DRIVER: $TEST_DB_DRIVER"
+echo "  TEST_DB_NAME: $TEST_DB_NAME"
+echo "  TEST_DB_HOST: $TEST_DB_HOST"
+echo "  TEST_DB_PORT: $TEST_DB_PORT"
+echo "  TEST_DB_USER: $TEST_DB_USER"
+
+# Legacy variables retained for compatibility; ensure they mirror TEST_DB_*
+echo "  DB_DRIVER: $DB_DRIVER"
 echo "  DB_NAME: $DB_NAME"
 echo "  DB_HOST: $DB_HOST"
 echo "  DB_PORT: $DB_PORT"
 echo "  DB_USER: $DB_USER"
-echo "  DB_DRIVER: ${DB_DRIVER}"
 
 # Run main function
 main "$@"

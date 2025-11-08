@@ -10,8 +10,8 @@ import (
 
 // RoleRepository provides an in-memory implementation of the RoleRepository interface
 type RoleRepository struct {
-	roles  map[string]*models.Role
-	mu     sync.RWMutex
+	roles map[string]*models.Role
+	mu    sync.RWMutex
 }
 
 // NewRoleRepository creates a new in-memory role repository
@@ -19,7 +19,7 @@ func NewRoleRepository() *RoleRepository {
 	repo := &RoleRepository{
 		roles: make(map[string]*models.Role),
 	}
-	
+
 	// Add default roles
 	repo.roles["admin"] = &models.Role{
 		ID:          "admin",
@@ -29,7 +29,7 @@ func NewRoleRepository() *RoleRepository {
 		IsSystem:    true,
 		IsActive:    true,
 	}
-	
+
 	repo.roles["agent"] = &models.Role{
 		ID:          "agent",
 		Name:        "agent",
@@ -38,7 +38,7 @@ func NewRoleRepository() *RoleRepository {
 		IsSystem:    true,
 		IsActive:    true,
 	}
-	
+
 	repo.roles["user"] = &models.Role{
 		ID:          "user",
 		Name:        "user",
@@ -47,7 +47,7 @@ func NewRoleRepository() *RoleRepository {
 		IsSystem:    true,
 		IsActive:    true,
 	}
-	
+
 	return repo
 }
 

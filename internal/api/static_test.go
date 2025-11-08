@@ -55,8 +55,8 @@ func TestStaticFiles(t *testing.T) {
 				return
 			}
 
-			assert.Equal(t, tt.expectedStatus, w.Code, 
-				"Path %s should return %d, got %d", 
+			assert.Equal(t, tt.expectedStatus, w.Code,
+				"Path %s should return %d, got %d",
 				tt.path, tt.expectedStatus, w.Code)
 		})
 	}

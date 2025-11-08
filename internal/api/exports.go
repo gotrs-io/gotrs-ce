@@ -56,7 +56,7 @@ var (
 	HandleAdminCustomerCompanies = func(c *gin.Context) {
 		dbService, err := adapter.GetDatabase()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			handleAdminCustomerCompanies(nil)(c)
 			return
 		}
 		handleAdminCustomerCompanies(dbService.GetDB())(c)
@@ -92,6 +92,78 @@ var (
 			return
 		}
 		handleAdminCustomerPortalSettings(dbService.GetDB())(c)
+	}
+	HandleAdminNewCustomerCompany = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminNewCustomerCompany(dbService.GetDB())(c)
+	}
+	HandleAdminCreateCustomerCompany = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminCreateCustomerCompany(dbService.GetDB())(c)
+	}
+	HandleAdminEditCustomerCompany = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminEditCustomerCompany(dbService.GetDB())(c)
+	}
+	HandleAdminUpdateCustomerCompany = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminUpdateCustomerCompany(dbService.GetDB())(c)
+	}
+	HandleAdminDeleteCustomerCompany = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminDeleteCustomerCompany(dbService.GetDB())(c)
+	}
+	HandleAdminUpdateCustomerCompanyServices = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminUpdateCustomerCompanyServices(dbService.GetDB())(c)
+	}
+	HandleAdminUpdateCustomerPortalSettings = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminUpdateCustomerPortalSettings(dbService.GetDB())(c)
+	}
+	HandleAdminActivateCustomerCompany = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminActivateCustomerCompany(dbService.GetDB())(c)
+	}
+	HandleAdminUploadCustomerPortalLogo = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminUploadCustomerPortalLogo(dbService.GetDB())(c)
 	}
 )
 

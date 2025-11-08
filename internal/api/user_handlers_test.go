@@ -17,112 +17,124 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type testCase struct {
+	name           string
+	buildForm      func() (url.Values, string)
+	expectedStatus int
+	checkFunc      func(t *testing.T, login string)
+}
+
 func TestCreateUserWithGroups(t *testing.T) {
 	// Setup
 	gin.SetMode(gin.TestMode)
-	
+
 	// Initialize database connection
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        t.Skip("Database not available, skipping integration test")
-    }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		t.Skip("Database not available, skipping integration test")
+	}
 
 	// Create a test router
 	router := gin.New()
 	// Use existing admin create handler that accepts form data
 	router.POST("/admin/users", HandleAdminUsersCreate)
 
-	tests := []struct {
-		name           string
-		formData       url.Values
-		expectedStatus int
-		checkFunc      func(t *testing.T)
-	}{
+	tests := []testCase{
 		{
 			name: "Create user without groups",
-			formData: url.Values{
-				"login":      {"testuser1"},
-				"password":   {"Test123!"},
-				"first_name": {"Test"},
-				"last_name":  {"User"},
-				"title":      {"Mr."},
-				"valid_id":   {"1"},
+			buildForm: func() (url.Values, string) {
+				login := generateUniqueLogin("testuser1")
+				form := url.Values{
+					"login":      {login},
+					"password":   {"Test123!"},
+					"first_name": {"Test"},
+					"last_name":  {"User"},
+					"title":      {"Mr."},
+					"valid_id":   {"1"},
+				}
+				return form, login
 			},
 			expectedStatus: http.StatusOK,
-			checkFunc: func(t *testing.T) {
-				// Check user was created
+			checkFunc: func(t *testing.T, login string) {
 				userRepo := repository.NewUserRepository(db)
-				user, err := userRepo.GetByLogin("testuser1")
-				assert.NoError(t, err)
-				assert.NotNil(t, user)
+				user, err := userRepo.GetByLogin(login)
+				require.NoError(t, err)
+				require.NotNil(t, user)
 				assert.Equal(t, "Test", user.FirstName)
 				assert.Equal(t, "User", user.LastName)
 			},
 		},
 		{
 			name: "Create user with single group",
-			formData: url.Values{
-				"login":      {"testuser2"},
-				"password":   {"Test123!"},
-				"first_name": {"Test2"},
-				"last_name":  {"User2"},
-				"title":      {"Ms."},
-				"valid_id":   {"1"},
-				"groups":     {"1"}, // Assuming group ID 1 exists (admin group)
+			buildForm: func() (url.Values, string) {
+				login := generateUniqueLogin("testuser2")
+				form := url.Values{
+					"login":      {login},
+					"password":   {"Test123!"},
+					"first_name": {"Test2"},
+					"last_name":  {"User2"},
+					"title":      {"Ms."},
+					"valid_id":   {"1"},
+					"groups":     {"1"}, // Assuming group ID 1 exists (admin group)
+				}
+				return form, login
 			},
 			expectedStatus: http.StatusOK,
-			checkFunc: func(t *testing.T) {
-				// Check user was created
+			checkFunc: func(t *testing.T, login string) {
 				userRepo := repository.NewUserRepository(db)
-				user, err := userRepo.GetByLogin("testuser2")
-				assert.NoError(t, err)
-				assert.NotNil(t, user)
-				
-				// Check group assignment
+				user, err := userRepo.GetByLogin(login)
+				require.NoError(t, err)
+				require.NotNil(t, user)
+
 				groupRepo := repository.NewGroupRepository(db)
 				groups, err := groupRepo.GetUserGroups(user.ID)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.NotEmpty(t, groups)
 			},
 		},
 		{
 			name: "Create user with multiple groups",
-			formData: url.Values{
-				"login":      {"testuser3"},
-				"password":   {"Test123!"},
-				"first_name": {"Test3"},
-				"last_name":  {"User3"},
-				"title":      {"Dr."},
-				"valid_id":   {"1"},
-				"groups":     {"1", "2"}, // Multiple groups
+			buildForm: func() (url.Values, string) {
+				login := generateUniqueLogin("testuser3")
+				form := url.Values{
+					"login":      {login},
+					"password":   {"Test123!"},
+					"first_name": {"Test3"},
+					"last_name":  {"User3"},
+					"title":      {"Dr."},
+					"valid_id":   {"1"},
+					"groups":     {"1", "2"}, // Multiple groups
+				}
+				return form, login
 			},
 			expectedStatus: http.StatusOK,
-			checkFunc: func(t *testing.T) {
-				// Check user was created
+			checkFunc: func(t *testing.T, login string) {
 				userRepo := repository.NewUserRepository(db)
-				user, err := userRepo.GetByLogin("testuser3")
-				assert.NoError(t, err)
-				assert.NotNil(t, user)
-				
-				// Check group assignments
+				user, err := userRepo.GetByLogin(login)
+				require.NoError(t, err)
+				require.NotNil(t, user)
+
 				groupRepo := repository.NewGroupRepository(db)
 				groups, err := groupRepo.GetUserGroups(user.ID)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.GreaterOrEqual(t, len(groups), 2)
 			},
 		},
 		{
 			name: "Create user with missing required fields",
-			formData: url.Values{
-				"login":    {""},
-				"password": {"Test123!"},
-				"title":    {"Mr."},
+			buildForm: func() (url.Values, string) {
+				form := url.Values{
+					"login":    {""},
+					"password": {"Test123!"},
+					"title":    {"Mr."},
+				}
+				return form, ""
 			},
 			expectedStatus: http.StatusBadRequest,
-			checkFunc: func(t *testing.T) {
-				// User should not be created
+			checkFunc: func(t *testing.T, login string) {
 				userRepo := repository.NewUserRepository(db)
-				user, _ := userRepo.GetByLogin("")
+				user, err := userRepo.GetByLogin(login)
+				assert.Error(t, err)
 				assert.Nil(t, user)
 			},
 		},
@@ -130,8 +142,10 @@ func TestCreateUserWithGroups(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			formData, login := tt.buildForm()
+
 			// Create request
-			req, err := http.NewRequest("POST", "/admin/users", strings.NewReader(tt.formData.Encode()))
+			req, err := http.NewRequest("POST", "/admin/users", strings.NewReader(formData.Encode()))
 			require.NoError(t, err)
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
@@ -146,26 +160,29 @@ func TestCreateUserWithGroups(t *testing.T) {
 
 			// Run custom checks
 			if tt.checkFunc != nil {
-				tt.checkFunc(t)
+				tt.checkFunc(t, login)
 			}
 
-			// Cleanup - remove test users
-			if strings.HasPrefix(tt.formData.Get("login"), "testuser") {
-				db.Exec("DELETE FROM user_groups WHERE user_id IN (SELECT id FROM users WHERE login LIKE 'testuser%')")
-				db.Exec("DELETE FROM users WHERE login LIKE 'testuser%'")
+			if strings.HasPrefix(login, "testuser") {
+				db.Exec(database.ConvertPlaceholders("DELETE FROM group_user WHERE user_id IN (SELECT id FROM users WHERE login = $1)"), login)
+				db.Exec(database.ConvertPlaceholders("DELETE FROM users WHERE login = $1"), login)
 			}
 		})
 	}
 }
 
+func generateUniqueLogin(base string) string {
+	return base + "_" + time.Now().Format("20060102150405.000000000")
+}
+
 func TestUpdateUserGroups(t *testing.T) {
 	// Setup
 	gin.SetMode(gin.TestMode)
-	
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        t.Skip("Database not available, skipping integration test")
-    }
+
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		t.Skip("Database not available, skipping integration test")
+	}
 
 	// Create a test user first
 	userRepo := repository.NewUserRepository(db)
@@ -174,24 +191,24 @@ func TestUpdateUserGroups(t *testing.T) {
 
 	// Test adding groups to existing user
 	groupRepo := repository.NewGroupRepository(db)
-	
+
 	// Add user to group 1
 	err = groupRepo.AddUserToGroup(testUser.ID, 1)
 	assert.NoError(t, err)
-	
+
 	// Check user is in group
 	groups, err := groupRepo.GetUserGroups(testUser.ID)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, groups)
-	
+
 	// Try adding to same group again (should not error)
 	err = groupRepo.AddUserToGroup(testUser.ID, 1)
 	assert.NoError(t, err)
-	
+
 	// Remove user from group
 	err = groupRepo.RemoveUserFromGroup(testUser.ID, 1)
 	assert.NoError(t, err)
-	
+
 	// Check user is not in group
 	groups, err = groupRepo.GetUserGroups(testUser.ID)
 	assert.NoError(t, err)
@@ -216,6 +233,6 @@ func createTestUser(t *testing.T, repo *repository.UserRepository) *models.User 
 }
 
 func cleanupTestUser(t *testing.T, db *sql.DB, userID uint) {
-	db.Exec("DELETE FROM user_groups WHERE user_id = $1", userID)
-	db.Exec("DELETE FROM users WHERE id = $1", userID)
+	db.Exec(database.ConvertPlaceholders("DELETE FROM group_user WHERE user_id = $1"), userID)
+	db.Exec(database.ConvertPlaceholders("DELETE FROM users WHERE id = $1"), userID)
 }

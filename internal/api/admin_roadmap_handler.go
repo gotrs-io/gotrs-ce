@@ -15,10 +15,10 @@ func handleAdminRoadmap(c *gin.Context) {
 	if err != nil {
 		// If file doesn't exist, show error
 		pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/roadmap.pongo2", pongo2.Context{
-			"Title":       "Development Roadmap",
-			"Error":       "Unable to load roadmap file: " + err.Error(),
-			"User":        getUserMapForTemplate(c),
-			"ActivePage":  "admin",
+			"Title":      "Development Roadmap",
+			"Error":      "Unable to load roadmap file: " + err.Error(),
+			"User":       getUserMapForTemplate(c),
+			"ActivePage": "admin",
 		})
 		return
 	}

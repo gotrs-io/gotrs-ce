@@ -54,9 +54,9 @@ func TestCreateCannedResponse(t *testing.T) {
 2. Click "Forgot Password"
 3. Enter your email: {{customer_email}}
 4. Check your email for reset instructions`,
-				"tags":        []string{"password", "account", "instructions"},
-				"scope":       "team",
-				"team_id":     1,
+				"tags":         []string{"password", "account", "instructions"},
+				"scope":        "team",
+				"team_id":      1,
 				"placeholders": []string{"login_url", "customer_email"},
 			},
 			wantStatus: http.StatusCreated,
@@ -85,11 +85,11 @@ func TestCreateCannedResponse(t *testing.T) {
 		{
 			name: "Create with rich text content",
 			payload: map[string]interface{}{
-				"name":        "Welcome Message",
-				"category":    "Onboarding",
-				"content":     "<h3>Welcome!</h3><p>We're glad to have you as a customer.</p><ul><li>Check our <a href='{{kb_url}}'>knowledge base</a></li><li>Contact support at {{support_email}}</li></ul>",
+				"name":         "Welcome Message",
+				"category":     "Onboarding",
+				"content":      "<h3>Welcome!</h3><p>We're glad to have you as a customer.</p><ul><li>Check our <a href='{{kb_url}}'>knowledge base</a></li><li>Contact support at {{support_email}}</li></ul>",
 				"content_type": "html",
-				"scope":       "personal",
+				"scope":        "personal",
 			},
 			wantStatus: http.StatusCreated,
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
@@ -441,13 +441,13 @@ func TestUseCannedResponse(t *testing.T) {
 
 	// Ensure test data exists
 	cannedResponses[1] = &CannedResponse{
-		ID:         1,
-		Name:       "Thank You",
-		Category:   "General",
-		Content:    "Thank you for contacting support. We'll review your request and respond shortly.",
+		ID:          1,
+		Name:        "Thank You",
+		Category:    "General",
+		Content:     "Thank you for contacting support. We'll review your request and respond shortly.",
 		ContentType: "text",
-		Scope:      "personal",
-		OwnerID:    1,
+		Scope:       "personal",
+		OwnerID:     1,
 	}
 	cannedResponses[2] = &CannedResponse{
 		ID:           2,
@@ -616,7 +616,7 @@ func TestCannedResponseSharing(t *testing.T) {
 	t.Run("Share personal response with team", func(t *testing.T) {
 		// Reset mock data state before each test
 		resetCannedResponsesTestData()
-		
+
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
 			c.Set("user_id", 1)
@@ -646,7 +646,7 @@ func TestCannedResponseSharing(t *testing.T) {
 	t.Run("Copy shared response to personal", func(t *testing.T) {
 		// Reset mock data state before each test
 		resetCannedResponsesTestData()
-		
+
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
 			c.Set("user_id", 1)
@@ -731,17 +731,17 @@ func TestCannedResponseImportExport(t *testing.T) {
 func resetCannedResponsesTestData() {
 	cannedResponses = map[int]*CannedResponse{
 		1: {
-			ID:         1,
-			Name:       "Thank You",
-			Category:   "General",
-			Content:    "Thank you for contacting support. We'll review your request and respond shortly.",
+			ID:          1,
+			Name:        "Thank You",
+			Category:    "General",
+			Content:     "Thank you for contacting support. We'll review your request and respond shortly.",
 			ContentType: "text",
-			Tags:       []string{"greeting", "acknowledgment"},
-			Scope:      "personal",
-			OwnerID:    1,
-			UsageCount: 5,
-			CreatedAt:  time.Now().Add(-30 * 24 * time.Hour),
-			UpdatedAt:  time.Now().Add(-30 * 24 * time.Hour),
+			Tags:        []string{"greeting", "acknowledgment"},
+			Scope:       "personal",
+			OwnerID:     1,
+			UsageCount:  5,
+			CreatedAt:   time.Now().Add(-30 * 24 * time.Hour),
+			UpdatedAt:   time.Now().Add(-30 * 24 * time.Hour),
 		},
 		2: {
 			ID:           2,
@@ -759,27 +759,27 @@ func resetCannedResponsesTestData() {
 			UpdatedAt:    time.Now().Add(-20 * 24 * time.Hour),
 		},
 		3: {
-			ID:         3,
-			Name:       "Another User Response",
-			Category:   "General",
-			Content:    "This belongs to another user",
+			ID:          3,
+			Name:        "Another User Response",
+			Category:    "General",
+			Content:     "This belongs to another user",
 			ContentType: "text",
-			Scope:      "personal",
-			OwnerID:    2, // Different user
-			CreatedAt:  time.Now().Add(-10 * 24 * time.Hour),
-			UpdatedAt:  time.Now().Add(-10 * 24 * time.Hour),
+			Scope:       "personal",
+			OwnerID:     2, // Different user
+			CreatedAt:   time.Now().Add(-10 * 24 * time.Hour),
+			UpdatedAt:   time.Now().Add(-10 * 24 * time.Hour),
 		},
 		4: {
-			ID:         4,
-			Name:       "Service Maintenance",
-			Category:   "System",
-			Content:    "We are currently performing scheduled maintenance.",
+			ID:          4,
+			Name:        "Service Maintenance",
+			Category:    "System",
+			Content:     "We are currently performing scheduled maintenance.",
 			ContentType: "text",
-			Scope:      "global",
-			OwnerID:    1,
-			UsageCount: 20,
-			CreatedAt:  time.Now().Add(-15 * 24 * time.Hour),
-			UpdatedAt:  time.Now().Add(-15 * 24 * time.Hour),
+			Scope:       "global",
+			OwnerID:     1,
+			UsageCount:  20,
+			CreatedAt:   time.Now().Add(-15 * 24 * time.Hour),
+			UpdatedAt:   time.Now().Add(-15 * 24 * time.Hour),
 		},
 	}
 

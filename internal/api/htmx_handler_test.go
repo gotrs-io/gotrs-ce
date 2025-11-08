@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
+	"github.com/stretchr/testify/assert"
 )
 
 // MockHTMXService for testing
@@ -151,11 +151,11 @@ func TestHTMXTicketListHandler(t *testing.T) {
 				m.GetTicketsFunc = func(userID uint, filters map[string]interface{}) ([]*models.Ticket, error) {
 					tickets := []*models.Ticket{
 						{
-							ID:                 1,
-							TicketNumber:       "TICKET-001",
-							Title:              "Test Ticket",
-							TicketStateID:      2, // open
-							TicketPriorityID:   3,
+							ID:               1,
+							TicketNumber:     "TICKET-001",
+							Title:            "Test Ticket",
+							TicketStateID:    2, // open
+							TicketPriorityID: 3,
 						},
 					}
 					return tickets, nil
@@ -180,7 +180,7 @@ func TestHTMXTicketListHandler(t *testing.T) {
 			router.GET("/api/tickets", func(c *gin.Context) {
 				// In real implementation, would get user from context
 				userID := uint(1)
-				
+
 				filters := make(map[string]interface{})
 				if status := c.Query("status"); status != "" {
 					filters["status"] = status
@@ -231,7 +231,7 @@ func TestSSEEndpoint(t *testing.T) {
 		c.Header("Content-Type", "text/event-stream")
 		c.Header("Cache-Control", "no-cache")
 		c.Header("Connection", "keep-alive")
-		
+
 		// Send a test event
 		c.SSEvent("ticket-update", gin.H{
 			"ticketId": 1,

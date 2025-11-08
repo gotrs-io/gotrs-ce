@@ -22,6 +22,7 @@ import (
 func TestHandleAgentTicketNotePendingReminderPersistsPendingUntil(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	t.Setenv("DB_DRIVER", "postgres")
+	t.Setenv("TEST_DB_DRIVER", "postgres")
 
 	_, filename, _, _ := runtime.Caller(0)
 	baseDir := filepath.Dir(filename)
@@ -111,7 +112,7 @@ func TestHandleAgentTicketNotePendingReminderPersistsPendingUntil(t *testing.T) 
 		1,
 	)
 
-	ticketSnapshotQuery := fmt.Sprintf(`SELECT
+	ticketSnapshotQuery := database.ConvertPlaceholders(fmt.Sprintf(`SELECT
 		t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, %s AS type_id,
 		t.service_id, t.sla_id, t.user_id, t.responsible_user_id,
 		t.customer_id, t.customer_user_id, t.ticket_state_id,
@@ -120,7 +121,7 @@ func TestHandleAgentTicketNotePendingReminderPersistsPendingUntil(t *testing.T) 
 		t.escalation_solution_time, t.archive_flag,
 		t.create_time, t.create_by, t.change_time, t.change_by
 	FROM ticket t
-	WHERE t.id = $1`, database.QualifiedTicketTypeColumn("t"))
+	WHERE t.id = $1`, database.QualifiedTicketTypeColumn("t")))
 
 	mock.ExpectQuery(regexp.QuoteMeta(ticketSnapshotQuery)).
 		WithArgs(uint(123)).
@@ -128,30 +129,41 @@ func TestHandleAgentTicketNotePendingReminderPersistsPendingUntil(t *testing.T) 
 
 	stateRows := sqlmock.NewRows([]string{"id", "name", "type_id", "comments", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
 		AddRow(4, "pending reminder", 4, "", 1, time.Now(), 1, time.Now(), 1)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, type_id, comments, valid_id,
+	stateQuery := database.ConvertPlaceholders(`SELECT id, name, type_id, comments, valid_id,
 	       create_time, create_by, change_time, change_by
 	FROM ticket_state
-	WHERE id = $1`)).
+	WHERE id = $1`)
+
+	mock.ExpectQuery(regexp.QuoteMeta(stateQuery)).
 		WithArgs(uint(4)).
 		WillReturnRows(stateRows)
 
+	repoStateQuery := database.ConvertPlaceholders(`SELECT id, name, type_id, valid_id,
+	       create_time, create_by, change_time, change_by
+	FROM ticket_state
+	WHERE id = $1`)
+
 	mock.ExpectBegin()
 
-	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO article (ticket_id, article_sender_type_id, communication_channel_id, is_visible_for_customer,
-                                create_time, create_by, change_time, change_by)
-            VALUES ($1, 1, $2, $3, CURRENT_TIMESTAMP, $4, CURRENT_TIMESTAMP, $4)
-            RETURNING id`)).
-		WithArgs(123, 3, 0, sqlmock.AnyArg(), sqlmock.AnyArg()).
+	articleInsert := database.ConvertPlaceholders(`INSERT INTO article (ticket_id, article_sender_type_id, communication_channel_id, is_visible_for_customer,
+								create_time, create_by, change_time, change_by)
+			VALUES ($1, 1, $2, $3, CURRENT_TIMESTAMP, $4, CURRENT_TIMESTAMP, $4)
+			RETURNING id`)
+
+	mock.ExpectQuery(regexp.QuoteMeta(articleInsert)).
+		WithArgs(123, 3, 0, sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(555))
 
-	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO article_data_mime (article_id, a_from, a_subject, a_body, a_content_type, incoming_time, create_time, create_by, change_time, change_by)
-            VALUES ($1, 'Agent', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, CURRENT_TIMESTAMP, $6)`)).
-		WithArgs(int64(555), "Internal Note", "Pending reminder set", "text/plain", sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+	articleMime := database.ConvertPlaceholders(`INSERT INTO article_data_mime (article_id, a_from, a_subject, a_body, a_content_type, incoming_time, create_time, create_by, change_time, change_by)
+		VALUES ($1, 'Agent', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, CURRENT_TIMESTAMP, $6)`)
+	mock.ExpectExec(regexp.QuoteMeta(articleMime)).
+		WithArgs(int64(555), "Internal Note", "Pending reminder set", "text/plain", sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	mock.ExpectExec(regexp.QuoteMeta(`UPDATE ticket
-                SET ticket_state_id = $1, until_time = $2, change_time = CURRENT_TIMESTAMP, change_by = $3
-                WHERE id = $4`)).
+	updateTicket := database.ConvertPlaceholders(`UPDATE ticket
+				SET ticket_state_id = $1, until_time = $2, change_time = CURRENT_TIMESTAMP, change_by = $3
+				WHERE id = $4`)
+	mock.ExpectExec(regexp.QuoteMeta(updateTicket)).
 		WithArgs(4, expectedUnix, sqlmock.AnyArg(), 123).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
@@ -162,54 +174,49 @@ func TestHandleAgentTicketNotePendingReminderPersistsPendingUntil(t *testing.T) 
 		WillReturnRows(postTicketRows)
 
 	// History expectations
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id FROM ticket_history_type WHERE name = $1`)).
+	historyTypeQuery := database.ConvertPlaceholders(`SELECT id FROM ticket_history_type WHERE name = $1`)
+	mock.ExpectQuery(regexp.QuoteMeta(historyTypeQuery)).
 		WithArgs("AddNote").
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(15))
 
 	noteMessage := "Internal note added — Pending reminder set"
-	historyInsert := fmt.Sprintf(`INSERT INTO ticket_history (
+	historyInsert := database.ConvertPlaceholders(fmt.Sprintf(`INSERT INTO ticket_history (
 		name, history_type_id, ticket_id, article_id, %s, queue_id, owner_id,
 		priority_id, state_id, create_time, create_by, change_time, change_by
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`, database.TicketTypeColumn())
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`, database.TicketTypeColumn()))
 
 	mock.ExpectExec(regexp.QuoteMeta(historyInsert)).
-		WithArgs(noteMessage, 15, 123, 555, 0, 1, 99, 1, 4, sqlmock.AnyArg(), 99, sqlmock.AnyArg(), 99).
+		WithArgs(noteMessage, 15, 123, 555, 1, 1, 99, 1, 4, sqlmock.AnyArg(), 99, sqlmock.AnyArg(), 99).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	prevStateRows := sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
 		AddRow(2, "open", 2, 1, time.Now(), 1, time.Now(), 1)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, type_id, valid_id,
-		       create_time, create_by, change_time, change_by
-		FROM ticket_state
-		WHERE id = $1`)).
+	mock.ExpectQuery(regexp.QuoteMeta(repoStateQuery)).
 		WithArgs(2).
 		WillReturnRows(prevStateRows)
 
 	stateLookupRows := sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
 		AddRow(4, "pending reminder", 4, 1, time.Now(), 1, time.Now(), 1)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, type_id, valid_id,
-		       create_time, create_by, change_time, change_by
-		FROM ticket_state
-		WHERE id = $1`)).
+	mock.ExpectQuery(regexp.QuoteMeta(repoStateQuery)).
 		WithArgs(4).
 		WillReturnRows(stateLookupRows)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id FROM ticket_history_type WHERE name = $1`)).
+	mock.ExpectQuery(regexp.QuoteMeta(historyTypeQuery)).
 		WithArgs("StateUpdate").
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(16))
 
 	stateMessage := "State changed from open to pending reminder"
 	mock.ExpectExec(regexp.QuoteMeta(historyInsert)).
-		WithArgs(stateMessage, 16, 123, 555, 0, 1, 99, 1, 4, sqlmock.AnyArg(), 99, sqlmock.AnyArg(), 99).
+		WithArgs(stateMessage, 16, 123, 555, 1, 1, 99, 1, 4, sqlmock.AnyArg(), 99, sqlmock.AnyArg(), 99).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id FROM ticket_history_type WHERE name = $1`)).
+	mock.ExpectQuery(regexp.QuoteMeta(historyTypeQuery)).
 		WithArgs("SetPendingTime").
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(17))
 
 	pendingMessage := fmt.Sprintf("Pending until %s", time.Unix(expectedUnix, 0).In(time.Local).Format("02 Jan 2006 15:04"))
 	mock.ExpectExec(regexp.QuoteMeta(historyInsert)).
-		WithArgs(pendingMessage, 17, 123, 555, 0, 1, 99, 1, 4, sqlmock.AnyArg(), 99, sqlmock.AnyArg(), 99).
+		WithArgs(pendingMessage, 17, 123, 555, 1, 1, 99, 1, 4, sqlmock.AnyArg(), 99, sqlmock.AnyArg(), 99).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	handler := handleAgentTicketNote(mockDB)

@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -9,6 +10,40 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 )
+
+func resolveUserID(raw interface{}) int {
+	switch v := raw.(type) {
+	case int:
+		return v
+	case int8:
+		return int(v)
+	case int16:
+		return int(v)
+	case int32:
+		return int(v)
+	case int64:
+		return int(v)
+	case uint:
+		return int(v)
+	case uint8:
+		return int(v)
+	case uint16:
+		return int(v)
+	case uint32:
+		return int(v)
+	case uint64:
+		return int(v)
+	case float32:
+		return int(v)
+	case float64:
+		return int(v)
+	case string:
+		if id, err := strconv.Atoi(v); err == nil {
+			return id
+		}
+	}
+	return 1
+}
 
 // HandleListSLAsAPI handles GET /api/v1/slas
 func HandleListSLAsAPI(c *gin.Context) {
@@ -33,7 +68,7 @@ func HandleListSLAsAPI(c *gin.Context) {
 			first_response_time, first_response_notify,
 			update_time, update_notify,
 			solution_time, solution_notify,
-			valid_id
+			valid_id, comments
 		FROM sla
 		WHERE 1=1
 	`)
@@ -69,6 +104,7 @@ func HandleListSLAsAPI(c *gin.Context) {
 			SolutionTime        int
 			SolutionNotify      int
 			ValidID             int
+			Comments            sql.NullString
 		}
 
 		err := rows.Scan(
@@ -76,7 +112,7 @@ func HandleListSLAsAPI(c *gin.Context) {
 			&sla.FirstResponseTime, &sla.FirstResponseNotify,
 			&sla.UpdateTime, &sla.UpdateNotify,
 			&sla.SolutionTime, &sla.SolutionNotify,
-			&sla.ValidID,
+			&sla.ValidID, &sla.Comments,
 		)
 		if err != nil {
 			continue
@@ -85,6 +121,10 @@ func HandleListSLAsAPI(c *gin.Context) {
 		calendarName := ""
 		if sla.CalendarName.Valid {
 			calendarName = sla.CalendarName.String
+		}
+		comments := ""
+		if sla.Comments.Valid {
+			comments = sla.Comments.String
 		}
 
 		slas = append(slas, gin.H{
@@ -98,6 +138,7 @@ func HandleListSLAsAPI(c *gin.Context) {
 			"solution_time":         sla.SolutionTime,
 			"solution_notify":       sla.SolutionNotify,
 			"valid_id":              sla.ValidID,
+			"comments":              comments,
 		})
 	}
 
@@ -141,6 +182,7 @@ func HandleGetSLAAPI(c *gin.Context) {
 		SolutionTime        int
 		SolutionNotify      int
 		ValidID             int
+		Comments            sql.NullString
 	}
 
 	query := database.ConvertPlaceholders(`
@@ -148,7 +190,7 @@ func HandleGetSLAAPI(c *gin.Context) {
 			first_response_time, first_response_notify,
 			update_time, update_notify,
 			solution_time, solution_notify,
-			valid_id
+			valid_id, comments
 		FROM sla
 		WHERE id = $1
 	`)
@@ -158,7 +200,7 @@ func HandleGetSLAAPI(c *gin.Context) {
 		&sla.FirstResponseTime, &sla.FirstResponseNotify,
 		&sla.UpdateTime, &sla.UpdateNotify,
 		&sla.SolutionTime, &sla.SolutionNotify,
-		&sla.ValidID,
+		&sla.ValidID, &sla.Comments,
 	)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "SLA not found"})
@@ -168,6 +210,11 @@ func HandleGetSLAAPI(c *gin.Context) {
 	calendarName := ""
 	if sla.CalendarName.Valid {
 		calendarName = sla.CalendarName.String
+	}
+
+	comments := ""
+	if sla.Comments.Valid {
+		comments = sla.Comments.String
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -181,17 +228,19 @@ func HandleGetSLAAPI(c *gin.Context) {
 		"solution_time":         sla.SolutionTime,
 		"solution_notify":       sla.SolutionNotify,
 		"valid_id":              sla.ValidID,
+		"comments":              comments,
 	})
 }
 
 // HandleCreateSLAAPI handles POST /api/v1/slas
 func HandleCreateSLAAPI(c *gin.Context) {
 	// Check authentication
-	userID, exists := c.Get("user_id")
+	rawUserID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
+	userID := resolveUserID(rawUserID)
 
 	var req struct {
 		Name                string `json:"name" binding:"required"`
@@ -202,6 +251,7 @@ func HandleCreateSLAAPI(c *gin.Context) {
 		UpdateNotify        int    `json:"update_notify"`
 		SolutionTime        int    `json:"solution_time" binding:"required"`
 		SolutionNotify      int    `json:"solution_notify"`
+		Comments            string `json:"comments"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -211,7 +261,7 @@ func HandleCreateSLAAPI(c *gin.Context) {
 
 	db, err := database.GetDB()
 	if err != nil || db == nil {
-		// DB-less fallback: pretend create
+		log.Printf("HandleCreateSLAAPI: database unavailable: %v", err)
 		c.JSON(http.StatusCreated, gin.H{
 			"id":                    1,
 			"name":                  req.Name,
@@ -223,6 +273,7 @@ func HandleCreateSLAAPI(c *gin.Context) {
 			"solution_time":         req.SolutionTime,
 			"solution_notify":       req.SolutionNotify,
 			"valid_id":              1,
+			"comments":              strings.TrimSpace(req.Comments),
 		})
 		return
 	}
@@ -233,7 +284,11 @@ func HandleCreateSLAAPI(c *gin.Context) {
 		SELECT 1 FROM sla
 		WHERE name = $1 AND valid_id = 1
 	`)
-	db.QueryRow(checkQuery, req.Name).Scan(&count)
+	if scanErr := db.QueryRow(checkQuery, req.Name).Scan(&count); scanErr != nil && scanErr != sql.ErrNoRows {
+		log.Printf("HandleCreateSLAAPI: duplicate check failed: %v", scanErr)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create SLA"})
+		return
+	}
 	if count == 1 {
 		c.JSON(http.StatusConflict, gin.H{"error": "SLA with this name already exists"})
 		return
@@ -245,6 +300,12 @@ func HandleCreateSLAAPI(c *gin.Context) {
 		calendarName.Valid = true
 	}
 
+	comments := sql.NullString{}
+	if trimmed := strings.TrimSpace(req.Comments); trimmed != "" {
+		comments.String = trimmed
+		comments.Valid = true
+	}
+
 	// Create SLA
 	var slaID int
 	insertQuery := database.ConvertPlaceholders(`
@@ -253,25 +314,51 @@ func HandleCreateSLAAPI(c *gin.Context) {
 			first_response_time, first_response_notify,
 			update_time, update_notify,
 			solution_time, solution_notify,
-			valid_id, create_time, create_by, change_time, change_by
+			valid_id, comments, create_time, create_by, change_time, change_by
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8,
-			1, NOW(), $9, NOW(), $9
+			1, $9, NOW(), $10, NOW(), $11
 		) RETURNING id
 	`)
-
-	err = db.QueryRow(
-		insertQuery,
+	insertQuery, useLastInsert := database.ConvertReturning(insertQuery)
+	args := []interface{}{
 		req.Name, calendarName,
 		req.FirstResponseTime, req.FirstResponseNotify,
 		req.UpdateTime, req.UpdateNotify,
 		req.SolutionTime, req.SolutionNotify,
-		userID,
-	).Scan(&slaID)
+		comments, userID, userID,
+	}
 
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create SLA"})
-		return
+	if useLastInsert && database.IsMySQL() {
+		res, execErr := db.Exec(insertQuery, args...)
+		if execErr != nil {
+			log.Printf("HandleCreateSLAAPI: insert exec failed: %v", execErr)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create SLA"})
+			return
+		}
+		lastID, idErr := res.LastInsertId()
+		if idErr != nil {
+			log.Printf("HandleCreateSLAAPI: last insert id failed: %v", idErr)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to determine SLA ID"})
+			return
+		}
+		if lastID == 0 {
+			var fallbackID int64
+			if scanErr := db.QueryRow("SELECT LAST_INSERT_ID()").Scan(&fallbackID); scanErr != nil {
+				log.Printf("HandleCreateSLAAPI: fallback last insert id failed: %v", scanErr)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to determine SLA ID"})
+				return
+			}
+			lastID = fallbackID
+		}
+		slaID = int(lastID)
+	} else {
+		err = db.QueryRow(insertQuery, args...).Scan(&slaID)
+		if err != nil {
+			log.Printf("HandleCreateSLAAPI: insert queryrow failed: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create SLA"})
+			return
+		}
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
@@ -285,17 +372,19 @@ func HandleCreateSLAAPI(c *gin.Context) {
 		"solution_time":         req.SolutionTime,
 		"solution_notify":       req.SolutionNotify,
 		"valid_id":              1,
+		"comments":              comments.String,
 	})
 }
 
 // HandleUpdateSLAAPI handles PUT /api/v1/slas/:id
 func HandleUpdateSLAAPI(c *gin.Context) {
 	// Check authentication
-	userID, exists := c.Get("user_id")
+	rawUserID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
+	userID := resolveUserID(rawUserID)
 
 	// Parse SLA ID
 	slaID, err := strconv.Atoi(c.Param("id"))
@@ -313,6 +402,7 @@ func HandleUpdateSLAAPI(c *gin.Context) {
 		UpdateNotify        int    `json:"update_notify"`
 		SolutionTime        int    `json:"solution_time"`
 		SolutionNotify      int    `json:"solution_notify"`
+		Comments            string `json:"comments"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -345,14 +435,21 @@ func HandleUpdateSLAAPI(c *gin.Context) {
 		calendarName.Valid = true
 	}
 
+	comments := sql.NullString{}
+	if trimmed := strings.TrimSpace(req.Comments); trimmed != "" {
+		comments.String = trimmed
+		comments.Valid = true
+	}
+
 	updateQuery := database.ConvertPlaceholders(`
 		UPDATE sla 
 		SET name = $1, calendar_name = $2,
 			first_response_time = $3, first_response_notify = $4,
 			update_time = $5, update_notify = $6,
 			solution_time = $7, solution_notify = $8,
-			change_time = NOW(), change_by = $9
-		WHERE id = $10
+			comments = $9,
+			change_time = NOW(), change_by = $10
+		WHERE id = $11
 	`)
 
 	result, err := db.Exec(
@@ -361,7 +458,7 @@ func HandleUpdateSLAAPI(c *gin.Context) {
 		req.FirstResponseTime, req.FirstResponseNotify,
 		req.UpdateTime, req.UpdateNotify,
 		req.SolutionTime, req.SolutionNotify,
-		userID, slaID,
+		comments, userID, slaID,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update SLA"})
@@ -384,17 +481,19 @@ func HandleUpdateSLAAPI(c *gin.Context) {
 		"update_notify":         req.UpdateNotify,
 		"solution_time":         req.SolutionTime,
 		"solution_notify":       req.SolutionNotify,
+		"comments":              comments.String,
 	})
 }
 
 // HandleDeleteSLAAPI handles DELETE /api/v1/slas/:id
 func HandleDeleteSLAAPI(c *gin.Context) {
 	// Check authentication
-	userID, exists := c.Get("user_id")
+	rawUserID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
+	userID := resolveUserID(rawUserID)
 
 	// Parse SLA ID
 	slaID, err := strconv.Atoi(c.Param("id"))

@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -16,7 +17,71 @@ import (
 // Test-Driven Development for Ticket Template Feature
 // Templates allow users to create reusable ticket formats
 
+func resetTemplateFixtures() {
+	now := time.Now()
+
+	templates = map[int]*TicketTemplate{
+		1: {
+			ID:          1,
+			Name:        "Password Reset",
+			Description: "Template for password reset requests",
+			Subject:     "Password Reset Request",
+			Body:        "Please reset my password for account: [ACCOUNT_EMAIL]",
+			Priority:    "3 normal",
+			QueueID:     1,
+			TypeID:      1,
+			Tags:        []string{"password", "reset", "account"},
+			IsSystem:    true,
+			CreatedAt:   now.Add(-30 * 24 * time.Hour),
+			UpdatedAt:   now.Add(-30 * 24 * time.Hour),
+		},
+		2: {
+			ID:           2,
+			Name:         "New Employee Onboarding",
+			Description:  "Template for onboarding new employees",
+			Subject:      "New Employee Setup - {{EMPLOYEE_NAME}}",
+			Body:         "Please set up accounts for:\nName: {{EMPLOYEE_NAME}}\nDepartment: {{DEPARTMENT}}\nStart Date: {{START_DATE}}\nManager: {{MANAGER_NAME}}",
+			Priority:     "4 high",
+			QueueID:      2,
+			TypeID:       2,
+			Tags:         []string{"onboarding", "hr"},
+			Placeholders: []string{"EMPLOYEE_NAME", "DEPARTMENT", "START_DATE", "MANAGER_NAME"},
+			IsSystem:     false,
+			CreatedAt:    now.Add(-20 * 24 * time.Hour),
+			UpdatedAt:    now.Add(-20 * 24 * time.Hour),
+		},
+		3: {
+			ID:          3,
+			Name:        "Software Installation",
+			Description: "Template for software installation requests",
+			Subject:     "Software Installation Request",
+			Body:        "Please install software",
+			Priority:    "3 normal",
+			QueueID:     1,
+			TypeID:      1,
+			Tags:        []string{"software"},
+			IsSystem:    false,
+			CreatedAt:   now.Add(-10 * 24 * time.Hour),
+			UpdatedAt:   now.Add(-10 * 24 * time.Hour),
+		},
+	}
+
+	templatesByName = map[string]int{
+		"Password Reset":          1,
+		"New Employee Onboarding": 2,
+		"Software Installation":   3,
+	}
+
+	nextTemplateID = 4
+}
+
+func setupTemplateFixtures(t *testing.T) {
+	resetTemplateFixtures()
+	t.Cleanup(resetTemplateFixtures)
+}
+
 func TestCreateTicketTemplate(t *testing.T) {
+	setupTemplateFixtures(t)
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
@@ -47,13 +112,13 @@ func TestCreateTicketTemplate(t *testing.T) {
 		{
 			name: "Create template with placeholders",
 			formData: url.Values{
-				"name":        {"New Employee Onboarding"},
-				"description": {"Template for onboarding new employees"},
-				"subject":     {"New Employee Setup - {{EMPLOYEE_NAME}}"},
-				"body":        {"Please set up accounts for:\nName: {{EMPLOYEE_NAME}}\nDepartment: {{DEPARTMENT}}\nStart Date: {{START_DATE}}\nManager: {{MANAGER_NAME}}"},
-				"priority":    {"4 high"},
-				"queue_id":    {"2"},
-				"type_id":     {"2"},
+				"name":         {"New Employee Onboarding"},
+				"description":  {"Template for onboarding new employees"},
+				"subject":      {"New Employee Setup - {{EMPLOYEE_NAME}}"},
+				"body":         {"Please set up accounts for:\nName: {{EMPLOYEE_NAME}}\nDepartment: {{DEPARTMENT}}\nStart Date: {{START_DATE}}\nManager: {{MANAGER_NAME}}"},
+				"priority":     {"4 high"},
+				"queue_id":     {"2"},
+				"type_id":      {"2"},
 				"placeholders": {"EMPLOYEE_NAME,DEPARTMENT,START_DATE,MANAGER_NAME"},
 			},
 			wantStatus: http.StatusCreated,
@@ -123,6 +188,7 @@ func TestCreateTicketTemplate(t *testing.T) {
 }
 
 func TestGetTicketTemplates(t *testing.T) {
+	setupTemplateFixtures(t)
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
@@ -187,6 +253,7 @@ func TestGetTicketTemplates(t *testing.T) {
 }
 
 func TestGetTicketTemplateByID(t *testing.T) {
+	setupTemplateFixtures(t)
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
@@ -247,6 +314,7 @@ func TestGetTicketTemplateByID(t *testing.T) {
 }
 
 func TestUpdateTicketTemplate(t *testing.T) {
+	setupTemplateFixtures(t)
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
@@ -325,6 +393,7 @@ func TestUpdateTicketTemplate(t *testing.T) {
 }
 
 func TestDeleteTicketTemplate(t *testing.T) {
+	setupTemplateFixtures(t)
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
@@ -388,6 +457,7 @@ func TestDeleteTicketTemplate(t *testing.T) {
 }
 
 func TestCreateTicketFromTemplate(t *testing.T) {
+	setupTemplateFixtures(t)
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
@@ -485,6 +555,7 @@ func TestCreateTicketFromTemplate(t *testing.T) {
 }
 
 func TestTemplatePermissions(t *testing.T) {
+	setupTemplateFixtures(t)
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
@@ -528,14 +599,14 @@ func TestTemplatePermissions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
-			
+
 			// Add middleware to set user role
 			router.Use(func(c *gin.Context) {
 				c.Set("user_role", tt.userRole)
 				c.Set("user_id", 1)
 				c.Next()
 			})
-			
+
 			// Register routes based on operation
 			switch tt.operation {
 			case "create":
@@ -550,14 +621,14 @@ func TestTemplatePermissions(t *testing.T) {
 				req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 				router.ServeHTTP(w, req)
 				assert.Equal(t, tt.wantStatus, w.Code)
-				
+
 			case "view":
 				router.GET("/api/ticket-templates", handleGetTicketTemplates)
 				w := httptest.NewRecorder()
 				req, _ := http.NewRequest("GET", "/api/ticket-templates", nil)
 				router.ServeHTTP(w, req)
 				assert.Equal(t, tt.wantStatus, w.Code)
-				
+
 			case "update":
 				router.PUT("/api/ticket-templates/:id", handleUpdateTicketTemplate)
 				formData := url.Values{"name": {"Updated"}}
@@ -566,7 +637,7 @@ func TestTemplatePermissions(t *testing.T) {
 				req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 				router.ServeHTTP(w, req)
 				assert.Equal(t, tt.wantStatus, w.Code)
-				
+
 			case "use":
 				router.POST("/api/ticket-templates/:id/create-ticket", handleCreateTicketFromTemplate)
 				formData := url.Values{
@@ -585,10 +656,10 @@ func TestTemplatePermissions(t *testing.T) {
 
 func TestTemplatePlaceholderValidation(t *testing.T) {
 	tests := []struct {
-		name              string
-		template          string
-		placeholders      map[string]string
-		wantResult        string
+		name                    string
+		template                string
+		placeholders            map[string]string
+		wantResult              string
 		wantMissingPlaceholders []string
 	}{
 		{
@@ -598,7 +669,7 @@ func TestTemplatePlaceholderValidation(t *testing.T) {
 				"NAME":     "John",
 				"ORDER_ID": "12345",
 			},
-			wantResult:        "Hello John, your order 12345 is ready",
+			wantResult:              "Hello John, your order 12345 is ready",
 			wantMissingPlaceholders: nil,
 		},
 		{
@@ -607,7 +678,7 @@ func TestTemplatePlaceholderValidation(t *testing.T) {
 			placeholders: map[string]string{
 				"NAME": "John",
 			},
-			wantResult:        "",
+			wantResult:              "",
 			wantMissingPlaceholders: []string{"ORDER_ID"},
 		},
 		{
@@ -618,7 +689,7 @@ func TestTemplatePlaceholderValidation(t *testing.T) {
 				"EMAIL": "john@example.com",
 				"ID":    "123",
 			},
-			wantResult:        "User: John, Email: john@example.com, ID: 123",
+			wantResult:              "User: John, Email: john@example.com, ID: 123",
 			wantMissingPlaceholders: nil,
 		},
 	}
@@ -626,7 +697,7 @@ func TestTemplatePlaceholderValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, missing := replacePlaceholders(tt.template, tt.placeholders)
-			
+
 			if tt.wantMissingPlaceholders == nil {
 				assert.Empty(t, missing)
 				assert.Equal(t, tt.wantResult, result)

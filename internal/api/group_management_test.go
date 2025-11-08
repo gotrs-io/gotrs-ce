@@ -21,10 +21,10 @@ func TestAdminGroupManagement(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("ListGroups_ShowsAllGroups", func(t *testing.T) {
-        if err := database.InitTestDB(); err != nil {
-            t.Skip("Database not available")
-        }
-        defer database.CloseTestDB()
+		if err := database.InitTestDB(); err != nil {
+			t.Skip("Database not available")
+		}
+		defer database.CloseTestDB()
 		router := gin.New()
 		SetupHTMXRoutes(router)
 
@@ -38,10 +38,10 @@ func TestAdminGroupManagement(t *testing.T) {
 	})
 
 	t.Run("SearchGroups_FiltersResults", func(t *testing.T) {
-        if err := database.InitTestDB(); err != nil {
-            t.Skip("Database not available")
-        }
-        defer database.CloseTestDB()
+		if err := database.InitTestDB(); err != nil {
+			t.Skip("Database not available")
+		}
+		defer database.CloseTestDB()
 		router := gin.New()
 		SetupHTMXRoutes(router)
 
@@ -55,10 +55,10 @@ func TestAdminGroupManagement(t *testing.T) {
 	})
 
 	t.Run("CreateGroup_ValidData", func(t *testing.T) {
-        if err := database.InitTestDB(); err != nil {
-            t.Skip("Database not available")
-        }
-        defer database.CloseTestDB()
+		if err := database.InitTestDB(); err != nil {
+			t.Skip("Database not available")
+		}
+		defer database.CloseTestDB()
 		router := gin.New()
 		SetupHTMXRoutes(router)
 
@@ -69,7 +69,7 @@ func TestAdminGroupManagement(t *testing.T) {
 
 		req, _ := http.NewRequest("POST", "/admin/groups", strings.NewReader(form.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		
+
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
@@ -83,10 +83,10 @@ func TestAdminGroupManagement(t *testing.T) {
 	})
 
 	t.Run("CreateGroup_DuplicateName", func(t *testing.T) {
-        if err := database.InitTestDB(); err != nil {
-            t.Skip("Database not available")
-        }
-        defer database.CloseTestDB()
+		if err := database.InitTestDB(); err != nil {
+			t.Skip("Database not available")
+		}
+		defer database.CloseTestDB()
 		router := gin.New()
 		SetupHTMXRoutes(router)
 
@@ -98,7 +98,7 @@ func TestAdminGroupManagement(t *testing.T) {
 
 		req, _ := http.NewRequest("POST", "/admin/groups", strings.NewReader(form.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		
+
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
@@ -110,19 +110,19 @@ func TestAdminGroupManagement(t *testing.T) {
 	})
 
 	t.Run("UpdateGroup_ValidData", func(t *testing.T) {
-        if err := database.InitTestDB(); err != nil {
-            t.Skip("Database not available")
-        }
-        defer database.CloseTestDB()
+		if err := database.InitTestDB(); err != nil {
+			t.Skip("Database not available")
+		}
+		defer database.CloseTestDB()
 
-        db, err := database.GetDB()
+		db, err := database.GetDB()
 		if err != nil {
 			t.Skip("Database not available")
 		}
 
 		groupRepo := repository.NewGroupRepository(db)
 		groups, _ := groupRepo.List()
-		
+
 		if len(groups) == 0 {
 			t.Skip("No groups available for testing")
 		}
@@ -131,31 +131,31 @@ func TestAdminGroupManagement(t *testing.T) {
 		SetupHTMXRoutes(router)
 
 		testGroup := groups[0]
-		
+
 		form := url.Values{}
 		form.Add("name", testGroup.Name)
 		form.Add("comments", "Updated description")
 		form.Add("valid_id", "1")
 
-        // testGroup.ID is interface{}; assert to an int or string where possible
-        var idStr string
-        switch v := testGroup.ID.(type) {
-        case int:
-            idStr = strconv.Itoa(v)
-        case int64:
-            idStr = strconv.Itoa(int(v))
-        case uint:
-            idStr = strconv.Itoa(int(v))
-        case uint64:
-            idStr = strconv.Itoa(int(v))
-        case string:
-            idStr = v
-        default:
-            t.Skip("Unknown group ID type; skipping")
-        }
-        req, _ := http.NewRequest("PUT", "/admin/groups/"+idStr, strings.NewReader(form.Encode()))
+		// testGroup.ID is interface{}; assert to an int or string where possible
+		var idStr string
+		switch v := testGroup.ID.(type) {
+		case int:
+			idStr = strconv.Itoa(v)
+		case int64:
+			idStr = strconv.Itoa(int(v))
+		case uint:
+			idStr = strconv.Itoa(int(v))
+		case uint64:
+			idStr = strconv.Itoa(int(v))
+		case string:
+			idStr = v
+		default:
+			t.Skip("Unknown group ID type; skipping")
+		}
+		req, _ := http.NewRequest("PUT", "/admin/groups/"+idStr, strings.NewReader(form.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		
+
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
@@ -163,19 +163,19 @@ func TestAdminGroupManagement(t *testing.T) {
 	})
 
 	t.Run("DeleteGroup_SoftDelete", func(t *testing.T) {
-        if err := database.InitTestDB(); err != nil {
-            t.Skip("Database not available")
-        }
-        defer database.CloseTestDB()
+		if err := database.InitTestDB(); err != nil {
+			t.Skip("Database not available")
+		}
+		defer database.CloseTestDB()
 
-        db, err := database.GetDB()
+		db, err := database.GetDB()
 		if err != nil {
 			t.Skip("Database not available")
 		}
 
 		groupRepo := repository.NewGroupRepository(db)
 		groups, _ := groupRepo.List()
-		
+
 		// Find a non-system group to delete
 		var testGroup *models.Group
 		for _, g := range groups {
@@ -192,22 +192,22 @@ func TestAdminGroupManagement(t *testing.T) {
 		router := gin.New()
 		SetupHTMXRoutes(router)
 
-        var idStr2 string
-        switch v := testGroup.ID.(type) {
-        case int:
-            idStr2 = strconv.Itoa(v)
-        case int64:
-            idStr2 = strconv.Itoa(int(v))
-        case uint:
-            idStr2 = strconv.Itoa(int(v))
-        case uint64:
-            idStr2 = strconv.Itoa(int(v))
-        case string:
-            idStr2 = v
-        default:
-            t.Skip("Unknown group ID type; skipping")
-        }
-        req, _ := http.NewRequest("DELETE", "/admin/groups/"+idStr2, nil)
+		var idStr2 string
+		switch v := testGroup.ID.(type) {
+		case int:
+			idStr2 = strconv.Itoa(v)
+		case int64:
+			idStr2 = strconv.Itoa(int(v))
+		case uint:
+			idStr2 = strconv.Itoa(int(v))
+		case uint64:
+			idStr2 = strconv.Itoa(int(v))
+		case string:
+			idStr2 = v
+		default:
+			t.Skip("Unknown group ID type; skipping")
+		}
+		req, _ := http.NewRequest("DELETE", "/admin/groups/"+idStr2, nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
@@ -216,10 +216,10 @@ func TestAdminGroupManagement(t *testing.T) {
 	})
 
 	t.Run("GetGroupPermissions", func(t *testing.T) {
-        if err := database.InitTestDB(); err != nil {
-            t.Skip("Database not available")
-        }
-        defer database.CloseTestDB()
+		if err := database.InitTestDB(); err != nil {
+			t.Skip("Database not available")
+		}
+		defer database.CloseTestDB()
 		router := gin.New()
 		SetupHTMXRoutes(router)
 
@@ -235,10 +235,10 @@ func TestAdminGroupManagement(t *testing.T) {
 	})
 
 	t.Run("UpdateGroupPermissions", func(t *testing.T) {
-        if err := database.InitTestDB(); err != nil {
-            t.Skip("Database not available")
-        }
-        defer database.CloseTestDB()
+		if err := database.InitTestDB(); err != nil {
+			t.Skip("Database not available")
+		}
+		defer database.CloseTestDB()
 		router := gin.New()
 		SetupHTMXRoutes(router)
 
@@ -250,7 +250,7 @@ func TestAdminGroupManagement(t *testing.T) {
 		jsonBody, _ := json.Marshal(permissions)
 		req, _ := http.NewRequest("PUT", "/admin/groups/1/permissions", bytes.NewBuffer(jsonBody))
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
@@ -285,10 +285,10 @@ func TestGroupValidation(t *testing.T) {
 
 func TestGroupFiltering(t *testing.T) {
 	t.Run("FilterByStatus", func(t *testing.T) {
-        if err := database.InitTestDB(); err != nil {
-            t.Skip("Database not available")
-        }
-        defer database.CloseTestDB()
+		if err := database.InitTestDB(); err != nil {
+			t.Skip("Database not available")
+		}
+		defer database.CloseTestDB()
 		router := gin.New()
 		SetupHTMXRoutes(router)
 
@@ -300,7 +300,7 @@ func TestGroupFiltering(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
-		// Test inactive groups  
+		// Test inactive groups
 		req, _ = http.NewRequest("GET", "/admin/groups?status=inactive", nil)
 		req.Header.Set("HX-Request", "true")
 		w = httptest.NewRecorder()
@@ -310,10 +310,10 @@ func TestGroupFiltering(t *testing.T) {
 	})
 
 	t.Run("SortGroups", func(t *testing.T) {
-        if err := database.InitTestDB(); err != nil {
-            t.Skip("Database not available")
-        }
-        defer database.CloseTestDB()
+		if err := database.InitTestDB(); err != nil {
+			t.Skip("Database not available")
+		}
+		defer database.CloseTestDB()
 		router := gin.New()
 		SetupHTMXRoutes(router)
 
@@ -336,10 +336,10 @@ func TestGroupFiltering(t *testing.T) {
 }
 
 func TestGroupMembership(t *testing.T) {
-    if err := database.InitTestDB(); err != nil {
-        t.Skip("Database not available")
-    }
-    defer database.CloseTestDB()
+	if err := database.InitTestDB(); err != nil {
+		t.Skip("Database not available")
+	}
+	defer database.CloseTestDB()
 	t.Run("ListGroupMembers", func(t *testing.T) {
 		router := gin.New()
 		SetupHTMXRoutes(router)
@@ -366,7 +366,7 @@ func TestGroupMembership(t *testing.T) {
 		jsonBody, _ := json.Marshal(member)
 		req, _ := http.NewRequest("POST", "/admin/groups/1/members", bytes.NewBuffer(jsonBody))
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
@@ -387,18 +387,18 @@ func TestGroupMembership(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-        if w.Code != http.StatusOK {
-            t.Skipf("Route not available or DB not ready: got %d", w.Code)
-        }
+		if w.Code != http.StatusOK {
+			t.Skipf("Route not available or DB not ready: got %d", w.Code)
+		}
 	})
 }
 
 func TestGroupSessionState(t *testing.T) {
 	t.Run("PreserveSearchState", func(t *testing.T) {
-        if err := database.InitTestDB(); err != nil {
-            t.Skip("Database not available")
-        }
-        defer database.CloseTestDB()
+		if err := database.InitTestDB(); err != nil {
+			t.Skip("Database not available")
+		}
+		defer database.CloseTestDB()
 		router := gin.New()
 		SetupHTMXRoutes(router)
 
@@ -428,7 +428,7 @@ func TestGroupSessionState(t *testing.T) {
 			Name:  "group_filters",
 			Value: encoded,
 		})
-		
+
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
@@ -442,7 +442,7 @@ func validateGroupName(name string) bool {
 	if len(name) < 2 || len(name) > 100 {
 		return false
 	}
-	
+
 	// Only allow alphanumeric, underscore, and dash
 	for _, char := range name {
 		if !((char >= 'a' && char <= 'z') ||
@@ -452,6 +452,6 @@ func validateGroupName(name string) bool {
 			return false
 		}
 	}
-	
+
 	return true
 }

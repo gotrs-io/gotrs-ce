@@ -14,11 +14,11 @@ func RequestID() gin.HandlerFunc {
 			// Generate a new UUID
 			requestID = uuid.New().String()
 		}
-		
+
 		// Set the request ID in context and response header
 		c.Set("request_id", requestID)
 		c.Header("X-Request-ID", requestID)
-		
+
 		c.Next()
 	}
 }

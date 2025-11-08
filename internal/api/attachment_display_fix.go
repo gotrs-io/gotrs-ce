@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	
+
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 )
 
@@ -14,7 +14,7 @@ func GetArticleAttachments(articleID int) ([]map[string]interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database connection: %w", err)
 	}
-	
+
 	rows, err := db.Query(database.ConvertPlaceholders(`
 		SELECT id, filename, content_type, content_size, content, disposition
 		FROM article_data_mime_attachment
@@ -25,20 +25,20 @@ func GetArticleAttachments(articleID int) ([]map[string]interface{}, error) {
 		return nil, fmt.Errorf("failed to query attachments: %w", err)
 	}
 	defer rows.Close()
-	
+
 	attachments := []map[string]interface{}{}
 	for rows.Next() {
 		var id int64
 		var filename, contentType, contentSize, disposition string
 		var content []byte
 		var filenameNull, contentTypeNull, contentSizeNull, dispositionNull sql.NullString
-		
+
 		err := rows.Scan(&id, &filenameNull, &contentTypeNull, &contentSizeNull, &content, &dispositionNull)
 		if err != nil {
 			log.Printf("ERROR: Failed to scan attachment row: %v", err)
 			continue
 		}
-		
+
 		// Handle nullable fields
 		if filenameNull.Valid {
 			filename = filenameNull.String
@@ -52,10 +52,10 @@ func GetArticleAttachments(articleID int) ([]map[string]interface{}, error) {
 		if dispositionNull.Valid {
 			disposition = dispositionNull.String
 		}
-		
+
 		// The content field contains the file path (for now)
 		filePath := string(content)
-		
+
 		attachment := map[string]interface{}{
 			"ID":          id,
 			"Filename":    filename,
@@ -65,10 +65,10 @@ func GetArticleAttachments(articleID int) ([]map[string]interface{}, error) {
 			"Path":        filePath,
 			"URL":         fmt.Sprintf("/api/tickets/attachments/%d/download", id),
 		}
-		
+
 		attachments = append(attachments, attachment)
 	}
-	
+
 	return attachments, nil
 }
 
@@ -78,7 +78,7 @@ func GetTicketAttachments(ticketID int) (map[int][]map[string]interface{}, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database connection: %w", err)
 	}
-	
+
 	// Get all articles for this ticket
 	rows, err := db.Query(database.ConvertPlaceholders(`
 		SELECT a.id, att.id, att.filename, att.content_type, att.content_size, att.content, att.disposition
@@ -91,26 +91,26 @@ func GetTicketAttachments(ticketID int) (map[int][]map[string]interface{}, error
 		return nil, fmt.Errorf("failed to query ticket attachments: %w", err)
 	}
 	defer rows.Close()
-	
+
 	attachmentsByArticle := make(map[int][]map[string]interface{})
-	
+
 	for rows.Next() {
 		var articleID int
 		var attID sql.NullInt64
 		var filename, contentType, contentSize, disposition sql.NullString
 		var content []byte
-		
+
 		err := rows.Scan(&articleID, &attID, &filename, &contentType, &contentSize, &content, &disposition)
 		if err != nil {
 			log.Printf("ERROR: Failed to scan attachment row: %v", err)
 			continue
 		}
-		
+
 		// If there's no attachment for this article, skip
 		if !attID.Valid {
 			continue
 		}
-		
+
 		attachment := map[string]interface{}{
 			"ID":          attID.Int64,
 			"Filename":    filename.String,
@@ -119,12 +119,12 @@ func GetTicketAttachments(ticketID int) (map[int][]map[string]interface{}, error
 			"Path":        string(content), // File path stored in content field
 			"URL":         fmt.Sprintf("/api/attachments/%d/download", attID.Int64),
 		}
-		
+
 		if attachmentsByArticle[articleID] == nil {
 			attachmentsByArticle[articleID] = []map[string]interface{}{}
 		}
 		attachmentsByArticle[articleID] = append(attachmentsByArticle[articleID], attachment)
 	}
-	
+
 	return attachmentsByArticle, nil
 }

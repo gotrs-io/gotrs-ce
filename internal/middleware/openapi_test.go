@@ -22,7 +22,7 @@ func TestOpenAPIValidator(t *testing.T) {
 		// Create a temporary OpenAPI spec
 		tmpDir := t.TempDir()
 		specPath := filepath.Join(tmpDir, "openapi.yaml")
-		
+
 		specContent := `
 openapi: 3.0.0
 info:
@@ -64,7 +64,7 @@ paths:
 	t.Run("NewOpenAPIValidator with invalid YAML", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		specPath := filepath.Join(tmpDir, "invalid.yaml")
-		
+
 		invalidContent := `
 openapi: 3.0.0
 info: [invalid yaml structure
@@ -85,7 +85,7 @@ func TestValidateResponse(t *testing.T) {
 	// Create a temporary OpenAPI spec for testing
 	tmpDir := t.TempDir()
 	specPath := filepath.Join(tmpDir, "openapi.yaml")
-	
+
 	specContent := `
 openapi: 3.0.0
 info:
@@ -149,7 +149,7 @@ paths:
 	t.Run("Valid response matches schema", func(t *testing.T) {
 		router := gin.New()
 		router.Use(validator.ValidateResponse())
-		
+
 		router.GET("/health", func(c *gin.Context) {
 			c.JSON(200, gin.H{
 				"status":  "healthy",
@@ -162,7 +162,7 @@ paths:
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, 200, w.Code)
-		
+
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
@@ -172,7 +172,7 @@ paths:
 	t.Run("Array response validation", func(t *testing.T) {
 		router := gin.New()
 		router.Use(validator.ValidateResponse())
-		
+
 		router.GET("/api/users", func(c *gin.Context) {
 			c.JSON(200, []gin.H{
 				{"id": 1, "name": "User 1"},
@@ -185,7 +185,7 @@ paths:
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, 200, w.Code)
-		
+
 		var response []map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
@@ -195,7 +195,7 @@ paths:
 	t.Run("Error response validation", func(t *testing.T) {
 		router := gin.New()
 		router.Use(validator.ValidateResponse())
-		
+
 		router.GET("/api/error", func(c *gin.Context) {
 			c.JSON(500, gin.H{
 				"error": "Internal server error",
@@ -207,7 +207,7 @@ paths:
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, 500, w.Code)
-		
+
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
@@ -217,15 +217,15 @@ paths:
 
 func TestResponseWriter(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	t.Run("responseWriter captures body and status", func(t *testing.T) {
 		// Create a gin context with recorder
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		
+
 		rw := &responseWriter{
 			ResponseWriter: c.Writer,
-			body:          make([]byte, 0),
+			body:           make([]byte, 0),
 		}
 
 		// Write status code
@@ -244,24 +244,24 @@ func TestResponseWriter(t *testing.T) {
 		// Create a gin context with recorder
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		
+
 		rw := &responseWriter{
 			ResponseWriter: c.Writer,
-			body:          make([]byte, 0),
+			body:           make([]byte, 0),
 		}
 
 		// Multiple writes
 		part1 := []byte(`{"part1":`)
 		part2 := []byte(`"data"}`)
-		
+
 		n1, err1 := rw.Write(part1)
 		assert.NoError(t, err1)
 		assert.Equal(t, len(part1), n1)
-		
+
 		n2, err2 := rw.Write(part2)
 		assert.NoError(t, err2)
 		assert.Equal(t, len(part2), n2)
-		
+
 		expectedBody := append(part1, part2...)
 		assert.Equal(t, expectedBody, rw.body)
 	})
@@ -441,13 +441,13 @@ func TestLoadOpenAPIMiddleware(t *testing.T) {
 
 	t.Run("Loads validator when spec file exists", func(t *testing.T) {
 		// Create api directory if it doesn't exist
-        apiDir := t.TempDir()
+		apiDir := t.TempDir()
 		os.MkdirAll(apiDir, 0755)
 		defer os.RemoveAll(apiDir)
 
 		// Create a valid spec file
-        // Create in temp dir and point loader to it by chdir
-        specPath := filepath.Join(apiDir, "openapi.yaml")
+		// Create in temp dir and point loader to it by chdir
+		specPath := filepath.Join(apiDir, "openapi.yaml")
 		specContent := `
 openapi: 3.0.0
 info:
@@ -460,18 +460,18 @@ paths:
         '200':
           description: Success
 `
-        err := os.WriteFile(specPath, []byte(specContent), 0644)
+		err := os.WriteFile(specPath, []byte(specContent), 0644)
 		require.NoError(t, err)
 
-        // Change working directory so LoadOpenAPIMiddleware finds api/openapi.yaml
-        cwd, _ := os.Getwd()
-        defer os.Chdir(cwd)
-        // Create api dir within temp and move file accordingly
-        os.MkdirAll(filepath.Join(apiDir, "api"), 0755)
-        _ = os.Rename(specPath, filepath.Join(apiDir, "api", "openapi.yaml"))
-        os.Chdir(apiDir)
+		// Change working directory so LoadOpenAPIMiddleware finds api/openapi.yaml
+		cwd, _ := os.Getwd()
+		defer os.Chdir(cwd)
+		// Create api dir within temp and move file accordingly
+		os.MkdirAll(filepath.Join(apiDir, "api"), 0755)
+		_ = os.Rename(specPath, filepath.Join(apiDir, "api", "openapi.yaml"))
+		os.Chdir(apiDir)
 
-        middleware := LoadOpenAPIMiddleware()
+		middleware := LoadOpenAPIMiddleware()
 		assert.NotNil(t, middleware)
 
 		// Test that middleware works
@@ -490,21 +490,21 @@ paths:
 
 	t.Run("Returns no-op middleware on invalid spec", func(t *testing.T) {
 		// Create api directory if it doesn't exist
-        apiRoot := t.TempDir()
+		apiRoot := t.TempDir()
 
-        // Create an invalid spec file under api in temp dir
-        os.MkdirAll(filepath.Join(apiRoot, "api"), 0755)
-        specPath := filepath.Join(apiRoot, "api", "openapi.yaml")
+		// Create an invalid spec file under api in temp dir
+		os.MkdirAll(filepath.Join(apiRoot, "api"), 0755)
+		specPath := filepath.Join(apiRoot, "api", "openapi.yaml")
 		invalidContent := `invalid: [yaml content`
 		err := os.WriteFile(specPath, []byte(invalidContent), 0644)
 		require.NoError(t, err)
 
-        // Change cwd so loader resolves api/openapi.yaml
-        cwd, _ := os.Getwd()
-        defer os.Chdir(cwd)
-        os.Chdir(apiRoot)
+		// Change cwd so loader resolves api/openapi.yaml
+		cwd, _ := os.Getwd()
+		defer os.Chdir(cwd)
+		os.Chdir(apiRoot)
 
-        middleware := LoadOpenAPIMiddleware()
+		middleware := LoadOpenAPIMiddleware()
 		assert.NotNil(t, middleware)
 
 		// Test that middleware still allows requests
@@ -528,7 +528,7 @@ func TestValidateResponseIntegration(t *testing.T) {
 	// Create a test OpenAPI spec
 	tmpDir := t.TempDir()
 	specPath := filepath.Join(tmpDir, "openapi.yaml")
-	
+
 	specContent := `
 openapi: 3.0.0
 info:
@@ -583,7 +583,7 @@ paths:
 		// you would need to handle path parameters properly
 		router := gin.New()
 		router.Use(validator.ValidateResponse())
-		
+
 		router.GET("/users/:id", func(c *gin.Context) {
 			id := c.Param("id")
 			if id == "1" {
@@ -800,7 +800,7 @@ func TestResponseCapture(t *testing.T) {
 
 		router := gin.New()
 		router.Use(validator.ValidateResponse())
-		
+
 		var capturedBody []byte
 		router.GET("/capture", func(c *gin.Context) {
 			responseData := gin.H{"captured": true, "timestamp": "2024-01-01"}
@@ -813,7 +813,7 @@ func TestResponseCapture(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, 200, w.Code)
-		
+
 		// Verify the response body was properly written
 		assert.JSONEq(t, string(capturedBody), w.Body.String())
 	})
@@ -847,7 +847,7 @@ func TestResponseCapture(t *testing.T) {
 
 		router := gin.New()
 		router.Use(validator.ValidateResponse())
-		
+
 		router.GET("/large", func(c *gin.Context) {
 			// Create a large response
 			items := make([]gin.H, 1000)
@@ -862,7 +862,7 @@ func TestResponseCapture(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, 200, w.Code)
-		
+
 		// Verify response is valid JSON
 		var response []interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
@@ -902,7 +902,7 @@ func TestConcurrentValidation(t *testing.T) {
 
 	router := gin.New()
 	router.Use(validator.ValidateResponse())
-	
+
 	var counter int32
 	router.GET("/concurrent", func(c *gin.Context) {
 		newValue := atomic.AddInt32(&counter, 1)
@@ -912,23 +912,23 @@ func TestConcurrentValidation(t *testing.T) {
 	// Run concurrent requests
 	numRequests := 100
 	done := make(chan bool, numRequests)
-	
+
 	for i := 0; i < numRequests; i++ {
 		go func() {
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest("GET", "/concurrent", nil)
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, 200, w.Code)
 			done <- true
 		}()
 	}
-	
+
 	// Wait for all requests to complete
 	for i := 0; i < numRequests; i++ {
 		<-done
 	}
-	
+
 	assert.Equal(t, int32(numRequests), atomic.LoadInt32(&counter))
 }
 
@@ -988,7 +988,7 @@ func TestStreamingResponse(t *testing.T) {
 
 	router := gin.New()
 	router.Use(validator.ValidateResponse())
-	
+
 	router.GET("/stream", func(c *gin.Context) {
 		c.String(200, "This is a plain text response")
 	})
@@ -1012,7 +1012,7 @@ func TestMalformedRequest(t *testing.T) {
 
 	router := gin.New()
 	router.Use(validator.ValidateResponse())
-	
+
 	router.POST("/malformed", func(c *gin.Context) {
 		var data map[string]interface{}
 		if err := c.BindJSON(&data); err != nil {
@@ -1030,7 +1030,7 @@ func TestMalformedRequest(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, 400, w.Code)
-	
+
 	var response map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
@@ -1066,7 +1066,7 @@ func TestHeaderValidation(t *testing.T) {
 
 	router := gin.New()
 	router.Use(validator.ValidateResponse())
-	
+
 	router.GET("/headers", func(c *gin.Context) {
 		c.Header("X-Custom-Header", "test-value")
 		c.Header("X-Request-ID", "123456")
@@ -1084,14 +1084,14 @@ func TestHeaderValidation(t *testing.T) {
 
 func TestPartialWrite(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	// Create a gin context with recorder
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	
+
 	rw := &responseWriter{
 		ResponseWriter: c.Writer,
-		body:          make([]byte, 0),
+		body:           make([]byte, 0),
 	}
 
 	// Test partial writes that simulate streaming

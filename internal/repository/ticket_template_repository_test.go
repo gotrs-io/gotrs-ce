@@ -12,10 +12,10 @@ import (
 
 func TestMemoryTicketTemplateRepository(t *testing.T) {
 	ctx := context.Background()
-	
+
 	t.Run("CreateTemplate", func(t *testing.T) {
 		repo := NewMemoryTicketTemplateRepository()
-		
+
 		template := &models.TicketTemplate{
 			Name:        "Password Reset Request",
 			Description: "Template for password reset tickets",
@@ -33,16 +33,16 @@ func TestMemoryTicketTemplateRepository(t *testing.T) {
 				{Name: "{{reason}}", Description: "Reason for reset", Required: false, DefaultValue: "Forgot password"},
 			},
 		}
-		
+
 		err := repo.CreateTemplate(ctx, template)
 		require.NoError(t, err)
 		assert.NotZero(t, template.ID)
 		assert.NotZero(t, template.CreatedAt)
 	})
-	
+
 	t.Run("GetTemplateByID", func(t *testing.T) {
 		repo := NewMemoryTicketTemplateRepository()
-		
+
 		// Create a template
 		template := &models.TicketTemplate{
 			Name:     "Test Template",
@@ -52,25 +52,25 @@ func TestMemoryTicketTemplateRepository(t *testing.T) {
 			Active:   true,
 		}
 		repo.CreateTemplate(ctx, template)
-		
+
 		// Retrieve it
 		retrieved, err := repo.GetTemplateByID(ctx, template.ID)
 		require.NoError(t, err)
 		assert.Equal(t, template.Name, retrieved.Name)
 		assert.Equal(t, template.Subject, retrieved.Subject)
 	})
-	
+
 	t.Run("GetTemplateByID_NotFound", func(t *testing.T) {
 		repo := NewMemoryTicketTemplateRepository()
-		
+
 		_, err := repo.GetTemplateByID(ctx, 9999)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
-	
+
 	t.Run("GetActiveTemplates", func(t *testing.T) {
 		repo := NewMemoryTicketTemplateRepository()
-		
+
 		// Create multiple templates
 		for i := 0; i < 5; i++ {
 			template := &models.TicketTemplate{
@@ -82,21 +82,21 @@ func TestMemoryTicketTemplateRepository(t *testing.T) {
 			}
 			repo.CreateTemplate(ctx, template)
 		}
-		
+
 		// Get active templates
 		templates, err := repo.GetActiveTemplates(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, 3, len(templates)) // Should have 3 active templates
-		
+
 		// Verify all returned templates are active
 		for _, tmpl := range templates {
 			assert.True(t, tmpl.Active)
 		}
 	})
-	
+
 	t.Run("GetTemplatesByCategory", func(t *testing.T) {
 		repo := NewMemoryTicketTemplateRepository()
-		
+
 		// Create templates in different categories
 		categories := []string{"Technical", "Billing", "Technical", "General"}
 		for i, cat := range categories {
@@ -109,20 +109,20 @@ func TestMemoryTicketTemplateRepository(t *testing.T) {
 			}
 			repo.CreateTemplate(ctx, template)
 		}
-		
+
 		// Get templates by category
 		techTemplates, err := repo.GetTemplatesByCategory(ctx, "Technical")
 		require.NoError(t, err)
 		assert.Equal(t, 2, len(techTemplates))
-		
+
 		billingTemplates, err := repo.GetTemplatesByCategory(ctx, "Billing")
 		require.NoError(t, err)
 		assert.Equal(t, 1, len(billingTemplates))
 	})
-	
+
 	t.Run("UpdateTemplate", func(t *testing.T) {
 		repo := NewMemoryTicketTemplateRepository()
-		
+
 		// Create a template
 		template := &models.TicketTemplate{
 			Name:     "Original Name",
@@ -133,15 +133,15 @@ func TestMemoryTicketTemplateRepository(t *testing.T) {
 		}
 		repo.CreateTemplate(ctx, template)
 		originalID := template.ID
-		
+
 		// Update it
 		template.Name = "Updated Name"
 		template.Subject = "Updated Subject"
 		template.Active = false
-		
+
 		err := repo.UpdateTemplate(ctx, template)
 		require.NoError(t, err)
-		
+
 		// Verify update
 		updated, err := repo.GetTemplateByID(ctx, originalID)
 		require.NoError(t, err)
@@ -150,10 +150,10 @@ func TestMemoryTicketTemplateRepository(t *testing.T) {
 		assert.False(t, updated.Active)
 		assert.True(t, updated.UpdatedAt.After(updated.CreatedAt))
 	})
-	
+
 	t.Run("DeleteTemplate", func(t *testing.T) {
 		repo := NewMemoryTicketTemplateRepository()
-		
+
 		// Create a template
 		template := &models.TicketTemplate{
 			Name:     "To Delete",
@@ -164,19 +164,19 @@ func TestMemoryTicketTemplateRepository(t *testing.T) {
 		}
 		repo.CreateTemplate(ctx, template)
 		id := template.ID
-		
+
 		// Delete it
 		err := repo.DeleteTemplate(ctx, id)
 		require.NoError(t, err)
-		
+
 		// Verify it's gone
 		_, err = repo.GetTemplateByID(ctx, id)
 		assert.Error(t, err)
 	})
-	
+
 	t.Run("IncrementUsageCount", func(t *testing.T) {
 		repo := NewMemoryTicketTemplateRepository()
-		
+
 		// Create a template
 		template := &models.TicketTemplate{
 			Name:       "Popular Template",
@@ -187,22 +187,22 @@ func TestMemoryTicketTemplateRepository(t *testing.T) {
 			UsageCount: 0,
 		}
 		repo.CreateTemplate(ctx, template)
-		
+
 		// Increment usage count multiple times
 		for i := 0; i < 5; i++ {
 			err := repo.IncrementUsageCount(ctx, template.ID)
 			require.NoError(t, err)
 		}
-		
+
 		// Verify count
 		updated, err := repo.GetTemplateByID(ctx, template.ID)
 		require.NoError(t, err)
 		assert.Equal(t, 5, updated.UsageCount)
 	})
-	
+
 	t.Run("SearchTemplates", func(t *testing.T) {
 		repo := NewMemoryTicketTemplateRepository()
-		
+
 		// Create templates with different content
 		templates := []struct {
 			name string
@@ -214,7 +214,7 @@ func TestMemoryTicketTemplateRepository(t *testing.T) {
 			{"Billing Question", "Question about billing", []string{"billing", "payment"}},
 			{"Password Change", "Change your password", []string{"password", "account"}},
 		}
-		
+
 		for _, tmpl := range templates {
 			template := &models.TicketTemplate{
 				Name:     tmpl.name,
@@ -226,26 +226,26 @@ func TestMemoryTicketTemplateRepository(t *testing.T) {
 			}
 			repo.CreateTemplate(ctx, template)
 		}
-		
+
 		// Search for "password"
 		results, err := repo.SearchTemplates(ctx, "password")
 		require.NoError(t, err)
 		assert.Equal(t, 2, len(results))
-		
+
 		// Search for "billing"
 		results, err = repo.SearchTemplates(ctx, "billing")
 		require.NoError(t, err)
 		assert.Equal(t, 1, len(results))
-		
+
 		// Search with no results
 		results, err = repo.SearchTemplates(ctx, "nonexistent")
 		require.NoError(t, err)
 		assert.Equal(t, 0, len(results))
 	})
-	
+
 	t.Run("GetCategories", func(t *testing.T) {
 		repo := NewMemoryTicketTemplateRepository()
-		
+
 		// Create templates in various categories
 		categories := []string{"Technical", "Billing", "Technical", "General", "Billing", "Support"}
 		for i, cat := range categories {
@@ -258,12 +258,12 @@ func TestMemoryTicketTemplateRepository(t *testing.T) {
 			}
 			repo.CreateTemplate(ctx, template)
 		}
-		
+
 		// Get unique categories
 		cats, err := repo.GetCategories(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, 4, len(cats)) // Technical, Billing, General, Support
-		
+
 		// Verify categories are unique
 		catMap := make(map[string]bool)
 		for _, cat := range cats {
@@ -271,11 +271,11 @@ func TestMemoryTicketTemplateRepository(t *testing.T) {
 			catMap[cat.Name] = true
 		}
 	})
-	
+
 	t.Run("ConcurrentAccess", func(t *testing.T) {
 		repo := NewMemoryTicketTemplateRepository()
 		done := make(chan bool, 100)
-		
+
 		// Concurrent creates
 		for i := 0; i < 20; i++ {
 			go func(idx int) {
@@ -291,7 +291,7 @@ func TestMemoryTicketTemplateRepository(t *testing.T) {
 				done <- true
 			}(i)
 		}
-		
+
 		// Concurrent reads
 		for i := 0; i < 30; i++ {
 			go func() {
@@ -300,12 +300,12 @@ func TestMemoryTicketTemplateRepository(t *testing.T) {
 				done <- true
 			}()
 		}
-		
+
 		// Wait for all operations
 		for i := 0; i < 50; i++ {
 			<-done
 		}
-		
+
 		// Verify all templates were created
 		templates, err := repo.GetActiveTemplates(ctx)
 		assert.NoError(t, err)
@@ -353,7 +353,7 @@ func TestTemplateVariableSubstitution(t *testing.T) {
 			expected:  "This is a plain text template.",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := substituteVariables(tt.template, tt.variables)

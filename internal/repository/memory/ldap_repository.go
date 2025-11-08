@@ -12,18 +12,18 @@ import (
 
 // LDAPRepository is an in-memory implementation of LDAPRepository
 type LDAPRepository struct {
-	mu               sync.RWMutex
-	configs          map[int]*models.LDAPConfiguration
-	syncHistory      map[int]*models.LDAPSyncHistory
-	userMappings     map[int]*models.LDAPUserMapping
-	groupMappings    map[int]*models.LDAPGroupMapping
-	authLogs         map[int]*models.LDAPAuthenticationLog
-	connectionTests  []*models.LDAPConnectionTest
-	nextConfigID     int
-	nextSyncID       int
-	nextUserMapID    int
-	nextGroupMapID   int
-	nextAuthLogID    int
+	mu              sync.RWMutex
+	configs         map[int]*models.LDAPConfiguration
+	syncHistory     map[int]*models.LDAPSyncHistory
+	userMappings    map[int]*models.LDAPUserMapping
+	groupMappings   map[int]*models.LDAPGroupMapping
+	authLogs        map[int]*models.LDAPAuthenticationLog
+	connectionTests []*models.LDAPConnectionTest
+	nextConfigID    int
+	nextSyncID      int
+	nextUserMapID   int
+	nextGroupMapID  int
+	nextAuthLogID   int
 }
 
 // NewLDAPRepository creates a new in-memory LDAP repository

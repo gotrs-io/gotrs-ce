@@ -18,26 +18,32 @@ func HandleListTicketStatesAPI(c *gin.Context) {
 	}
 	_ = userID // Will use for permission checks later
 
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        // DB-less fallback
-        states := []gin.H{
-            {"id": 1, "name": "new", "type_id": 1, "valid_id": 1, "type_name": "open"},
-            {"id": 2, "name": "open", "type_id": 1, "valid_id": 1, "type_name": "open"},
-        }
-        // Apply type filter
-        if typeFilter := c.Query("type"); typeFilter != "" {
-            filtered := []gin.H{}
-            for _, s := range states {
-                if typeFilter == "open" && s["type_id"].(int) == 1 { filtered = append(filtered, s) }
-                if typeFilter == "closed" && s["type_id"].(int) == 2 { filtered = append(filtered, s) }
-                if typeFilter == "pending" && s["type_id"].(int) == 3 { filtered = append(filtered, s) }
-            }
-            states = filtered
-        }
-        c.JSON(http.StatusOK, gin.H{"states": states, "total": len(states)})
-        return
-    }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		// DB-less fallback
+		states := []gin.H{
+			{"id": 1, "name": "new", "type_id": 1, "valid_id": 1, "type_name": "open"},
+			{"id": 2, "name": "open", "type_id": 1, "valid_id": 1, "type_name": "open"},
+		}
+		// Apply type filter
+		if typeFilter := c.Query("type"); typeFilter != "" {
+			filtered := []gin.H{}
+			for _, s := range states {
+				if typeFilter == "open" && s["type_id"].(int) == 1 {
+					filtered = append(filtered, s)
+				}
+				if typeFilter == "closed" && s["type_id"].(int) == 2 {
+					filtered = append(filtered, s)
+				}
+				if typeFilter == "pending" && s["type_id"].(int) == 3 {
+					filtered = append(filtered, s)
+				}
+			}
+			states = filtered
+		}
+		c.JSON(http.StatusOK, gin.H{"states": states, "total": len(states)})
+		return
+	}
 
 	// Build query based on filters
 	query := database.ConvertPlaceholders(`
@@ -96,18 +102,18 @@ func HandleListTicketStatesAPI(c *gin.Context) {
 		if err := rows.Scan(&state.ID, &state.Name, &state.TypeID, &state.ValidID, &state.TypeName); err != nil {
 			continue
 		}
-		
+
 		stateData := gin.H{
 			"id":       state.ID,
 			"name":     state.Name,
 			"type_id":  state.TypeID,
 			"valid_id": state.ValidID,
 		}
-		
+
 		if state.TypeName != nil {
 			stateData["type_name"] = *state.TypeName
 		}
-		
+
 		states = append(states, stateData)
 	}
 

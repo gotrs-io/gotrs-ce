@@ -14,35 +14,35 @@ import (
 
 // MemoryInternalNoteRepository is an in-memory implementation of InternalNoteRepository
 type MemoryInternalNoteRepository struct {
-	mu            sync.RWMutex
-	notes         map[uint]*models.InternalNote
-	editHistory   map[uint][]models.NoteEdit
-	categories    map[uint]*models.NoteCategory
-	templates     map[uint]*models.NoteTemplate
-	mentions      map[uint]*models.NoteMention
-	activities    []models.NoteActivity
-	nextID        uint
-	nextEditID    uint
-	nextCatID     uint
-	nextTemplID   uint
-	nextMentionID uint
+	mu             sync.RWMutex
+	notes          map[uint]*models.InternalNote
+	editHistory    map[uint][]models.NoteEdit
+	categories     map[uint]*models.NoteCategory
+	templates      map[uint]*models.NoteTemplate
+	mentions       map[uint]*models.NoteMention
+	activities     []models.NoteActivity
+	nextID         uint
+	nextEditID     uint
+	nextCatID      uint
+	nextTemplID    uint
+	nextMentionID  uint
 	nextActivityID uint
 }
 
 // NewMemoryInternalNoteRepository creates a new in-memory internal note repository
 func NewMemoryInternalNoteRepository() *MemoryInternalNoteRepository {
 	return &MemoryInternalNoteRepository{
-		notes:         make(map[uint]*models.InternalNote),
-		editHistory:   make(map[uint][]models.NoteEdit),
-		categories:    make(map[uint]*models.NoteCategory),
-		templates:     make(map[uint]*models.NoteTemplate),
-		mentions:      make(map[uint]*models.NoteMention),
-		activities:    []models.NoteActivity{},
-		nextID:        1,
-		nextEditID:    1,
-		nextCatID:     1,
-		nextTemplID:   1,
-		nextMentionID: 1,
+		notes:          make(map[uint]*models.InternalNote),
+		editHistory:    make(map[uint][]models.NoteEdit),
+		categories:     make(map[uint]*models.NoteCategory),
+		templates:      make(map[uint]*models.NoteTemplate),
+		mentions:       make(map[uint]*models.NoteMention),
+		activities:     []models.NoteActivity{},
+		nextID:         1,
+		nextEditID:     1,
+		nextCatID:      1,
+		nextTemplID:    1,
+		nextMentionID:  1,
 		nextActivityID: 1,
 	}
 }
@@ -164,12 +164,12 @@ func (r *MemoryInternalNoteRepository) UpdateNote(ctx context.Context, note *mod
 			EditedAt:   time.Now(),
 		}
 		r.nextEditID++
-		
+
 		if r.editHistory[note.ID] == nil {
 			r.editHistory[note.ID] = []models.NoteEdit{}
 		}
 		r.editHistory[note.ID] = append(r.editHistory[note.ID], edit)
-		
+
 		// Add to note's edit history
 		note.EditHistory = r.editHistory[note.ID]
 	}
@@ -268,7 +268,7 @@ func (r *MemoryInternalNoteRepository) SearchNotes(ctx context.Context, filter *
 		if query != "" {
 			if !strings.Contains(strings.ToLower(note.Content), query) &&
 				!strings.Contains(strings.ToLower(note.Category), query) {
-				
+
 				// Check in tags
 				tagMatch := false
 				for _, tag := range note.Tags {
@@ -291,7 +291,7 @@ func (r *MemoryInternalNoteRepository) SearchNotes(ctx context.Context, filter *
 	if sortBy == "" {
 		sortBy = "created_at"
 	}
-	
+
 	sortOrder := filter.SortOrder
 	if sortOrder == "" {
 		sortOrder = "desc"
@@ -447,11 +447,11 @@ func (r *MemoryInternalNoteRepository) GetNoteStatistics(ctx context.Context, ti
 		}
 
 		stats.TotalNotes++
-		
+
 		if note.IsImportant {
 			stats.ImportantNotes++
 		}
-		
+
 		if note.IsPinned {
 			stats.PinnedNotes++
 		}
@@ -495,12 +495,12 @@ func (r *MemoryInternalNoteRepository) GetCategories(ctx context.Context) ([]mod
 				categories = append(categories, *cat)
 			}
 		}
-		
+
 		// Sort by order
 		sort.Slice(categories, func(i, j int) bool {
 			return categories[i].Order < categories[j].Order
 		})
-		
+
 		return categories, nil
 	}
 

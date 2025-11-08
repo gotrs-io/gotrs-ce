@@ -34,7 +34,7 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 		Priority       string `json:"priority" form:"priority"`
 		QueueID        string `json:"queue_id" form:"queue_id"`
 		TypeID         string `json:"type_id" form:"type_id"`
-		Body           string `json:"body" form:"body" binding:"required"`
+		Body           string `json:"body" form:"body"`
 		NextState      string `json:"next_state" form:"next_state"`
 		NextStateID    string `json:"next_state_id" form:"next_state_id"`
 		PendingUntil   string `json:"pending_until" form:"pending_until"`
@@ -53,6 +53,17 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 	if err := c.ShouldBind(&req); err != nil {
 		log.Printf("ERROR: Form binding failed: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if strings.TrimSpace(req.Body) == "" {
+		if desc := strings.TrimSpace(c.PostForm("description")); desc != "" {
+			req.Body = desc
+		}
+	}
+
+	if strings.TrimSpace(req.Body) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Body is required"})
 		return
 	}
 
@@ -469,14 +480,14 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 		}
 		articleID64 := int64(article.ID)
 		queueItem := &mailqueue.MailQueueItem{
-			ArticleID:    &articleID64,
-			Sender:       &senderEmail,
-			Recipient:    customerEmail,
-			RawMessage:   mailqueue.BuildEmailMessage(senderEmail, customerEmail, subject, body),
-			Attempts:     0,
-			CreateTime:   time.Now(),
+			ArticleID:  &articleID64,
+			Sender:     &senderEmail,
+			Recipient:  customerEmail,
+			RawMessage: mailqueue.BuildEmailMessage(senderEmail, customerEmail, subject, body),
+			Attempts:   0,
+			CreateTime: time.Now(),
 		}
-		
+
 		if err := queueRepo.Insert(context.Background(), queueItem); err != nil {
 			log.Printf("Failed to queue email for %s: %v", customerEmail, err)
 		} else {

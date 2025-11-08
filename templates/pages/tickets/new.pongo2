@@ -16,7 +16,7 @@
     </div>
 
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg" x-data="{ }">
-        <form method="post" action="/tickets" enctype="multipart/form-data" data-gk-validate class="space-y-6 p-6">
+    <form method="post" action="/api/tickets" hx-post="/api/tickets" hx-target="#form-messages" hx-swap="innerHTML" hx-encoding="multipart/form-data" enctype="multipart/form-data" data-gk-validate class="space-y-6 p-6">
             <div id="form-messages"></div>
 
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -145,6 +145,9 @@
 {% endblock %}
 
 {% block scripts %}
+{{ block.super }}
+<script src="/static/js/tiptap.min.js"></script>
+<script src="/static/js/tiptap-editor.js"></script>
 <!-- Seed JSON for GoatKit autocomplete (customer-user) -->
 <script type="application/json" data-gk-seed="customer-user">[
     {% for customerUser in CustomerUsers %}{
@@ -167,7 +170,7 @@
             hidden.type = 'hidden';
             hidden.name = 'customer_id';
             hidden.id = 'customer_id';
-            document.querySelector('form[action="/tickets"]').appendChild(hidden);
+            document.querySelector('form[action="/api/tickets"]').appendChild(hidden);
         }
     })();
 

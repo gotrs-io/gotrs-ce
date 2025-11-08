@@ -1,0 +1,68 @@
+services:
+  backend-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: gotrs-backend-test
+    user: "1000:1000"
+    environment:
+      APP_ENV: test
+      GOTRS_DISABLE_TEST_AUTH_BYPASS: "1"
+      DB_DRIVER: ${TEST_DB_DRIVER:-mysql}
+      DB_HOST: ${TEST_DB_MYSQL_HOST:-mariadb-test}
+      DB_PORT: 3306
+      DB_NAME: ${TEST_DB_MYSQL_NAME:-otrs_test}
+      DB_USER: ${TEST_DB_MYSQL_USER:-otrs}
+      DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD:-LetClaude.1n}
+      REDIS_HOST: ${TEST_DB_REDIS_HOST:-valkey-test}
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${TEST_REDIS_PASSWORD:-valkey-test-password}
+      JWT_SECRET: ${JWT_SECRET:-test-jwt-secret-key}
+      SESSION_SECRET: ${SESSION_SECRET:-test-session-secret}
+    expose:
+      - "8080"
+    ports:
+      - "${TEST_BACKEND_PORT:-18081}:8080"
+    depends_on:
+      mariadb-test:
+        condition: service_healthy
+      valkey-test:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - gotrs-network
+
+  runner-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner-runtime
+    container_name: gotrs-runner-test
+    user: "1000:1000"
+    environment:
+      APP_ENV: test
+      GOTRS_DISABLE_TEST_AUTH_BYPASS: "1"
+      DB_DRIVER: ${TEST_DB_DRIVER:-mysql}
+      DB_HOST: ${TEST_DB_MYSQL_HOST:-mariadb-test}
+      DB_PORT: 3306
+      DB_NAME: ${TEST_DB_MYSQL_NAME:-otrs_test}
+      DB_USER: ${TEST_DB_MYSQL_USER:-otrs}
+      DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD:-LetClaude.1n}
+      REDIS_HOST: ${TEST_DB_REDIS_HOST:-valkey-test}
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${TEST_REDIS_PASSWORD:-valkey-test-password}
+    depends_on:
+      backend-test:
+        condition: service_healthy
+    networks:
+      - gotrs-network
+
+networks:
+  gotrs-network:
+    driver: bridge

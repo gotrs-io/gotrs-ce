@@ -14,7 +14,7 @@ func (router *APIRouter) handleGlobalSearch(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, "Search query required")
 		return
 	}
-	
+
 	// TODO: Implement actual global search
 	results := gin.H{
 		"tickets": []gin.H{
@@ -27,7 +27,7 @@ func (router *APIRouter) handleGlobalSearch(c *gin.Context) {
 			{"id": 1, "subject": "Sample article", "type": "article"},
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    results,
@@ -40,7 +40,7 @@ func (router *APIRouter) handleSearchTickets(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, "Search query required")
 		return
 	}
-	
+
 	// TODO: Implement actual ticket search
 	tickets := []gin.H{
 		{
@@ -49,7 +49,7 @@ func (router *APIRouter) handleSearchTickets(c *gin.Context) {
 			"title":  "Sample ticket matching search",
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    tickets,
@@ -62,7 +62,7 @@ func (router *APIRouter) handleSearchUsers(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, "Search query required")
 		return
 	}
-	
+
 	// TODO: Implement actual user search
 	users := []gin.H{
 		{
@@ -72,7 +72,7 @@ func (router *APIRouter) handleSearchUsers(c *gin.Context) {
 			"email": "admin@example.com",
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    users,
@@ -85,14 +85,14 @@ func (router *APIRouter) handleSearchSuggestions(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, "Search query required")
 		return
 	}
-	
+
 	// TODO: Implement actual search suggestions
 	suggestions := []string{
 		query + " in tickets",
 		query + " in articles",
 		query + " customer",
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    suggestions,
@@ -110,7 +110,7 @@ func (router *APIRouter) handleGetSavedSearches(c *gin.Context) {
 			"created_at": time.Now().AddDate(0, -1, 0),
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    searches,
@@ -122,12 +122,12 @@ func (router *APIRouter) handleCreateSavedSearch(c *gin.Context) {
 		Name  string `json:"name" binding:"required"`
 		Query string `json:"query" binding:"required"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual saved search creation
 	search := gin.H{
 		"id":         2,
@@ -135,7 +135,7 @@ func (router *APIRouter) handleCreateSavedSearch(c *gin.Context) {
 		"query":      req.Query,
 		"created_at": time.Now(),
 	}
-	
+
 	c.JSON(http.StatusCreated, APIResponse{
 		Success: true,
 		Data:    search,
@@ -144,7 +144,7 @@ func (router *APIRouter) handleCreateSavedSearch(c *gin.Context) {
 
 func (router *APIRouter) handleGetSavedSearch(c *gin.Context) {
 	searchID := c.Param("id")
-	
+
 	// TODO: Implement actual saved search fetching
 	search := gin.H{
 		"id":         searchID,
@@ -153,7 +153,7 @@ func (router *APIRouter) handleGetSavedSearch(c *gin.Context) {
 		"created_at": time.Now().AddDate(0, -1, 0),
 		"updated_at": time.Now(),
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    search,
@@ -162,17 +162,17 @@ func (router *APIRouter) handleGetSavedSearch(c *gin.Context) {
 
 func (router *APIRouter) handleUpdateSavedSearch(c *gin.Context) {
 	searchID := c.Param("id")
-	
+
 	var req struct {
 		Name  string `json:"name"`
 		Query string `json:"query"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual saved search update
 	search := gin.H{
 		"id":         searchID,
@@ -180,7 +180,7 @@ func (router *APIRouter) handleUpdateSavedSearch(c *gin.Context) {
 		"query":      req.Query,
 		"updated_at": time.Now(),
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    search,
@@ -189,14 +189,14 @@ func (router *APIRouter) handleUpdateSavedSearch(c *gin.Context) {
 
 func (router *APIRouter) handleDeleteSavedSearch(c *gin.Context) {
 	// searchID := c.Param("id")
-	
+
 	// TODO: Implement actual saved search deletion
 	c.JSON(http.StatusNoContent, nil)
 }
 
 func (router *APIRouter) handleExecuteSavedSearch(c *gin.Context) {
 	searchID := c.Param("id")
-	
+
 	// TODO: Implement actual saved search execution
 	// This would fetch the saved search and execute it
 	results := gin.H{
@@ -209,7 +209,7 @@ func (router *APIRouter) handleExecuteSavedSearch(c *gin.Context) {
 			},
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    results,

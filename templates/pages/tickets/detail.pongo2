@@ -511,3 +511,9 @@ if (commentForm) {
 }
 </script>
 {% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="/static/js/tiptap.min.js"></script>
+<script src="/static/js/tiptap-editor.js"></script>
+{% endblock %}

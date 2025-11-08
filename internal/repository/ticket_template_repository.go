@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	
+
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 )
 
@@ -15,13 +15,13 @@ type TicketTemplateRepository interface {
 	GetTemplatesByCategory(ctx context.Context, category string) ([]models.TicketTemplate, error)
 	UpdateTemplate(ctx context.Context, template *models.TicketTemplate) error
 	DeleteTemplate(ctx context.Context, id uint) error
-	
+
 	// Usage tracking
 	IncrementUsageCount(ctx context.Context, templateID uint) error
-	
+
 	// Search and filtering
 	SearchTemplates(ctx context.Context, query string) ([]models.TicketTemplate, error)
-	
+
 	// Categories
 	GetCategories(ctx context.Context) ([]models.TemplateCategory, error)
 }

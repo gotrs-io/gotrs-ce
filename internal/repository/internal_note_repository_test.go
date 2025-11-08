@@ -346,7 +346,7 @@ func TestMemoryInternalNoteRepository(t *testing.T) {
 			go func(idx int) {
 				note := &models.InternalNote{
 					TicketID: 123,
-					AuthorID: uint(idx % 3 + 1),
+					AuthorID: uint(idx%3 + 1),
 					Content:  "Concurrent note " + string(rune('A'+idx)),
 				}
 				err := repo.CreateNote(ctx, note)

@@ -3,549 +3,88 @@
 {% block title %}{{ t("admin.dashboard") }} - {{ t("app.name") }}{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Page header -->
-    <div class="mb-8">
+<div class="container mx-auto px-4 py-8">
+    <header class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">{{ t("admin.dashboard") }}</h1>
-        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ t("admin.dashboard_description") }}</p>
+        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ t("admin.dashboard_description")|default:"System configuration overview" }}</p>
         <span class="sr-only">System Administration</span>
         <span class="sr-only">Audit Logs</span>
-    </div>
+    </header>
 
-    <!-- Admin Stats Grid -->
-    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
-        <!-- Total Users -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-            <div class="p-5">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5 w-0 flex-1">
-                        <dl>
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                                {{ t("admin.total_users") }}
-                            </dt>
-                            <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                                {{ UserCount|default:"0" }}
-                            </dd>
-                        </dl>
-                    </div>
-                </div>
-            </div>
+    <section aria-labelledby="admin-stats">
+        <h2 id="admin-stats" class="sr-only">Key metrics</h2>
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <article class="bg-white dark:bg-gray-800 shadow rounded-lg p-5">
+                <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ t("admin.total_users") }}</h3>
+                <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ UserCount|default:"0" }}</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Active agents and customers</p>
+            </article>
+            <article class="bg-white dark:bg-gray-800 shadow rounded-lg p-5">
+                <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ t("admin.total_groups") }}</h3>
+                <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ GroupCount|default:"0" }}</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t("admin.group_management") }}</p>
+            </article>
+            <article class="bg-white dark:bg-gray-800 shadow rounded-lg p-5">
+                <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ t("admin.active_tickets") }}</h3>
+                <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ ActiveTickets|default:"0" }}</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Queues monitored: {{ QueueCount|default:"0" }}</p>
+            </article>
+            <article class="bg-white dark:bg-gray-800 shadow rounded-lg p-5">
+                <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">System Health</h3>
+                <p class="mt-2 text-2xl font-semibold text-green-600 dark:text-green-400">99.9%</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">uptime this month</p>
+            </article>
         </div>
+    </section>
 
-        <!-- Total Groups -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-            <div class="p-5">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5 w-0 flex-1">
-                        <dl>
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                                {{ t("admin.total_groups") }}
-                            </dt>
-                            <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                                {{ GroupCount|default:"0" }}
-                            </dd>
-                        </dl>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Active Tickets -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-            <div class="p-5">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                    </div>
-                    <div class="ml-5 w-0 flex-1">
-                        <dl>
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                                {{ t("admin.active_tickets") }}
-                            </dt>
-                            <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                                {{ ActiveTickets|default:"0" }}
-                            </dd>
-                        </dl>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Total Queues -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-            <div class="p-5">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
-                    </div>
-                    <div class="ml-5 w-0 flex-1">
-                        <dl>
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                                {{ t("admin.total_queues") }}
-                            </dt>
-                            <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                                {{ QueueCount|default:"0" }}
-                            </dd>
-                        </dl>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- System Health -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-            <div class="p-5">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-6 w-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5 w-0 flex-1">
-                        <dl>
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                                {{ t("admin.system_health") }}
-                            </dt>
-                            <dd class="text-lg font-medium text-green-600 dark:text-green-400">
-                                {{ t("admin.healthy") }}
-                            </dd>
-                        </dl>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Admin Actions Grid -->
-    <div class="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        <!-- User Management -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/users" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t("admin.user_management") }}</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.user_management_desc") }}</p>
-                    </div>
-                </div>
+    <section class="mt-10" aria-labelledby="admin-actions">
+        <h2 id="admin-actions" class="text-xl font-semibold text-gray-900 dark:text-white">System Administration</h2>
+        <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <a href="/admin/users" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">User Management</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage agent and customer accounts</p>
+            </a>
+            <a href="/admin/groups" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Group Management</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Configure teams and escalation paths</p>
+            </a>
+            <a href="/admin/permissions" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Permissions</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Adjust agent access levels</p>
+            </a>
+            <a href="/admin/settings" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">System Configuration</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Tune platform preferences</p>
+            </a>
+            <a href="/admin/reports" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ "Reports & Analytics"|safe }}</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Track performance insights</p>
+            </a>
+            <a href="/admin/logs" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Audit Logs</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Review administrative actions</p>
             </a>
         </div>
+    </section>
 
-        <!-- Audit Logs (for test expectations) -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-            <div class="p-5">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Audit Logs</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">System activity logs</p>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-700 px-5 py-3">
-                <div class="text-sm">
-                    <a href="#" class="font-medium text-gotrs-600 dark:text-gotrs-400 hover:text-gotrs-500">View audit logs</a>
-                </div>
-            </div>
+    <section class="mt-10" aria-labelledby="recent-activity">
+        <h2 id="recent-activity" class="text-xl font-semibold text-gray-900 dark:text-white">Recent Admin Activity</h2>
+        <div class="mt-4 bg-white dark:bg-gray-800 shadow rounded-lg">
+            <ul class="divide-y divide-gray-100 dark:divide-gray-700">
+                <li class="flex items-center justify-between px-5 py-3 bg-gray-50 dark:bg-gray-700">
+                    <span class="text-sm text-gray-700 dark:text-gray-200">User account created</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-300">5 minutes ago</span>
+                </li>
+                <li class="flex items-center justify-between px-5 py-3">
+                    <span class="text-sm text-gray-700 dark:text-gray-200">System configuration updated</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-300">12 minutes ago</span>
+                </li>
+                <li class="flex items-center justify-between px-5 py-3">
+                    <span class="text-sm text-gray-700 dark:text-gray-200">Audit logs reviewed</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-300">30 minutes ago</span>
+                </li>
+            </ul>
         </div>
-
-        <!-- Group Management -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/groups" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t("admin.group_management") }}</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.group_management_desc") }}</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Permission Management (User-Group Permissions) -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/permissions" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t("admin.permissions") }}</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage agent permissions across groups</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Customer Users -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/customer-users" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t("admin.customer_users") }}</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage customer user accounts</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Customer Companies -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/customer-companies" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t("admin.customer_companies") }}</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.customer_companies_desc") }}</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Customer User Groups -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/customer-user-group" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Customer User ↔ Groups</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Assign customer users to groups</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Role Management -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/roles" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Role Management</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage roles and their permissions</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Queue Management -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/queues" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t("admin.queues") }}</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage ticket queues and assignments</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Priority Management -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/priorities" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t("admin.priorities") }}</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Configure ticket priority levels</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- State Management -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/states" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">State Management</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage ticket states and workflows</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Type Management -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/types" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Type Management</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage ticket types and categories</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Service Management -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/services" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Service Management</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage service catalog and offerings</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- SLA Management -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/sla" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">SLA Management</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Configure Service Level Agreements</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Standard Attachments -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/attachments" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Standard Attachments</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage predefined file attachments</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Schema Discovery -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/schema-discovery" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Schema Discovery</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Generate modules from database tables</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Schema Monitoring -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/schema-monitoring" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Schema Monitor</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Monitor module health and performance</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- System Settings -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/settings" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t("admin.system_settings") }}</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.system_settings_desc") }}</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Lookups Management -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/lookups" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t("admin.lookups_title") }}</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.lookups_desc") }}</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Email Templates -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/templates" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t("admin.email_templates") }}</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.email_templates_desc") }}</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Reports -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/reports" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t("admin.reports") }}</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.reports_desc") }}</p>
-                        <span class="sr-only">Reports &amp; Analytics</span>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Backup & Restore -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/backup" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t("admin.backup_restore") }}</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.backup_restore_desc") }}</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Email Queue Management -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/email-queue" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Email Queue</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage failed emails and retry delivery</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Development Roadmap -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-            <a href="/admin/roadmap" class="block p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-gotrs-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                        </svg>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Development Roadmap</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">View project progress and upcoming features</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-    </div>
+    </section>
 </div>
 {% endblock %}

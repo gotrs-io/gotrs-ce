@@ -26,34 +26,34 @@ func TestTicketCreationForm(t *testing.T) {
 				// Should have form elements
 				assert.Contains(t, body, `<form`)
 				assert.Contains(t, body, `id="ticket-form"`)
-				
+
 				// Should have title field
 				assert.Contains(t, body, `name="title"`)
 				assert.Contains(t, body, `placeholder="Brief description of the issue"`)
-				
+
 				// Should have queue selection
 				assert.Contains(t, body, `name="queue_id"`)
 				assert.Contains(t, body, `<option value="1">Raw</option>`)
-				
+
 				// Should have priority selection
 				assert.Contains(t, body, `name="priority"`)
 				assert.Contains(t, body, `value="low"`)
 				assert.Contains(t, body, `value="normal"`)
 				assert.Contains(t, body, `value="high"`)
 				assert.Contains(t, body, `value="urgent"`)
-				
+
 				// Should have description textarea
 				assert.Contains(t, body, `name="description"`)
 				assert.Contains(t, body, `<textarea`)
-				
+
 				// Should have customer email field
 				assert.Contains(t, body, `name="customer_email"`)
 				assert.Contains(t, body, `type="email"`)
-				
+
 				// Should have submit button
 				assert.Contains(t, body, `type="submit"`)
 				assert.Contains(t, body, "Create Ticket")
-				
+
 				// Should have HTMX attributes
 				assert.Contains(t, body, `hx-post="/tickets/create"`)
 				assert.Contains(t, body, `hx-target`)
@@ -243,7 +243,7 @@ func TestTicketListDisplay(t *testing.T) {
 			checkResponse: func(t *testing.T, body string) {
 				// Should have ticket list container
 				assert.Contains(t, body, `id="ticket-list"`)
-				
+
 				// Should display ticket information
 				assert.Contains(t, body, "Ticket #")
 				assert.Contains(t, body, "Title")
@@ -252,7 +252,7 @@ func TestTicketListDisplay(t *testing.T) {
 				assert.Contains(t, body, "Status")
 				assert.Contains(t, body, "Created")
 				assert.Contains(t, body, "Updated")
-				
+
 				// Should have action buttons
 				assert.Contains(t, body, "View")
 				assert.Contains(t, body, "Edit")
@@ -409,7 +409,7 @@ func TestTicketQuickActions(t *testing.T) {
 			router := gin.New()
 			router.POST("/tickets/:id/quick-action", handleTicketQuickAction)
 
-			req, _ := http.NewRequest("POST", "/tickets/"+tt.ticketID+"/quick-action", 
+			req, _ := http.NewRequest("POST", "/tickets/"+tt.ticketID+"/quick-action",
 				strings.NewReader("action="+tt.action))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			req.Header.Set("HX-Request", "true")

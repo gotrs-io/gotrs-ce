@@ -54,8 +54,7 @@ func HandleAgentNewTicket(db *sql.DB) gin.HandlerFunc {
 					},
 				})
 			} else {
-				// Fallback when template renderer is not available
-				c.String(http.StatusOK, "Template renderer not available")
+				renderTicketCreationFallback(c, "email")
 			}
 			return
 		}
@@ -128,8 +127,7 @@ func HandleAgentNewTicket(db *sql.DB) gin.HandlerFunc {
 				"TicketStateLookup": stateLookup,
 			})
 		} else {
-			// Fallback when template renderer is not available
-			c.String(http.StatusOK, "Template renderer not available")
+			renderTicketCreationFallback(c, "email")
 		}
 	}
 }

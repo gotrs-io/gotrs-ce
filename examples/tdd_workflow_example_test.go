@@ -1,11 +1,14 @@
+//go:build tdd_example
+// +build tdd_example
+
 package examples
 
 import (
-	"testing"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"encoding/json"
+	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -30,44 +33,44 @@ import (
 func TestUserProfileUpdateAPI_Integration(t *testing.T) {
 	// This test will initially fail because the endpoint doesn't exist
 	// This is the RED phase of Red-Green-Refactor
-	
+
 	t.Run("should update user profile with valid data", func(t *testing.T) {
 		// Arrange
 		userID := "12345"
 		updateData := map[string]interface{}{
 			"first_name": "John",
-			"last_name":  "Doe", 
+			"last_name":  "Doe",
 			"email":      "john.doe@example.com",
 			"timezone":   "America/New_York",
 		}
-		
+
 		// This will fail initially because handler doesn't exist
 		handler := NewUserProfileHandler() // This function doesn't exist yet
-		
+
 		// Create request
 		jsonData, err := json.Marshal(updateData)
 		require.NoError(t, err)
-		
+
 		req := httptest.NewRequest(http.MethodPut, "/api/users/"+userID+"/profile", strings.NewReader(string(jsonData)))
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		w := httptest.NewRecorder()
-		
+
 		// Act
 		handler.ServeHTTP(w, req)
-		
+
 		// Assert
 		assert.Equal(t, http.StatusOK, w.Code, "Expected successful profile update")
-		
+
 		var response map[string]interface{}
 		err = json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
-		
+
 		assert.True(t, response["success"].(bool), "Expected success flag to be true")
 		assert.Equal(t, "Profile updated successfully", response["message"], "Expected success message")
 		assert.NotEmpty(t, response["updated_at"], "Expected updated_at timestamp")
 	})
-	
+
 	t.Run("should return validation error for invalid email", func(t *testing.T) {
 		// Arrange
 		userID := "12345"
@@ -77,31 +80,31 @@ func TestUserProfileUpdateAPI_Integration(t *testing.T) {
 			"email":      "invalid-email", // Invalid email format
 			"timezone":   "America/New_York",
 		}
-		
+
 		handler := NewUserProfileHandler() // This function doesn't exist yet
-		
+
 		jsonData, err := json.Marshal(updateData)
 		require.NoError(t, err)
-		
+
 		req := httptest.NewRequest(http.MethodPut, "/api/users/"+userID+"/profile", strings.NewReader(string(jsonData)))
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		w := httptest.NewRecorder()
-		
+
 		// Act
 		handler.ServeHTTP(w, req)
-		
+
 		// Assert
 		assert.Equal(t, http.StatusBadRequest, w.Code, "Expected validation error")
-		
+
 		var response map[string]interface{}
 		err = json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
-		
+
 		assert.False(t, response["success"].(bool), "Expected success flag to be false")
 		assert.Contains(t, response["error"].(string), "email", "Expected email validation error")
 	})
-	
+
 	t.Run("should return error for non-existent user", func(t *testing.T) {
 		// Arrange
 		userID := "99999" // Non-existent user
@@ -111,31 +114,31 @@ func TestUserProfileUpdateAPI_Integration(t *testing.T) {
 			"email":      "john.doe@example.com",
 			"timezone":   "America/New_York",
 		}
-		
+
 		handler := NewUserProfileHandler() // This function doesn't exist yet
-		
+
 		jsonData, err := json.Marshal(updateData)
 		require.NoError(t, err)
-		
+
 		req := httptest.NewRequest(http.MethodPut, "/api/users/"+userID+"/profile", strings.NewReader(string(jsonData)))
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		w := httptest.NewRecorder()
-		
+
 		// Act
 		handler.ServeHTTP(w, req)
-		
+
 		// Assert
 		assert.Equal(t, http.StatusNotFound, w.Code, "Expected user not found error")
-		
+
 		var response map[string]interface{}
 		err = json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
-		
+
 		assert.False(t, response["success"].(bool), "Expected success flag to be false")
 		assert.Contains(t, response["error"].(string), "not found", "Expected user not found error")
 	})
-	
+
 	t.Run("should require authentication", func(t *testing.T) {
 		// Arrange - Request without authentication
 		userID := "12345"
@@ -144,25 +147,25 @@ func TestUserProfileUpdateAPI_Integration(t *testing.T) {
 			"last_name":  "Doe",
 			"email":      "john.doe@example.com",
 		}
-		
+
 		handler := NewUserProfileHandler() // This function doesn't exist yet
-		
+
 		jsonData, err := json.Marshal(updateData)
 		require.NoError(t, err)
-		
+
 		req := httptest.NewRequest(http.MethodPut, "/api/users/"+userID+"/profile", strings.NewReader(string(jsonData)))
 		req.Header.Set("Content-Type", "application/json")
 		// Notably missing: req.Header.Set("Authorization", "Bearer token")
-		
+
 		w := httptest.NewRecorder()
-		
+
 		// Act
 		handler.ServeHTTP(w, req)
-		
+
 		// Assert
 		assert.Equal(t, http.StatusUnauthorized, w.Code, "Expected authentication required")
 	})
-	
+
 	t.Run("should validate required fields", func(t *testing.T) {
 		// Arrange - Missing required fields
 		userID := "12345"
@@ -170,28 +173,28 @@ func TestUserProfileUpdateAPI_Integration(t *testing.T) {
 			// Missing first_name and last_name
 			"email": "john.doe@example.com",
 		}
-		
+
 		handler := NewUserProfileHandler() // This function doesn't exist yet
-		
+
 		jsonData, err := json.Marshal(updateData)
 		require.NoError(t, err)
-		
+
 		req := httptest.NewRequest(http.MethodPut, "/api/users/"+userID+"/profile", strings.NewReader(string(jsonData)))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer valid-token")
-		
+
 		w := httptest.NewRecorder()
-		
+
 		// Act
 		handler.ServeHTTP(w, req)
-		
+
 		// Assert
 		assert.Equal(t, http.StatusBadRequest, w.Code, "Expected validation error for missing fields")
-		
+
 		var response map[string]interface{}
 		err = json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
-		
+
 		assert.False(t, response["success"].(bool), "Expected success flag to be false")
 		assert.Contains(t, strings.ToLower(response["error"].(string)), "required", "Expected required field validation error")
 	})
@@ -200,7 +203,7 @@ func TestUserProfileUpdateAPI_Integration(t *testing.T) {
 // Step 2: Write unit tests for the service layer
 func TestUserProfileService_Unit(t *testing.T) {
 	// These tests will also fail initially because the service doesn't exist
-	
+
 	t.Run("should update profile in database", func(t *testing.T) {
 		// Arrange
 		service := NewUserProfileService() // This doesn't exist yet
@@ -211,14 +214,14 @@ func TestUserProfileService_Unit(t *testing.T) {
 			Email:     "john.doe@example.com",
 			Timezone:  "America/New_York",
 		}
-		
+
 		// Act
 		err := service.UpdateProfile(userID, profile)
-		
+
 		// Assert
 		assert.NoError(t, err, "Expected successful profile update")
 	})
-	
+
 	t.Run("should validate email format", func(t *testing.T) {
 		// Arrange
 		service := NewUserProfileService() // This doesn't exist yet
@@ -229,29 +232,29 @@ func TestUserProfileService_Unit(t *testing.T) {
 			Email:     "invalid-email-format",
 			Timezone:  "America/New_York",
 		}
-		
+
 		// Act
 		err := service.UpdateProfile(userID, profile)
-		
+
 		// Assert
 		assert.Error(t, err, "Expected validation error for invalid email")
 		assert.Contains(t, err.Error(), "email", "Expected email validation error message")
 	})
-	
+
 	t.Run("should return error for non-existent user", func(t *testing.T) {
 		// Arrange
 		service := NewUserProfileService() // This doesn't exist yet
-		userID := "99999" // Non-existent user
-		profile := UserProfile{ // This type doesn't exist yet
+		userID := "99999"                  // Non-existent user
+		profile := UserProfile{            // This type doesn't exist yet
 			FirstName: "John",
 			LastName:  "Doe",
 			Email:     "john.doe@example.com",
 			Timezone:  "America/New_York",
 		}
-		
+
 		// Act
 		err := service.UpdateProfile(userID, profile)
-		
+
 		// Assert
 		assert.Error(t, err, "Expected error for non-existent user")
 		assert.Contains(t, strings.ToLower(err.Error()), "not found", "Expected user not found error")
@@ -261,13 +264,13 @@ func TestUserProfileService_Unit(t *testing.T) {
 // Step 3: Write repository tests (if using repository pattern)
 func TestUserProfileRepository_Database(t *testing.T) {
 	// These will fail initially as repository doesn't exist
-	
+
 	t.Run("should save profile to database", func(t *testing.T) {
 		// Skip this test if not in integration test environment
 		if testing.Short() {
 			t.Skip("Skipping database test in short mode")
 		}
-		
+
 		// Arrange
 		repo := NewUserProfileRepository() // This doesn't exist yet
 		userID := "test-user-123"
@@ -277,17 +280,17 @@ func TestUserProfileRepository_Database(t *testing.T) {
 			Email:     "integration@test.com",
 			Timezone:  "UTC",
 		}
-		
+
 		// Act
 		err := repo.UpdateProfile(userID, profile)
-		
+
 		// Assert
 		assert.NoError(t, err, "Expected successful database update")
-		
+
 		// Verify by reading back
 		savedProfile, err := repo.GetProfile(userID)
 		require.NoError(t, err)
-		
+
 		assert.Equal(t, profile.FirstName, savedProfile.FirstName)
 		assert.Equal(t, profile.LastName, savedProfile.LastName)
 		assert.Equal(t, profile.Email, savedProfile.Email)
@@ -317,7 +320,7 @@ func NewUserProfileHandler() http.Handler {
 }
 
 // NewUserProfileService creates a new user profile service
-// This will need to be implemented in the implementation phase  
+// This will need to be implemented in the implementation phase
 func NewUserProfileService() UserProfileService {
 	// This will cause a compilation error initially
 	// Implementation phase will create this function
@@ -366,7 +369,7 @@ TDD Workflow Steps for this example:
    make tdd-implement
    - Create actual implementations:
      * internal/api/user_profile_handlers.go
-     * internal/service/user_profile_service.go  
+     * internal/service/user_profile_service.go
      * internal/repository/user_profile_repository.go
    - Implement just enough to make tests pass
 
@@ -374,19 +377,19 @@ TDD Workflow Steps for this example:
    make tdd-verify
    - ALL 7 quality gates must pass
    - Compilation: ✓
-   - Service Health: ✓  
+   - Service Health: ✓
    - Templates: ✓
    - Go Tests: ✓ (including these tests)
    - HTTP Endpoints: ✓
    - Browser Console: ✓
    - Log Analysis: ✓
-   
+
 7. Refactor phase (REFACTOR phase):
    make tdd-refactor
    - Clean up code
    - Extract common patterns
    - Improve error handling
-   
+
 8. Verify no regressions:
    make tdd-verify --refactor
    - All gates must still pass after refactoring

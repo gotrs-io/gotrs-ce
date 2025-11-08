@@ -32,7 +32,7 @@
 
         <!-- Types Table -->
         <div class="overflow-x-auto">
-            <table class="table w-full">
+            <table class="table" style="width: 100%;">
                 <thead>
                     <tr class="bg-gray-50 dark:bg-gray-700">
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer"
@@ -110,7 +110,7 @@
     <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
         <div class="mt-3">
             <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4" id="modalTitle">Add New Type</h3>
-            <form id="typeForm" onsubmit="saveType(event)">
+            <form id="typeForm" onsubmit="saveType()">
                 <input type="hidden" id="typeId" value="">
                 
                 <div class="mb-4">
@@ -264,9 +264,12 @@ function closeTypeModal() {
     }
 }
 
-function saveType(event) {
-    event.preventDefault();
-    
+function saveType() {
+    const evt = typeof event !== 'undefined' ? event : window.event;
+    if (evt && typeof evt.preventDefault === 'function') {
+        evt.preventDefault();
+    }
+
     const id = document.getElementById('typeId').value;
     const name = document.getElementById('typeName').value.trim();
     
@@ -344,7 +347,7 @@ function confirmDelete() {
 document.getElementById('typeForm').addEventListener('keypress', function(e) {
     if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
         e.preventDefault();
-        saveType(e);
+        saveType();
     }
 });
 

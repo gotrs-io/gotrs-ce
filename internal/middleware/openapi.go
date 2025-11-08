@@ -22,9 +22,9 @@ type PathItem map[string]Operation
 
 // Operation represents an OpenAPI operation
 type Operation struct {
-	OperationID string                 `yaml:"operationId"`
-	Responses   map[string]Response    `yaml:"responses"`
-	RequestBody *RequestBody          `yaml:"requestBody,omitempty"`
+	OperationID string              `yaml:"operationId"`
+	Responses   map[string]Response `yaml:"responses"`
+	RequestBody *RequestBody        `yaml:"requestBody,omitempty"`
 }
 
 // Response represents an OpenAPI response
@@ -84,7 +84,7 @@ func (v *OpenAPIValidator) ValidateResponse() gin.HandlerFunc {
 		// Create a custom response writer to capture the response
 		responseCapture := &responseWriter{
 			ResponseWriter: originalWriter,
-			body:          make([]byte, 0),
+			body:           make([]byte, 0),
 		}
 		c.Writer = responseCapture
 

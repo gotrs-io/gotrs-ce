@@ -25,7 +25,7 @@ func (router *APIRouter) handleListCannedResponses(c *gin.Context) {
 			"category": "account",
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    responses,
@@ -38,12 +38,12 @@ func (router *APIRouter) handleCreateCannedResponse(c *gin.Context) {
 		Content  string `json:"content" binding:"required"`
 		Category string `json:"category"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual canned response creation
 	response := gin.H{
 		"id":         3,
@@ -52,7 +52,7 @@ func (router *APIRouter) handleCreateCannedResponse(c *gin.Context) {
 		"category":   req.Category,
 		"created_at": time.Now(),
 	}
-	
+
 	c.JSON(http.StatusCreated, APIResponse{
 		Success: true,
 		Data:    response,
@@ -61,7 +61,7 @@ func (router *APIRouter) handleCreateCannedResponse(c *gin.Context) {
 
 func (router *APIRouter) handleGetCannedResponse(c *gin.Context) {
 	responseID := c.Param("id")
-	
+
 	// TODO: Implement actual canned response fetching
 	response := gin.H{
 		"id":         responseID,
@@ -71,7 +71,7 @@ func (router *APIRouter) handleGetCannedResponse(c *gin.Context) {
 		"created_at": time.Now().AddDate(0, -1, 0),
 		"updated_at": time.Now(),
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    response,
@@ -80,18 +80,18 @@ func (router *APIRouter) handleGetCannedResponse(c *gin.Context) {
 
 func (router *APIRouter) handleUpdateCannedResponse(c *gin.Context) {
 	responseID := c.Param("id")
-	
+
 	var req struct {
 		Title    string `json:"title"`
 		Content  string `json:"content"`
 		Category string `json:"category"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual canned response update
 	response := gin.H{
 		"id":         responseID,
@@ -100,7 +100,7 @@ func (router *APIRouter) handleUpdateCannedResponse(c *gin.Context) {
 		"category":   req.Category,
 		"updated_at": time.Now(),
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    response,
@@ -109,7 +109,7 @@ func (router *APIRouter) handleUpdateCannedResponse(c *gin.Context) {
 
 func (router *APIRouter) handleDeleteCannedResponse(c *gin.Context) {
 	// responseID := c.Param("id")
-	
+
 	// TODO: Implement actual canned response deletion
 	c.JSON(http.StatusNoContent, nil)
 }
@@ -123,7 +123,7 @@ func (router *APIRouter) handleGetCannedResponseCategories(c *gin.Context) {
 		"billing",
 		"general",
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    categories,
@@ -155,7 +155,7 @@ func (router *APIRouter) handleListTicketTemplates(c *gin.Context) {
 			},
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    templates,
@@ -168,12 +168,12 @@ func (router *APIRouter) handleCreateTicketTemplate(c *gin.Context) {
 		Description string                 `json:"description"`
 		Fields      map[string]interface{} `json:"fields" binding:"required"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual template creation
 	template := gin.H{
 		"id":          3,
@@ -182,7 +182,7 @@ func (router *APIRouter) handleCreateTicketTemplate(c *gin.Context) {
 		"fields":      req.Fields,
 		"created_at":  time.Now(),
 	}
-	
+
 	c.JSON(http.StatusCreated, APIResponse{
 		Success: true,
 		Data:    template,
@@ -191,7 +191,7 @@ func (router *APIRouter) handleCreateTicketTemplate(c *gin.Context) {
 
 func (router *APIRouter) handleGetTicketTemplate(c *gin.Context) {
 	templateID := c.Param("id")
-	
+
 	// TODO: Implement actual template fetching
 	template := gin.H{
 		"id":          templateID,
@@ -205,7 +205,7 @@ func (router *APIRouter) handleGetTicketTemplate(c *gin.Context) {
 		"created_at": time.Now().AddDate(0, -1, 0),
 		"updated_at": time.Now(),
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    template,
@@ -214,18 +214,18 @@ func (router *APIRouter) handleGetTicketTemplate(c *gin.Context) {
 
 func (router *APIRouter) handleUpdateTicketTemplate(c *gin.Context) {
 	templateID := c.Param("id")
-	
+
 	var req struct {
 		Name        string                 `json:"name"`
 		Description string                 `json:"description"`
 		Fields      map[string]interface{} `json:"fields"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual template update
 	template := gin.H{
 		"id":          templateID,
@@ -234,7 +234,7 @@ func (router *APIRouter) handleUpdateTicketTemplate(c *gin.Context) {
 		"fields":      req.Fields,
 		"updated_at":  time.Now(),
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    template,
@@ -243,7 +243,7 @@ func (router *APIRouter) handleUpdateTicketTemplate(c *gin.Context) {
 
 func (router *APIRouter) handleDeleteTicketTemplate(c *gin.Context) {
 	// templateID := c.Param("id")
-	
+
 	// TODO: Implement actual template deletion
 	c.JSON(http.StatusNoContent, nil)
 }
@@ -251,7 +251,7 @@ func (router *APIRouter) handleDeleteTicketTemplate(c *gin.Context) {
 func (router *APIRouter) handleApplyTicketTemplate(c *gin.Context) {
 	ticketID := c.Param("id")
 	templateID := c.Param("template_id")
-	
+
 	// TODO: Implement actual template application
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
@@ -271,7 +271,7 @@ func (router *APIRouter) handleListWorkflows(c *gin.Context) {
 			"active":      true,
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    workflows,
@@ -280,16 +280,16 @@ func (router *APIRouter) handleListWorkflows(c *gin.Context) {
 
 func (router *APIRouter) handleCreateWorkflow(c *gin.Context) {
 	var req struct {
-		Name        string                 `json:"name" binding:"required"`
-		Description string                 `json:"description"`
+		Name        string                   `json:"name" binding:"required"`
+		Description string                   `json:"description"`
 		Steps       []map[string]interface{} `json:"steps" binding:"required"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual workflow creation
 	workflow := gin.H{
 		"id":          2,
@@ -299,7 +299,7 @@ func (router *APIRouter) handleCreateWorkflow(c *gin.Context) {
 		"active":      true,
 		"created_at":  time.Now(),
 	}
-	
+
 	c.JSON(http.StatusCreated, APIResponse{
 		Success: true,
 		Data:    workflow,
@@ -308,19 +308,19 @@ func (router *APIRouter) handleCreateWorkflow(c *gin.Context) {
 
 func (router *APIRouter) handleUpdateWorkflow(c *gin.Context) {
 	workflowID := c.Param("id")
-	
+
 	var req struct {
-		Name        string                 `json:"name"`
-		Description string                 `json:"description"`
+		Name        string                   `json:"name"`
+		Description string                   `json:"description"`
 		Steps       []map[string]interface{} `json:"steps"`
-		Active      bool                   `json:"active"`
+		Active      bool                     `json:"active"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual workflow update
 	workflow := gin.H{
 		"id":          workflowID,
@@ -330,7 +330,7 @@ func (router *APIRouter) handleUpdateWorkflow(c *gin.Context) {
 		"active":      req.Active,
 		"updated_at":  time.Now(),
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    workflow,
@@ -339,14 +339,14 @@ func (router *APIRouter) handleUpdateWorkflow(c *gin.Context) {
 
 func (router *APIRouter) handleDeleteWorkflow(c *gin.Context) {
 	// workflowID := c.Param("id")
-	
+
 	// TODO: Implement actual workflow deletion
 	c.JSON(http.StatusNoContent, nil)
 }
 
 func (router *APIRouter) handleGetWorkflowStatus(c *gin.Context) {
 	ticketID := c.Param("id")
-	
+
 	// TODO: Implement actual workflow status fetching
 	status := gin.H{
 		"ticket_id":     ticketID,
@@ -356,7 +356,7 @@ func (router *APIRouter) handleGetWorkflowStatus(c *gin.Context) {
 		"total_steps":   5,
 		"status":        "in_progress",
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    status,
@@ -365,17 +365,17 @@ func (router *APIRouter) handleGetWorkflowStatus(c *gin.Context) {
 
 func (router *APIRouter) handleAdvanceWorkflow(c *gin.Context) {
 	ticketID := c.Param("id")
-	
+
 	var req struct {
 		Action  string `json:"action" binding:"required"` // approve, reject, skip
 		Comment string `json:"comment"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual workflow advancement
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
@@ -391,12 +391,12 @@ func (router *APIRouter) handleAdvanceWorkflow(c *gin.Context) {
 func (router *APIRouter) handleGetMyPerformance(c *gin.Context) {
 	// TODO: Implement actual performance metrics
 	performance := gin.H{
-		"tickets_resolved":  42,
-		"avg_response_time": "2h 15m",
-		"satisfaction_score": 4.5,
+		"tickets_resolved":    42,
+		"avg_response_time":   "2h 15m",
+		"satisfaction_score":  4.5,
 		"tickets_in_progress": 5,
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    performance,
@@ -415,7 +415,7 @@ func (router *APIRouter) handleGetMyWorkload(c *gin.Context) {
 		"due_today": 3,
 		"overdue":   1,
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    workload,
@@ -438,7 +438,7 @@ func (router *APIRouter) handleGetMyResponseTimes(c *gin.Context) {
 			"max":  "5h",
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    responseTimes,

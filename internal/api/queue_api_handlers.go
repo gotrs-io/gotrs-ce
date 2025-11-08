@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"net/http"
 	"strconv"
 
@@ -13,25 +14,25 @@ func HandleAPIQueueGet(c *gin.Context) {
 	queueID := c.Param("id")
 	id, err := strconv.Atoi(queueID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid queue ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid queue ID"})
 		return
 	}
 
 	db, err := database.GetDB()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
 		return
 	}
 
 	var queue struct {
-		ID               int    `json:"id"`
-		Name             string `json:"name"`
-		GroupID          int    `json:"group_id"`
-		SystemAddressID  *int   `json:"system_address_id"`
-		Comments         string `json:"comments"`
-		UnlockTimeout    int    `json:"unlock_timeout"`
-		FollowUpLock     int    `json:"follow_up_lock"`
-		ValidID          int    `json:"valid_id"`
+		ID              int
+		Name            string
+		GroupID         int
+		SystemAddressID sql.NullInt32
+		Comments        sql.NullString
+		UnlockTimeout   sql.NullInt32
+		FollowUpLock    sql.NullInt32
+		ValidID         int
 	}
 
 	err = db.QueryRow(database.ConvertPlaceholders(`
@@ -42,11 +43,50 @@ func HandleAPIQueueGet(c *gin.Context) {
 		&queue.Comments, &queue.UnlockTimeout, &queue.FollowUpLock, &queue.ValidID)
 
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Queue not found"})
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Queue not found"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": queue})
+	groups := make([]gin.H, 0)
+	groupRows, err := db.Query(database.ConvertPlaceholders(`
+		SELECT g.id, g.name
+		FROM groups g
+		INNER JOIN queue_group qg ON g.id = qg.group_id
+		WHERE qg.queue_id = $1
+		ORDER BY g.name
+	`), queue.ID)
+	if err == nil {
+		for groupRows.Next() {
+			var gid int
+			var gname string
+			if scanErr := groupRows.Scan(&gid, &gname); scanErr == nil {
+				groups = append(groups, gin.H{"id": gid, "name": gname})
+			}
+		}
+		groupRows.Close()
+	}
+
+	response := gin.H{
+		"id":       queue.ID,
+		"name":     queue.Name,
+		"group_id": queue.GroupID,
+		"valid_id": queue.ValidID,
+		"groups":   groups,
+	}
+	if queue.SystemAddressID.Valid {
+		response["system_address_id"] = queue.SystemAddressID.Int32
+	}
+	if queue.Comments.Valid {
+		response["comments"] = queue.Comments.String
+	}
+	if queue.UnlockTimeout.Valid {
+		response["unlock_timeout"] = queue.UnlockTimeout.Int32
+	}
+	if queue.FollowUpLock.Valid {
+		response["follow_up_lock"] = queue.FollowUpLock.Int32
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": response})
 }
 
 // HandleAPIQueueDetails handles GET /api/queues/:id/details
@@ -66,16 +106,16 @@ func HandleAPIQueueDetails(c *gin.Context) {
 
 	// Get queue details with group name
 	var queue struct {
-		ID               int    `json:"id"`
-		Name             string `json:"name"`
-		GroupID          int    `json:"group_id"`
-		GroupName        string `json:"group_name"`
-		SystemAddressID  *int   `json:"system_address_id"`
-		Comments         string `json:"comments"`
-		UnlockTimeout    int    `json:"unlock_timeout"`
-		FollowUpLock     int    `json:"follow_up_lock"`
-		ValidID          int    `json:"valid_id"`
-		TicketCount      int    `json:"ticket_count"`
+		ID              int    `json:"id"`
+		Name            string `json:"name"`
+		GroupID         int    `json:"group_id"`
+		GroupName       string `json:"group_name"`
+		SystemAddressID *int   `json:"system_address_id"`
+		Comments        string `json:"comments"`
+		UnlockTimeout   int    `json:"unlock_timeout"`
+		FollowUpLock    int    `json:"follow_up_lock"`
+		ValidID         int    `json:"valid_id"`
+		TicketCount     int    `json:"ticket_count"`
 	}
 
 	err = db.QueryRow(database.ConvertPlaceholders(`

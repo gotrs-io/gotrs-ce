@@ -1,9 +1,9 @@
 package repository
 
 import (
-	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"database/sql"
 	"fmt"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 )
@@ -218,7 +218,7 @@ func (r *TicketStateRepository) Update(state *models.TicketState) error {
 func (r *TicketStateRepository) GetOpenStates() ([]*models.TicketState, error) {
 	// Type IDs: 1=new, 2=open, 3=pending reminder, 4=pending auto
 	openTypeIDs := []int{1, 2, 3, 4}
-	
+
 	query := database.ConvertPlaceholders(`
 		SELECT id, name, type_id, comments, valid_id,
 		       create_time, create_by, change_time, change_by
@@ -259,7 +259,7 @@ func (r *TicketStateRepository) GetOpenStates() ([]*models.TicketState, error) {
 func (r *TicketStateRepository) GetClosedStates() ([]*models.TicketState, error) {
 	// Type IDs: 5=closed successful, 6=closed unsuccessful, 9=merged
 	closedTypeIDs := []int{5, 6, 9}
-	
+
 	query := database.ConvertPlaceholders(`
 		SELECT id, name, type_id, comments, valid_id,
 		       create_time, create_by, change_time, change_by

@@ -171,7 +171,7 @@ func HandleCreateUserAPI(c *gin.Context) {
 					change_by
 				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 			`)
-			
+
 			_, err = tx.Exec(
 				groupInsertQuery,
 				newUserID,
@@ -183,7 +183,7 @@ func HandleCreateUserAPI(c *gin.Context) {
 				time.Now(),
 				currentUserID,
 			)
-			
+
 			if err != nil {
 				// Log error but don't fail the whole operation
 				// Group assignment is optional

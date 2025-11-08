@@ -4,14 +4,47 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 )
 
+func seededTicketID(t *testing.T) int {
+	t.Helper()
+	if err := database.InitTestDB(); err != nil {
+		t.Fatalf("InitTestDB failed: %v", err)
+	}
+	db, err := database.GetDB()
+	if err != nil {
+		t.Fatalf("GetDB failed: %v", err)
+	}
+	var id int
+	if err := db.QueryRow("SELECT id FROM ticket ORDER BY id LIMIT 1").Scan(&id); err != nil {
+		t.Fatalf("failed to load seeded ticket id: %v", err)
+	}
+	return id
+}
+
+func newZoomRouter() *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_id", uint(1))
+		c.Set("user_name", "Unit Test Agent")
+	})
+	return r
+}
+
 func TestTicketNoteCreation(t *testing.T) {
+	seedID := seededTicketID(t)
+	validID := strconv.Itoa(seedID)
+	invalidID := strconv.Itoa(seedID + 99999)
+
 	tests := []struct {
 		name           string
 		ticketID       string
@@ -21,7 +54,7 @@ func TestTicketNoteCreation(t *testing.T) {
 	}{
 		{
 			name:     "Valid note creation succeeds",
-			ticketID: "1",
+			ticketID: validID,
 			noteData: map[string]string{
 				"subject": "Test Note",
 				"body":    "This is a test note content",
@@ -31,7 +64,7 @@ func TestTicketNoteCreation(t *testing.T) {
 		},
 		{
 			name:     "Empty note body fails validation",
-			ticketID: "1",
+			ticketID: validID,
 			noteData: map[string]string{
 				"subject": "Test Note",
 				"body":    "",
@@ -41,20 +74,18 @@ func TestTicketNoteCreation(t *testing.T) {
 		},
 		{
 			name:           "Invalid ticket ID fails",
-			ticketID:       "99999",
+			ticketID:       invalidID,
 			noteData:       map[string]string{"subject": "Test", "body": "Content"},
 			expectedStatus: http.StatusNotFound,
 			expectedInDB:   false,
 		},
 	}
 
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.POST("/agent/tickets/:id/note", HandleAgentTicketNote)
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create form data
+			r := newZoomRouter()
+			r.POST("/agent/tickets/:id/note", HandleAgentTicketNote)
+
 			formData := url.Values{}
 			for key, value := range tt.noteData {
 				formData.Set(key, value)
@@ -70,8 +101,6 @@ func TestTicketNoteCreation(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, w.Code, "HTTP status should match expected")
 
 			if tt.expectedInDB {
-				// TODO: Add database verification
-				// This test should fail initially because the handler doesn't exist
 				t.Log("TODO: Verify note was saved to database")
 			}
 		})
@@ -79,6 +108,9 @@ func TestTicketNoteCreation(t *testing.T) {
 }
 
 func TestTicketReplyCreation(t *testing.T) {
+	seedID := seededTicketID(t)
+	validID := strconv.Itoa(seedID)
+
 	tests := []struct {
 		name           string
 		ticketID       string
@@ -88,7 +120,7 @@ func TestTicketReplyCreation(t *testing.T) {
 	}{
 		{
 			name:     "Valid reply creation succeeds",
-			ticketID: "1",
+			ticketID: validID,
 			replyData: map[string]string{
 				"to":      "customer@example.com",
 				"subject": "Re: Test Ticket",
@@ -99,7 +131,7 @@ func TestTicketReplyCreation(t *testing.T) {
 		},
 		{
 			name:     "Missing recipient email fails validation",
-			ticketID: "1",
+			ticketID: validID,
 			replyData: map[string]string{
 				"to":      "",
 				"subject": "Re: Test Ticket",
@@ -110,7 +142,7 @@ func TestTicketReplyCreation(t *testing.T) {
 		},
 		{
 			name:     "Invalid email format fails validation",
-			ticketID: "1",
+			ticketID: validID,
 			replyData: map[string]string{
 				"to":      "invalid-email",
 				"subject": "Re: Test Ticket",
@@ -121,13 +153,11 @@ func TestTicketReplyCreation(t *testing.T) {
 		},
 	}
 
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.POST("/agent/tickets/:id/reply", HandleAgentTicketReply)
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create form data
+			r := newZoomRouter()
+			r.POST("/agent/tickets/:id/reply", HandleAgentTicketReply)
+
 			formData := url.Values{}
 			for key, value := range tt.replyData {
 				formData.Set(key, value)
@@ -143,7 +173,6 @@ func TestTicketReplyCreation(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, w.Code, "HTTP status should match expected")
 
 			if tt.expectedInDB {
-				// TODO: Add database verification
 				t.Log("TODO: Verify reply was saved to database and article_data_mime table")
 			}
 		})
@@ -151,6 +180,9 @@ func TestTicketReplyCreation(t *testing.T) {
 }
 
 func TestTicketPhoneNoteCreation(t *testing.T) {
+	seedID := seededTicketID(t)
+	validID := strconv.Itoa(seedID)
+
 	tests := []struct {
 		name           string
 		ticketID       string
@@ -160,7 +192,7 @@ func TestTicketPhoneNoteCreation(t *testing.T) {
 	}{
 		{
 			name:     "Valid phone note creation succeeds",
-			ticketID: "1",
+			ticketID: validID,
 			phoneData: map[string]string{
 				"subject": "Phone call with customer",
 				"body":    "Customer called about ticket issue. Provided solution.",
@@ -170,13 +202,11 @@ func TestTicketPhoneNoteCreation(t *testing.T) {
 		},
 	}
 
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.POST("/agent/tickets/:id/phone", HandleAgentTicketPhone)
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create form data
+			r := newZoomRouter()
+			r.POST("/agent/tickets/:id/phone", HandleAgentTicketPhone)
+
 			formData := url.Values{}
 			for key, value := range tt.phoneData {
 				formData.Set(key, value)
@@ -192,7 +222,6 @@ func TestTicketPhoneNoteCreation(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, w.Code, "HTTP status should match expected")
 
 			if tt.expectedInDB {
-				// TODO: Add database verification
 				t.Log("TODO: Verify phone note was saved to database")
 			}
 		})

@@ -15,7 +15,7 @@ func TestSLARepository(t *testing.T) {
 
 	t.Run("CreateSLA", func(t *testing.T) {
 		repo := NewMemorySLARepository()
-		
+
 		sla := &models.SLA{
 			Name:              "Gold Support",
 			Description:       "24x7 premium support",
@@ -29,7 +29,7 @@ func TestSLARepository(t *testing.T) {
 				Queues:     []uint{1, 2},
 			},
 		}
-		
+
 		err := repo.CreateSLA(ctx, sla)
 		require.NoError(t, err)
 		assert.NotZero(t, sla.ID)
@@ -38,7 +38,7 @@ func TestSLARepository(t *testing.T) {
 
 	t.Run("GetSLA", func(t *testing.T) {
 		repo := NewMemorySLARepository()
-		
+
 		sla := &models.SLA{
 			Name:              "Silver Support",
 			FirstResponseTime: 60,
@@ -48,7 +48,7 @@ func TestSLARepository(t *testing.T) {
 			IsActive:          true,
 		}
 		repo.CreateSLA(ctx, sla)
-		
+
 		retrieved, err := repo.GetSLA(ctx, sla.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "Silver Support", retrieved.Name)
@@ -57,23 +57,23 @@ func TestSLARepository(t *testing.T) {
 
 	t.Run("GetAllSLAs", func(t *testing.T) {
 		repo := NewMemorySLARepository()
-		
+
 		slas := []models.SLA{
 			{Name: "Gold", Priority: 5, IsActive: true},
 			{Name: "Silver", Priority: 3, IsActive: true},
 			{Name: "Bronze", Priority: 1, IsActive: true},
 			{Name: "Inactive", Priority: 2, IsActive: false},
 		}
-		
+
 		for i := range slas {
 			repo.CreateSLA(ctx, &slas[i])
 		}
-		
+
 		// Get all active SLAs
 		activeSLAs, err := repo.GetAllSLAs(ctx, true)
 		require.NoError(t, err)
 		assert.Len(t, activeSLAs, 3)
-		
+
 		// Get all SLAs including inactive
 		allSLAs, err := repo.GetAllSLAs(ctx, false)
 		require.NoError(t, err)
@@ -82,21 +82,21 @@ func TestSLARepository(t *testing.T) {
 
 	t.Run("UpdateSLA", func(t *testing.T) {
 		repo := NewMemorySLARepository()
-		
+
 		sla := &models.SLA{
 			Name:              "Standard",
 			FirstResponseTime: 120,
 			IsActive:          true,
 		}
 		repo.CreateSLA(ctx, sla)
-		
+
 		// Update SLA
 		sla.FirstResponseTime = 60
 		sla.Description = "Updated description"
-		
+
 		err := repo.UpdateSLA(ctx, sla)
 		require.NoError(t, err)
-		
+
 		retrieved, err := repo.GetSLA(ctx, sla.ID)
 		require.NoError(t, err)
 		assert.Equal(t, 60, retrieved.FirstResponseTime)
@@ -106,7 +106,7 @@ func TestSLARepository(t *testing.T) {
 
 	t.Run("FindApplicableSLA", func(t *testing.T) {
 		repo := NewMemorySLARepository()
-		
+
 		// Create SLAs with different conditions
 		goldSLA := &models.SLA{
 			Name:     "Gold",
@@ -118,7 +118,7 @@ func TestSLARepository(t *testing.T) {
 			},
 		}
 		repo.CreateSLA(ctx, goldSLA)
-		
+
 		silverSLA := &models.SLA{
 			Name:     "Silver",
 			Priority: 3,
@@ -129,17 +129,17 @@ func TestSLARepository(t *testing.T) {
 			},
 		}
 		repo.CreateSLA(ctx, silverSLA)
-		
+
 		// Find SLA for high priority ticket in queue 1
 		applicable, err := repo.FindApplicableSLA(ctx, 1, 4, "", nil)
 		require.NoError(t, err)
 		assert.Equal(t, "Gold", applicable.Name)
-		
+
 		// Find SLA for normal priority ticket in queue 2
 		applicable, err = repo.FindApplicableSLA(ctx, 2, 2, "", nil)
 		require.NoError(t, err)
 		assert.Equal(t, "Silver", applicable.Name)
-		
+
 		// No applicable SLA for low priority
 		applicable, err = repo.FindApplicableSLA(ctx, 1, 1, "", nil)
 		assert.Error(t, err)
@@ -148,7 +148,7 @@ func TestSLARepository(t *testing.T) {
 
 	t.Run("CreateTicketSLA", func(t *testing.T) {
 		repo := NewMemorySLARepository()
-		
+
 		now := time.Now()
 		ticketSLA := &models.TicketSLA{
 			TicketID:         100,
@@ -156,7 +156,7 @@ func TestSLARepository(t *testing.T) {
 			FirstResponseDue: &now,
 			Status:           "pending",
 		}
-		
+
 		err := repo.CreateTicketSLA(ctx, ticketSLA)
 		require.NoError(t, err)
 		assert.NotZero(t, ticketSLA.ID)
@@ -165,22 +165,22 @@ func TestSLARepository(t *testing.T) {
 
 	t.Run("UpdateTicketSLA", func(t *testing.T) {
 		repo := NewMemorySLARepository()
-		
+
 		ticketSLA := &models.TicketSLA{
 			TicketID: 200,
 			SLAID:    1,
 			Status:   "pending",
 		}
 		repo.CreateTicketSLA(ctx, ticketSLA)
-		
+
 		// Update with response time
 		now := time.Now()
 		ticketSLA.FirstResponseAt = &now
 		ticketSLA.Status = "in_progress"
-		
+
 		err := repo.UpdateTicketSLA(ctx, ticketSLA)
 		require.NoError(t, err)
-		
+
 		retrieved, err := repo.GetTicketSLA(ctx, 200)
 		require.NoError(t, err)
 		assert.NotNil(t, retrieved.FirstResponseAt)
@@ -189,7 +189,7 @@ func TestSLARepository(t *testing.T) {
 
 	t.Run("GetSLAMetrics", func(t *testing.T) {
 		repo := NewMemorySLARepository()
-		
+
 		// Create some ticket SLAs
 		now := time.Now()
 		ticketSLAs := []models.TicketSLA{
@@ -199,11 +199,11 @@ func TestSLARepository(t *testing.T) {
 			{TicketID: 4, SLAID: 1, Status: "pending"},
 			{TicketID: 5, SLAID: 2, Status: "met", SolutionAt: &now},
 		}
-		
+
 		for i := range ticketSLAs {
 			repo.CreateTicketSLA(ctx, &ticketSLAs[i])
 		}
-		
+
 		// Get metrics for SLA 1
 		metrics, err := repo.GetSLAMetrics(ctx, 1, now.Add(-24*time.Hour), now.Add(time.Hour))
 		require.NoError(t, err)
@@ -217,7 +217,7 @@ func TestSLARepository(t *testing.T) {
 
 	t.Run("CreateBusinessCalendar", func(t *testing.T) {
 		repo := NewMemorySLARepository()
-		
+
 		calendar := &models.BusinessCalendar{
 			Name:        "Standard Business Hours",
 			Description: "Mon-Fri 9-5",
@@ -233,7 +233,7 @@ func TestSLARepository(t *testing.T) {
 				{DayOfWeek: 6, IsWorkingDay: false}, // Saturday
 			},
 		}
-		
+
 		err := repo.CreateBusinessCalendar(ctx, calendar)
 		require.NoError(t, err)
 		assert.NotZero(t, calendar.ID)
@@ -242,14 +242,14 @@ func TestSLARepository(t *testing.T) {
 
 	t.Run("AddHoliday", func(t *testing.T) {
 		repo := NewMemorySLARepository()
-		
+
 		// Create calendar first
 		calendar := &models.BusinessCalendar{
 			Name:     "Test Calendar",
 			TimeZone: "UTC",
 		}
 		repo.CreateBusinessCalendar(ctx, calendar)
-		
+
 		// Add holiday
 		holiday := &models.SLAHoliday{
 			CalendarID:  calendar.ID,
@@ -257,11 +257,11 @@ func TestSLARepository(t *testing.T) {
 			Date:        time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 			IsRecurring: true,
 		}
-		
+
 		err := repo.AddHoliday(ctx, holiday)
 		require.NoError(t, err)
 		assert.NotZero(t, holiday.ID)
-		
+
 		// Get holidays
 		holidays, err := repo.GetHolidays(ctx, calendar.ID)
 		require.NoError(t, err)
@@ -271,7 +271,7 @@ func TestSLARepository(t *testing.T) {
 
 	t.Run("RecordEscalation", func(t *testing.T) {
 		repo := NewMemorySLARepository()
-		
+
 		// Create ticket SLA first
 		ticketSLA := &models.TicketSLA{
 			TicketID: 300,
@@ -279,7 +279,7 @@ func TestSLARepository(t *testing.T) {
 			Status:   "in_progress",
 		}
 		repo.CreateTicketSLA(ctx, ticketSLA)
-		
+
 		// Record escalation
 		escalation := &models.SLAEscalationHistory{
 			TicketSLAID:      ticketSLA.ID,
@@ -289,11 +289,11 @@ func TestSLARepository(t *testing.T) {
 			Actions:          `{"priority_changed": true, "assigned_to": 5}`,
 			Success:          true,
 		}
-		
+
 		err := repo.RecordEscalation(ctx, escalation)
 		require.NoError(t, err)
 		assert.NotZero(t, escalation.ID)
-		
+
 		// Get escalation history
 		history, err := repo.GetEscalationHistory(ctx, ticketSLA.ID)
 		require.NoError(t, err)
@@ -303,7 +303,7 @@ func TestSLARepository(t *testing.T) {
 
 	t.Run("PauseAndResumeSLA", func(t *testing.T) {
 		repo := NewMemorySLARepository()
-		
+
 		// Create ticket SLA
 		ticketSLA := &models.TicketSLA{
 			TicketID: 400,
@@ -311,7 +311,7 @@ func TestSLARepository(t *testing.T) {
 			Status:   "in_progress",
 		}
 		repo.CreateTicketSLA(ctx, ticketSLA)
-		
+
 		// Pause SLA
 		pauseReason := &models.SLAPauseReason{
 			TicketSLAID: ticketSLA.ID,
@@ -319,22 +319,22 @@ func TestSLARepository(t *testing.T) {
 			PausedBy:    1,
 			PausedAt:    time.Now(),
 		}
-		
+
 		err := repo.PauseSLA(ctx, pauseReason)
 		require.NoError(t, err)
-		
+
 		// Check that SLA is paused
 		retrieved, err := repo.GetTicketSLA(ctx, 400)
 		require.NoError(t, err)
 		assert.NotNil(t, retrieved.PausedAt)
-		
+
 		// Add a small delay to ensure some time passes
 		time.Sleep(10 * time.Millisecond)
-		
+
 		// Resume SLA
 		err = repo.ResumeSLA(ctx, ticketSLA.ID)
 		require.NoError(t, err)
-		
+
 		// Check that SLA is resumed
 		retrieved, err = repo.GetTicketSLA(ctx, 400)
 		require.NoError(t, err)
@@ -344,12 +344,12 @@ func TestSLARepository(t *testing.T) {
 
 	t.Run("GetSLAReport", func(t *testing.T) {
 		repo := NewMemorySLARepository()
-		
+
 		// Setup test data - use time range that includes current time
 		now := time.Now()
 		startTime := now.Add(-1 * time.Hour)
 		endTime := now.Add(1 * time.Hour)
-		
+
 		for i := 1; i <= 5; i++ {
 			ticketSLA := &models.TicketSLA{
 				TicketID: uint(500 + i),
@@ -361,7 +361,7 @@ func TestSLARepository(t *testing.T) {
 			}
 			repo.CreateTicketSLA(ctx, ticketSLA)
 		}
-		
+
 		// Get report
 		report, err := repo.GetSLAReport(ctx, startTime, endTime)
 		require.NoError(t, err)

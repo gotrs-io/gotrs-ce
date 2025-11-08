@@ -103,7 +103,7 @@ func TestUpdateTicketHandler(t *testing.T) {
 				assert.Equal(t, float64(2), resp["queue_id"])
 				assert.Equal(t, float64(3), resp["type_id"])
 				assert.Equal(t, "open", resp["status"])
-				
+
 				// Check for HTMX trigger to show success message
 				assert.Contains(t, headers.Get("HX-Trigger"), "ticketUpdated")
 			},
@@ -125,7 +125,7 @@ func TestUpdateTicketHandler(t *testing.T) {
 			name:     "Update with empty subject fails",
 			ticketID: "125",
 			formData: url.Values{
-				"subject": {""},
+				"subject":  {""},
 				"priority": {"3 normal"},
 			},
 			wantStatus: http.StatusBadRequest,
@@ -252,14 +252,14 @@ func TestTicketEditPermissions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
-			
+
 			// Add middleware to set user context
 			router.Use(func(c *gin.Context) {
 				c.Set("user_id", tt.userID)
 				c.Set("user_role", tt.userRole)
 				c.Next()
 			})
-			
+
 			router.PUT("/api/tickets/:id", handleUpdateTicketEnhanced)
 
 			formData := url.Values{
@@ -269,11 +269,11 @@ func TestTicketEditPermissions(t *testing.T) {
 			w := httptest.NewRecorder()
 			req, _ := http.NewRequest("PUT", "/api/tickets/"+tt.ticketID, strings.NewReader(formData.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			
-            // Simulate ticket assignment in context
-            type ctxKey string
-            req = req.WithContext(context.WithValue(req.Context(), ctxKey("ticket_assigned_to"), tt.assignedTo))
-			
+
+			// Simulate ticket assignment in context
+			type ctxKey string
+			req = req.WithContext(context.WithValue(req.Context(), ctxKey("ticket_assigned_to"), tt.assignedTo))
+
 			router.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
@@ -451,7 +451,7 @@ func TestTicketBulkEdit(t *testing.T) {
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				assert.Equal(t, float64(3), resp["updated_count"])
 				assert.Equal(t, "Tickets updated successfully", resp["message"])
-				
+
 				// Check individual results
 				results := resp["results"].([]interface{})
 				assert.Len(t, results, 3)
@@ -480,7 +480,7 @@ func TestTicketBulkEdit(t *testing.T) {
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				assert.Equal(t, float64(2), resp["updated_count"])
 				assert.Equal(t, float64(1), resp["failed_count"])
-				
+
 				failures := resp["failures"].([]interface{})
 				assert.Len(t, failures, 1)
 			},

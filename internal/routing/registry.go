@@ -153,6 +153,18 @@ func (r *HandlerRegistry) ListHandlers() []string {
 	return names
 }
 
+// GetAllHandlers returns all registered handlers as a map
+func (r *HandlerRegistry) GetAllHandlers() map[string]gin.HandlerFunc {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	handlers := make(map[string]gin.HandlerFunc)
+	for name, handler := range r.handlers {
+		handlers[name] = handler
+	}
+	return handlers
+}
+
 // ListMiddleware returns all registered middleware names
 func (r *HandlerRegistry) ListMiddleware() []string {
 	r.mu.RLock()

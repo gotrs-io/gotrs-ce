@@ -67,9 +67,15 @@ var HandleAuthLogin = func(c *gin.Context) {
 	// Get auth service
 	authService := GetAuthService()
 	if authService == nil {
-		pongo2Renderer.HTML(c, http.StatusInternalServerError, "components/error.pongo2", pongo2.Context{
-			"error": "Authentication service unavailable",
-		})
+		if strings.Contains(contentType, "application/json") {
+			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "authentication unavailable"})
+			return
+		}
+		if c.GetHeader("HX-Request") == "true" {
+			c.Data(http.StatusUnauthorized, "text/html; charset=utf-8", []byte(`<div class="rounded-md bg-yellow-50 dark:bg-yellow-900/20 p-4 mt-4"><div class="text-sm text-yellow-800 dark:text-yellow-100">Authentication temporarily unavailable</div></div>`))
+			return
+		}
+		c.Redirect(http.StatusSeeOther, "/login?error=Authentication+temporarily+unavailable")
 		return
 	}
 
@@ -203,6 +209,20 @@ var HandleAuthCheck = func(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"authenticated": true,
 		"userID":        userID,
+	})
+}
+
+func handleAuthRefresh(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{
+		"success": false,
+		"error":   "token refresh not implemented",
+	})
+}
+
+func handleAuthRegister(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{
+		"success": false,
+		"error":   "self-service registration disabled",
 	})
 }
 

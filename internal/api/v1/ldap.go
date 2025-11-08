@@ -189,7 +189,7 @@ func (h *LDAPHandler) GetSyncStatus(c *gin.Context) {
 func (h *LDAPHandler) SearchUsers(c *gin.Context) {
 	query := c.Query("q")
 	limitStr := c.DefaultQuery("limit", "50")
-	
+
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
 		limit = 50
@@ -210,11 +210,11 @@ func (h *LDAPHandler) SearchUsers(c *gin.Context) {
 // GET /api/v1/ldap/config
 func (h *LDAPHandler) GetConfiguration(c *gin.Context) {
 	status := h.ldapService.GetSyncStatus()
-	
+
 	// Return masked configuration for security
 	config := gin.H{
 		"configured":    status["configured"],
-		"auto_sync":     status["auto_sync"], 
+		"auto_sync":     status["auto_sync"],
 		"sync_interval": status["sync_interval"],
 		"last_sync":     status["last_sync"],
 	}
@@ -250,7 +250,7 @@ func (h *LDAPHandler) ImportUsers(c *gin.Context) {
 	}
 
 	results := make([]gin.H, 0, len(req.Usernames))
-	
+
 	for _, username := range req.Usernames {
 		result := gin.H{
 			"username": username,
@@ -321,7 +321,7 @@ func (h *LDAPHandler) GetGroupMappings(c *gin.Context) {
 func (h *LDAPHandler) GetAuthenticationLogs(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "100")
 	username := c.Query("username")
-	
+
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
 		limit = 100

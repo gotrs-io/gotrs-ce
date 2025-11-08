@@ -20,6 +20,9 @@ import (
 
 func TestGetTicketMessages(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("DB_HOST", "")
+	t.Setenv("DATABASE_URL", "")
 
 	tests := []struct {
 		name       string
@@ -41,7 +44,7 @@ func TestGetTicketMessages(t *testing.T) {
 		},
 		{
 			name:       "Agent gets ticket messages",
-			ticketID:   "1", 
+			ticketID:   "1",
 			userRole:   "Agent",
 			wantStatus: http.StatusOK,
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
@@ -71,7 +74,7 @@ func TestGetTicketMessages(t *testing.T) {
 		{
 			name:       "Non-numeric ticket ID returns 400",
 			ticketID:   "invalid",
-			userRole:   "Admin", 
+			userRole:   "Admin",
 			wantStatus: http.StatusBadRequest,
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				assert.Contains(t, resp, "error")
@@ -84,14 +87,14 @@ func TestGetTicketMessages(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// This test SHOULD FAIL initially because the handler doesn't exist yet
 			router := gin.New()
-			
+
 			// Setup test router with real handler
 			router.GET("/api/tickets/:id/messages", func(c *gin.Context) {
 				// Mock user context
 				c.Set("user_role", tt.userRole)
 				c.Set("user_id", uint(1))
 				c.Set("user_email", "test@example.com")
-				
+
 				// Use the real handler
 				handleGetTicketMessages(c)
 			})
@@ -117,6 +120,9 @@ func TestGetTicketMessages(t *testing.T) {
 
 func TestAddTicketMessage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("DB_HOST", "")
+	t.Setenv("DATABASE_URL", "")
 
 	tests := []struct {
 		name       string
@@ -159,7 +165,7 @@ func TestAddTicketMessage(t *testing.T) {
 		},
 		{
 			name:     "Customer adds public message",
-			ticketID: "1", 
+			ticketID: "1",
 			payload: map[string]interface{}{
 				"content": "I tried the suggested solution but the issue persists.",
 			},
@@ -186,10 +192,10 @@ func TestAddTicketMessage(t *testing.T) {
 			},
 		},
 		{
-			name:     "Missing content field returns 400",
-			ticketID: "1",
-			payload:  map[string]interface{}{},
-			userRole: "Agent",
+			name:       "Missing content field returns 400",
+			ticketID:   "1",
+			payload:    map[string]interface{}{},
+			userRole:   "Agent",
 			wantStatus: http.StatusBadRequest,
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
 				assert.Contains(t, resp, "error")
@@ -215,14 +221,14 @@ func TestAddTicketMessage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// This test SHOULD FAIL initially because the handler doesn't exist yet
 			router := gin.New()
-			
+
 			// Setup test router with real handler
 			router.POST("/api/tickets/:id/messages", func(c *gin.Context) {
 				// Mock user context
 				c.Set("user_role", tt.userRole)
 				c.Set("user_id", uint(1))
 				c.Set("user_email", "test@example.com")
-				
+
 				// Use the real handler
 				handleAddTicketMessage(c)
 			})
@@ -295,11 +301,11 @@ func TestTicketMessagesHTMXIntegration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
-			
+
 			// Mock handlers for HTMX testing
 			router.GET("/api/tickets/:id/messages", func(c *gin.Context) {
 				c.Set("user_role", tt.userRole)
-				
+
 				if c.GetHeader("HX-Request") != "" {
 					// Should return HTML fragment for HTMX
 					c.Header("Content-Type", "text/html")
@@ -309,10 +315,10 @@ func TestTicketMessagesHTMXIntegration(t *testing.T) {
 					c.JSON(http.StatusOK, gin.H{"messages": []string{}})
 				}
 			})
-			
+
 			router.POST("/api/tickets/:id/messages", func(c *gin.Context) {
 				c.Set("user_role", tt.userRole)
-				
+
 				if c.GetHeader("HX-Request") != "" {
 					// Should return updated HTML fragment
 					c.Header("Content-Type", "text/html")
@@ -331,7 +337,7 @@ func TestTicketMessagesHTMXIntegration(t *testing.T) {
 			} else {
 				req = httptest.NewRequest(tt.method, tt.endpoint, nil)
 			}
-			
+
 			if tt.htmxRequest {
 				req.Header.Set("HX-Request", "true")
 			}
@@ -348,11 +354,11 @@ func TestTicketMessagesHTMXIntegration(t *testing.T) {
 // Test to verify the exact 404 error user reported is fixed
 func TestTicketMessages404Fix(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	t.Run("Fix for reported 404 error", func(t *testing.T) {
 		// This reproduces the exact error: "Response Status Error Code 404 from /api/tickets/2/messages"
 		router := gin.New()
-		
+
 		// Currently this returns underConstructionAPI which gives 404
 		// After fix, this should return actual message data
 		router.GET("/api/tickets/:id/messages", func(c *gin.Context) {
@@ -370,11 +376,11 @@ func TestTicketMessages404Fix(t *testing.T) {
 
 		// This currently returns 404 - this is the bug we're fixing
 		assert.Equal(t, http.StatusNotFound, w.Code)
-		
+
 		var resp map[string]interface{}
 		json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.Contains(t, resp["error"], "under construction")
-		
+
 		// TODO: After implementing real handler, this should return 200
 		// assert.Equal(t, http.StatusOK, w.Code)
 	})

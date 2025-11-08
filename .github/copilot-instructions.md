@@ -215,11 +215,18 @@ Building GOTRS - a modern ticketing system in Go and React.
 
 ## Lessons Learned (Container-First Development)
 - **Running the app**: Use `make up` to start it, and `make down` to stop it. `make restart` **builds** and restarts the app.
-- **Always use Makefile targets**: Never run direct commands on host (e.g., `go`, `mysql`, `npm`). Use `make toolbox-*`, `make db-*`, `make css-*` instead, these targets automatically assume the correct credentials too.
-- **Database operations**: Use `make db-shell`, `make db-query`, `make db-migrate` - never direct `mysql` commands.
-- **Go operations**: Use `make toolbox-exec ARGS="go <command>"` - never run `go` directly on host.
+- **Always use Makefile targets**: Never run direct commands on host (e.g., `go`, `mysql`, `npm`, `curl`). Use `make toolbox-*`, `make db-*`, `make css-*`, `make api-call*` instead, these targets automatically assume the correct credentials and environment.
+- **Database operations**: 
+  - **MCP MySQL Server**: Always use the MCP MySQL server tools first if available (e.g., `mcp_mcp-mysql_mysql_query`, `mcp_mcp-mysql_mysql_connect`)
+  - **Fallback to Makefile**: If MCP is not available, use `make db-shell`, `make db-query`, `make db-migrate` - never direct `mysql` commands
+- **Go operations**: Use `make toolbox-exec ARGS="go <command>"` - never run `go` directly on host. This includes:
+  - Building: `make toolbox-exec ARGS="go build ./..."`
+  - Running: `make toolbox-exec ARGS="go run ./cmd/..."`
+  - Formatting: `make toolbox-exec ARGS="go fmt ./..."`
+  - Testing: `make toolbox-exec ARGS="go test ./..."`
+- **API Testing**: Use `make api-call` or `make api-call-form` instead of direct `curl` commands
 - **Container-first enforcement**: All development, testing, and operations must go through containers via make targets.
-- **Avoid anti-patterns**: Don't create host dependencies; assume Go, Node.js, and database clients are not installed locally.
+- **Avoid anti-patterns**: Don't create host dependencies; assume Go, Node.js, database clients, and curl are not installed locally.
 - **Testing in containers**: All tests run via `make test-*` targets using toolbox containers.
 - **Security and consistency**: Containerized operations ensure proper permissions, caching, and environment isolation.
 - **Command generation**: When suggesting commands to run, always use make targets and container operations - never suggest direct tool execution on host.
@@ -252,11 +259,18 @@ Building GOTRS - a modern ticketing system in Go and React.
 
 ## Lessons Learned (Container-First Development)
 - **Running the app**: Use `make up` to start it, and `make down` to stop it. `make restart` **builds** and restarts the app.
-- **Always use Makefile targets**: Never run direct commands on host (e.g., `go`, `mysql`, `npm`). Use `make toolbox-*`, `make db-*`, `make css-*` instead, these targets automatically assume the correct credentials too.
-- **Database operations**: Use `make db-shell`, `make db-query`, `make db-migrate` - never direct `mysql` commands.
-- **Go operations**: Use `make toolbox-exec ARGS="go <command>"` - never run `go` directly on host.
+- **Always use Makefile targets**: Never run direct commands on host (e.g., `go`, `mysql`, `npm`, `curl`). Use `make toolbox-*`, `make db-*`, `make css-*`, `make api-call*` instead, these targets automatically assume the correct credentials and environment.
+- **Database operations**: 
+  - **MCP MySQL Server**: Always use the MCP MySQL server tools first if available (e.g., `mcp_mcp-mysql_mysql_query`, `mcp_mcp-mysql_mysql_connect`)
+  - **Fallback to Makefile**: If MCP is not available, use `make db-shell`, `make db-query`, `make db-migrate` - never direct `mysql` commands
+- **Go operations**: Use `make toolbox-exec ARGS="go <command>"` - never run `go` directly on host. This includes:
+  - Building: `make toolbox-exec ARGS="go build ./..."`
+  - Running: `make toolbox-exec ARGS="go run ./cmd/..."`
+  - Formatting: `make toolbox-exec ARGS="go fmt ./..."`
+  - Testing: `make toolbox-exec ARGS="go test ./..."`
+- **API Testing**: Use `make api-call` or `make api-call-form` instead of direct `curl` commands
 - **Container-first enforcement**: All development, testing, and operations must go through containers via make targets.
-- **Avoid anti-patterns**: Don't create host dependencies; assume Go, Node.js, and database clients are not installed locally.
+- **Avoid anti-patterns**: Don't create host dependencies; assume Go, Node.js, database clients, and curl are not installed locally.
 - **Testing in containers**: All tests run via `make test-*` targets using toolbox containers.
 - **Security and consistency**: Containerized operations ensure proper permissions, caching, and environment isolation.
 - **Command generation**: When suggesting commands to run, always use make targets and container operations - never suggest direct tool execution on host.

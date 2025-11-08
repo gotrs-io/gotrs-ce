@@ -31,23 +31,34 @@ func HandleDeleteTicketAPI(c *gin.Context) {
 		return
 	}
 
-	// Get user ID
-	userID := 1 // Default for testing
-    if id, exists := c.Get("user_id"); exists {
-        switch v := id.(type) {
-        case int:
-            userID = v
-        case uint:
-            userID = int(v)
-        }
-    }
+	// Enforce authentication before mutating state
+	idValue, exists := c.Get("user_id")
+	if !exists {
+		if _, authExists := c.Get("is_authenticated"); !authExists {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"error":   "Authentication required",
+			})
+			return
+		}
+	}
+
+	userID := 1
+	if exists {
+		switch v := idValue.(type) {
+		case int:
+			userID = v
+		case uint:
+			userID = int(v)
+		}
+	}
 
 	// Get database connection
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Authentication required"})
-        return
-    }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Authentication required"})
+		return
+	}
 
 	// Check if ticket exists and get current state
 	var currentStateID int
@@ -139,7 +150,7 @@ func HandleDeleteTicketAPI(c *gin.Context) {
 	articleResult, err := db.Exec(insertArticleQuery, ticketID, userID, userID)
 	if err == nil {
 		articleID, _ := articleResult.LastInsertId()
-		
+
 		// Insert article content
 		insertMimeQuery := database.ConvertPlaceholders(`
 			INSERT INTO article_data_mime (
@@ -157,7 +168,7 @@ func HandleDeleteTicketAPI(c *gin.Context) {
 				$2, NOW(), $3, NOW(), $4
 			)
 		`)
-		
+
 		db.Exec(insertMimeQuery, articleID, time.Now().Unix(), userID, userID)
 	}
 

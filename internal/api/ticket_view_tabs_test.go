@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql/driver"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -101,8 +102,13 @@ func TestTicketLinksFragmentRendersData(t *testing.T) {
 		"Child ticket",
 	)
 
+	args := []driver.Value{"1", 25}
+	if database.IsMySQL() {
+		args = []driver.Value{"1", "1", 25}
+	}
+
 	mock.ExpectQuery(`(?s)SELECT\s+lr\.source_key.*FROM\s+link_relation`).
-		WithArgs("1", 25).
+		WithArgs(args...).
 		WillReturnRows(rows)
 
 	router := gin.New()

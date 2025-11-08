@@ -269,10 +269,10 @@ func TestMemoryCannedResponseRepository(t *testing.T) {
 
 		// Record usage
 		usage := &models.CannedResponseUsage{
-			ResponseID:        response.ID,
-			TicketID:          123,
-			UserID:            456,
-			ModifiedBefore:    false,
+			ResponseID:     response.ID,
+			TicketID:       123,
+			UserID:         456,
+			ModifiedBefore: false,
 		}
 
 		err := repo.RecordUsage(ctx, usage)
@@ -292,9 +292,9 @@ func TestMemoryCannedResponseRepository(t *testing.T) {
 
 		// Create responses with different content
 		responses := []struct {
-			name string
+			name    string
 			content string
-			tags []string
+			tags    []string
 		}{
 			{"Password Reset", "Reset your password instructions", []string{"password", "security"}},
 			{"Network Issue", "Network connectivity troubleshooting", []string{"network", "technical"}},

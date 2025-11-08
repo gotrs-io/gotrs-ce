@@ -15,19 +15,19 @@ import (
 
 // StandardAttachment represents a standard attachment in OTRS
 type StandardAttachment struct {
-	ID          int       `json:"id"`
-	Name        string    `json:"name"`
-	Filename    string    `json:"filename"`
-	ContentType string    `json:"content_type"`
-	Content     []byte    `json:"-"` // Don't send raw content in JSON
-	ContentSize int64     `json:"content_size"`
-	ContentSizeFormatted string `json:"content_size_formatted"`
-	Comments    *string   `json:"comments"`
-	ValidID     int       `json:"valid_id"`
-	CreateTime  time.Time `json:"create_time"`
-	CreateBy    int       `json:"create_by"`
-	ChangeTime  time.Time `json:"change_time"`
-	ChangeBy    int       `json:"change_by"`
+	ID                   int       `json:"id"`
+	Name                 string    `json:"name"`
+	Filename             string    `json:"filename"`
+	ContentType          string    `json:"content_type"`
+	Content              []byte    `json:"-"` // Don't send raw content in JSON
+	ContentSize          int64     `json:"content_size"`
+	ContentSizeFormatted string    `json:"content_size_formatted"`
+	Comments             *string   `json:"comments"`
+	ValidID              int       `json:"valid_id"`
+	CreateTime           time.Time `json:"create_time"`
+	CreateBy             int       `json:"create_by"`
+	ChangeTime           time.Time `json:"change_time"`
+	ChangeBy             int       `json:"change_by"`
 }
 
 // handleAdminAttachment displays the admin attachment management page
@@ -51,7 +51,7 @@ func handleAdminAttachment(c *gin.Context) {
 		FROM standard_attachment
 		WHERE 1=1
 	`
-	
+
 	var args []interface{}
 	argCount := 1
 
@@ -86,7 +86,7 @@ func handleAdminAttachment(c *gin.Context) {
 	for rows.Next() {
 		var a StandardAttachment
 		var comments sql.NullString
-		
+
 		err := rows.Scan(
 			&a.ID, &a.Name, &a.Filename, &a.ContentType,
 			&a.ContentSize, &comments, &a.ValidID,
@@ -95,11 +95,11 @@ func handleAdminAttachment(c *gin.Context) {
 		if err != nil {
 			continue
 		}
-		
+
 		if comments.Valid {
 			a.Comments = &comments.String
 		}
-		
+
 		a.ContentSizeFormatted = formatFileSize(a.ContentSize)
 		attachments = append(attachments, a)
 	}
@@ -130,7 +130,7 @@ func handleAdminAttachmentCreate(c *gin.Context) {
 	name := c.PostForm("name")
 	comments := c.PostForm("comments")
 	validIDStr := c.PostForm("valid_id")
-	
+
 	// Default valid_id to 1 if not provided
 	validID := 1
 	if validIDStr != "" {
@@ -288,7 +288,7 @@ func handleAdminAttachmentUpdate(c *gin.Context) {
 	file, header, err := c.Request.FormFile("file")
 	if err == nil {
 		defer file.Close()
-		
+
 		// Read new file content
 		content := make([]byte, header.Size)
 		_, err = file.Read(content)
@@ -296,11 +296,11 @@ func handleAdminAttachmentUpdate(c *gin.Context) {
 			updates = append(updates, fmt.Sprintf("filename = $%d", argCount))
 			args = append(args, header.Filename)
 			argCount++
-			
+
 			updates = append(updates, fmt.Sprintf("content_type = $%d", argCount))
 			args = append(args, header.Header.Get("Content-Type"))
 			argCount++
-			
+
 			updates = append(updates, fmt.Sprintf("content = $%d", argCount))
 			args = append(args, content)
 			argCount++
@@ -361,7 +361,7 @@ func handleAdminAttachmentDelete(c *gin.Context) {
 		SET valid_id = 2, change_time = CURRENT_TIMESTAMP, change_by = 1 
 		WHERE id = $1
 	`), id)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -402,13 +402,13 @@ func handleAdminAttachmentDownload(c *gin.Context) {
 
 	var filename, contentType string
 	var content []byte
-	
+
 	err = db.QueryRow(database.ConvertPlaceholders(`
 		SELECT filename, content_type, content 
 		FROM standard_attachment 
 		WHERE id = $1
 	`), id).Scan(&filename, &contentType, &content)
-	
+
 	if err == sql.ErrNoRows {
 		c.String(http.StatusNotFound, "Attachment not found")
 		return
@@ -422,7 +422,7 @@ func handleAdminAttachmentDownload(c *gin.Context) {
 	c.Header("Content-Type", contentType)
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	c.Header("Content-Length", strconv.Itoa(len(content)))
-	
+
 	// Send the file content
 	c.Data(http.StatusOK, contentType, content)
 }
@@ -442,7 +442,7 @@ func handleAdminAttachmentToggle(c *gin.Context) {
 	var input struct {
 		ValidID int `json:"valid_id"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -465,7 +465,7 @@ func handleAdminAttachmentToggle(c *gin.Context) {
 		SET valid_id = $1, change_time = CURRENT_TIMESTAMP, change_by = 1 
 		WHERE id = $2
 	`), input.ValidID, id)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

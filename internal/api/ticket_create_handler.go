@@ -36,6 +36,7 @@ func HandleCreateTicketAPI(c *gin.Context) {
 		QueueID       int    `json:"queue_id" form:"queue_id"`
 		PriorityID    int    `json:"priority_id" form:"priority_id"`
 		StateID       int    `json:"state_id" form:"state_id"`
+		TypeID        int    `json:"type_id" form:"type_id"`
 		Body          string `json:"body" form:"body"`
 		CustomerEmail string `json:"customer_email" form:"customer_email"`
 	}
@@ -89,6 +90,13 @@ func HandleCreateTicketAPI(c *gin.Context) {
 			}
 		}
 	}
+	if ticketRequest.TypeID == 0 {
+		if tid := c.PostForm("type_id"); tid != "" {
+			if parsed, err := strconv.Atoi(tid); err == nil {
+				ticketRequest.TypeID = parsed
+			}
+		}
+	}
 
 	if ticketRequest.Title == "" || ticketRequest.QueueID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -114,8 +122,13 @@ func HandleCreateTicketAPI(c *gin.Context) {
 
 	repo := repository.NewTicketRepository(db)
 	svc := service.NewTicketService(repo)
-	created, err := svc.Create(c, service.CreateTicketInput{Title: ticketRequest.Title, QueueID: ticketRequest.QueueID, PriorityID: ticketRequest.PriorityID, StateID: ticketRequest.StateID, UserID: userID, Body: ticketRequest.Body, TypeID: 1})
+	created, err := svc.Create(c, service.CreateTicketInput{Title: ticketRequest.Title, QueueID: ticketRequest.QueueID, PriorityID: ticketRequest.PriorityID, StateID: ticketRequest.StateID, UserID: userID, Body: ticketRequest.Body, TypeID: ticketRequest.TypeID})
 	if err != nil {
+		if database.IsConnectionError(err) {
+			log.Printf("WARN: ticket creation aborted due to database connectivity issue: %v", err)
+			c.JSON(http.StatusServiceUnavailable, gin.H{"success": false, "error": "Database unavailable"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 		return
 	}
@@ -140,13 +153,13 @@ func HandleCreateTicketAPI(c *gin.Context) {
 					senderEmail = cfg.Email.From
 				}
 				queueItem := &mailqueue.MailQueueItem{
-					Sender:       &senderEmail,
-					Recipient:    ticketRequest.CustomerEmail,
-					RawMessage:   mailqueue.BuildEmailMessage(senderEmail, ticketRequest.CustomerEmail, subject, body),
-					Attempts:     0,
-					CreateTime:   time.Now(),
+					Sender:     &senderEmail,
+					Recipient:  ticketRequest.CustomerEmail,
+					RawMessage: mailqueue.BuildEmailMessage(senderEmail, ticketRequest.CustomerEmail, subject, body),
+					Attempts:   0,
+					CreateTime: time.Now(),
 				}
-				
+
 				if queueErr := queueRepo.Insert(context.Background(), queueItem); queueErr != nil {
 					log.Printf("Failed to queue email for %s: %v", ticketRequest.CustomerEmail, queueErr)
 				} else {

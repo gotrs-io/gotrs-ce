@@ -26,14 +26,14 @@ func (r *QueueRepository) GetByID(id uint) (*models.Queue, error) {
 		       comments, valid_id, create_time, create_by, change_time, change_by
 		FROM queue
 		WHERE id = $1`
-	
+
 	// Convert placeholders for MySQL compatibility
 	query = database.ConvertPlaceholders(query)
 
 	var queue models.Queue
 	var systemAddressID, salutationID, signatureID sql.NullInt32
 	var comments sql.NullString
-	
+
 	err := r.db.QueryRow(query, id).Scan(
 		&queue.ID,
 		&queue.Name,
@@ -51,7 +51,7 @@ func (r *QueueRepository) GetByID(id uint) (*models.Queue, error) {
 		&queue.ChangeTime,
 		&queue.ChangeBy,
 	)
-	
+
 	if systemAddressID.Valid {
 		queue.SystemAddressID = int(systemAddressID.Int32)
 	}
@@ -80,14 +80,14 @@ func (r *QueueRepository) GetByName(name string) (*models.Queue, error) {
 		       comments, valid_id, create_time, create_by, change_time, change_by
 		FROM queue
 		WHERE name = $1 AND valid_id = 1`
-	
+
 	// Convert placeholders for MySQL compatibility
 	query = database.ConvertPlaceholders(query)
 
 	var queue models.Queue
 	var systemAddressID, salutationID, signatureID sql.NullInt32
 	var comments sql.NullString
-	
+
 	err := r.db.QueryRow(query, name).Scan(
 		&queue.ID,
 		&queue.Name,
@@ -105,7 +105,7 @@ func (r *QueueRepository) GetByName(name string) (*models.Queue, error) {
 		&queue.ChangeTime,
 		&queue.ChangeBy,
 	)
-	
+
 	if systemAddressID.Valid {
 		queue.SystemAddressID = int(systemAddressID.Int32)
 	}
@@ -147,7 +147,7 @@ func (r *QueueRepository) List() ([]*models.Queue, error) {
 		var queue models.Queue
 		var systemAddressID, salutationID, signatureID sql.NullInt32
 		var comments sql.NullString
-		
+
 		err := rows.Scan(
 			&queue.ID,
 			&queue.Name,
@@ -168,7 +168,7 @@ func (r *QueueRepository) List() ([]*models.Queue, error) {
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if systemAddressID.Valid {
 			queue.SystemAddressID = int(systemAddressID.Int32)
 		}
@@ -181,7 +181,7 @@ func (r *QueueRepository) List() ([]*models.Queue, error) {
 		if comments.Valid {
 			queue.Comment = comments.String
 		}
-		
+
 		queues = append(queues, &queue)
 	}
 
@@ -201,7 +201,7 @@ func (r *QueueRepository) Create(queue *models.Queue) error {
 
 	var systemAddressID, salutationID, signatureID sql.NullInt32
 	var comments sql.NullString
-	
+
 	if queue.SystemAddressID > 0 {
 		systemAddressID = sql.NullInt32{Int32: int32(queue.SystemAddressID), Valid: true}
 	}
@@ -215,8 +215,8 @@ func (r *QueueRepository) Create(queue *models.Queue) error {
 		comments = sql.NullString{String: queue.Comment, Valid: true}
 	}
 
-    err := r.db.QueryRow(
-        database.ConvertPlaceholders(query),
+	err := r.db.QueryRow(
+		database.ConvertPlaceholders(query),
 		queue.Name,
 		systemAddressID,
 		salutationID,
@@ -256,7 +256,7 @@ func (r *QueueRepository) Update(queue *models.Queue) error {
 
 	var systemAddressID, salutationID, signatureID sql.NullInt32
 	var comments sql.NullString
-	
+
 	if queue.SystemAddressID > 0 {
 		systemAddressID = sql.NullInt32{Int32: int32(queue.SystemAddressID), Valid: true}
 	}
@@ -270,8 +270,8 @@ func (r *QueueRepository) Update(queue *models.Queue) error {
 		comments = sql.NullString{String: queue.Comment, Valid: true}
 	}
 
-    result, err := r.db.Exec(
-        database.ConvertPlaceholders(query),
+	result, err := r.db.Exec(
+		database.ConvertPlaceholders(query),
 		queue.ID,
 		queue.Name,
 		systemAddressID,

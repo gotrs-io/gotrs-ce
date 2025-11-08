@@ -1,13 +1,13 @@
 package api
 
 import (
-    "database/sql"
-    "log"
-    "net/http"
-    "strconv"
+	"database/sql"
+	"log"
+	"net/http"
+	"strconv"
 
-    "github.com/gin-gonic/gin"
-    "github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 )
 
 // HandleGetQueueAPI handles GET /api/v1/queues/:id
@@ -15,22 +15,22 @@ func HandleGetQueueAPI(c *gin.Context) {
 	// Check authentication
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Unauthorized"})
 		return
 	}
 	_ = userID // Will use for permission checks later
 
 	// Parse queue ID
-    if _, err := strconv.Atoi(c.Param("id")); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid queue ID"})
+	if _, err := strconv.Atoi(c.Param("id")); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid queue ID"})
 		return
 	}
 
-    // Delegate to unified OTRS-based handler for consistency
-    // Delegate to unified OTRS-based handler for consistency.
-    // Preserve API v1 response shape {success, data}
-    // We call the underlying handler and adapt its response if needed.
-    HandleAPIQueueGet(c)
+	// Delegate to unified OTRS-based handler for consistency
+	// Delegate to unified OTRS-based handler for consistency.
+	// Preserve API v1 response shape {success, data}
+	// We call the underlying handler and adapt its response if needed.
+	HandleAPIQueueGet(c)
 }
 
 // HandleGetQueueAgentsAPI handles GET /api/v1/queues/:id/agents
@@ -38,7 +38,7 @@ func HandleGetQueueAgentsAPI(c *gin.Context) {
 	// Check authentication
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Unauthorized"})
 		return
 	}
 	_ = userID // Will use for permission checks later
@@ -46,14 +46,14 @@ func HandleGetQueueAgentsAPI(c *gin.Context) {
 	// Parse queue ID
 	queueID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid queue ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid queue ID"})
 		return
 	}
 
 	// Get database connection
 	db, err := database.GetDB()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection not available"})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection not available"})
 		return
 	}
 	sqlDB := db
@@ -61,7 +61,7 @@ func HandleGetQueueAgentsAPI(c *gin.Context) {
 	// Get agents with permissions for this queue
 	agents, err := getAgentsForQueue(sqlDB, queueID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get agents"})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to get agents"})
 		return
 	}
 
@@ -98,7 +98,7 @@ func getAgentsForQueue(db *sql.DB, queueID int) ([]gin.H, error) {
 			log.Printf("DEBUG: getAgentsForQueue scan error: %v", err)
 			return nil, err
 		}
-		
+
 		displayName := firstName
 		if lastName != "" {
 			displayName += " " + lastName
@@ -106,7 +106,7 @@ func getAgentsForQueue(db *sql.DB, queueID int) ([]gin.H, error) {
 		if displayName == "" {
 			displayName = login
 		}
-		
+
 		agents = append(agents, gin.H{
 			"id":    id,
 			"name":  displayName,

@@ -11,10 +11,16 @@ import (
 
 // HandleListPrioritiesAPI handles GET /api/v1/priorities
 func HandleListPrioritiesAPI(c *gin.Context) {
+	// Require authentication similar to other admin lookups
+	if _, exists := c.Get("user_id"); !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Unauthorized"})
+		return
+	}
+
 	db, err := database.GetDB()
 	if err != nil || db == nil {
 		if allowPriorityFixture() {
-			c.JSON(http.StatusOK, gin.H{"success": true, "data": priorityFixture()})
+			c.JSON(http.StatusOK, gin.H{"success": true, "message": "Priority deleted successfully", "data": priorityFixture()})
 			return
 		}
 		c.Header("X-Guru-Error", "Priorities lookup failed: database unavailable")
@@ -22,12 +28,30 @@ func HandleListPrioritiesAPI(c *gin.Context) {
 		return
 	}
 
-	rows, err := db.Query(database.ConvertPlaceholders(`
-        SELECT id, name, color, valid_id
-        FROM ticket_priority
-        WHERE valid_id = ?
-        ORDER BY id
-    `), 1)
+	validParam := strings.ToLower(strings.TrimSpace(c.Query("valid")))
+
+	query := `
+		SELECT id, name, color, valid_id
+		FROM ticket_priority
+	`
+	var rowsArgs []interface{}
+	switch validParam {
+	case "", "true", "1":
+		query += " WHERE valid_id = ?"
+		rowsArgs = append(rowsArgs, 1)
+	case "false", "0":
+		query += " WHERE valid_id <> ?"
+		rowsArgs = append(rowsArgs, 1)
+	case "all":
+		// no additional filter
+	default:
+		// treat unexpected value as valid=true for safety
+		query += " WHERE valid_id = ?"
+		rowsArgs = append(rowsArgs, 1)
+	}
+	query += " ORDER BY id"
+
+	rows, err := db.Query(database.ConvertPlaceholders(query), rowsArgs...)
 	if err != nil {
 		c.Header("X-Guru-Error", "Priorities lookup failed: query error")
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch priorities"})
@@ -45,7 +69,7 @@ func HandleListPrioritiesAPI(c *gin.Context) {
 		items = append(items, gin.H{"id": id, "name": name, "color": color, "valid_id": validID})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": items})
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Priority deleted successfully", "data": items})
 }
 
 func allowPriorityFixture() bool {

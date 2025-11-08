@@ -186,3 +186,31 @@ func TestAuthMiddlewareSetsIsCustomerFlag(t *testing.T) {
 		assert.Equal(t, "Invalid or expired token", response["error"])
 	})
 }
+
+func TestAuthMiddlewareHonorsBypassDisable(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("GOTRS_DISABLE_TEST_AUTH_BYPASS", "1")
+
+	registry := NewHandlerRegistry()
+	RegisterExistingHandlers(registry)
+
+	authMw, err := registry.GetMiddleware("auth")
+	if err != nil {
+		t.Fatalf("expected auth middleware: %v", err)
+	}
+
+	router := gin.New()
+	router.Use(authMw)
+	router.GET("/admin/users", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/users", nil)
+	req.Header.Set("Accept", "*/*")
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+
+	assert.Equal(t, http.StatusUnauthorized, resp.Code)
+}

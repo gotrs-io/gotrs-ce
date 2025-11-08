@@ -131,24 +131,24 @@ func HandleGetUserAPI(c *gin.Context) {
 		WHERE ug.user_id = $1
 		ORDER BY g.name
 	`)
-	
+
 	rows, err := db.Query(groupQuery, userID)
 	if err == nil {
 		defer rows.Close()
-		
+
 		groups := []map[string]interface{}{}
 		for rows.Next() {
 			var groupID int
 			var groupName string
 			var permKey sql.NullString
 			var permValue sql.NullInt32
-			
+
 			if err := rows.Scan(&groupID, &groupName, &permKey, &permValue); err == nil {
 				group := map[string]interface{}{
 					"id":   groupID,
 					"name": groupName,
 				}
-				
+
 				// Add permission info if available
 				if permKey.Valid {
 					group["permission_key"] = permKey.String
@@ -156,7 +156,7 @@ func HandleGetUserAPI(c *gin.Context) {
 				if permValue.Valid {
 					group["permission_value"] = permValue.Int32
 				}
-				
+
 				groups = append(groups, group)
 			}
 		}
@@ -174,11 +174,11 @@ func HandleGetUserAPI(c *gin.Context) {
 		FROM user_preferences
 		WHERE user_id = $1
 	`)
-	
+
 	prefRows, err := db.Query(prefsQuery, userID)
 	if err == nil {
 		defer prefRows.Close()
-		
+
 		preferences := make(map[string]string)
 		for prefRows.Next() {
 			var key, value string

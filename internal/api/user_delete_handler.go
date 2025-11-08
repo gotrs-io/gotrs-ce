@@ -177,7 +177,7 @@ func HandleGetUserGroupsAPI(c *gin.Context) {
 		var groupID int
 		var groupName string
 		var permKey, permValue interface{}
-		
+
 		if err := rows.Scan(&groupID, &groupName, &permKey, &permValue); err != nil {
 			continue
 		}
@@ -186,14 +186,14 @@ func HandleGetUserGroupsAPI(c *gin.Context) {
 			"id":   groupID,
 			"name": groupName,
 		}
-		
+
 		if permKey != nil {
 			group["permission_key"] = permKey
 		}
 		if permValue != nil {
 			group["permission_value"] = permValue
 		}
-		
+
 		groups = append(groups, group)
 	}
 
@@ -261,7 +261,7 @@ func HandleAddUserToGroupAPI(c *gin.Context) {
 		WHERE user_id = $1 AND group_id = $2
 	`)
 	db.QueryRow(checkQuery, userID, req.GroupID).Scan(&associationExists)
-	
+
 	if associationExists == 1 {
 		// Update existing association
 		updateQuery := database.ConvertPlaceholders(`
@@ -281,7 +281,7 @@ func HandleAddUserToGroupAPI(c *gin.Context) {
 				create_time, create_by, change_time, change_by
 			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		`)
-		_, err = db.Exec(insertQuery, 
+		_, err = db.Exec(insertQuery,
 			userID, req.GroupID, req.Permissions, 1,
 			time.Now(), currentUserID, time.Now(), currentUserID,
 		)
@@ -316,7 +316,7 @@ func HandleRemoveUserFromGroupAPI(c *gin.Context) {
 	// Get user ID and group ID from URL
 	userIDStr := c.Param("id")
 	groupIDStr := c.Param("group_id")
-	
+
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -325,7 +325,7 @@ func HandleRemoveUserFromGroupAPI(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	groupID, err := strconv.Atoi(groupIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{

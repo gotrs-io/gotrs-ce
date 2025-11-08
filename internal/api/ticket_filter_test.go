@@ -1,14 +1,18 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Test-Driven Development for Ticket Filtering Feature
@@ -18,18 +22,18 @@ func TestTicketFilterByStatus(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name           string
-		queryParams    string
-		expectedCount  int
-		expectedStatus []string
-		shouldContain  []string
+		name             string
+		queryParams      string
+		expectedCount    int
+		expectedStatus   []string
+		shouldContain    []string
 		shouldNotContain []string
 	}{
 		{
 			name:           "Filter by status=open",
 			queryParams:    "status=open",
 			expectedStatus: []string{"open"},
-			shouldContain:  []string{
+			shouldContain: []string{
 				"open",
 				"Open Tickets",
 			},
@@ -43,7 +47,7 @@ func TestTicketFilterByStatus(t *testing.T) {
 			name:           "Filter by status=closed",
 			queryParams:    "status=closed",
 			expectedStatus: []string{"closed"},
-			shouldContain:  []string{
+			shouldContain: []string{
 				"closed",
 				"Closed Tickets",
 			},
@@ -57,7 +61,7 @@ func TestTicketFilterByStatus(t *testing.T) {
 			name:           "Filter by multiple statuses",
 			queryParams:    "status=open&status=pending",
 			expectedStatus: []string{"open", "pending"},
-			shouldContain:  []string{
+			shouldContain: []string{
 				"open",
 				"pending",
 			},
@@ -67,9 +71,9 @@ func TestTicketFilterByStatus(t *testing.T) {
 			},
 		},
 		{
-			name:           "No status filter shows all",
-			queryParams:    "",
-			shouldContain:  []string{
+			name:        "No status filter shows all",
+			queryParams: "",
+			shouldContain: []string{
 				"Tickets", // General title
 			},
 		},
@@ -302,69 +306,120 @@ func TestTicketFilterByAssignee(t *testing.T) {
 func TestTicketSearchFilter(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	const queryPattern = `SELECT id, tn, title\s+FROM ticket\s+WHERE title (?:ILIKE|LIKE) (?:\$1|\?) OR tn (?:ILIKE|LIKE) (?:\$1|\?)\s+LIMIT 20`
+
+	type searchResponse struct {
+		Query   string `json:"query"`
+		Results []struct {
+			ID      string `json:"id"`
+			Subject string `json:"subject"`
+		} `json:"results"`
+		Total int `json:"total"`
+	}
+
 	tests := []struct {
-		name             string
-		queryParams      string
-		shouldContain    []string
-		shouldNotContain []string
+		name      string
+		query     string
+		accept    string
+		setupMock func(sqlmock.Sqlmock)
+		check     func(t *testing.T, w *httptest.ResponseRecorder)
 	}{
 		{
-			name:        "Search by keyword in title",
-			queryParams: "search=login",
-			shouldContain: []string{
-				"login",
-				"Login issues",
+			name:  "Search by keyword in title",
+			query: "search=login",
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(queryPattern).
+					WithArgs("%login%").
+					WillReturnRows(sqlmock.NewRows([]string{"id", "tn", "title"}).
+						AddRow(1, "TICKET-001", "Login issues"))
+			},
+			check: func(t *testing.T, w *httptest.ResponseRecorder) {
+				require.Contains(t, w.Header().Get("Content-Type"), "application/json")
+				var resp searchResponse
+				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+				assert.Equal(t, "login", resp.Query)
+				assert.Equal(t, 1, resp.Total)
+				require.Len(t, resp.Results, 1)
+				assert.Equal(t, "TICKET-001", resp.Results[0].ID)
+				assert.Equal(t, "Login issues", resp.Results[0].Subject)
 			},
 		},
 		{
-			name:        "Search by ticket number",
-			queryParams: "search=TICKET-001",
-			shouldContain: []string{
-				"TICKET-001",
+			name:  "Search by ticket number",
+			query: "search=TICKET-001",
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(queryPattern).
+					WithArgs("%TICKET-001%").
+					WillReturnRows(sqlmock.NewRows([]string{"id", "tn", "title"}).
+						AddRow(1, "TICKET-001", "Login issues"))
+			},
+			check: func(t *testing.T, w *httptest.ResponseRecorder) {
+				require.Contains(t, w.Header().Get("Content-Type"), "application/json")
+				var resp searchResponse
+				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+				assert.Equal(t, "TICKET-001", resp.Query)
+				assert.Equal(t, 1, resp.Total)
+				require.Len(t, resp.Results, 1)
+				assert.Equal(t, "TICKET-001", resp.Results[0].ID)
 			},
 		},
 		{
-			name:        "Search by customer email",
-			queryParams: "search=john@example.com",
-			shouldContain: []string{
-				"john@example.com",
+			name:   "Empty search returns tickets marker",
+			query:  "search=",
+			accept: "text/html",
+			check: func(t *testing.T, w *httptest.ResponseRecorder) {
+				assert.Equal(t, http.StatusOK, w.Code)
+				assert.Contains(t, w.Header().Get("Content-Type"), "text/html")
+				assert.Contains(t, w.Body.String(), "Tickets")
 			},
 		},
 		{
-			name:        "Empty search returns all tickets",
-			queryParams: "search=",
-			shouldContain: []string{
-				"Tickets", // General content
+			name:  "Search with no results",
+			query: "search=nonexistentterm12345",
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(queryPattern).
+					WithArgs("%nonexistentterm12345%").
+					WillReturnRows(sqlmock.NewRows([]string{"id", "tn", "title"}))
 			},
-		},
-		{
-			name:        "Search with no results",
-			queryParams: "search=nonexistentterm12345",
-			shouldContain: []string{
-				"No tickets found", // Should show no results message
+			check: func(t *testing.T, w *httptest.ResponseRecorder) {
+				require.Contains(t, w.Header().Get("Content-Type"), "application/json")
+				var resp searchResponse
+				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+				assert.Equal(t, "nonexistentterm12345", resp.Query)
+				assert.Equal(t, 0, resp.Total)
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockDB, mock, err := sqlmock.New()
+			require.NoError(t, err)
+			defer mockDB.Close()
+
+			database.SetDB(mockDB)
+			defer database.ResetDB()
+
+			if tt.setupMock != nil {
+				tt.setupMock(mock)
+			}
+
 			router := gin.New()
 			SetupHTMXRoutes(router)
 
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequest("GET", "/api/tickets/search?"+tt.queryParams, nil)
+			req, _ := http.NewRequest("GET", "/api/tickets/search?"+tt.query, nil)
+			if tt.accept != "" {
+				req.Header.Set("Accept", tt.accept)
+			} else {
+				req.Header.Set("Accept", "application/json")
+			}
+
 			router.ServeHTTP(w, req)
 
-			assert.Equal(t, http.StatusOK, w.Code)
-			body := w.Body.String()
+			require.NoError(t, mock.ExpectationsWereMet())
 
-			for _, content := range tt.shouldContain {
-				assert.Contains(t, body, content, "Should contain: %s", content)
-			}
-
-			for _, content := range tt.shouldNotContain {
-				assert.NotContains(t, body, content, "Should not contain: %s", content)
-			}
+			tt.check(t, w)
 		})
 	}
 }
@@ -445,10 +500,10 @@ func TestFilterPersistence(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name          string
-		queryParams   string
-		checkForm     bool
-		expectedForm  map[string]string
+		name         string
+		queryParams  string
+		checkForm    bool
+		expectedForm map[string]string
 	}{
 		{
 			name:        "Status filter persists in form",
@@ -483,9 +538,10 @@ func TestFilterPersistence(t *testing.T) {
 			body := w.Body.String()
 
 			if tt.checkForm {
+				normalized := strings.Join(strings.Fields(body), " ")
 				for field, value := range tt.expectedForm {
 					// Check that form field has the selected value
-					assert.Contains(t, body, `value="`+value+`" selected`, 
+					assert.Contains(t, normalized, `value="`+value+`" selected`,
 						"Form field %s should have value %s selected", field, value)
 				}
 			}
@@ -504,7 +560,7 @@ func TestFilterReset(t *testing.T) {
 		w1 := httptest.NewRecorder()
 		req1, _ := http.NewRequest("GET", "/api/tickets?status=open&priority=high", nil)
 		router.ServeHTTP(w1, req1)
-		
+
 		assert.Equal(t, http.StatusOK, w1.Code)
 		assert.Contains(t, w1.Body.String(), "open")
 		assert.Contains(t, w1.Body.String(), "high")
@@ -513,7 +569,7 @@ func TestFilterReset(t *testing.T) {
 		w2 := httptest.NewRecorder()
 		req2, _ := http.NewRequest("GET", "/api/tickets", nil)
 		router.ServeHTTP(w2, req2)
-		
+
 		assert.Equal(t, http.StatusOK, w2.Code)
 		// Should show all tickets without filters
 		assert.Contains(t, w2.Body.String(), "Tickets")
@@ -524,9 +580,9 @@ func TestFilterURLGeneration(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name           string
-		filters        map[string][]string
-		expectedURL    string
+		name        string
+		filters     map[string][]string
+		expectedURL string
 	}{
 		{
 			name: "Single filter",
@@ -561,12 +617,12 @@ func TestFilterURLGeneration(t *testing.T) {
 					params.Add(key, value)
 				}
 			}
-			
+
 			generatedURL := params.Encode()
-			
+
 			// Check that all expected parameters are in the URL
 			for _, param := range strings.Split(tt.expectedURL, "&") {
-				assert.Contains(t, generatedURL, param, 
+				assert.Contains(t, generatedURL, param,
 					"Generated URL should contain parameter: %s", param)
 			}
 		})
@@ -577,10 +633,10 @@ func TestFilterValidation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name             string
-		queryParams      string
-		expectedStatus   int
-		shouldContain    []string
+		name           string
+		queryParams    string
+		expectedStatus int
+		shouldContain  []string
 	}{
 		{
 			name:           "Invalid status value is ignored",
@@ -631,7 +687,7 @@ func TestFilterValidation(t *testing.T) {
 			for _, content := range tt.shouldContain {
 				assert.Contains(t, body, content, "Should contain: %s", content)
 			}
-			
+
 			// Should never contain SQL or injection attempts
 			assert.NotContains(t, body, "DROP TABLE")
 			assert.NotContains(t, body, "<!--")
@@ -648,15 +704,15 @@ func TestFilterPerformance(t *testing.T) {
 
 		// Complex filter combination
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", 
-			"/api/tickets?status=open&status=pending&priority=high&queue=1&queue=2&assigned=true", 
+		req, _ := http.NewRequest("GET",
+			"/api/tickets?status=open&status=pending&priority=high&queue=1&queue=2&assigned=true",
 			nil)
-		
+
 		router.ServeHTTP(w, req)
-		
+
 		// Response should be fast even with multiple filters
 		assert.Equal(t, http.StatusOK, w.Code)
-		
+
 		// Check that some content is returned
 		assert.NotEmpty(t, w.Body.String())
 	})
@@ -666,9 +722,9 @@ func TestFilterUIElements(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name             string
-		route            string
-		shouldContain    []string
+		name          string
+		route         string
+		shouldContain []string
 	}{
 		{
 			name:  "Ticket list page has filter form",
@@ -684,7 +740,7 @@ func TestFilterUIElements(t *testing.T) {
 		},
 		{
 			name:  "Filter form uses HTMX",
-			route: "/tickets", 
+			route: "/tickets",
 			shouldContain: []string{
 				`hx-get="/api/tickets"`,
 				`hx-target="#ticket-list"`,

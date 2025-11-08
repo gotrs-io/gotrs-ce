@@ -37,6 +37,18 @@ spec:
       handler: handleLogoutRedirect
       description: "GET logout route that redirects to login"
 
+    # Token refresh stub (returns 200 with not implemented message)
+    - path: /api/auth/refresh
+      method: POST
+      handler: handleAuthRefresh
+      description: "Placeholder for token refresh"
+
+    # Registration stub (self-service disabled)
+    - path: /api/auth/register
+      method: POST
+      handler: handleAuthRegister
+      description: "Placeholder for user registration"
+
     # Demo customer login for testing
     - path: /auth/customer
       method: GET

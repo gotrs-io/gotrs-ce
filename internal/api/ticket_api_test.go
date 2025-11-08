@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +27,7 @@ func TestTicketAPI(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			assert.Equal(t, http.StatusUnauthorized, w.Code)
-			
+
 			var response map[string]interface{}
 			err := json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
@@ -261,6 +262,9 @@ func TestTicketAPI(t *testing.T) {
 
 	t.Run("Delete Ticket", func(t *testing.T) {
 		t.Run("should return 401 without authentication", func(t *testing.T) {
+			database.ResetDB()
+			t.Cleanup(database.ResetDB)
+
 			router := gin.New()
 			router.DELETE("/api/v1/tickets/:id", HandleDeleteTicketAPI)
 
@@ -297,7 +301,7 @@ func setupAPITestRouter() *gin.Engine {
 }
 
 func authenticatedRouter() *gin.Engine {
-    router := setupAPITestRouter()
+	router := setupAPITestRouter()
 	router.Use(func(c *gin.Context) {
 		c.Set("user_id", uint(1))
 		c.Set("is_authenticated", true)

@@ -149,377 +149,48 @@ VALKEY_HOST ?= localhost
 VALKEY_PORT ?= 6388
 
 TEST_DB_DRIVER ?= mysql
-TEST_DB_HOST ?= 127.0.0.1
-TEST_DB_PORT ?= 3308
-TEST_DB_NAME ?= otrs_test
-TEST_DB_USER ?= otrs
-TEST_DB_PASSWORD ?= CHANGEME
+TEST_DB_SSLMODE ?= disable
+TEST_DB_POSTGRES_HOST ?= postgres-test
+TEST_DB_POSTGRES_PORT ?= 5433
+TEST_DB_POSTGRES_NAME ?= gotrs_test
+TEST_DB_POSTGRES_USER ?= gotrs_user
+TEST_DB_POSTGRES_PASSWORD ?= gotrs_password
+TEST_DB_POSTGRES_CONTAINER_PORT ?= 5432
+TEST_DB_MYSQL_HOST ?= mariadb-test
+TEST_DB_MYSQL_PORT ?= 3308
+TEST_DB_MYSQL_CONTAINER_PORT ?= 3306
 
-ifeq ($(filter $(TEST_DB_DRIVER),mysql mariadb),)
-TEST_DB_PORT ?= 5433
-TEST_DB_NAME ?= gotrs_test
-TEST_DB_USER ?= gotrs_user
-TEST_DB_PASSWORD ?= gotrs_password
-endif
-
-# Macro to wrap Go commands inside toolbox container (ensures container-first dev)
-TOOLBOX_GO=$(MAKE) toolbox-exec ARGS=
-
-# --- Auto-detect DB driver (mariadb/postgres) if not provided ---
-# Priority: existing DB_DRIVER env/.env > running compose services > compose file contents > default mariadb
-ifeq ($(origin DB_DRIVER), undefined)
-DB_DRIVER := $(shell \
-  if $(COMPOSE_CMD) ps --services 2>/dev/null | grep -q "^mariadb$$"; then \
-    echo mariadb; \
-  elif $(COMPOSE_CMD) ps --services 2>/dev/null | grep -q "^postgres$$"; then \
-    echo postgres; \
-  elif [ -f docker-compose.yml ] && grep -qE '^[[:space:]]mariadb:' docker-compose.yml; then \
-    echo mariadb; \
-  elif [ -f docker-compose.yml ] && grep -qE '^[[:space:]]postgres:' docker-compose.yml; then \
-    echo postgres; \
-  else \
-    echo mariadb; \
-  fi)
-endif
-
-# Align defaults for host/port with detected driver when not explicitly set
-ifeq ($(DB_DRIVER),mariadb)
-DB_HOST ?= mariadb
-DB_PORT ?= 3306
-endif
-ifeq ($(DB_DRIVER),mysql)
-DB_HOST ?= mariadb
-DB_PORT ?= 3306
-endif
-ifeq ($(DB_DRIVER),postgres)
-DB_HOST ?= postgres
-DB_PORT ?= 5432
-endif
-
-PG_MIGRATIONS_DIR := migrations/postgres
-MYSQL_MIGRATIONS_DIR := migrations/mysql
-PG_MIGRATE_PATH := /app/migrations/postgres
-MYSQL_MIGRATE_PATH := /app/migrations/mysql
-
-ifeq ($(filter $(DB_DRIVER),mysql mariadb),)
-ACTIVE_MIGRATIONS_DIR := $(PG_MIGRATIONS_DIR)
-ACTIVE_MIGRATE_PATH := $(PG_MIGRATE_PATH)
+ifeq ($(TEST_DB_DRIVER),postgres)
+TEST_DB_HOST ?= $(TEST_DB_POSTGRES_HOST)
+TEST_DB_PORT ?= $(TEST_DB_POSTGRES_PORT)
+TEST_DB_NAME ?= $(TEST_DB_POSTGRES_NAME)
+TEST_DB_USER ?= $(TEST_DB_POSTGRES_USER)
+TEST_DB_PASSWORD ?= $(TEST_DB_POSTGRES_PASSWORD)
 else
-ACTIVE_MIGRATIONS_DIR := $(MYSQL_MIGRATIONS_DIR)
-ACTIVE_MIGRATE_PATH := $(MYSQL_MIGRATE_PATH)
+TEST_DB_HOST ?= $(TEST_DB_MYSQL_HOST)
+TEST_DB_PORT ?= $(TEST_DB_MYSQL_PORT)
+TEST_DB_NAME ?= $(TEST_DB_MYSQL_NAME)
+TEST_DB_USER ?= $(TEST_DB_MYSQL_USER)
+TEST_DB_PASSWORD ?= $(TEST_DB_MYSQL_PASSWORD)
 endif
 
-.PHONY: help up down logs logs-follow restart clean setup test build build-artifacts debug-env build-cached toolbox-build toolbox-run toolbox-exec api-call toolbox-compile toolbox-compile-api \
-	toolbox-test-api toolbox-test toolbox-test-all toolbox-test-run toolbox-run-file toolbox-staticcheck test-actions-dropdown
+TOOLBOX_TEST_DB_HOST ?= 127.0.0.1
+TOOLBOX_TEST_DB_PORT ?= $(TEST_DB_PORT)
 
-.PHONY: go-cache-info go-cache-clean
-go-cache-info:
-	@echo "Go cache directories (inside toolbox):";
-	@$(MAKE) toolbox-exec ARGS='bash -lc "echo GOCACHE=$$GOCACHE; echo GOMODCACHE=$$GOMODCACHE; du -sh $$GOCACHE 2>/dev/null || true; du -sh $$GOMODCACHE 2>/dev/null || true"'
+TEST_BACKEND_SERVICE_HOST ?= backend-test
+TEST_BACKEND_CONTAINER_PORT ?= 8080
+TEST_BACKEND_HOST ?= $(TEST_BACKEND_SERVICE_HOST)
+ifndef TEST_BACKEND_PORT
+TEST_BACKEND_PORT := 18081
+endif
+ifeq ($(strip $(TEST_BACKEND_PORT)),)
+override TEST_BACKEND_PORT := 18081
+endif
+TEST_BACKEND_BASE_URL ?= http://$(TEST_BACKEND_SERVICE_HOST):$(TEST_BACKEND_CONTAINER_PORT)
+TEST_COMPOSE_FILE := $(CURDIR)/docker-compose.yml:$(CURDIR)/docker-compose.testdb.yml:$(CURDIR)/docker-compose.test.yaml
 
-go-cache-clean:
-	@echo "Cleaning Go build/module caches (named volumes persist but contents cleared)"
-	@$(MAKE) toolbox-exec ARGS='bash -lc "rm -rf $$GOCACHE/* $$GOMODCACHE/pkg/mod/cache/download 2>/dev/null || true"'
-	@echo "Done"
-
-# Audit cache ownership to detect files created by unexpected UIDs/GIDs
-.PHONY: cache-audit
-cache-audit:
-	@echo "🔍 Auditing .cache ownership (showing differing UID/GID entries first)..."
-	@find .cache -mindepth 1 -printf '%U:%G %M %p\n' 2>/dev/null | sort | awk -v U=$$(id -u) -v G=$$(id -g) '($$1!="" ) {split($$1,ug,/:/); if(ug[1]!=U || ug[2]!=G) print;}' || true
-	@echo "Full listing (UID:GID perms path):"
-	@find .cache -mindepth 1 -printf '%U:%G %M %p\n' 2>/dev/null | sort || true
-
-# GolangCI-Lint cache management
-.PHONY: lint-cache-info lint-cache-clean
-lint-cache-info:
-	@echo "golangci-lint cache (inside toolbox):";
-	@$(MAKE) toolbox-exec ARGS='bash -lc "echo $$GOLANGCI_LINT_CACHE; du -sh $$GOLANGCI_LINT_CACHE 2>/dev/null || true"'
-
-lint-cache-clean:
-	@echo "Cleaning golangci-lint cache"
-	@$(MAKE) toolbox-exec ARGS='bash -lc "rm -rf $$GOLANGCI_LINT_CACHE/* 2>/dev/null || true"'
-	@echo "Done"
-
-# One-off fix to adjust ownership/permissions of named Go cache volumes
-.PHONY: toolbox-fix-cache
-toolbox-fix-cache:
-		@echo "🔧 Checking cache ownership before attempting fix..."
-		@$(call ensure_caches)
-		@if [ "$(CONFIRM)" != "YES" ]; then \
-			 echo "Refusing to change ownership automatically."; \
-			 echo "To proceed, re-run: make toolbox-fix-cache CONFIRM=YES"; \
-			 exit 1; \
-		fi
-		@if find .cache -mindepth 1 -printf '%u:%g\n' 2>/dev/null | grep -qv "^$$(id -u):$$(id -g)$$"; then \
-			 echo "🔧 Foreign ownership detected; applying scoped chown/chmod fix via toolbox container (cache dirs only)"; \
-			 echo "🧱 Ensuring gotrs-toolbox image exists..."; \
-			 if ! $(CONTAINER_CMD) image inspect gotrs-toolbox:latest >/dev/null 2>&1; then \
-					$(MAKE) toolbox-build; \
-			 fi; \
-			 $(CONTAINER_CMD) run --rm \
-					--security-opt label=disable \
-					-v "$$PWD:/workspace$(VZ)" \
-					-w /workspace \
-					--user 0 \
-					-e HUID=$$(id -u) -e HGID=$$(id -g) \
-					gotrs-toolbox:latest \
-					bash -lc 'set -e; \
-						mkdir -p /workspace/.cache; chown $$HUID:$$HGID /workspace/.cache || true; chmod 775 /workspace/.cache || true; \
-						for d in go-build go-mod golangci-lint; do \
-							mkdir -p "/workspace/.cache/$$d"; \
-							chown -R $$HUID:$$HGID "/workspace/.cache/$$d" || true; \
-							chmod -R 775 "/workspace/.cache/$$d" || true; \
-						done'; \
-			 echo "✅ Attempted cache ownership normalization"; \
-			 echo "🔎 Post-fix audit:"; \
-			 find .cache -mindepth 1 -printf '%u:%g %M %p\n' 2>/dev/null | sort | awk -v U=$$(id -u) -v G=$$(id -g) '($$1!="" ) {split($$1,ug,/:/); if(ug[1]!=U || ug[2]!=G) print;}' || true; \
-		 else \
-			 echo "✅ No foreign ownership detected; nothing to do"; \
-		 fi
-		@$(call cache_guard)
-
-# Aggregate cache clean (Go + lint + node_modules optional purge)
-.PHONY: cache-clean-all
-cache-clean-all:
-	@echo "🚿 Purging all development caches (Go build/mod, golangci-lint)."
-	@$(MAKE) go-cache-clean
-	@$(MAKE) lint-cache-clean
-	@echo "(node_modules untouched; run 'make node-modules-clean' if you add such a target later)"
-	@echo "✅ All caches purged"
-
-# Extended security scan capturing artifacts similar to CI script
-.PHONY: security-scan-artifacts
-security-scan-artifacts:
-	@echo "🔐 Running Go security scan with artifact capture (pinned)"
-	@rm -rf security-artifacts && mkdir -p security-artifacts
-	@$(MAKE) toolbox-exec ARGS='bash -lc "go install golang.org/x/vuln/cmd/govulncheck@v1.1.3 && govulncheck ./... | tee security-artifacts/govulncheck.txt || true"'
-	@$(MAKE) toolbox-exec ARGS='bash -lc "govulncheck -json ./... > security-artifacts/govulncheck.json 2>/dev/null || true"'
-	@$(MAKE) toolbox-exec ARGS='bash -lc "go install honnef.co/go/tools/cmd/staticcheck@2024.1.1 && staticcheck -checks=all ./... > security-artifacts/staticcheck.txt 2>&1 || true"'
-	@$(MAKE) toolbox-exec ARGS='bash -lc "go install github.com/securego/gosec/v2/cmd/gosec@v2.21.0 && gosec -conf .gosec.json -fmt json -out security-artifacts/gosec-results.json ./... || true"'
-	@$(MAKE) toolbox-exec ARGS='bash -lc "gosec -conf .gosec.json -fmt text ./... | tee security-artifacts/gosec.txt || true"'
-	@$(MAKE) toolbox-exec ARGS='bash -lc "go vet ./... > security-artifacts/go-vet.txt 2>&1 || true"'
-	@$(MAKE) toolbox-exec ARGS='bash -lc "(command -v golangci-lint >/dev/null 2>&1 || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$GOPATH/bin v1.55.2)"'
-	@$(MAKE) toolbox-exec ARGS='bash -lc "golangci-lint run --timeout=5m -out-format json > security-artifacts/golangci-lint.json || true"'
-	@$(MAKE) toolbox-exec ARGS='bash -lc "golangci-lint run --timeout=5m > security-artifacts/golangci-lint.txt || true"'
-	@echo "Artifacts written to security-artifacts/:" && ls -1 security-artifacts || true
-
-# Default target
 help:
-	@cat logo.txt
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m🚀 Core Commands\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[0;32mmake up\033[0m                           ▶️ Start core services interactively (backend, db, cache)\n"
-	@printf "  \033[0;32mmake up-d\033[0m                         ▶️ Start core services in daemon mode (backend, db, cache, runner)\n"
-	@printf "  \033[0;32mmake down\033[0m                         🛑 Stop all services\n"
-	@printf "  \033[0;32mmake logs\033[0m                         📋 View a portion of the most recent logs\n"
-	@printf "  \033[0;32mmake logs-follow\033[0m                  📋 View and endlessly follow logs\n"
-	@printf "  \033[0;32mmake restart\033[0m                      🔄 Restart all services\n"
-	@printf "  \033[0;32mmake clean\033[0m                        🧹 Clean everything (including volumes)\n"
-	@printf "  \033[0;32mmake setup\033[0m                        🎯 Initial project setup with secure secrets\n"
-	@printf "  \033[0;32mmake build\033[0m                        🔨 Build production images\n"
-	@printf "  \033[0;32mmake debug-env\033[0m                    🔍 Show container runtime detection\n"
-	@printf "  \033[0;32mmake otrs-import SQL=/path/to/dump.sql\033[0m   📥 Import OTRS database dump\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m🧪 TDD Workflow (Quality Gates Enforced)\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m🗃 Cache & Ownership Utilities\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[0;32mmake go-cache-info\033[0m             🔍 Show Go build/module cache sizes\n"
-	@printf "  \033[0;32mmake go-cache-clean\033[0m            🧹 Clear Go build/module caches\n"
-	@printf "  \033[0;32mmake lint-cache-info\033[0m           🔍 Show golangci-lint cache size\n"
-	@printf "  \033[0;32mmake lint-cache-clean\033[0m          🧹 Clear golangci-lint cache\n"
-	@printf "  \033[0;32mmake cache-audit\033[0m               🔎 Audit ownership of .cache entries\n"
-	@printf "  \033[0;32mmake toolbox-fix-cache CONFIRM=YES\033[0m  🔧 Fix foreign-owned cache entries (cache dirs only)\n"
-	@printf "  \033[0;32mCACHE_USE_VOLUMES=1 make toolbox-test\033[0m  (opt-in legacy named volume caches)\n"
-	@printf "  \033[0;32mCACHE_USE_VOLUMES=0 (default)\033[0m       Rootless bind-mounted host .cache directories\n"
-	@printf "  \033[0;32mmake cache-clean-all\033[0m           🚿 Purge all Go/lint caches\n"
-	@printf "  \033[0;32mmake tdd-init\033[0m                     🏁 Initialize TDD workflow\n"
-	@printf "  \033[0;32mmake tdd-test-first\033[0m FEATURE=name  ❌ Start with failing test\n"
-	@printf "  \033[0;32mmake tdd-implement\033[0m                ✅ Implement to pass tests\n"
-	@printf "  \033[0;32mmake tdd-verify\033[0m                   🔍 Run ALL quality gates\n"
-	@printf "  \033[0;32mmake tdd-refactor\033[0m                 ♻️  Safe refactoring\n"
-	@printf "  \033[0;32mmake tdd-status\033[0m                   📊 Show workflow status\n"
-	@printf "  \033[0;32mmake quality-gates\033[0m                🚦 Run quality checks\n"
-	@printf "  \033[0;32mmake evidence-report\033[0m              📄 Generate evidence\n"
-	@printf "  \033[0;32mmake tdd-comprehensive-quick\033[0m       ⚡ Quick comprehensive TDD run\n"
-	@printf "  \033[0;32mmake tdd-diff\033[0m                     🔍 Diff last two comprehensive evidence runs\n"
-	@printf "  \033[0;32mmake tdd-diff-serve\033[0m              🌐 Serve evidence diffs on http://localhost:3456/\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m🧪 SSR Smoke Strict Mode\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[0;32mSSR_SMOKE_STRICT=1\033[0m               Fail on 5xx and on invalid/missing YAML-referenced templates\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m🎨 CSS/Frontend Build\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[0;32mmake npm-updates\033[0m                  ⬆️ Update NPM dependencies\n"
-	@printf "  \033[0;32mmake css-build\033[0m                    📦 Build production CSS from Tailwind\n"
-	@printf "  \033[0;32mmake css-watch\033[0m                    👁️ Watch and rebuild CSS on changes\n"
-	@printf "  \033[0;32mmake css-deps\033[0m                     📥 Install CSS build dependencies\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m🔐 Secrets Management\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[0;32mmake synthesize\033[0m                   🔑 Generate new .env with secure secrets\n"
-	@printf "  \033[0;32mmake rotate-secrets\033[0m               🔄 Rotate secrets in existing .env\n"
-	@printf "  \033[0;32mmake synthesize-force\033[0m             ⚡ Force regenerate .env\n"
-	@printf "  \033[0;32mmake k8s-secrets\033[0m                  🙊 Generate k8s/secrets.yaml\n"
-	@printf "  \033[0;32mmake show-dev-creds\033[0m               👤 Show test user credentials\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m🐳 Docker/Container Build\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[0;32mmake build-cached\033[0m                 🚀 Fast build with caching (70% faster)\n"
-	@printf "  \033[0;32mmake build-clean\033[0m                  🧹 Clean build without cache\n"
-	@printf "  \033[0;32mmake build-secure\033[0m                 🔒 Build with security scanning\n"
-	@printf "  \033[0;32mmake build-multi\033[0m                  🌍 Multi-platform build (AMD64/ARM64)\n"
-	@printf "  \033[0;32mmake build-all-tools\033[0m              🛠️ Build all specialized containers\n"
-	@printf "  \033[0;32mmake toolbox-build\033[0m                🔧 Build development toolbox\n"
-	@printf "  \033[0;32mmake analyze-size\033[0m                 📏 Analyze image size with dive\n"
-	@printf "  \033[0;32mmake show-sizes\033[0m                   📊 Show all image sizes\n"
-	@printf "  \033[0;32mmake show-cache\033[0m                   💾 Display build cache usage\n"
-	@printf "  \033[0;32mmake clear-cache\033[0m                  🗑️ Clear Docker build cache\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m🔮 Schema Discovery\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[0;32mmake schema-discovery\033[0m             🔍 Generate YAML from DB schema\n"
-	@printf "  \033[0;32mmake schema-table\033[0m                 📊 Generate YAML for table\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m🧰 Toolbox (Fast Container Dev)\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[0;32mmake toolbox-build\033[0m                🔨 Build toolbox container (cached)\n"
-	@printf "  \033[0;32mTOOLBOX_NO_CACHE=1 make toolbox-build\033[0m  ♻ Force rebuild without cache\n"
-	@printf "  \033[0;32mmake toolbox-run\033[0m                  🐚 Interactive shell\n"
-	@printf "  \033[0;32mmake toolbox-exec ARGS='go version'\033[0m   ⚡ Execute commands in toolbox\n"
-	@printf "  \033[0;32mmake verify-container-first\033[0m      🔒 Check for raw host Go commands\n"
-	@printf "  \033[0;32mmake api-call METHOD=GET ENDPOINT=/api/lookups/statuses\033[0m   🌐 Authenticated API calls\n"
-	@printf "  \033[0;32mmake api-call-form METHOD=PUT ENDPOINT=/admin/users/1 DATA='login=...&groups_submitted=1'\033[0m  🌐 Auth'd form-url-encoded call\n"
-	@printf "  \033[0;32mmake http-call ENDPOINT=/login\033[0m        🌐 Public HTTP call (no auth)\n"
-	@printf "  \033[0;32mmake toolbox-compile\033[0m               🔨 Compile all Go packages\n"
-	@printf "  \033[0;32mmake toolbox-compile-api\033[0m           🚀 Compile API/goats only (faster)\n"
-	@printf "  \033[0;32mmake compile\033[0m                       🔨 Compile goats binary\n"
-	@printf "  \033[0;32mmake compile-safe\033[0m                 🔒 Compile in isolated container\n"
-	@printf "  \033[0;32mmake toolbox-test\033[0m                 🧪 Run core tests quickly\n"
-	@printf "  \033[0;32mmake toolbox-test-api\033[0m             🧪 Run API tests only\n"
-	@printf "  \033[0;32mmake toolbox-test-all\033[0m             🧪 Run broad test suite\n"
-	@printf "  \033[0;32mmake toolbox-staticcheck\033[0m           🔎 Run static analysis\n"
-	@printf "  \033[0;32mmake openapi-lint\033[0m                 📜 Lint OpenAPI spec (Node 22)\n"
-	@printf "  \033[0;32mmake yaml-lint\033[0m                     📄 Lint YAML files\n"
-	@printf "  \033[0;32mmake openapi-bundle\033[0m               📦 Bundle OpenAPI spec\n"
-	@printf "  \033[0;32mmake tdd-comprehensive\033[0m            📋 Run comprehensive TDD gates\n"
-	@printf "  \033[0;32mmake toolbox-test-run\033[0m             🎯 Run specific test\n"
-	@printf "  \033[0;32mmake toolbox-run-file\033[0m             📄 Run Go file\n"
-	@printf "  \033[0;32mmake test-unit\033[0m                    🧪 Run unit tests only (stable set)\n"
-	@printf "  \033[0;32mmake test-e2e TEST=...\033[0m            🎯 Run targeted E2E tests (pattern)\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m🎭 E2E Testing (Playwright)\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[0;32mmake test-e2e-playwright\033[0m                 🤖 Run Playwright E2E tests headless\n"
-	@printf "  \033[0;32mmake test-e2e-playwright-debug\033[0m           👀 Playwright tests with visible browser\n"
-	@printf "  \033[0;32mmake test-e2e-playwright-watch\033[0m           🔁 Playwright tests in watch mode\n"
-	@printf "  \033[0;32mmake test-e2e-playwright-report\033[0m          📊 View Playwright test results\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m🧪 Testing Commands\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[0;32mmake test\033[0m                         ✅ Run Go backend tests\n"
-	@printf "  \033[0;32mmake test-short\033[0m                   ⚡ Skip long tests\n"
-	@printf "  \033[0;32mmake test-coverage\033[0m                📈 Tests with coverage\n"
-	@printf "  \033[0;32mmake test-safe\033[0m                    🏃 Race/deadlock detection\n"
-	@printf "  \033[0;32mmake test-html\033[0m                    🌐 HTML test report\n"
-	@printf "  \033[0;32mmake test-actions-dropdown\033[0m         🎯 Test Actions dropdown components\n"
-	@printf "  \033[0;32mmake test-containerized\033[0m            🐳 Run tests in containers\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m🐠 i18n (Babel fish) Commands\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[0;32mmake babelfish\033[0m                    🏗️  Build gotrs-babelfish binary\n"
-	@printf "  \033[0;32mmake babelfish-coverage\033[0m           📊 Show translation coverage\n"
-	@printf "  \033[0;32mmake babelfish-validate\033[0m\n\t LANG=de   ✅ Validate a language\n"
-	@printf "  \033[0;32mmake babelfish-missing\033[0m\n\t LANG=es    🔍 Show missing translations\n"
-	@printf "  \033[0;32mmake babelfish-run\033[0m\n\t ARGS='-help'   🎯 Run with custom args\n"
-	@printf "  \033[0;32mmake test-ldap\033[0m                    🔐 Run LDAP integration tests\n"
-	@printf "  \033[0;32mmake test-ldap-perf\033[0m               ⚡ Run LDAP performance benchmarks\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m🔒 Security Commands\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[0;32mmake scan-secrets\033[0m\t\t\t🕵️  Scan current code for secrets\n"
-	@printf "  \033[0;32mmake scan-secrets-history\033[0m\t\t📜 Scan git history for secrets\n"
-	@printf "  \033[0;32mmake scan-secrets-precommit\033[0m\t\t🪝  Install pre-commit hooks\n"
-	@printf "  \033[0;32mmake scan-vulnerabilities\033[0m\t\t🐛 Scan for vulnerabilities\n"
-	@printf "  \033[0;32mmake security-scan\033[0m\t\t\t🛡️  Run all security scans\n"
-	@printf "  \033[0;32mmake test-contracts\033[0m\t\t\t📝 Run Pact contract tests\n"
-	@printf "  \033[0;32mmake test-all\033[0m\t\t\t\t🎯 Run all tests (backend, frontend, contracts)\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m📡 Service Management\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[0;32mmake backend-logs\033[0m\t\t\t📋 View backend logs\n"
-	@printf "  \033[0;32mmake backend-logs-follow\033[0m\t\t📺 Follow backend logs\n"
-	@printf "  \033[0;32mmake runner-logs\033[0m\t\t\t📋 View runner logs\n"
-	@printf "  \033[0;32mmake runner-logs-follow\033[0m\t\t📺 Follow runner logs\n"
-	@printf "  \033[0;32mmake runner-up\033[0m\t\t\t▶️  Start runner service\n"
-	@printf "  \033[0;32mmake runner-down\033[0m\t\t\t⏹️  Stop runner service\n"
-	@printf "  \033[0;32mmake runner-restart\033[0m\t\t🔄 Restart runner service\n"
-	@printf "  \033[0;32mmake valkey-cli\033[0m\t\t\t🔑 Valkey CLI\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m🗄️  Database Operations\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[0;32mmake db-shell\033[0m\t\t\t\t🗄️  Database shell (driver-aware)\n"
-	@printf "  \033[0;32mmake db-migrate\033[0m\t\t\t📤 Run pending migrations\n"
-	@printf "  \033[0;32mmake db-rollback\033[0m\t\t\t↩️  Rollback last migration\n"
-	@printf "  \033[0;32mmake db-reset\033[0m\t\t\t\t💥 Reset DB (cleans storage)\n"
-	@printf "  \033[0;32mmake db-init\033[0m\t\t\t\t🚀 Fast baseline init\n"
-	@printf "  \033[0;32mmake db-apply-test-data\033[0m\t\t🧪 Apply test data\n"
-	@printf "  \033[0;32mmake clean-storage\033[0m\t\t\t🗑️  Remove orphaned files\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m📦 OTRS Migration\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[0;32mmake migrate-analyze\033[0m\n\t SQL=dump.sql\t\t\t🔍 Analyze OTRS SQL dump\n"
-	@printf "  \033[0;32mmake migrate-import\033[0m\n\t SQL=dump.sql\t\t\t📥 Import OTRS data (dry-run)\n"
-	@printf "  \033[0;32mmake migrate-import\033[0m\n\t SQL=dump.sql DRY_RUN=false\t💾 Import for real\n"
-	@printf "  \033[0;32mmake migrate-validate\033[0m\t\t\t🔍 Validate imported data\n"
-	@printf "  \033[0;32mmake import-test-data\033[0m\t\t\t🎯 Import test tickets with proper mapping\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "  \033[1;33m👥 User Management\033[0m\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[0;32mmake reset-password\033[0m\t\t\t🔓 Reset user password\n"
-	@printf "  \033[0;32mmake test-pg-reset-password\033[0m\t🔓 Reset password in postgres test DB\n"
-	@printf "  \033[0;32mmake test-mysql-reset-password\033[0m\t🔓 Reset password in mysql test DB\n"
-	@printf "\n"
-	@printf "  \033[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n"
-	@printf "\n"
-	@printf "  \033[0;90m🐐 Happy coding with GOTRS!\033[0m\n"
-	@printf "  \033[0;90mContainer Runtime: $(CONTAINER_CMD) | Compose Tool: $(COMPOSE_CMD) | Image Prefix: $(IMAGE_PREFIX)\033[0m\n"
-	@printf "\n"
+	@python3 scripts/tools/make_help.py
 #########################################
 # TDD WORKFLOW COMMANDS
 #########################################
@@ -581,27 +252,9 @@ evidence-report:
 # Override test command to use TDD if in TDD cycle (Make conditionals avoid shell parsing issues)
 test:
 ifeq ($(strip $(wildcard .tdd-state)),)
-	@echo "Running tests in toolbox with cached modules..."
-	@$(call ensure_caches)
-	@echo "📡 Starting dependencies (mariadb, valkey)..."
-	@$(COMPOSE_CMD) up -d mariadb valkey >/dev/null 2>&1 || true
-	@$(CONTAINER_CMD) run --rm \
-		--security-opt label=disable \
-		-v "$$PWD:/workspace" \
-		$(MOD_CACHE_MOUNT) \
-		$(BUILD_CACHE_MOUNT) \
-		-w /workspace \
-		--network host \
-		-u "$$UID:$$GID" \
-		-e GOCACHE=/workspace/.cache/go-build \
-		-e GOMODCACHE=/workspace/.cache/go-mod \
-		-e GOFLAGS=-buildvcs=false \
-		-e APP_ENV=test \
-		gotrs-toolbox:latest \
-		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go test -v ./...'
+	@echo "Comprehensive test stack executed via test-comprehensive dependency."
 else
-	@echo "🧪 TDD workflow active - using TDD test verification..."
-	@$(MAKE) tdd-verify
+	@echo "🧪 TDD workflow active - refer to comprehensive verification output above."
 endif
 	@rm -f goats gotrs gotrs-* generator migrate server 2>/dev/null || true
 	@rm -f bin/goats bin/gotrs bin/gotrs-* bin/generator bin/migrate bin/schema-discovery 2>/dev/null || true
@@ -652,6 +305,11 @@ show-dev-creds:
 # Apply generated test data to database
 db-apply-test-data:
 	@printf "📝 Applying generated test data...\n"
+	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
+		echo "ERROR: $(COMPOSE_CMD)"; \
+		echo "Please install the required compose tool and try again."; \
+		exit 1; \
+	fi
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
 		$(COMPOSE_CMD) exec -T postgres psql -U $(DB_USER) -d $(DB_NAME) -f - < migrations/postgres/000004_generated_test_data.up.sql; \
 		printf "✅ Test data applied. Run 'make show-dev-creds' to see credentials.\n"; \
@@ -760,14 +418,6 @@ toolbox-run:
 	@printf "💡 Type 'exit' or Ctrl+D to exit the shell\n"
 	@$(TOOLBOX_GO)"golangci-lint run ./..."
 
-# Non-interactive toolbox exec
-toolbox-exec:
-	@$(call ensure_caches)
-	@$(call cache_guard)
-	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
-		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm -u "$$UID:$$GID" toolbox bash -c 'mkdir -p /workspace/.cache/go-build /workspace/.cache/go-mod; export GOCACHE=/workspace/.cache/go-build; export GOMODCACHE=/workspace/.cache/go-mod; export GOFLAGS="-buildvcs=false $$GOFLAGS"; export PATH="/usr/local/go/bin:$$PATH"; $(ARGS)'; \
-	else \
-		$(COMPOSE_CMD) --profile toolbox run --rm -u "$$UID:$$GID" toolbox bash -c 'mkdir -p /workspace/.cache/go-build /workspace/.cache/go-mod; export GOCACHE=/workspace/.cache/go-build; export GOMODCACHE=/workspace/.cache/go-mod; export GOFLAGS="-buildvcs=false $$GOFLAGS"; export PATH="/usr/local/go/bin:$$PATH"; $(ARGS)'; \
 	fi
 
 # API testing with automatic authentication
@@ -776,7 +426,12 @@ api-call:
 	@if [ -z "$(METHOD)" ]; then METHOD=GET; fi; \
 	printf "\n🔧 Making API call: $$METHOD $(ENDPOINT)\n"; \
 	$(call ensure_caches); \
-	if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
+		echo "ERROR: $(COMPOSE_CMD)"; \
+		echo "Please install the required compose tool and try again."; \
+		exit 1; \
+	fi
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
 		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox bash scripts/api-test.sh "$$METHOD" "$(ENDPOINT)" "$(BODY)"; \
 	else \
 		$(COMPOSE_CMD) --profile toolbox run --rm toolbox bash scripts/api-test.sh "$$METHOD" "$(ENDPOINT)" "$(BODY)"; \
@@ -789,7 +444,12 @@ api-call-form:
 	@if [ -z "$(METHOD)" ]; then METHOD=PUT; fi; \
 	printf "\n🔧 Making form API call: $$METHOD $(ENDPOINT)\n"; \
 	$(call ensure_caches); \
-	if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
+		echo "ERROR: $(COMPOSE_CMD)"; \
+		echo "Please install the required compose tool and try again."; \
+		exit 1; \
+	fi
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
 		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox bash scripts/api-form.sh "$$METHOD" "$(ENDPOINT)" "$(DATA)"; \
 	else \
 		$(COMPOSE_CMD) --profile toolbox run --rm toolbox bash scripts/api-form.sh "$$METHOD" "$(ENDPOINT)" "$(DATA)"; \
@@ -929,6 +589,40 @@ toolbox-test-api: toolbox-build
 		-e DB_NAME=$(TEST_DB_NAME) \
 		-e DB_USER=$(TEST_DB_USER) \
 		-e DB_PASSWORD=$(TEST_DB_PASSWORD) \
+		-e TEST_DB_HOST=$(TEST_DB_HOST) \
+		-e TEST_DB_PORT=$(TEST_DB_PORT) \
+		gotrs-toolbox:latest \
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go test -buildvcs=false -v ./internal/api -run ^Test\(BuildRoutesManifest\|Queue\|Article\|Search\|Priority\|User\)'
+
+# Run internal/api tests binding to host-published test DB
+toolbox-test-api-host: toolbox-build
+	@printf "\n🧪 Running internal/api tests (host-network DB) in toolbox...\n"
+	@$(MAKE) generate-route-map validate-routes
+	@$(call ensure_caches)
+	@printf "📡 Starting dependencies (test database, valkey)...\n"
+	@$(MAKE) test-db-up >/dev/null 2>&1 || true
+	@$(COMPOSE_CMD) up -d valkey >/dev/null 2>&1 || true
+	@$(CONTAINER_CMD) run --rm \
+        --security-opt label=disable \
+        -v "$$PWD:/workspace" \
+		--network host \
+		$(MOD_CACHE_MOUNT) \
+		$(BUILD_CACHE_MOUNT) \
+		-w /workspace \
+		-e GOCACHE=/workspace/.cache/go-build \
+		-e GOMODCACHE=/workspace/.cache/go-mod \
+		-e APP_ENV=test \
+		-e ENABLE_TEST_ADMIN_ROUTES=1 \
+		-e STORAGE_PATH=/tmp \
+		-e TEMPLATES_DIR=/workspace/templates \
+		-e DB_DRIVER=$(TEST_DB_DRIVER) \
+		-e DB_HOST=$(TOOLBOX_TEST_DB_HOST) \
+		-e DB_PORT=$(TOOLBOX_TEST_DB_PORT) \
+		-e DB_NAME=$(TEST_DB_NAME) \
+		-e DB_USER=$(TEST_DB_USER) \
+		-e DB_PASSWORD=$(TEST_DB_PASSWORD) \
+		-e TEST_DB_HOST=$(TOOLBOX_TEST_DB_HOST) \
+		-e TEST_DB_PORT=$(TOOLBOX_TEST_DB_PORT) \
 		gotrs-toolbox:latest \
 		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go test -buildvcs=false -v ./internal/api -run ^Test\(BuildRoutesManifest\|Queue\|Article\|Search\|Priority\|User\)'
 
@@ -957,11 +651,13 @@ toolbox-test:
 		-e STORAGE_PATH=/tmp \
 		-e TEMPLATES_DIR=/workspace/templates \
 		-e DB_DRIVER=$(TEST_DB_DRIVER) \
-		-e DB_HOST=$(TEST_DB_HOST) \
-		-e DB_PORT=$(TEST_DB_PORT) \
+		-e DB_HOST=$(TOOLBOX_TEST_DB_HOST) \
+		-e DB_PORT=$(TOOLBOX_TEST_DB_PORT) \
 		-e DB_NAME=$(TEST_DB_NAME) \
 		-e DB_USER=$(TEST_DB_USER) \
 		-e DB_PASSWORD=$(TEST_DB_PASSWORD) \
+		-e TEST_DB_HOST=$(TOOLBOX_TEST_DB_HOST) \
+		-e TEST_DB_PORT=$(TOOLBOX_TEST_DB_PORT) \
 		-e VALKEY_HOST=$(VALKEY_HOST) -e VALKEY_PORT=$(VALKEY_PORT) \
 		gotrs-toolbox:latest \
 		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; set -e; \
@@ -1045,9 +741,9 @@ test-unit:
 		-e GOCACHE=/workspace/.cache/go-build \
 		-e GOMODCACHE=/workspace/.cache/go-mod \
 		-e GOFLAGS=-buildvcs=false \
+		-e SKIP_DB_WAIT=1 \
 		gotrs-toolbox:latest \
-		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; \
-		$(TOOLBOX_GO)"go test -count=1 -buildvcs=false -v ./cmd/goats ./internal/... ./generated/..." | tee generated/test-results/unit_stable.log'
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go test -count=1 -buildvcs=false -v ./cmd/goats ./internal/... ./generated/... | tee generated/test-results/unit_stable.log'
 
 .PHONY: test-e2e
 test-e2e:
@@ -1155,6 +851,17 @@ toolbox-test-pkg:
 		-e GOCACHE=/workspace/.cache/go-build \
 		-e GOMODCACHE=/workspace/.cache/go-mod \
 		-e APP_ENV=test \
+		-e ENABLE_TEST_ADMIN_ROUTES=1 \
+		-e STORAGE_PATH=/tmp \
+		-e TEMPLATES_DIR=/workspace/templates \
+		-e DB_DRIVER=$(TEST_DB_DRIVER) \
+		-e DB_HOST=$(TOOLBOX_TEST_DB_HOST) \
+		-e DB_PORT=$(TOOLBOX_TEST_DB_PORT) \
+		-e DB_NAME=$(TEST_DB_NAME) \
+		-e DB_USER=$(TEST_DB_USER) \
+		-e DB_PASSWORD=$(TEST_DB_PASSWORD) \
+		-e TEST_DB_HOST=$(TOOLBOX_TEST_DB_HOST) \
+		-e TEST_DB_PORT=$(TOOLBOX_TEST_DB_PORT) \
 		gotrs-toolbox:latest \
 		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; if [ -n "$(TEST)" ]; then go test -v -run "$(TEST)" $(PKG); else go test -v $(PKG); fi'
 
@@ -1177,6 +884,17 @@ toolbox-test-files:
 		-e GOCACHE=/workspace/.cache/go-build \
 		-e GOMODCACHE=/workspace/.cache/go-mod \
 		-e APP_ENV=test \
+		-e ENABLE_TEST_ADMIN_ROUTES=1 \
+		-e STORAGE_PATH=/tmp \
+		-e TEMPLATES_DIR=/workspace/templates \
+		-e DB_DRIVER=$(TEST_DB_DRIVER) \
+		-e DB_HOST=$(TOOLBOX_TEST_DB_HOST) \
+		-e DB_PORT=$(TOOLBOX_TEST_DB_PORT) \
+		-e DB_NAME=$(TEST_DB_NAME) \
+		-e DB_USER=$(TEST_DB_USER) \
+		-e DB_PASSWORD=$(TEST_DB_PASSWORD) \
+		-e TEST_DB_HOST=$(TOOLBOX_TEST_DB_HOST) \
+		-e TEST_DB_PORT=$(TOOLBOX_TEST_DB_PORT) \
 		gotrs-toolbox:latest \
 		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; if [ -n "$(TEST)" ]; then go test -v -run "$(TEST)" $(FILES); else go test -v $(FILES); fi'
 
@@ -1415,6 +1133,77 @@ reset-db:
 	@printf "Database reset. Waiting for initialization...\n"
 	@sleep 5
 
+# Test environment management
+.PHONY: test-stack-up test-stack-teardown test-stack-wait
+
+test-stack-up:
+	@$(MAKE) test-stack-teardown >/dev/null 2>&1 || true
+	@$(MAKE) test-up
+	@$(MAKE) test-stack-wait
+
+test-stack-wait:
+	@printf "⏳ Waiting for test backend health at %s/health...\n" "$(TEST_BACKEND_BASE_URL)"
+	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
+		echo "ERROR: $(COMPOSE_CMD)"; \
+		echo "Please install the required compose tool and try again."; \
+		exit 1; \
+	fi
+	@COMPOSE_PROFILES="toolbox,testdb" $(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml -f docker-compose.test.yaml run --rm -T \
+		-e TEST_BACKEND_BASE_URL=$(TEST_BACKEND_BASE_URL) \
+		toolbox \
+		bash -lc 'set -e; for i in $$(seq 1 60); do if curl -fsS -o /dev/null "$${TEST_BACKEND_BASE_URL%/}/health"; then exit 0; fi; sleep 1; done; echo "Timed out waiting for test backend at $$TEST_BACKEND_BASE_URL"; exit 1'
+
+test-stack-teardown:
+	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
+		exit 0; \
+	fi
+	@$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml --profile testdb -f docker-compose.test.yaml down -v --remove-orphans >/dev/null 2>&1 || true
+
+test-up:
+	@printf "🚀 Starting test environment...\n"
+	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
+		echo "ERROR: $(COMPOSE_CMD)"; \
+		echo "Please install the required compose tool and try again."; \
+		exit 1; \
+	fi
+	$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml --profile testdb up -d mariadb-test valkey-test
+	$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml --profile testdb -f docker-compose.test.yaml build backend-test runner-test
+	$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml --profile testdb -f docker-compose.test.yaml up -d backend-test runner-test
+	@printf "✅ Test environment ready!\n"
+	@printf "   - Test backend: http://localhost:%s\n" "$(TEST_BACKEND_PORT)"
+	@printf "   - Test DB MySQL: localhost:$(TEST_DB_MYSQL_PORT:-3308)\n"
+	@printf "   - Test DB Postgres: localhost:$(TEST_DB_POSTGRES_PORT:-5433)\n"
+
+test-down:
+	@printf "🛑 Stopping test environment...\n"
+	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
+		echo "ERROR: $(COMPOSE_CMD)"; \
+		echo "Please install the required compose tool and try again."; \
+		exit 1; \
+	fi
+	$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml --profile testdb -f docker-compose.test.yaml down
+	@printf "✅ Test environment stopped\n"
+
+test-restart: test-down test-up
+	@printf "🔄 Test environment restarted\n"
+
+test-status:
+	@printf "📊 Test environment status:\n"
+	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
+		echo "ERROR: $(COMPOSE_CMD)"; \
+		echo "Please install the required compose tool and try again."; \
+		exit 1; \
+	fi
+	@$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml --profile testdb -f docker-compose.test.yaml ps
+
+test-logs:
+	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
+		echo "ERROR: $(COMPOSE_CMD)"; \
+		echo "Please install the required compose tool and try again."; \
+		exit 1; \
+	fi
+	@$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml --profile testdb -f docker-compose.test.yaml logs -f
+
 # Load environment variables from .env file (only if it exists)
 -include .env
 export
@@ -1443,6 +1232,18 @@ db-shell:
 		$(COMPOSE_CMD) --profile toolbox run --rm $$TTY_FLAGS toolbox mysql -h $(DB_HOST) -u $(DB_USER) -p$(DB_PASSWORD) -D $(DB_NAME); \
 	fi
 
+db-shell-test: test-db-up
+	@if [ -t 0 ]; then \
+		TTY_FLAGS="-it"; \
+	else \
+		TTY_FLAGS="-T"; \
+	fi; \
+	if [ "$(TEST_DB_DRIVER)" = "postgres" ]; then \
+		$(COMPOSE_CMD) --profile toolbox run --rm $$TTY_FLAGS toolbox psql -h $(TEST_DB_POSTGRES_HOST) -U $(TEST_DB_POSTGRES_USER) -d $(TEST_DB_POSTGRES_NAME); \
+	else \
+		$(COMPOSE_CMD) --profile toolbox run --rm $$TTY_FLAGS toolbox mysql -h $(TEST_DB_MYSQL_HOST) -u $(TEST_DB_MYSQL_USER) -p$(TEST_DB_MYSQL_PASSWORD) -D $(TEST_DB_MYSQL_NAME); \
+	fi
+
 # Fix PostgreSQL sequences after data import (PostgreSQL only)
 db-fix-sequences:
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
@@ -1451,6 +1252,16 @@ db-fix-sequences:
 		printf "✅ Sequences fixed - duplicate key errors should be resolved\n"; \
 	else \
 		printf "ℹ️  Sequence fixing is only needed for PostgreSQL databases\n"; \
+	fi
+
+db-fix-sequences-test:
+	@$(MAKE) test-db-up >/dev/null 2>&1 || true
+	@if [ "$(TEST_DB_DRIVER)" = "postgres" ]; then \
+		printf "🔧 Fixing test database sequences...\n"; \
+		$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox psql -h $(TEST_DB_POSTGRES_HOST) -p $(TEST_DB_POSTGRES_CONTAINER_PORT) -U $(TEST_DB_POSTGRES_USER) -d $(TEST_DB_POSTGRES_NAME) -v ON_ERROR_STOP=1 -f /workspace/scripts/db/postgres/fix_sequences.sql; \
+		printf "✅ Test database sequences synchronized\n"; \
+	else \
+		printf "ℹ️  Sequence fixing is only needed for PostgreSQL test databases\n"; \
 	fi
 # Run a database query (use QUERY="SELECT ..." make db-query)
 db-query:
@@ -1481,6 +1292,102 @@ db-query:
 		fi; \
 	fi
 
+# Test database operations (automatically use TEST_DB_* variables)
+db-query-test:
+	# Test database query execution: supports STDIN, QUERY_FILE, or QUERY var
+	@$(MAKE) test-db-up >/dev/null 2>&1 || true
+	@if [ -t 0 ] && [ -z "$(QUERY)" ] && [ -z "$(QUERY_FILE)" ]; then \
+		echo "Usage:"; \
+		echo "  echo 'SELECT 1;' | make db-query-test"; \
+		echo "  make db-query-test QUERY=\"SELECT * FROM table WHERE name = 'foo';\""; \
+		echo "  make db-query-test QUERY_FILE=path/to/query.sql"; \
+		exit 1; \
+	fi
+	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
+		echo "ERROR: $(COMPOSE_CMD)"; \
+		echo "Please install the required compose tool and try again."; \
+		exit 1; \
+	fi
+	@if [ "$(TEST_DB_DRIVER)" = "postgres" ]; then \
+		if [ ! -t 0 ]; then \
+			$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox psql -h $(TEST_DB_POSTGRES_HOST) -U $(TEST_DB_POSTGRES_USER) -d $(TEST_DB_POSTGRES_NAME) -t; \
+		elif [ -n "$(QUERY_FILE)" ]; then \
+			$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox bash -lc "psql -h $(TEST_DB_POSTGRES_HOST) -U $(TEST_DB_POSTGRES_USER) -d $(TEST_DB_POSTGRES_NAME) -t < '$(QUERY_FILE)'"; \
+		else \
+			$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox psql -h $(TEST_DB_POSTGRES_HOST) -U $(TEST_DB_POSTGRES_USER) -d $(TEST_DB_POSTGRES_NAME) -t -c "$(QUERY)"; \
+		fi; \
+	else \
+		if [ ! -t 0 ]; then \
+			$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox mysql -h $(TEST_DB_MYSQL_HOST) -u $(TEST_DB_MYSQL_USER) -p$(TEST_DB_MYSQL_PASSWORD) -D $(TEST_DB_MYSQL_NAME); \
+		elif [ -n "$(QUERY_FILE)" ]; then \
+			$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox bash -lc "mysql -h $(TEST_DB_MYSQL_HOST) -u $(TEST_DB_MYSQL_USER) -p$(TEST_DB_MYSQL_PASSWORD) -D $(TEST_DB_MYSQL_NAME) < '$(QUERY_FILE)'"; \
+		else \
+			$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox mysql -h $(TEST_DB_MYSQL_HOST) -u $(TEST_DB_MYSQL_USER) -p$(TEST_DB_MYSQL_PASSWORD) -D $(TEST_DB_MYSQL_NAME) -e "$(QUERY)"; \
+		fi; \
+	fi
+
+db-seed-test:
+	@$(MAKE) test-db-up >/dev/null 2>&1 || true
+	@printf "Seeding test database with comprehensive test data...\n"
+	@if [ "$(TEST_DB_DRIVER)" = "postgres" ]; then \
+		DB_URI="postgres://$(TEST_DB_POSTGRES_USER):$(TEST_DB_POSTGRES_PASSWORD)@$(TEST_DB_POSTGRES_HOST):$(TEST_DB_POSTGRES_CONTAINER_PORT)/$(TEST_DB_POSTGRES_NAME)?sslmode=$(TEST_DB_SSLMODE)"; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "$$DB_URI" up; \
+		$(MAKE) db-fix-sequences-test > /dev/null 2>&1 || true; \
+	else \
+		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)"; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" up; \
+	fi
+	@printf "✅ Test database ready for testing\n"
+db-reset-test:
+	@$(MAKE) test-db-up >/dev/null 2>&1 || true
+	@printf "Resetting test database...\n"
+	@if [ "$(TEST_DB_DRIVER)" = "postgres" ]; then \
+		DB_URI="postgres://$(TEST_DB_POSTGRES_USER):$(TEST_DB_POSTGRES_PASSWORD)@$(TEST_DB_POSTGRES_HOST):$(TEST_DB_POSTGRES_CONTAINER_PORT)/$(TEST_DB_POSTGRES_NAME)?sslmode=$(TEST_DB_SSLMODE)"; \
+		$(COMPOSE_CMD) exec backend migrate -path $(PG_MIGRATE_PATH) -database "$$DB_URI" down -all; \
+		$(COMPOSE_CMD) exec backend migrate -path $(PG_MIGRATE_PATH) -database "$$DB_URI" up; \
+		$(MAKE) db-fix-sequences-test > /dev/null 2>&1 || true; \
+	else \
+		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)"; \
+		$(COMPOSE_CMD) exec backend migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" down -all; \
+		$(COMPOSE_CMD) exec backend migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" up; \
+	fi
+	@$(MAKE) clean-storage
+	@printf "✅ Test database reset with fresh test data\n"
+
+toolbox-exec-test:
+	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
+		echo "ERROR: $(COMPOSE_CMD)"; \
+		echo "Please install the required compose tool and try again."; \
+		exit 1; \
+	fi
+	@$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox bash -lc "$(ARGS)"
+
+api-call-test:
+	@if [ -z "$(ENDPOINT)" ]; then echo "❌ ENDPOINT required. Usage: make api-call-test [METHOD=GET] ENDPOINT=/api/v1/tickets [BODY='{}']"; exit 1; fi
+	@if [ -z "$(METHOD)" ]; then METHOD=GET; fi; \
+	printf "\n🔧 Making test API call: $$METHOD $(ENDPOINT)\n"; \
+	$(call ensure_caches); \
+	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
+		echo "ERROR: $(COMPOSE_CMD)"; \
+		echo "Please install the required compose tool and try again."; \
+		exit 1; \
+	fi
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox BACKEND_URL="http://backend-test:8080" $(COMPOSE_CMD) run --rm toolbox bash scripts/api-test.sh "$$METHOD" "$(ENDPOINT)" "$(BODY)"; \
+	else \
+		BACKEND_URL="http://backend-test:8080" $(COMPOSE_CMD) --profile toolbox run --rm toolbox bash scripts/api-test.sh "$$METHOD" "$(ENDPOINT)" "$(BODY)"; \
+	fi
+
+# API testing for form-urlencoded bodies with automatic authentication (test environment)
+.PHONY: api-call-form-test
+api-call-form-test:
+	@if [ -z "$(ENDPOINT)" ]; then echo "❌ ENDPOINT required. Usage: make api-call-form-test [METHOD=PUT] ENDPOINT=/admin/users/1 [DATA='a=b&c=d']"; exit 1; fi
+	@if [ -z "$(METHOD)" ]; then METHOD=PUT; fi; \
+	printf "\n🔧 Making test form API call: $$METHOD $(ENDPOINT)\n"; \
+	$(call ensure_caches); \
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm -u "$$
+
 db-migrate:
 	@printf "Running database migrations...\n"
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
@@ -1493,6 +1400,21 @@ db-migrate:
 		printf "🔧 Fixing database sequences to prevent duplicate key errors...\n"; \
 		$(MAKE) db-fix-sequences > /dev/null 2>&1 || true; \
 		printf "✅ Database ready with sequences properly synchronized!\n"; \
+	fi
+
+db-migrate-test:
+	@$(MAKE) test-db-up >/dev/null 2>&1 || true
+	@printf "Running test database migrations...\n"
+	@if [ "$(TEST_DB_DRIVER)" = "postgres" ]; then \
+		DB_URI="postgres://$(TEST_DB_POSTGRES_USER):$(TEST_DB_POSTGRES_PASSWORD)@$(TEST_DB_POSTGRES_HOST):$(TEST_DB_POSTGRES_CONTAINER_PORT)/$(TEST_DB_POSTGRES_NAME)?sslmode=$(TEST_DB_SSLMODE)"; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "$$DB_URI" up; \
+	else \
+		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)"; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" up; \
+	fi
+	@printf "Test migrations completed successfully!\n"
+	@if [ "$(TEST_DB_DRIVER)" = "postgres" ]; then \
+		$(MAKE) db-fix-sequences-test > /dev/null 2>&1 || true; \
 	fi
 db-migrate-schema-only:
 	@printf "Running schema migration only...\n"
@@ -1507,6 +1429,21 @@ db-migrate-schema-only:
 		$(MAKE) db-fix-sequences > /dev/null 2>&1 || true; \
 		printf "✅ Sequences synchronized!\n"; \
 	fi
+
+db-migrate-schema-only-test:
+	@$(MAKE) test-db-up >/dev/null 2>&1 || true
+	@printf "Running test schema migration only...\n"
+	@if [ "$(TEST_DB_DRIVER)" = "postgres" ]; then \
+		DB_URI="postgres://$(TEST_DB_POSTGRES_USER):$(TEST_DB_POSTGRES_PASSWORD)@$(TEST_DB_POSTGRES_HOST):$(TEST_DB_POSTGRES_CONTAINER_PORT)/$(TEST_DB_POSTGRES_NAME)?sslmode=$(TEST_DB_SSLMODE)"; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "$$DB_URI" up 3; \
+	else \
+		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)"; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" up 3; \
+	fi
+	@printf "Test schema and initial data applied\n"
+	@if [ "$(TEST_DB_DRIVER)" = "postgres" ]; then \
+		$(MAKE) db-fix-sequences-test > /dev/null 2>&1 || true; \
+	fi
 db-seed-dev:
 	@printf "Seeding development database with comprehensive test data...\n"
 	@$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up
@@ -1518,10 +1455,6 @@ db-seed-dev:
 	@printf "   - 15 support agents\n"
 	@printf "   - 100 ITSM tickets\n"
 	@printf "   - Knowledge base articles\n"
-db-seed-test:
-	@printf "Seeding test database with comprehensive test data...\n"
-	@$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$${DB_NAME}_test?sslmode=disable" up
-	@printf "✅ Test database ready for testing\n"
 db-reset-dev:
 	@printf "⚠️  This will DELETE all data and recreate the development database!\n"
 	@echo -n "Are you sure? [y/N]: "; \
@@ -1535,17 +1468,20 @@ db-reset-dev:
 	else \
 		echo "Reset cancelled."; \
 	fi
-
-db-reset-test:
-	@printf "Resetting test database...\n"
-	@$(COMPOSE_CMD) exec backend migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$${DB_NAME}_test?sslmode=disable" down -all
-	@$(COMPOSE_CMD) exec backend migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$${DB_NAME}_test?sslmode=disable" up
-	@$(MAKE) clean-storage
-	@printf "✅ Test database reset with fresh test data\n"
 db-refresh: db-reset-dev
 	@printf "✅ Database refreshed for new development cycle\n"
 db-rollback:
 	$(COMPOSE_CMD) exec backend migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" down 1
+
+db-rollback-test:
+	@$(MAKE) test-db-up >/dev/null 2>&1 || true
+	@if [ "$(TEST_DB_DRIVER)" = "postgres" ]; then \
+		DB_URI="postgres://$(TEST_DB_POSTGRES_USER):$(TEST_DB_POSTGRES_PASSWORD)@$(TEST_DB_POSTGRES_HOST):$(TEST_DB_POSTGRES_CONTAINER_PORT)/$(TEST_DB_POSTGRES_NAME)?sslmode=$(TEST_DB_SSLMODE)"; \
+		$(COMPOSE_CMD) exec backend migrate -path $(PG_MIGRATE_PATH) -database "$$DB_URI" down 1; \
+	else \
+		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)"; \
+		$(COMPOSE_CMD) exec backend migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" down 1; \
+	fi
 
 # Fast database initialization from baseline (new approach)
 db-init:
@@ -1569,6 +1505,29 @@ db-init:
 			gotrs reset-user --username="root@localhost" --password="Admin123!1" --enable; \
 		printf "✅ Database initialized (MariaDB minimal schema; root user created).\n"; \
 	fi
+
+db-init-test:
+	@$(MAKE) test-db-up >/dev/null 2>&1 || true
+	@printf "🚀 Initializing test database...\n"
+	@if [ "$(TEST_DB_DRIVER)" = "postgres" ]; then \
+		APP_ENV=test $(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml exec -T postgres-test psql -U $(TEST_DB_POSTGRES_USER) -d $(TEST_DB_POSTGRES_NAME) -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"; \
+		APP_ENV=test $(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml exec -T postgres-test psql -U $(TEST_DB_POSTGRES_USER) -d $(TEST_DB_POSTGRES_NAME) -f - < schema/baseline/otrs_complete.sql; \
+		APP_ENV=test $(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml exec -T postgres-test psql -U $(TEST_DB_POSTGRES_USER) -d $(TEST_DB_POSTGRES_NAME) -f - < schema/baseline/required_lookups.sql; \
+		$(MAKE) db-fix-sequences-test > /dev/null 2>&1 || true; \
+		printf "✅ Test database initialized from baseline (Postgres)\n"; \
+	else \
+		printf "📡 Starting dependencies (mariadb-test)...\n"; \
+		APP_ENV=test $(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml up -d mariadb-test >/dev/null 2>&1 || true; \
+		printf "🧰 Ensuring minimal users table exists (MariaDB test)...\n"; \
+		$(CONTAINER_CMD) run --rm \
+			--security-opt label=disable \
+			--network gotrs-ce_gotrs-network \
+			-e DB_DRIVER=$(TEST_DB_DRIVER) -e DB_HOST=$(TEST_DB_MYSQL_HOST) -e DB_PORT=$(TEST_DB_MYSQL_CONTAINER_PORT) \
+			-e DB_NAME=$(TEST_DB_MYSQL_NAME) -e DB_USER=$(TEST_DB_MYSQL_USER) -e DB_PASSWORD=$(TEST_DB_MYSQL_PASSWORD) \
+			gotrs-toolbox:latest \
+			gotrs reset-user --username="root@localhost" --password="Admin123!1" --enable; \
+		printf "✅ Test database initialized (MariaDB)\n"; \
+	fi
 # Initialize for OTRS import (structure only, no data)
 db-init-import:
 	@printf "🚀 Initializing database structure for OTRS import...\n"
@@ -1589,10 +1548,32 @@ db-reset: db-init-dev
 db-status:
 	$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" version
 
+db-status-test:
+	@$(MAKE) test-db-up >/dev/null 2>&1 || true
+	@if [ "$(TEST_DB_DRIVER)" = "postgres" ]; then \
+		DB_URI="postgres://$(TEST_DB_POSTGRES_USER):$(TEST_DB_POSTGRES_PASSWORD)@$(TEST_DB_POSTGRES_HOST):$(TEST_DB_POSTGRES_CONTAINER_PORT)/$(TEST_DB_POSTGRES_NAME)?sslmode=$(TEST_DB_SSLMODE)"; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "$$DB_URI" version; \
+	else \
+		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)"; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" version; \
+	fi
+
 db-force:
 	@echo -n "Force migration to version: "; \
 	read version; \
 	$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" force $$version
+
+db-force-test:
+	@$(MAKE) test-db-up >/dev/null 2>&1 || true
+	@echo -n "Force migration to version: "; \
+	read version; \
+	if [ "$(TEST_DB_DRIVER)" = "postgres" ]; then \
+		DB_URI="postgres://$(TEST_DB_POSTGRES_USER):$(TEST_DB_POSTGRES_PASSWORD)@$(TEST_DB_POSTGRES_HOST):$(TEST_DB_POSTGRES_CONTAINER_PORT)/$(TEST_DB_POSTGRES_NAME)?sslmode=$(TEST_DB_SSLMODE)"; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "$$DB_URI" force $$version; \
+	else \
+		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)"; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" force $$version; \
+	fi
 
 # Apply SQL migrations directly via psql
 db-migrate-sql:
@@ -1602,6 +1583,19 @@ db-migrate-sql:
 		$(COMPOSE_CMD) exec -T postgres psql -U $(DB_USER) -d $(DB_NAME) -f - < "$$f" 2>&1 | grep -E "(CREATE|ALTER|INSERT|ERROR)" | head -3 || true; \
 	done
 	@printf "✅ SQL migrations applied\n"
+
+db-migrate-sql-test:
+	@$(MAKE) test-db-up >/dev/null 2>&1 || true
+	@if [ "$(TEST_DB_DRIVER)" = "postgres" ]; then \
+		printf "📄 Applying SQL migrations directly to test database...\n"; \
+		for f in $(PG_MIGRATIONS_DIR)/*.up.sql; do \
+			echo "  Running $$(basename $$f)..."; \
+			$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml exec -T postgres-test psql -U $(TEST_DB_POSTGRES_USER) -d $(TEST_DB_POSTGRES_NAME) -f - < "$$f" 2>&1 | grep -E "(CREATE|ALTER|INSERT|ERROR)" | head -3 || true; \
+		done; \
+		printf "✅ Test SQL migrations applied\n"; \
+	else \
+		printf "ℹ️  SQL migration replay only applies to PostgreSQL test databases\n"; \
+	fi
 # OTRS Migration Tools
 # Analyze OTRS SQL dump file
 migrate-analyze:
@@ -2569,9 +2563,9 @@ tdd-comprehensive:
 			($(COMPOSE_CMD) build toolbox 2>/dev/null || $(CONTAINER_CMD) build -f Dockerfile.toolbox -t gotrs-toolbox:latest .) || { echo "❌ Failed to build toolbox image" >&2; exit 1; }; \
 		else \
 			echo "❌ Dockerfile.toolbox not found" >&2; exit 1; \
-		fi; \
+	fi; \
 	fi
-	@bash scripts/tdd-comprehensive.sh comprehensive || true
+	@bash scripts/tdd-comprehensive.sh comprehensive
 	@echo "See generated/evidence for report"
 
 .PHONY: tdd-diff evidence-diff
@@ -2691,14 +2685,31 @@ verify-container-first:
 # Enhanced test command that integrates with comprehensive TDD
 test-comprehensive:
 	@printf "🧪 Running tests with comprehensive TDD integration...\n"
-	@if [ -f .tdd-state ]; then \
-		echo "TDD cycle active - running comprehensive verification..."; \
-		$(MAKE) tdd-comprehensive; \
-	else \
-		echo "No TDD cycle - running comprehensive test suite..."; \
-		./scripts/tdd-comprehensive.sh comprehensive; \
-	fi
-
+	@set -eu; \
+		if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
+			echo "ERROR: $(COMPOSE_CMD)"; \
+			echo "Please install the required compose tool and try again."; \
+			exit 1; \
+		fi; \
+		cleanup() { $(MAKE) test-stack-teardown >/dev/null 2>&1 || true; }; \
+		export COMPOSE_FILE="$(TEST_COMPOSE_FILE)"; \
+		export BACKEND_HOST=localhost; \
+		export BACKEND_PORT="$(TEST_BACKEND_PORT)"; \
+		export TEST_BACKEND_SERVICE_HOST="$(TEST_BACKEND_SERVICE_HOST)"; \
+		export TEST_BACKEND_CONTAINER_PORT="$(TEST_BACKEND_CONTAINER_PORT)"; \
+		export TEST_BACKEND_HOST="$(TEST_BACKEND_SERVICE_HOST)"; \
+		export TEST_BACKEND_HOST_PORT="$(TEST_BACKEND_PORT)"; \
+		export TEST_BACKEND_PORT="$(TEST_BACKEND_PORT)"; \
+		export TEST_BACKEND_BASE_URL="$(TEST_BACKEND_BASE_URL)"; \
+		trap cleanup EXIT INT TERM; \
+		$(MAKE) test-stack-up; \
+		if [ -f .tdd-state ]; then \
+			echo "TDD cycle active - running comprehensive verification..."; \
+			$(MAKE) tdd-comprehensive; \
+		else \
+			echo "No TDD cycle - running comprehensive test suite..."; \
+			./scripts/tdd-comprehensive.sh comprehensive || exit 1; \
+		fi
 # Test-first enforcement (prevents implementation without failing test)
 test-enforce-first:
 	@printf "🚫 Enforcing test-first development...\n"

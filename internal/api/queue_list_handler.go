@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
@@ -35,8 +36,8 @@ func HandleListQueuesAPI(c *gin.Context) {
 		return
 	}
 
-	// Build the query
-	query := database.ConvertPlaceholders(`
+	// Build the query incrementally so placeholders convert correctly
+	query := `
 		SELECT 
 			q.id,
 			q.name,
@@ -53,20 +54,25 @@ func HandleListQueuesAPI(c *gin.Context) {
 			q.change_time,
 			g.name as group_name
 		FROM queue q
-		LEFT JOIN groups g ON q.group_id = g.id
-	`)
+		LEFT JOIN groups g ON q.group_id = g.id`
 
 	args := []interface{}{}
-	
+	conditions := []string{}
+
 	// Add valid filter if specified
 	if validFilter != "" {
 		if valid, err := strconv.Atoi(validFilter); err == nil && (valid == 1 || valid == 2) {
-			query += " WHERE q.valid_id = $1"
+			conditions = append(conditions, "q.valid_id = $1")
 			args = append(args, valid)
 		}
 	}
 
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
 	query += " ORDER BY q.name"
+	query = database.ConvertPlaceholders(query)
 
 	// Execute query
 	rows, err := db.Query(query, args...)
@@ -82,20 +88,20 @@ func HandleListQueuesAPI(c *gin.Context) {
 	queues := []map[string]interface{}{}
 	for rows.Next() {
 		var queue struct {
-			ID               int            `json:"id"`
-			Name             string         `json:"name"`
-			GroupID          sql.NullInt32  `json:"-"`
-			SystemAddressID  sql.NullInt32  `json:"-"`
-			SalutationID     sql.NullInt32  `json:"-"`
-			SignatureID      sql.NullInt32  `json:"-"`
-			UnlockTimeout    sql.NullInt32  `json:"-"`
-			FollowUpID       sql.NullInt32  `json:"-"`
-			FollowUpLock     sql.NullInt32  `json:"-"`
-			Comments         sql.NullString `json:"-"`
-			ValidID          int            `json:"valid_id"`
-			CreateTime       sql.NullTime   `json:"-"`
-			ChangeTime       sql.NullTime   `json:"-"`
-			GroupName        sql.NullString `json:"-"`
+			ID              int            `json:"id"`
+			Name            string         `json:"name"`
+			GroupID         sql.NullInt32  `json:"-"`
+			SystemAddressID sql.NullInt32  `json:"-"`
+			SalutationID    sql.NullInt32  `json:"-"`
+			SignatureID     sql.NullInt32  `json:"-"`
+			UnlockTimeout   sql.NullInt32  `json:"-"`
+			FollowUpID      sql.NullInt32  `json:"-"`
+			FollowUpLock    sql.NullInt32  `json:"-"`
+			Comments        sql.NullString `json:"-"`
+			ValidID         int            `json:"valid_id"`
+			CreateTime      sql.NullTime   `json:"-"`
+			ChangeTime      sql.NullTime   `json:"-"`
+			GroupName       sql.NullString `json:"-"`
 		}
 
 		err := rows.Scan(
@@ -156,7 +162,7 @@ func HandleListQueuesAPI(c *gin.Context) {
 		// Include statistics if requested
 		if includeStats {
 			// Get ticket counts for this queue
-            statsQuery := database.ConvertPlaceholders(`
+			statsQuery := database.ConvertPlaceholders(`
                 SELECT 
                     COUNT(*) as total,
                     COUNT(CASE WHEN ticket_state_id IN (1, 4) THEN 1 END) as open_count,
@@ -165,7 +171,7 @@ func HandleListQueuesAPI(c *gin.Context) {
                 FROM ticket
                 WHERE queue_id = $1
             `)
-			
+
 			var total, openCount, closedCount, pendingCount int
 			err = db.QueryRow(statsQuery, queue.ID).Scan(&total, &openCount, &closedCount, &pendingCount)
 			if err == nil {
@@ -184,7 +190,7 @@ func HandleListQueuesAPI(c *gin.Context) {
 			WHERE qg.queue_id = $1
 			ORDER BY g.name
 		`)
-		
+
 		groupRows, err := db.Query(groupQuery, queue.ID)
 		if err == nil {
 			groups := []map[string]interface{}{}

@@ -449,13 +449,13 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 						senderEmail = cfg.Email.From
 					}
 					queueItem := &mailqueue.MailQueueItem{
-						Sender:       &senderEmail,
-						Recipient:    customerEmail,
-						RawMessage:   mailqueue.BuildEmailMessage(senderEmail, customerEmail, subject, body),
-						Attempts:     0,
-						CreateTime:   time.Now(),
+						Sender:     &senderEmail,
+						Recipient:  customerEmail,
+						RawMessage: mailqueue.BuildEmailMessage(senderEmail, customerEmail, subject, body),
+						Attempts:   0,
+						CreateTime: time.Now(),
 					}
-					
+
 					if queueErr := queueRepo.Insert(context.Background(), queueItem); queueErr != nil {
 						log.Printf("Failed to queue email for %s: %v", customerEmail, queueErr)
 					} else {

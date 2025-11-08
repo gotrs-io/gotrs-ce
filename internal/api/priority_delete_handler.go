@@ -11,11 +11,12 @@ import (
 // HandleDeletePriorityAPI handles DELETE /api/v1/priorities/:id
 func HandleDeletePriorityAPI(c *gin.Context) {
 	// Check authentication
-	userID, exists := c.Get("user_id")
+	userIDRaw, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "Unauthorized"})
 		return
 	}
+	userID := normalizeUserID(userIDRaw)
 
 	// Parse priority ID
 	priorityID, err := strconv.Atoi(c.Param("id"))
@@ -24,8 +25,7 @@ func HandleDeletePriorityAPI(c *gin.Context) {
 		return
 	}
 
-	// Protect only invalid IDs
-	if priorityID <= 0 {
+	if priorityID == 1 {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Cannot delete system priority"})
 		return
 	}
@@ -37,9 +37,14 @@ func HandleDeletePriorityAPI(c *gin.Context) {
 	}
 
 	// Soft delete priority (OTRS style - set valid_id = 2)
-	deleteQuery := database.ConvertPlaceholders("UPDATE ticket_priority SET valid_id = 2, change_time = NOW(), change_by = $2 WHERE id = $1")
+	deleteQuery := database.ConvertPlaceholders(`UPDATE ticket_priority SET valid_id = 2, change_time = NOW(), change_by = $2 WHERE id = $1`)
 
-	result, err := db.Exec(deleteQuery, priorityID, userID)
+	args := []interface{}{priorityID, userID}
+	if database.IsMySQL() {
+		args = []interface{}{userID, priorityID}
+	}
+
+	result, err := db.Exec(deleteQuery, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete priority"})
 		return

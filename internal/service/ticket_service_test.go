@@ -29,6 +29,7 @@ func (stubStore) Add(ctx context.Context, dateScoped bool, offset int64) (int64,
 }
 
 func TestTicketService_CreateRecordsHistory(t *testing.T) {
+	t.Setenv("TEST_DB_DRIVER", "postgres")
 	t.Setenv("DB_DRIVER", "postgres")
 	database.ResetAdapterForTest()
 

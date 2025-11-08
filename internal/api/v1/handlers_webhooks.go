@@ -31,17 +31,17 @@ func (h *WebhookHandlers) SetupWebhookRoutes(router *APIRouter, adminRoutes *gin
 		webhooks.GET("/:id", h.handleGetWebhook)
 		webhooks.PUT("/:id", h.handleUpdateWebhook)
 		webhooks.DELETE("/:id", h.handleDeleteWebhook)
-		
+
 		// Webhook testing and monitoring
 		webhooks.POST("/:id/test", h.handleTestWebhook)
 		webhooks.GET("/:id/stats", h.handleGetWebhookStats)
 		webhooks.GET("/:id/deliveries", h.handleGetWebhookDeliveries)
 		webhooks.GET("/:id/deliveries/:delivery_id", h.handleGetWebhookDelivery)
-		
+
 		// Webhook activation/deactivation
 		webhooks.POST("/:id/activate", h.handleActivateWebhook)
 		webhooks.POST("/:id/deactivate", h.handleDeactivateWebhook)
-		
+
 		// Global webhook management
 		webhooks.GET("/events", h.handleListWebhookEvents)
 		webhooks.POST("/test-all", h.handleTestAllWebhooks)
@@ -57,31 +57,31 @@ func (h *WebhookHandlers) handleListWebhooks(c *gin.Context) {
 		sendError(c, http.StatusInternalServerError, "Failed to retrieve webhooks: "+err.Error())
 		return
 	}
-	
+
 	sendSuccess(c, webhooks)
 }
 
 // handleCreateWebhook creates a new webhook
 func (h *WebhookHandlers) handleCreateWebhook(c *gin.Context) {
 	var req webhook.WebhookRequest
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid webhook request: "+err.Error())
 		return
 	}
-	
+
 	// Validate events
 	if err := h.validateWebhookEvents(req.Events); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid webhook events: "+err.Error())
 		return
 	}
-	
+
 	createdWebhook, err := h.webhookManager.CreateWebhook(req)
 	if err != nil {
 		sendError(c, http.StatusInternalServerError, "Failed to create webhook: "+err.Error())
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, APIResponse{
 		Success: true,
 		Data:    createdWebhook,
@@ -95,13 +95,13 @@ func (h *WebhookHandlers) handleGetWebhook(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, "Invalid webhook ID")
 		return
 	}
-	
+
 	webhook, err := h.webhookManager.GetWebhook(uint(id))
 	if err != nil {
 		sendError(c, http.StatusNotFound, "Webhook not found: "+err.Error())
 		return
 	}
-	
+
 	sendSuccess(c, webhook)
 }
 
@@ -112,25 +112,25 @@ func (h *WebhookHandlers) handleUpdateWebhook(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, "Invalid webhook ID")
 		return
 	}
-	
+
 	var req webhook.WebhookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid webhook request: "+err.Error())
 		return
 	}
-	
+
 	// Validate events
 	if err := h.validateWebhookEvents(req.Events); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid webhook events: "+err.Error())
 		return
 	}
-	
+
 	updatedWebhook, err := h.webhookManager.UpdateWebhook(uint(id), req)
 	if err != nil {
 		sendError(c, http.StatusInternalServerError, "Failed to update webhook: "+err.Error())
 		return
 	}
-	
+
 	sendSuccess(c, updatedWebhook)
 }
 
@@ -141,13 +141,13 @@ func (h *WebhookHandlers) handleDeleteWebhook(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, "Invalid webhook ID")
 		return
 	}
-	
+
 	err = h.webhookManager.DeleteWebhook(uint(id))
 	if err != nil {
 		sendError(c, http.StatusInternalServerError, "Failed to delete webhook: "+err.Error())
 		return
 	}
-	
+
 	sendSuccess(c, gin.H{
 		"id":      id,
 		"message": "Webhook deleted successfully",
@@ -161,13 +161,13 @@ func (h *WebhookHandlers) handleTestWebhook(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, "Invalid webhook ID")
 		return
 	}
-	
+
 	result, err := h.webhookManager.TestWebhook(uint(id))
 	if err != nil {
 		sendError(c, http.StatusInternalServerError, "Failed to test webhook: "+err.Error())
 		return
 	}
-	
+
 	sendSuccess(c, result)
 }
 
@@ -178,13 +178,13 @@ func (h *WebhookHandlers) handleGetWebhookStats(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, "Invalid webhook ID")
 		return
 	}
-	
+
 	stats, err := h.webhookManager.GetWebhookStatistics(uint(id))
 	if err != nil {
 		sendError(c, http.StatusInternalServerError, "Failed to get webhook statistics: "+err.Error())
 		return
 	}
-	
+
 	sendSuccess(c, stats)
 }
 
@@ -195,18 +195,18 @@ func (h *WebhookHandlers) handleGetWebhookDeliveries(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, "Invalid webhook ID")
 		return
 	}
-	
+
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	if limit > 100 {
 		limit = 100 // Cap at 100 deliveries
 	}
-	
+
 	deliveries, err := h.webhookManager.GetDeliveries(uint(id), limit)
 	if err != nil {
 		sendError(c, http.StatusInternalServerError, "Failed to get webhook deliveries: "+err.Error())
 		return
 	}
-	
+
 	sendSuccess(c, gin.H{
 		"deliveries": deliveries,
 		"count":      len(deliveries),
@@ -220,13 +220,13 @@ func (h *WebhookHandlers) handleGetWebhookDelivery(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, "Invalid webhook ID")
 		return
 	}
-	
+
 	deliveryID, err := strconv.ParseUint(c.Param("delivery_id"), 10, 32)
 	if err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid delivery ID")
 		return
 	}
-	
+
 	// TODO: Implement delivery retrieval by ID
 	// For now, return mock data
 	sendSuccess(c, gin.H{
@@ -245,7 +245,7 @@ func (h *WebhookHandlers) handleActivateWebhook(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, "Invalid webhook ID")
 		return
 	}
-	
+
 	// TODO: Implement webhook activation
 	sendSuccess(c, gin.H{
 		"id":      id,
@@ -261,7 +261,7 @@ func (h *WebhookHandlers) handleDeactivateWebhook(c *gin.Context) {
 		sendError(c, http.StatusBadRequest, "Invalid webhook ID")
 		return
 	}
-	
+
 	// TODO: Implement webhook deactivation
 	sendSuccess(c, gin.H{
 		"id":      id,
@@ -309,7 +309,7 @@ func (h *WebhookHandlers) handleListWebhookEvents(c *gin.Context) {
 			string(webhook.EventAttachmentDeleted),
 		},
 	}
-	
+
 	sendSuccess(c, events)
 }
 
@@ -320,9 +320,9 @@ func (h *WebhookHandlers) handleTestAllWebhooks(c *gin.Context) {
 		sendError(c, http.StatusInternalServerError, "Failed to retrieve webhooks: "+err.Error())
 		return
 	}
-	
+
 	results := make([]gin.H, 0)
-	
+
 	for _, wh := range webhooks {
 		if wh.Status == webhook.StatusActive {
 			result, err := h.webhookManager.TestWebhook(wh.ID)
@@ -345,7 +345,7 @@ func (h *WebhookHandlers) handleTestAllWebhooks(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	sendSuccess(c, gin.H{
 		"results": results,
 		"total":   len(results),
@@ -359,13 +359,13 @@ func (h *WebhookHandlers) handleGetGlobalWebhookStats(c *gin.Context) {
 		sendError(c, http.StatusInternalServerError, "Failed to retrieve webhooks: "+err.Error())
 		return
 	}
-	
+
 	totalWebhooks := len(webhooks)
 	activeWebhooks := 0
 	totalDeliveries := 0
 	successfulDeliveries := 0
 	failedDeliveries := 0
-	
+
 	for _, wh := range webhooks {
 		if wh.Status == webhook.StatusActive {
 			activeWebhooks++
@@ -374,12 +374,12 @@ func (h *WebhookHandlers) handleGetGlobalWebhookStats(c *gin.Context) {
 		successfulDeliveries += wh.SuccessfulDeliveries
 		failedDeliveries += wh.FailedDeliveries
 	}
-	
+
 	successRate := 0.0
 	if totalDeliveries > 0 {
 		successRate = float64(successfulDeliveries) / float64(totalDeliveries) * 100
 	}
-	
+
 	sendSuccess(c, gin.H{
 		"total_webhooks":        totalWebhooks,
 		"active_webhooks":       activeWebhooks,
@@ -396,12 +396,12 @@ func (h *WebhookHandlers) handleCleanupWebhookDeliveries(c *gin.Context) {
 	var req struct {
 		OlderThanDays int `json:"older_than_days" binding:"required,min=1"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid cleanup request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement delivery cleanup
 	sendSuccess(c, gin.H{
 		"message":         "Cleanup initiated",
@@ -412,36 +412,36 @@ func (h *WebhookHandlers) handleCleanupWebhookDeliveries(c *gin.Context) {
 // validateWebhookEvents validates that all provided events are valid
 func (h *WebhookHandlers) validateWebhookEvents(events []webhook.WebhookEvent) error {
 	validEvents := map[webhook.WebhookEvent]bool{
-		webhook.EventTicketCreated:        true,
-		webhook.EventTicketUpdated:        true,
-		webhook.EventTicketClosed:         true,
-		webhook.EventTicketReopened:       true,
-		webhook.EventTicketAssigned:       true,
-		webhook.EventTicketEscalated:      true,
+		webhook.EventTicketCreated:         true,
+		webhook.EventTicketUpdated:         true,
+		webhook.EventTicketClosed:          true,
+		webhook.EventTicketReopened:        true,
+		webhook.EventTicketAssigned:        true,
+		webhook.EventTicketEscalated:       true,
 		webhook.EventTicketPriorityChanged: true,
-		webhook.EventTicketStatusChanged:  true,
-		webhook.EventTicketQueueMoved:     true,
-		webhook.EventArticleAdded:         true,
-		webhook.EventArticleUpdated:       true,
-		webhook.EventUserCreated:          true,
-		webhook.EventUserUpdated:          true,
-		webhook.EventUserActivated:        true,
-		webhook.EventUserDeactivated:      true,
-		webhook.EventQueueCreated:         true,
-		webhook.EventQueueUpdated:         true,
-		webhook.EventQueueDeleted:         true,
-		webhook.EventAttachmentUploaded:   true,
-		webhook.EventAttachmentDeleted:    true,
-		webhook.EventSystemMaintenance:    true,
-		webhook.EventSystemBackup:         true,
-		webhook.EventSystemAlert:          true,
+		webhook.EventTicketStatusChanged:   true,
+		webhook.EventTicketQueueMoved:      true,
+		webhook.EventArticleAdded:          true,
+		webhook.EventArticleUpdated:        true,
+		webhook.EventUserCreated:           true,
+		webhook.EventUserUpdated:           true,
+		webhook.EventUserActivated:         true,
+		webhook.EventUserDeactivated:       true,
+		webhook.EventQueueCreated:          true,
+		webhook.EventQueueUpdated:          true,
+		webhook.EventQueueDeleted:          true,
+		webhook.EventAttachmentUploaded:    true,
+		webhook.EventAttachmentDeleted:     true,
+		webhook.EventSystemMaintenance:     true,
+		webhook.EventSystemBackup:          true,
+		webhook.EventSystemAlert:           true,
 	}
-	
+
 	for _, event := range events {
 		if !validEvents[event] {
 			return fmt.Errorf("invalid event: %s", event)
 		}
 	}
-	
+
 	return nil
 }

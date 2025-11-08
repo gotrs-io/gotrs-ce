@@ -13,36 +13,36 @@ import (
 
 // CannedResponse represents a pre-written response
 type CannedResponse struct {
-	ID           int                    `json:"id"`
-	Name         string                 `json:"name"`
-	Category     string                 `json:"category"`
-	Content      string                 `json:"content"`
-	ContentType  string                 `json:"content_type"` // text or html
-	Tags         []string               `json:"tags"`
-	Scope        string                 `json:"scope"` // personal, team, global
-	OwnerID      int                    `json:"owner_id"`
-	TeamID       int                    `json:"team_id,omitempty"`
-	Placeholders []string               `json:"placeholders"`
-	UsageCount   int                    `json:"usage_count"`
-	LastUsed     *time.Time             `json:"last_used,omitempty"`
-	CreatedAt    time.Time              `json:"created_at"`
-	UpdatedAt    time.Time              `json:"updated_at"`
+	ID           int        `json:"id"`
+	Name         string     `json:"name"`
+	Category     string     `json:"category"`
+	Content      string     `json:"content"`
+	ContentType  string     `json:"content_type"` // text or html
+	Tags         []string   `json:"tags"`
+	Scope        string     `json:"scope"` // personal, team, global
+	OwnerID      int        `json:"owner_id"`
+	TeamID       int        `json:"team_id,omitempty"`
+	Placeholders []string   `json:"placeholders"`
+	UsageCount   int        `json:"usage_count"`
+	LastUsed     *time.Time `json:"last_used,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
 // Mock storage for canned responses
 var cannedResponses = map[int]*CannedResponse{
 	1: {
-		ID:         1,
-		Name:       "Thank You",
-		Category:   "General",
-		Content:    "Thank you for contacting support. We'll review your request and respond shortly.",
+		ID:          1,
+		Name:        "Thank You",
+		Category:    "General",
+		Content:     "Thank you for contacting support. We'll review your request and respond shortly.",
 		ContentType: "text",
-		Tags:       []string{"greeting", "acknowledgment"},
-		Scope:      "personal",
-		OwnerID:    1,
-		UsageCount: 5,
-		CreatedAt:  time.Now().Add(-30 * 24 * time.Hour),
-		UpdatedAt:  time.Now().Add(-30 * 24 * time.Hour),
+		Tags:        []string{"greeting", "acknowledgment"},
+		Scope:       "personal",
+		OwnerID:     1,
+		UsageCount:  5,
+		CreatedAt:   time.Now().Add(-30 * 24 * time.Hour),
+		UpdatedAt:   time.Now().Add(-30 * 24 * time.Hour),
 	},
 	2: {
 		ID:           2,
@@ -60,27 +60,27 @@ var cannedResponses = map[int]*CannedResponse{
 		UpdatedAt:    time.Now().Add(-20 * 24 * time.Hour),
 	},
 	3: {
-		ID:         3,
-		Name:       "Another User Response",
-		Category:   "General",
-		Content:    "This belongs to another user",
+		ID:          3,
+		Name:        "Another User Response",
+		Category:    "General",
+		Content:     "This belongs to another user",
 		ContentType: "text",
-		Scope:      "personal",
-		OwnerID:    2, // Different user
-		CreatedAt:  time.Now().Add(-10 * 24 * time.Hour),
-		UpdatedAt:  time.Now().Add(-10 * 24 * time.Hour),
+		Scope:       "personal",
+		OwnerID:     2, // Different user
+		CreatedAt:   time.Now().Add(-10 * 24 * time.Hour),
+		UpdatedAt:   time.Now().Add(-10 * 24 * time.Hour),
 	},
 	4: {
-		ID:         4,
-		Name:       "Service Maintenance",
-		Category:   "System",
-		Content:    "We are currently performing scheduled maintenance.",
+		ID:          4,
+		Name:        "Service Maintenance",
+		Category:    "System",
+		Content:     "We are currently performing scheduled maintenance.",
 		ContentType: "text",
-		Scope:      "global",
-		OwnerID:    1,
-		UsageCount: 20,
-		CreatedAt:  time.Now().Add(-15 * 24 * time.Hour),
-		UpdatedAt:  time.Now().Add(-15 * 24 * time.Hour),
+		Scope:       "global",
+		OwnerID:     1,
+		UsageCount:  20,
+		CreatedAt:   time.Now().Add(-15 * 24 * time.Hour),
+		UpdatedAt:   time.Now().Add(-15 * 24 * time.Hour),
 	},
 }
 
@@ -176,13 +176,13 @@ func handleCreateCannedResponse(c *gin.Context) {
 	}
 
 	cannedResponses[nextCannedResponseID] = response
-	
+
 	// Update name index
 	if cannedResponsesByName[req.Name] == nil {
 		cannedResponsesByName[req.Name] = []int{}
 	}
 	cannedResponsesByName[req.Name] = append(cannedResponsesByName[req.Name], nextCannedResponseID)
-	
+
 	nextCannedResponseID++
 
 	c.JSON(http.StatusCreated, gin.H{
@@ -196,7 +196,7 @@ func handleCreateCannedResponse(c *gin.Context) {
 func handleGetCannedResponses(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	teamID, _ := c.Get("team_id")
-	
+
 	// Parse filters
 	category := c.Query("category")
 	scope := c.Query("scope")
@@ -204,7 +204,7 @@ func handleGetCannedResponses(c *gin.Context) {
 	tags := c.Query("tags")
 
 	var results []CannedResponse
-	
+
 	for _, resp := range cannedResponses {
 		// Check access permissions
 		if !canAccessResponse(resp, userID.(int), teamID) {
@@ -215,20 +215,20 @@ func handleGetCannedResponses(c *gin.Context) {
 		if category != "" && resp.Category != category {
 			continue
 		}
-		
+
 		if scope != "" && resp.Scope != scope {
 			continue
 		}
-		
+
 		if search != "" {
 			searchLower := strings.ToLower(search)
 			if !strings.Contains(strings.ToLower(resp.Name), searchLower) &&
-			   !strings.Contains(strings.ToLower(resp.Content), searchLower) &&
-			   !strings.Contains(strings.ToLower(resp.Category), searchLower) {
+				!strings.Contains(strings.ToLower(resp.Content), searchLower) &&
+				!strings.Contains(strings.ToLower(resp.Category), searchLower) {
 				continue
 			}
 		}
-		
+
 		if tags != "" {
 			tagList := strings.Split(tags, ",")
 			found := false
@@ -247,7 +247,7 @@ func handleGetCannedResponses(c *gin.Context) {
 				continue
 			}
 		}
-		
+
 		results = append(results, *resp)
 	}
 
@@ -393,7 +393,7 @@ func handleUseCannedResponse(c *gin.Context) {
 
 	// Apply placeholders
 	content := response.Content
-	
+
 	// Check for required placeholders
 	for _, placeholder := range response.Placeholders {
 		if value, ok := req.Placeholders[placeholder]; ok {
@@ -460,7 +460,7 @@ func handleGetCannedResponseCategories(c *gin.Context) {
 // handleGetCannedResponseStatistics returns usage statistics
 func handleGetCannedResponseStatistics(c *gin.Context) {
 	userID, _ := c.Get("user_id")
-	
+
 	var personalCount, teamCount, globalCount int
 	var mostUsed []map[string]interface{}
 	var recentlyUsed []map[string]interface{}
@@ -513,13 +513,13 @@ func handleGetCannedResponseStatistics(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"statistics": gin.H{
-			"total_responses":    len(cannedResponses),
-			"personal_count":     personalCount,
-			"team_count":         teamCount,
-			"global_count":       globalCount,
-			"most_used":          mostUsed,
-			"recently_used":      recentlyUsed,
-			"usage_by_category":  usageByCategory,
+			"total_responses":   len(cannedResponses),
+			"personal_count":    personalCount,
+			"team_count":        teamCount,
+			"global_count":      globalCount,
+			"most_used":         mostUsed,
+			"recently_used":     recentlyUsed,
+			"usage_by_category": usageByCategory,
 		},
 	})
 }
@@ -540,7 +540,7 @@ func handleShareCannedResponse(c *gin.Context) {
 	}
 
 	userID, _ := c.Get("user_id")
-	
+
 	// Check ownership
 	if response.OwnerID != userID.(int) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You can only share your own responses"})
@@ -629,7 +629,7 @@ func handleExportCannedResponses(c *gin.Context) {
 	case "json":
 		c.Header("Content-Type", "application/json")
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"canned-responses-%s.json\"", timestamp))
-		
+
 		c.JSON(http.StatusOK, gin.H{
 			"responses":   userResponses,
 			"exported_at": time.Now(),
@@ -638,10 +638,10 @@ func handleExportCannedResponses(c *gin.Context) {
 	case "csv":
 		c.Header("Content-Type", "text/csv")
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"canned-responses-%s.csv\"", timestamp))
-		
+
 		writer := csv.NewWriter(c.Writer)
 		writer.Write([]string{"Name", "Category", "Content", "Tags", "Created"})
-		
+
 		for _, resp := range userResponses {
 			writer.Write([]string{
 				resp.Name,
@@ -697,25 +697,25 @@ func handleImportCannedResponses(c *gin.Context) {
 
 		if !duplicate {
 			response := &CannedResponse{
-				ID:          nextCannedResponseID,
-				Name:        respData.Name,
-				Category:    respData.Category,
-				Content:     respData.Content,
-				Tags:        respData.Tags,
-				Scope:       "personal",
-				OwnerID:     userID.(int),
-				UsageCount:  0,
-				CreatedAt:   time.Now(),
-				UpdatedAt:   time.Now(),
+				ID:         nextCannedResponseID,
+				Name:       respData.Name,
+				Category:   respData.Category,
+				Content:    respData.Content,
+				Tags:       respData.Tags,
+				Scope:      "personal",
+				OwnerID:    userID.(int),
+				UsageCount: 0,
+				CreatedAt:  time.Now(),
+				UpdatedAt:  time.Now(),
 			}
 
 			cannedResponses[nextCannedResponseID] = response
-			
+
 			if cannedResponsesByName[respData.Name] == nil {
 				cannedResponsesByName[respData.Name] = []int{}
 			}
 			cannedResponsesByName[respData.Name] = append(cannedResponsesByName[respData.Name], nextCannedResponseID)
-			
+
 			nextCannedResponseID++
 			imported++
 		}
@@ -749,7 +749,7 @@ func canAccessResponse(resp *CannedResponse, userID int, teamID interface{}) boo
 func extractPlaceholders(content string) []string {
 	var placeholders []string
 	seen := make(map[string]bool)
-	
+
 	// Find {{placeholder}} patterns
 	for i := 0; i < len(content)-3; i++ {
 		if content[i:i+2] == "{{" {
@@ -763,6 +763,6 @@ func extractPlaceholders(content string) []string {
 			}
 		}
 	}
-	
+
 	return placeholders
 }

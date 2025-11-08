@@ -8,13 +8,14 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
 	"github.com/gotrs-io/gotrs-ce/internal/auth"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/webhooks"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"strconv"
 	"strings"
-    "time"
+	"time"
 )
 
 // TestWebhookAPIContract verifies the webhook API meets its contract requirements
@@ -24,55 +25,21 @@ func TestWebhookAPIContract(t *testing.T) {
 	defer database.CloseTestDB()
 
 	// Create test JWT manager
-    jwtManager := auth.NewJWTManager("test-secret", time.Hour)
+	jwtManager := auth.NewJWTManager("test-secret", time.Hour)
 
 	// Create test token
-    token, _ := jwtManager.GenerateToken(1, "testuser@example.com", "Agent", 0)
+	token, _ := jwtManager.GenerateToken(1, "testuser@example.com", "Agent", 0)
 
 	// Set Gin to test mode
 	gin.SetMode(gin.TestMode)
 
 	// Setup test data
-    db, _ := database.GetDB()
-    if db == nil {
-        t.Skip("Database not available for webhook contract tests")
-    }
-	
-	// Create webhook table if not exists
-	db.Exec(`
-		CREATE TABLE IF NOT EXISTS webhooks (
-			id SERIAL PRIMARY KEY,
-			name VARCHAR(255) NOT NULL,
-			url VARCHAR(1024) NOT NULL,
-			secret VARCHAR(255),
-			events TEXT,
-			active BOOLEAN DEFAULT true,
-			retry_count INTEGER DEFAULT 3,
-			timeout_seconds INTEGER DEFAULT 30,
-			headers TEXT,
-			create_time TIMESTAMP DEFAULT NOW(),
-			create_by INTEGER,
-			change_time TIMESTAMP DEFAULT NOW(),
-			change_by INTEGER
-		)
-	`)
+	db, _ := database.GetDB()
+	if db == nil {
+		t.Skip("Database not available for webhook contract tests")
+	}
 
-	// Create webhook_deliveries table
-	db.Exec(`
-		CREATE TABLE IF NOT EXISTS webhook_deliveries (
-			id SERIAL PRIMARY KEY,
-			webhook_id INTEGER REFERENCES webhooks(id),
-			event_type VARCHAR(100),
-			payload TEXT,
-			status_code INTEGER,
-			response TEXT,
-			attempts INTEGER DEFAULT 0,
-			delivered_at TIMESTAMP,
-			next_retry TIMESTAMP,
-			created_at TIMESTAMP DEFAULT NOW(),
-			success BOOLEAN DEFAULT false
-		)
-	`)
+	ensureWebhookTables(t)
 
 	t.Run("RegisterWebhook Contract", func(t *testing.T) {
 		router := gin.New()
@@ -84,10 +51,10 @@ func TestWebhookAPIContract(t *testing.T) {
 
 		// Test valid webhook registration
 		payload := map[string]interface{}{
-			"name": "Test Webhook",
-			"url":  "https://example.com/webhook",
-			"secret": "webhook-secret",
-			"events": []string{"ticket.created", "ticket.updated"},
+			"name":            "Test Webhook",
+			"url":             "https://example.com/webhook",
+			"secret":          "webhook-secret",
+			"events":          []string{"ticket.created", "ticket.updated"},
 			"retry_count":     3,
 			"timeout_seconds": 30,
 		}
@@ -191,13 +158,14 @@ func TestWebhookAPIContract(t *testing.T) {
 		router.GET("/api/v1/webhooks/:id", HandleGetWebhookAPI)
 
 		// Create a test webhook
-		var webhookID int
-		insertQuery := database.ConvertPlaceholders(`
+		insertQuery := `
 			INSERT INTO webhooks (name, url, secret, events, active, create_by, change_by)
 			VALUES ($1, $2, $3, $4, true, 1, 1)
 			RETURNING id
-		`)
-		db.QueryRow(insertQuery, "Get Test", "https://get.test", "secret", "ticket.created").Scan(&webhookID)
+		`
+		webhookID := insertWebhookRow(t, insertQuery,
+			"Get Test", "https://get.test", "secret", "ticket.created",
+		)
 
 		// Test getting existing webhook
 		req := httptest.NewRequest("GET", "/api/v1/webhooks/"+strconv.Itoa(webhookID), nil)
@@ -234,13 +202,14 @@ func TestWebhookAPIContract(t *testing.T) {
 		router.PUT("/api/v1/webhooks/:id", HandleUpdateWebhookAPI)
 
 		// Create a test webhook
-		var webhookID int
-		insertQuery := database.ConvertPlaceholders(`
+		insertQuery := `
 			INSERT INTO webhooks (name, url, events, active, create_by, change_by)
 			VALUES ($1, $2, $3, true, 1, 1)
 			RETURNING id
-		`)
-		db.QueryRow(insertQuery, "Update Test", "https://old.url", "ticket.created").Scan(&webhookID)
+		`
+		webhookID := insertWebhookRow(t, insertQuery,
+			"Update Test", "https://old.url", "ticket.created",
+		)
 
 		// Test updating webhook
 		payload := map[string]interface{}{
@@ -286,13 +255,14 @@ func TestWebhookAPIContract(t *testing.T) {
 		router.DELETE("/api/v1/webhooks/:id", HandleDeleteWebhookAPI)
 
 		// Create a test webhook
-		var webhookID int
-		insertQuery := database.ConvertPlaceholders(`
+		insertQuery := `
 			INSERT INTO webhooks (name, url, events, active, create_by, change_by)
 			VALUES ($1, $2, $3, true, 1, 1)
 			RETURNING id
-		`)
-		db.QueryRow(insertQuery, "Delete Test", "https://delete.test", "ticket.created").Scan(&webhookID)
+		`
+		webhookID := insertWebhookRow(t, insertQuery,
+			"Delete Test", "https://delete.test", "ticket.created",
+		)
 
 		// Test deleting webhook
 		req := httptest.NewRequest("DELETE", "/api/v1/webhooks/"+strconv.Itoa(webhookID), nil)
@@ -305,7 +275,9 @@ func TestWebhookAPIContract(t *testing.T) {
 
 		// Contract: Webhook must be deleted from database
 		var count int
-		db.QueryRow("SELECT COUNT(*) FROM webhooks WHERE id = $1", webhookID).Scan(&count)
+		db.QueryRow(database.ConvertPlaceholders(`
+			SELECT COUNT(*) FROM webhooks WHERE id = $1
+		`), webhookID).Scan(&count)
 		assert.Equal(t, 0, count, "Webhook should be deleted from database")
 
 		// Test deleting non-existent webhook
@@ -327,13 +299,14 @@ func TestWebhookAPIContract(t *testing.T) {
 		router.POST("/api/v1/webhooks/:id/test", HandleTestWebhookAPI)
 
 		// Create a test webhook
-		var webhookID int
-		insertQuery := database.ConvertPlaceholders(`
+		insertQuery := `
 			INSERT INTO webhooks (name, url, secret, events, active, create_by, change_by)
 			VALUES ($1, $2, $3, $4, true, 1, 1)
 			RETURNING id
-		`)
-		db.QueryRow(insertQuery, "Test Webhook", "https://httpbin.org/post", "secret", "ticket.created").Scan(&webhookID)
+		`
+		webhookID := insertWebhookRow(t, insertQuery,
+			"Test Webhook", "https://httpbin.org/post", "secret", "ticket.created",
+		)
 
 		// Test webhook with valid payload
 		payload := map[string]interface{}{
@@ -370,21 +343,28 @@ func TestWebhookAPIContract(t *testing.T) {
 		router.GET("/api/v1/webhooks/:id/deliveries", HandleWebhookDeliveriesAPI)
 
 		// Create a test webhook with deliveries
-		var webhookID int
-		insertQuery := database.ConvertPlaceholders(`
+		insertQuery := `
 			INSERT INTO webhooks (name, url, events, active, create_by, change_by)
 			VALUES ($1, $2, $3, true, 1, 1)
 			RETURNING id
-		`)
-		db.QueryRow(insertQuery, "Delivery Test", "https://example.com", "ticket.created").Scan(&webhookID)
+		`
+		webhookID := insertWebhookRow(t, insertQuery,
+			"Delivery Test", "https://example.com", "ticket.created",
+		)
 
 		// Create test deliveries
-		deliveryQuery := database.ConvertPlaceholders(`
+		rawDeliveryQuery := `
 			INSERT INTO webhook_deliveries (webhook_id, event_type, payload, status_code, attempts, success)
 			VALUES ($1, 'ticket.created', '{"test": "data1"}', 200, 1, true),
 			       ($1, 'ticket.updated', '{"test": "data2"}', 500, 3, false)
-		`)
-		db.Exec(deliveryQuery, webhookID)
+		`
+		deliveryQuery := database.ConvertPlaceholders(rawDeliveryQuery)
+		deliveryArgs := []interface{}{webhookID}
+		if database.IsMySQL() {
+			deliveryArgs = database.RemapArgsForMySQL(rawDeliveryQuery, deliveryArgs)
+		}
+		_, err := db.Exec(deliveryQuery, deliveryArgs...)
+		require.NoError(t, err)
 
 		req := httptest.NewRequest("GET", "/api/v1/webhooks/"+strconv.Itoa(webhookID)+"/deliveries", nil)
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -413,24 +393,23 @@ func TestWebhookAPIContract(t *testing.T) {
 		router.POST("/api/v1/webhooks/deliveries/:id/retry", HandleRetryWebhookDeliveryAPI)
 
 		// Create a failed delivery
-		var deliveryID int
-		var webhookID int
-		
 		// First create webhook
-		insertWebhook := database.ConvertPlaceholders(`
+		insertWebhook := `
 			INSERT INTO webhooks (name, url, events, active, create_by, change_by)
 			VALUES ($1, $2, $3, true, 1, 1)
 			RETURNING id
-		`)
-		db.QueryRow(insertWebhook, "Retry Test", "https://httpbin.org/post", "ticket.created").Scan(&webhookID)
-		
+		`
+		webhookID := insertWebhookRow(t, insertWebhook,
+			"Retry Test", "https://httpbin.org/post", "ticket.created",
+		)
+
 		// Then create failed delivery
-		insertDelivery := database.ConvertPlaceholders(`
+		insertDelivery := `
 			INSERT INTO webhook_deliveries (webhook_id, event_type, payload, status_code, attempts, success)
 			VALUES ($1, 'ticket.created', '{"test": "retry"}', 500, 3, false)
 			RETURNING id
-		`)
-		db.QueryRow(insertDelivery, webhookID).Scan(&deliveryID)
+		`
+		deliveryID := insertWebhookRow(t, insertDelivery, webhookID)
 
 		req := httptest.NewRequest("POST", "/api/v1/webhooks/deliveries/"+strconv.Itoa(deliveryID)+"/retry", nil)
 		req.Header.Set("Authorization", "Bearer "+token)

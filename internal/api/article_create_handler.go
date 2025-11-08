@@ -193,27 +193,26 @@ func HandleCreateArticleAPI(c *gin.Context) {
 		if strings.TrimSpace(ct) == "" {
 			ct = "text/plain"
 		}
-		c.JSON(http.StatusCreated, gin.H{
-			"success": true,
-			"data": gin.H{
-				"id":                       1,
-				"ticket_id":                ticketID,
-				"subject":                  req.Subject,
-				"body":                     req.Body,
-				"content_type":             ct,
-				"article_sender_type_id":   senderTypeID,
-				"communication_channel_id": channelID,
-				"is_visible_for_customer":  visible,
-				"from":                     req.From,
-				"to":                       req.To,
-				"cc":                       req.Cc,
-				"reply_to":                 req.ReplyTo,
-				"message_id":               req.MessageID,
-				"in_reply_to":              req.InReplyTo,
-				"create_by":                userID,
-				"ticket_updated":           true,
-			},
-		})
+		responseData := gin.H{
+			"id":                       1,
+			"ticket_id":                ticketID,
+			"subject":                  req.Subject,
+			"body":                     req.Body,
+			"content_type":             ct,
+			"article_sender_type_id":   senderTypeID,
+			"communication_channel_id": channelID,
+			"is_visible_for_customer":  visible,
+			"from":                     req.From,
+			"to":                       req.To,
+			"cc":                       req.Cc,
+			"reply_to":                 req.ReplyTo,
+			"message_id":               req.MessageID,
+			"in_reply_to":              req.InReplyTo,
+			"create_by":                userID,
+			"ticket_updated":           true,
+		}
+
+		c.JSON(http.StatusCreated, gin.H{"success": true, "data": responseData})
 		return
 	}
 
@@ -516,7 +515,7 @@ func HandleCreateArticleAPI(c *gin.Context) {
 				FROM customer_user cu
 				WHERE cu.login = $1
 			`), customerUserID.String).Scan(&customerEmail)
-			
+
 			if err != nil || customerEmail == "" {
 				log.Printf("Failed to find email for customer user %s: %v", customerUserID.String, err)
 				return
@@ -532,13 +531,13 @@ func HandleCreateArticleAPI(c *gin.Context) {
 				senderEmail = cfg.Email.From
 			}
 			queueItem := &mailqueue.MailQueueItem{
-				Sender:       &senderEmail,
-				Recipient:    customerEmail,
-				RawMessage:   mailqueue.BuildEmailMessage(senderEmail, customerEmail, subject, body),
-				Attempts:     0,
-				CreateTime:   time.Now(),
+				Sender:     &senderEmail,
+				Recipient:  customerEmail,
+				RawMessage: mailqueue.BuildEmailMessage(senderEmail, customerEmail, subject, body),
+				Attempts:   0,
+				CreateTime: time.Now(),
 			}
-			
+
 			if err := queueRepo.Insert(context.Background(), queueItem); err != nil {
 				log.Printf("Failed to queue article notification email for %s: %v", customerEmail, err)
 			} else {
@@ -603,16 +602,15 @@ func HandleCreateArticleAPI(c *gin.Context) {
 
 	if err != nil {
 		// Article was created but we can't fetch it, still return success
-		c.JSON(http.StatusCreated, gin.H{
-			"success": true,
-			"data": gin.H{
-				"id":             articleID,
-				"ticket_id":      ticketID,
-				"subject":        req.Subject,
-				"body":           req.Body,
-				"ticket_updated": true,
-			},
-		})
+		fallbackData := gin.H{
+			"id":             articleID,
+			"ticket_id":      ticketID,
+			"subject":        req.Subject,
+			"body":           req.Body,
+			"ticket_updated": true,
+		}
+
+		c.JSON(http.StatusCreated, gin.H{"success": true, "data": fallbackData})
 		return
 	}
 

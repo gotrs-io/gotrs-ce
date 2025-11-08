@@ -29,55 +29,55 @@ func NewAPIRouter(rbac *auth.RBAC, jwtManager *auth.JWTManager, ldapHandlers *ld
 func (router *APIRouter) SetupV1Routes(r *gin.Engine) {
 	log.Println("SetupV1Routes called")
 	v1 := r.Group("/api/v1")
-	
+
 	// Add rate limiting middleware
 	// v1.Use(middleware.RateLimit())
-	
+
 	// Add request ID middleware
 	v1.Use(middleware.RequestID())
-	
+
 	// Add API version header
 	v1.Use(func(c *gin.Context) {
 		c.Header("X-API-Version", "1.0")
 		c.Next()
 	})
-	
+
 	// Public endpoints (no authentication required)
 	router.setupPublicRoutes(v1)
 
 	// (custom inline /auth/login handler removed; YAML-defined auth route provides login)
-	
+
 	// Protected endpoints (authentication required) - bypass auth routes
 	protected := v1.Group("")
 	// Attach session middleware (JWT manager lazily initialized above on first login)
 	protected.Use(middleware.SessionMiddleware(router.jwtManager))
-	
+
 	// User endpoints
 	router.setupUserRoutes(protected)
-	
+
 	// Ticket endpoints
 	router.setupTicketRoutes(protected)
-	
-	// Queue endpoints  
+
+	// Queue endpoints
 	router.setupQueueRoutes(protected)
-	
+
 	// Priority endpoints
 	router.setupPriorityRoutes(protected)
-	
+
 	// Search endpoints
 	router.setupSearchRoutes(protected)
-	
+
 	// File/attachment endpoints
 	router.setupFileRoutes(protected)
-	
+
 	// Dashboard endpoints
 	router.setupDashboardRoutes(protected)
-	
+
 	// Admin-only endpoints
 	adminRoutes := protected.Group("")
 	adminRoutes.Use(middleware.RequireAdminAccess(router.rbac))
 	router.setupAdminRoutes(adminRoutes)
-	
+
 	// Agent-level endpoints
 	agentRoutes := protected.Group("")
 	agentRoutes.Use(middleware.RequireAgentAccess(router.rbac))
@@ -88,13 +88,13 @@ func (router *APIRouter) SetupV1Routes(r *gin.Engine) {
 func (router *APIRouter) setupPublicRoutes(v1 *gin.RouterGroup) {
 	// Health check
 	v1.GET("/health", router.handleHealth)
-	
+
 	// API info
 	v1.GET("/info", router.handleAPIInfo)
-	
+
 	// System status
 	v1.GET("/status", router.handleSystemStatus)
-	
+
 	// (legacy placeholder removed; using unified /auth/login above)
 }
 
@@ -115,7 +115,7 @@ func (router *APIRouter) setupUserRoutes(protected *gin.RouterGroup) {
 // setupTicketRoutes configures ticket-related endpoints
 func (router *APIRouter) setupTicketRoutes(protected *gin.RouterGroup) {
 	tickets := protected.Group("/tickets")
-	
+
 	// When rbac is nil, register routes without permission middleware (for testing)
 	if router.rbac == nil {
 		log.Println("Registering ticket routes without RBAC (rbac is nil)")
@@ -125,19 +125,19 @@ func (router *APIRouter) setupTicketRoutes(protected *gin.RouterGroup) {
 		tickets.GET("/:id", router.handleGetTicket)
 		tickets.PUT("/:id", router.handleUpdateTicket)
 		tickets.DELETE("/:id", router.HandleDeleteTicket)
-		
+
 		// Ticket actions
 		tickets.POST("/:id/assign", router.HandleAssignTicket)
 		tickets.POST("/:id/close", router.HandleCloseTicket)
 		tickets.POST("/:id/reopen", router.HandleReopenTicket)
 		tickets.POST("/:id/priority", router.handleUpdateTicketPriority)
 		tickets.POST("/:id/queue", router.handleMoveTicketQueue)
-		
+
 		// Articles/messages
 		tickets.GET("/:id/articles", router.handleGetTicketArticles)
 		tickets.POST("/:id/articles", router.handleAddTicketArticle)
 		tickets.GET("/:id/articles/:article_id", router.handleGetTicketArticle)
-		
+
 		// Bulk operations
 		tickets.POST("/bulk/assign", router.handleBulkAssignTickets)
 		tickets.POST("/bulk/close", router.handleBulkCloseTickets)
@@ -145,46 +145,46 @@ func (router *APIRouter) setupTicketRoutes(protected *gin.RouterGroup) {
 		tickets.POST("/bulk/queue", router.handleBulkMoveQueue)
 		return
 	}
-	
+
 	// With RBAC enabled, use permission middleware
 	tickets.Use(middleware.RequireAnyPermission(router.rbac, auth.PermissionTicketRead, auth.PermissionOwnTicketRead))
-	
+
 	// Basic CRUD
 	tickets.GET("", router.handleListTickets)
 	tickets.POST("", middleware.RequireAnyPermission(router.rbac, auth.PermissionTicketCreate, auth.PermissionOwnTicketCreate), router.HandleCreateTicket)
 	tickets.GET("/:id", middleware.RequireTicketAccess(router.rbac), router.handleGetTicket)
 	tickets.PUT("/:id", middleware.RequirePermission(router.rbac, auth.PermissionTicketUpdate), router.handleUpdateTicket)
 	tickets.DELETE("/:id", middleware.RequirePermission(router.rbac, auth.PermissionTicketDelete), router.HandleDeleteTicket)
-	
+
 	// Ticket actions
 	tickets.POST("/:id/assign", middleware.RequirePermission(router.rbac, auth.PermissionTicketAssign), router.HandleAssignTicket)
 	tickets.POST("/:id/close", middleware.RequirePermission(router.rbac, auth.PermissionTicketClose), router.HandleCloseTicket)
 	tickets.POST("/:id/reopen", middleware.RequirePermission(router.rbac, auth.PermissionTicketUpdate), router.HandleReopenTicket)
 	tickets.POST("/:id/priority", middleware.RequirePermission(router.rbac, auth.PermissionTicketUpdate), router.handleUpdateTicketPriority)
 	tickets.POST("/:id/queue", middleware.RequirePermission(router.rbac, auth.PermissionTicketUpdate), router.handleMoveTicketQueue)
-	
+
 	// Articles/messages
 	tickets.GET("/:id/articles", router.handleGetTicketArticles)
 	tickets.POST("/:id/articles", router.handleAddTicketArticle) // Simplified for testing
 	tickets.GET("/:id/articles/:article_id", router.handleGetTicketArticle)
-	
+
 	// TODO: Implement attachment handlers
 	// tickets.GET("/:id/attachments", router.handleGetTicketAttachments)
 	// tickets.POST("/:id/attachments", middleware.RequirePermission(router.rbac, auth.PermissionTicketUpdate), router.handleUploadTicketAttachment)
 	// tickets.GET("/:id/attachments/:attachment_id", router.handleDownloadTicketAttachment)
 	// tickets.DELETE("/:id/attachments/:attachment_id", middleware.RequirePermission(router.rbac, auth.PermissionTicketUpdate), router.handleDeleteTicketAttachment)
-	
+
 	// TODO: Implement history/timeline handler
 	// tickets.GET("/:id/history", router.handleGetTicketHistory)
-	
+
 	// TODO: Implement SLA and escalation handlers
 	// tickets.GET("/:id/sla", router.handleGetTicketSLA)
 	// tickets.POST("/:id/escalate", middleware.RequirePermission(router.rbac, auth.PermissionTicketUpdate), router.handleEscalateTicket)
-	
+
 	// TODO: Implement merge/split operations
 	// tickets.POST("/:id/merge", middleware.RequirePermission(router.rbac, auth.PermissionTicketUpdate), router.handleMergeTickets)
 	// tickets.POST("/:id/split", middleware.RequirePermission(router.rbac, auth.PermissionTicketUpdate), router.handleSplitTicket)
-	
+
 	// Bulk operations
 	tickets.POST("/bulk/assign", middleware.RequirePermission(router.rbac, auth.PermissionTicketAssign), router.handleBulkAssignTickets)
 	tickets.POST("/bulk/close", middleware.RequirePermission(router.rbac, auth.PermissionTicketClose), router.handleBulkCloseTickets)
@@ -202,7 +202,7 @@ func (router *APIRouter) setupQueueRoutes(protected *gin.RouterGroup) {
 		queues.GET("/:id", router.handleGetQueue)
 		queues.PUT("/:id", middleware.RequireAdminAccess(router.rbac), router.handleUpdateQueue)
 		queues.DELETE("/:id", middleware.RequireAdminAccess(router.rbac), router.handleDeleteQueue)
-		
+
 		// Queue tickets
 		queues.GET("/:id/tickets", router.handleGetQueueTickets)
 		queues.GET("/:id/stats", router.handleGetQueueStats)
@@ -229,7 +229,7 @@ func (router *APIRouter) setupSearchRoutes(protected *gin.RouterGroup) {
 		search.GET("/tickets", middleware.RequireAnyPermission(router.rbac, auth.PermissionTicketRead, auth.PermissionOwnTicketRead), router.handleSearchTickets)
 		search.GET("/users", middleware.RequirePermission(router.rbac, auth.PermissionUserRead), router.handleSearchUsers)
 		search.GET("/suggestions", router.handleSearchSuggestions)
-		
+
 		// Saved searches
 		search.GET("/saved", router.handleGetSavedSearches)
 		search.POST("/saved", router.handleCreateSavedSearch)
@@ -282,7 +282,9 @@ func (router *APIRouter) setupAdminRoutes(adminRoutes *gin.RouterGroup) {
 			users.POST("/:id/deactivate", router.handleDeactivateUser)
 			users.POST("/:id/reset-password", router.handleResetUserPassword)
 		}
-		
+
+		// Customer company management is handled by the main API handlers using adapter pattern
+
 		// System configuration
 		system := admin.Group("/system")
 		{
@@ -295,7 +297,7 @@ func (router *APIRouter) setupAdminRoutes(adminRoutes *gin.RouterGroup) {
 			system.GET("/backups", router.handleListBackups)
 			system.POST("/restore/:backup_id", router.handleRestoreBackup)
 		}
-		
+
 		// Audit logs
 		audit := admin.Group("/audit")
 		{
@@ -303,7 +305,7 @@ func (router *APIRouter) setupAdminRoutes(adminRoutes *gin.RouterGroup) {
 			audit.GET("/logs/:id", router.handleGetAuditLog)
 			audit.GET("/stats", router.handleGetAuditStats)
 		}
-		
+
 		// Reports
 		reports := admin.Group("/reports")
 		{
@@ -313,7 +315,7 @@ func (router *APIRouter) setupAdminRoutes(adminRoutes *gin.RouterGroup) {
 			reports.GET("/performance", router.handleGetPerformanceReports)
 			reports.POST("/export", router.handleExportReport)
 		}
-		
+
 		// LDAP configuration and management
 		if router.ldapHandlers != nil {
 			router.ldapHandlers.SetupLDAPRoutes(admin)
@@ -335,7 +337,7 @@ func (router *APIRouter) setupAgentRoutes(agentRoutes *gin.RouterGroup) {
 			canned.DELETE("/:id", router.handleDeleteCannedResponse)
 			canned.GET("/categories", router.handleGetCannedResponseCategories)
 		}
-		
+
 		// Templates
 		templates := agent.Group("/templates")
 		{
@@ -345,7 +347,7 @@ func (router *APIRouter) setupAgentRoutes(agentRoutes *gin.RouterGroup) {
 			templates.PUT("/:id", router.handleUpdateTicketTemplate)
 			templates.DELETE("/:id", router.handleDeleteTicketTemplate)
 		}
-		
+
 		// Agent statistics
 		stats := agent.Group("/stats")
 		{
@@ -372,10 +374,10 @@ type PaginatedResponse struct {
 }
 
 type Pagination struct {
-	Page       int `json:"page"`
-	PerPage    int `json:"per_page"`
-	Total      int `json:"total"`
-	TotalPages int `json:"total_pages"`
+	Page       int  `json:"page"`
+	PerPage    int  `json:"per_page"`
+	Total      int  `json:"total"`
+	TotalPages int  `json:"total_pages"`
 	HasNext    bool `json:"has_next"`
 	HasPrev    bool `json:"has_prev"`
 }
@@ -385,7 +387,7 @@ func (router *APIRouter) SetupTicketArticleRoutes(r *gin.Engine) {
 	log.Println("SetupTicketArticleRoutes called")
 	v1 := r.Group("/api/v1")
 	tickets := v1.Group("/tickets")
-	
+
 	// Article endpoints (not in YAML routing)
 	tickets.GET("/:id/articles", router.handleGetTicketArticles)
 	tickets.POST("/:id/articles", router.handleAddTicketArticle)

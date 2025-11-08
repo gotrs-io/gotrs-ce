@@ -7,7 +7,6 @@ START TRANSACTION;
 INSERT IGNORE INTO groups (id, name, comments, valid_id, create_time, create_by, change_time, change_by)
 VALUES (4, 'testgroup', 'Integration test group', 1, NOW(), 1, NOW(), 1);
 
--- Add a Support queue expected by integration tests
 INSERT IGNORE INTO queue (
     id,
     name,
@@ -41,6 +40,110 @@ INSERT IGNORE INTO queue (
     NOW(),
     1
 );
+
+-- Ensure essential queues exist for validation tests
+INSERT IGNORE INTO queue (
+    id,
+    name,
+    group_id,
+    system_address_id,
+    salutation_id,
+    signature_id,
+    unlock_timeout,
+    follow_up_id,
+    follow_up_lock,
+    comments,
+    valid_id,
+    create_time,
+    create_by,
+    change_time,
+    change_by
+) VALUES
+    (
+        1,
+        'Postmaster',
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        'Inbound email queue',
+        1,
+        NOW(),
+        1,
+        NOW(),
+        1
+    ),
+    (
+        2,
+        'Raw',
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        'Unprocessed tickets',
+        1,
+        NOW(),
+        1,
+        NOW(),
+        1
+    ),
+    (
+        3,
+        'Junk',
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        'Spam quarantine queue',
+        1,
+        NOW(),
+        1,
+        NOW(),
+        1
+    ),
+    (
+        4,
+        'Misc',
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        'Miscellaneous work queue',
+        1,
+        NOW(),
+        1,
+        NOW(),
+        1
+    ),
+    (
+        6,
+        'OBC',
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        'Outbound communication queue',
+        1,
+        NOW(),
+        1,
+        NOW(),
+        1
+    );
 
 -- Seed a deterministic test user referenced by admin integration tests
 INSERT IGNORE INTO users (id, login, pw, first_name, last_name, valid_id, create_time, create_by, change_time, change_by)

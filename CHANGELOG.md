@@ -17,6 +17,7 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 - Status transitions, agent assignment, and queue transfer endpoints wired for both HTMX and JSON flows with history logging.
 - Agent Ticket Zoom tabs now render ticket history and linked tickets via Pongo2 HTMX fragments, providing empty-state messaging until data exists.
 - MySQL test container now applies the same integration fixtures as PostgreSQL, so API suites run identically across drivers.
+- Regression coverage for `/admin/users` and YAML fallback routes when `GOTRS_DISABLE_TEST_AUTH_BYPASS` is disabled.
 
 ### Changed
 - Agent ticket creation path issues `HX-Redirect` to the canonical zoom view and shares queue/state validation with the API handler.
@@ -26,6 +27,7 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 - SQL placeholder conversion issues for MySQL compatibility in user and group repositories.
 - User title field length validation to prevent varchar(50) constraint violations.
 - Database connectivity issues in test environments with proper network configuration for test containers.
+- Auth middleware, YAML fallback guards, and legacy route middleware now respect `GOTRS_DISABLE_TEST_AUTH_BYPASS`, preventing unauthenticated access to admin surfaces during regression runs.
 
 ### Changed
 - User repository Create and Update methods now include title length validation and proper SQL placeholder conversion.

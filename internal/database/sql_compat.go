@@ -4,12 +4,17 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
 // GetDBDriver returns the current database driver
 func GetDBDriver() string {
-	driver := os.Getenv("DB_DRIVER")
+	// In test mode, prefer TEST_ prefixed environment variables
+	driver := os.Getenv("TEST_DB_DRIVER")
+	if driver == "" {
+		driver = os.Getenv("DB_DRIVER")
+	}
 	if driver == "" {
 		driver = "postgres"
 	}
@@ -161,4 +166,28 @@ func adjustPlaceholderNumbers(clause string, offset int) string {
 		fmt.Sscanf(match, "$%d", &num)
 		return fmt.Sprintf("$%d", num+offset-1)
 	})
+}
+
+// RemapArgsForMySQL expands positional arguments so repeated placeholders share the same value.
+func RemapArgsForMySQL(query string, args []interface{}) []interface{} {
+	if !IsMySQL() {
+		return args
+	}
+
+	re := regexp.MustCompile(`\$(\d+)`)
+	matches := re.FindAllStringSubmatch(query, -1)
+	if len(matches) == 0 {
+		return args
+	}
+
+	expanded := make([]interface{}, len(matches))
+	for i, match := range matches {
+		idx, err := strconv.Atoi(match[1])
+		if err != nil || idx < 1 || idx > len(args) {
+			return args
+		}
+		expanded[i] = args[idx-1]
+	}
+
+	return expanded
 }

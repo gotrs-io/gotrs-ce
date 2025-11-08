@@ -73,26 +73,25 @@ RUN gosec -fmt json -out /tmp/security.json ./... || true && \
     staticcheck -f json ./... > /tmp/staticcheck.json || true
 
 # ============================================
-# Stage 6: Final minimal runtime
+# Stage 7: Base runtime image with utilities
 # ============================================
-FROM docker.io/alpine:3.19 AS runtime
+FROM docker.io/alpine:3.19 AS runtime-base
 
 # Allow customizing runtime UID/GID so host bind mounts/caches are not root-owned
 ARG UID=1000
 ARG GID=1000
 
-# Install runtime dependencies
+# Install runtime dependencies and diagnostics helpers
 RUN apk add --no-cache \
     ca-certificates \
+    curl \
     postgresql15-client \
     tzdata
 
-# Create non-root user
+# Create non-root user and cache directories
 RUN addgroup -g ${GID} -S appgroup && \
-    adduser -u ${UID} -S appuser -G appgroup
-
-# Create app directory and pre-create cache home (some libs may use XDG base dirs)
-RUN mkdir -p /app /app/tmp /home/appuser/.cache && \
+    adduser -u ${UID} -S appuser -G appgroup && \
+    mkdir -p /app /app/tmp /home/appuser/.cache && \
     chown -R appuser:appgroup /app /home/appuser/.cache
 
 # Set cache-related envs (Go build cache mostly relevant in toolbox, but harmless here)
@@ -101,6 +100,24 @@ ENV XDG_CACHE_HOME=/home/appuser/.cache
 # Switch to non-root user
 USER appuser
 WORKDIR /app
+
+# ============================================
+# Stage 7a: Runner runtime (shares base image)
+# ============================================
+FROM runtime-base AS runner-runtime
+
+COPY --from=artifacts --chown=appuser:appgroup /artifacts/goats ./goats
+COPY --from=artifacts --chown=appuser:appgroup /artifacts/migrate ./migrate
+COPY --chown=appuser:appgroup templates ./templates/
+COPY --chown=appuser:appgroup static ./static/
+COPY --chown=appuser:appgroup routes ./routes/
+COPY --chown=appuser:appgroup migrations ./migrations/
+COPY --chown=appuser:appgroup config ./config/
+
+# ============================================
+# Stage 7b: Final minimal backend runtime
+# ============================================
+FROM runtime-base AS runtime
 
 # Copy binaries from build artifacts
 COPY --from=artifacts --chown=appuser:appgroup /artifacts/goats ./goats

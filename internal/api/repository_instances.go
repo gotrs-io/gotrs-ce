@@ -1,11 +1,14 @@
 package api
 
 import (
+	"context"
+	"database/sql"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gotrs-io/gotrs-ce/internal/config"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
@@ -23,87 +26,58 @@ var (
 	storageService      service.StorageService
 	lookupService       *service.LookupService
 	authService         *service.AuthService
-	once                sync.Once
+
+	servicesMu          sync.Mutex
+	servicesInitialized bool
+	servicesDB          *sql.DB
+	servicesOverride    bool
 )
 
 // InitializeServices initializes singleton service instances
 func InitializeServices() {
-	once.Do(func() {
-		// In test without DB config, initialize lightweight services without DB
-		if os.Getenv("APP_ENV") == "test" && os.Getenv("DB_HOST") == "" && os.Getenv("DATABASE_URL") == "" {
-			// Minimal storage service
-			storagePath := os.Getenv("STORAGE_PATH")
-			if storagePath == "" {
-				storagePath = "/tmp"
-			}
-			if ss, err := service.NewLocalStorageService(storagePath); err == nil {
-				storageService = ss
-			} else {
-				log.Printf("WARNING: storage init failed in test: %v", err)
-			}
-			// Minimal in-memory ticket service with nil repo; guarded usage
-			simpleTicketService = service.NewSimpleTicketService(nil)
-			// Lookup service will self-guard on nil DB
-			lookupService = service.NewLookupService()
+	currentOverride := database.IsTestDBOverride()
+	db, dbErr := database.GetDB()
+	var pingErr error
+	if db != nil {
+		pingErr = pingDatabase(db)
+		if pingErr != nil {
+			db = nil
+		}
+	}
+
+	servicesMu.Lock()
+	defer servicesMu.Unlock()
+
+	if !needsServiceRebuildLocked(db, currentOverride) {
+		return
+	}
+
+	clearServicesLocked()
+
+	env := strings.ToLower(os.Getenv("APP_ENV"))
+
+	if db == nil {
+		if env == "test" {
+			initFallbackServicesLocked()
+			servicesInitialized = true
+			servicesDB = nil
+			servicesOverride = currentOverride
 			return
 		}
-
-		// Get database connection - no fallback in prod; in tests allow DB-less mode
-		db, err := database.GetDB()
-		if err != nil || db == nil {
-			if os.Getenv("APP_ENV") == "test" {
-				// Fallback to lightweight services
-				storagePath := os.Getenv("STORAGE_PATH")
-				if storagePath == "" {
-					storagePath = "/tmp"
-				}
-				if ss, e := service.NewLocalStorageService(storagePath); e == nil {
-					storageService = ss
-				} else {
-					log.Printf("WARNING: storage init failed in test: %v", e)
-				}
-				simpleTicketService = service.NewSimpleTicketService(nil)
-				lookupService = service.NewLookupService()
-				return
-			}
-			log.Fatalf("FATAL: Cannot initialize services without database connection: %v", err)
+		if pingErr != nil {
+			log.Fatalf("FATAL: Cannot initialize services without database connection: %v", pingErr)
 		}
+		log.Fatalf("FATAL: Cannot initialize services without database connection: %v", dbErr)
+	}
 
-		log.Printf("Successfully connected to database")
-		// Initialize real database repositories
-		ticketRepo = repository.NewTicketRepository(db)
-		queueRepo = repository.NewQueueRepository(db)
-		priorityRepo = repository.NewPriorityRepository(db)
-		userRepo = repository.NewUserRepository(db)
+	if env != "test" && pingErr != nil {
+		log.Fatalf("FATAL: database ping failed: %v", pingErr)
+	}
 
-		// Initialize services
-		simpleTicketService = service.NewSimpleTicketService(ticketRepo)
-
-		// Initialize lookup service
-		lookupService = service.NewLookupService()
-
-		// Initialize storage service from config
-		cfg := config.Get()
-		if cfg != nil && cfg.Storage.Type == "db" {
-			storageService, err = service.NewDatabaseStorageService()
-			if err != nil {
-				log.Fatalf("FATAL: Cannot initialize DB storage service: %v", err)
-			}
-			log.Printf("StorageService: using DB backend")
-		} else {
-			storagePath := resolveStoragePath(cfg)
-			storageService, err = service.NewLocalStorageService(storagePath)
-			if err != nil {
-				log.Fatalf("FATAL: Cannot initialize storage service: %v", err)
-			}
-			log.Printf("StorageService: using local backend at %s", storagePath)
-		}
-
-		// Initialize auth service
-		// Use the shared JWT manager for auth service
-		jwtManager := shared.GetJWTManager()
-		authService = service.NewAuthService(db, jwtManager)
-	})
+	initDatabaseServicesLocked(db)
+	servicesInitialized = true
+	servicesDB = db
+	servicesOverride = currentOverride
 }
 
 // GetTicketService returns the singleton simple ticket service instance
@@ -152,6 +126,89 @@ func GetUserRepository() *repository.UserRepository {
 func GetAuthService() *service.AuthService {
 	InitializeServices()
 	return authService
+}
+
+func needsServiceRebuildLocked(db *sql.DB, override bool) bool {
+	if !servicesInitialized {
+		return true
+	}
+	if servicesOverride != override {
+		return true
+	}
+	if servicesDB != db {
+		return true
+	}
+	return false
+}
+
+func pingDatabase(db *sql.DB) error {
+	if db == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	return db.PingContext(ctx)
+}
+
+func clearServicesLocked() {
+	ticketRepo = nil
+	queueRepo = nil
+	priorityRepo = nil
+	userRepo = nil
+	simpleTicketService = nil
+	storageService = nil
+	lookupService = nil
+	authService = nil
+	servicesDB = nil
+	servicesOverride = false
+	servicesInitialized = false
+}
+
+func initFallbackServicesLocked() {
+	log.Printf("InitializeServices: using lightweight test services (database unavailable)")
+	storagePath := os.Getenv("STORAGE_PATH")
+	if storagePath == "" {
+		storagePath = "/tmp"
+	}
+	if ss, err := service.NewLocalStorageService(storagePath); err == nil {
+		storageService = ss
+	} else {
+		log.Printf("WARNING: storage init failed in test: %v", err)
+		storageService = nil
+	}
+	simpleTicketService = service.NewSimpleTicketService(nil)
+	lookupService = service.NewLookupService()
+}
+
+func initDatabaseServicesLocked(db *sql.DB) {
+	ticketRepo = repository.NewTicketRepository(db)
+	queueRepo = repository.NewQueueRepository(db)
+	priorityRepo = repository.NewPriorityRepository(db)
+	userRepo = repository.NewUserRepository(db)
+
+	simpleTicketService = service.NewSimpleTicketService(ticketRepo)
+	lookupService = service.NewLookupService()
+
+	cfg := config.Get()
+	var err error
+	if cfg != nil && cfg.Storage.Type == "db" {
+		storageService, err = service.NewDatabaseStorageService()
+		if err != nil {
+			log.Fatalf("FATAL: Cannot initialize DB storage service: %v", err)
+		}
+		log.Printf("StorageService: using DB backend")
+	} else {
+		storagePath := resolveStoragePath(cfg)
+		storageService, err = service.NewLocalStorageService(storagePath)
+		if err != nil {
+			log.Fatalf("FATAL: Cannot initialize storage service: %v", err)
+		}
+		log.Printf("StorageService: using local backend at %s", storagePath)
+	}
+
+	jwtManager := shared.GetJWTManager()
+	authService = service.NewAuthService(db, jwtManager)
+	log.Printf("Successfully connected to database")
 }
 
 func resolveStoragePath(cfg *config.Config) string {

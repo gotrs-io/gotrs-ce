@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -48,6 +49,8 @@ func injectGenerator() {
 
 func TestCreateTicketAPI_HappyPath(t *testing.T) {
 	t.Setenv("DB_DRIVER", "postgres")
+	t.Setenv("TEST_DB_DRIVER", "postgres")
+	t.Setenv("APP_ENV", "test")
 	mockDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("sqlmock: %v", err)
@@ -106,7 +109,7 @@ func TestCreateTicketAPI_HappyPath(t *testing.T) {
 			30,
 			77,
 			nil,
-			0,
+			1,
 			1,
 			1,
 			3,
@@ -138,6 +141,8 @@ func TestCreateTicketAPI_HappyPath(t *testing.T) {
 
 func TestCreateTicketAPI_InvalidQueue(t *testing.T) {
 	t.Setenv("DB_DRIVER", "postgres")
+	t.Setenv("TEST_DB_DRIVER", "postgres")
+	t.Setenv("APP_ENV", "test")
 	mockDB, mock, _ := sqlmock.New()
 	defer mockDB.Close()
 	database.SetDB(mockDB)
@@ -158,6 +163,8 @@ func TestCreateTicketAPI_InvalidQueue(t *testing.T) {
 
 func TestCreateTicketAPI_MissingTitle(t *testing.T) {
 	t.Setenv("DB_DRIVER", "postgres")
+	t.Setenv("TEST_DB_DRIVER", "postgres")
+	t.Setenv("APP_ENV", "test")
 	mockDB, _, _ := sqlmock.New()
 	defer mockDB.Close()
 	database.SetDB(mockDB)
@@ -176,6 +183,8 @@ func TestCreateTicketAPI_MissingTitle(t *testing.T) {
 
 func TestCreateTicketAPI_TitleTooLong(t *testing.T) {
 	t.Setenv("DB_DRIVER", "postgres")
+	t.Setenv("TEST_DB_DRIVER", "postgres")
+	t.Setenv("APP_ENV", "test")
 	mockDB, _, _ := sqlmock.New()
 	defer mockDB.Close()
 	database.SetDB(mockDB)
@@ -198,11 +207,24 @@ func TestCreateTicketAPI_TitleTooLong(t *testing.T) {
 
 func TestCreateTicketAPI_DBUnavailable(t *testing.T) {
 	t.Setenv("DB_DRIVER", "postgres")
-	t.Setenv("DB_HOST", "127.0.0.1")
-	t.Setenv("DB_PORT", "59999")
-	// Ensure DB nil triggers 503 path
-	database.ResetDB() // nil DB
+	t.Setenv("TEST_DB_DRIVER", "postgres")
+	t.Setenv("APP_ENV", "test")
+	mockDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock: %v", err)
+	}
+	database.SetDB(mockDB)
+	t.Cleanup(func() {
+		mockDB.Close()
+		database.ResetDB()
+	})
+	database.ResetAdapterForTest()
 	injectGenerator()
+	t.Log("simulating database unavailable scenario by forcing repository queries to return connection errors")
+
+	mock.ExpectQuery(
+		regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM queue WHERE id = $1)"),
+	).WithArgs(1).WillReturnError(sql.ErrConnDone)
 	payload := map[string]interface{}{"title": "Alpha", "queue_id": 1}
 	b, _ := json.Marshal(payload)
 	r := setupCreateRouter()
@@ -211,6 +233,9 @@ func TestCreateTicketAPI_DBUnavailable(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusServiceUnavailable {
-		t.Fatalf("expected 503 got %d", w.Code)
+		t.Fatalf("expected 503 got %d body=%s", w.Code, w.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
 	}
 }

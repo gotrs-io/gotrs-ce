@@ -12,11 +12,12 @@ import (
 // HandleUpdatePriorityAPI handles PUT /api/v1/priorities/:id
 func HandleUpdatePriorityAPI(c *gin.Context) {
 	// Check authentication
-	userID, exists := c.Get("user_id")
+	userIDRaw, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
+	userID := normalizeUserID(userIDRaw)
 
 	// Parse priority ID
 	priorityID, err := strconv.Atoi(c.Param("id"))

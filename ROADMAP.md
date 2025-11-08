@@ -7,6 +7,7 @@
 - ✅ Type CRUD handlers aligned with sqlmock expectations (DB-backed and fallback)
 - ✅ Agent Ticket Zoom handlers gain deterministic test-mode fallbacks
 - ✅ Admin middleware bypassed in test env to avoid 403 HTML noise
+- ✅ Auth bypass flag enforced: setting `GOTRS_DISABLE_TEST_AUTH_BYPASS=1` now forces admin surfaces to fail closed during regression runs
 - ✅ **TEMPLATE VALIDATION** - Critical templates validated at startup
 - ✅ **HTML FALLBACK CLEANUP** - Replaced embedded HTML with JSON responses
 - ✅ **CODE CLEANUP** - Removed duplicate commented code blocks

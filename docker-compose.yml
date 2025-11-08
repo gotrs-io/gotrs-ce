@@ -192,6 +192,117 @@ services:
     networks:
       - gotrs-network
 
+  # Valkey Test Cache - Separate cache for test environment
+  valkey-test:
+    image: docker.io/valkey/valkey:7-alpine
+    container_name: gotrs-valkey-test
+    user: "999:1000" # Run as valkey user (standard for Valkey)
+    ports:
+      - "${VALKEY_TEST_PORT:-6389}:6379"
+    volumes:
+      - valkey_test_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gotrs-network
+    profiles: ["testdb"]
+
+  # GOTRS Backend Test - Dedicated test backend connecting to test databases
+  backend-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UID: ${HOST_UID:-1000}
+        GID: ${HOST_GID:-1000}
+    image: localhost/gotrs-backend:latest
+    container_name: gotrs-backend-test
+    command: >
+      sh -c "
+        # Generate self-signed certificates if they don't exist
+        if [ ! -f /app/certs/server.crt ] || [ ! -f /app/certs/server.key ]; then
+          echo '🔐 Generating self-signed TLS certificates...'
+          mkdir -p /app/certs
+          openssl req -x509 -newkey rsa:4096 -keyout /app/certs/server.key -out /app/certs/server.crt -days 365 -nodes -subj '/CN=gotrs-backend-test'
+          echo '✅ TLS certificates generated'
+        fi
+        # Start the application
+        ./goats
+      "
+    environment:
+      # Enable YAML-based routing by default
+      ENABLE_YAML_ROUTING: ${ENABLE_YAML_ROUTING:-true}
+      ROUTES_DIR: /app/routes
+      APP_ENV: test
+      APP_PORT: ${APP_PORT:-8080}
+      # Test database configuration
+      DB_DRIVER: ${TEST_DB_DRIVER:-mysql}
+      DB_HOST: ${TEST_DB_MYSQL_HOST:-mariadb-test}
+      DB_PORT: ${TEST_DB_MYSQL_PORT:-3308}
+      DB_NAME: ${TEST_DB_MYSQL_NAME:-otrs_test}
+      DB_USER: ${TEST_DB_MYSQL_USER:-otrs}
+      DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD:-LetClaude.1n}
+      # Test cache configuration
+      VALKEY_HOST: valkey-test
+      VALKEY_PORT: 6379
+      # JWT secret must be provided via environment (.env or shell); no unsafe default here
+      JWT_SECRET: ${JWT_SECRET:-test-secret-key}
+      PASSWORD_HASH_TYPE: ${PASSWORD_HASH_TYPE:-sha256}
+      MIGRATE_PASSWORD_HASHES: ${MIGRATE_PASSWORD_HASHES:-false}
+      STORAGE_PATH: ${STORAGE_PATH:-/app/storage}
+      MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-10MB}
+      ALLOWED_FILE_TYPES: ${ALLOWED_FILE_TYPES:-pdf,doc,docx,txt,png,jpg,jpeg,gif,zip}
+      # TLS configuration
+      TLS_CERT_FILE: /app/certs/server.crt
+      TLS_KEY_FILE: /app/certs/server.key
+    ports:
+      - "${BACKEND_TEST_PORT:-8082}:8080"
+    volumes:
+      - ./storage:${STORAGE_PATH:-/app/storage}:Z
+      - ./certs:/app/certs:Z
+    depends_on:
+      mariadb-test:
+        condition: service_healthy
+      valkey-test:
+        condition: service_healthy
+    networks:
+      - gotrs-network
+    profiles: ["testdb"]
+
+  # GOTRS Runner Test - Background task processor for test environment
+  runner-test:
+    image: localhost/gotrs-backend:latest
+    container_name: gotrs-runner-test
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    command: ["./goats", "-mode", "runner"]
+    environment:
+      # Test database configuration
+      DB_DRIVER: ${TEST_DB_DRIVER:-mysql}
+      DB_HOST: ${TEST_DB_MYSQL_HOST:-mariadb-test}
+      DB_PORT: ${TEST_DB_MYSQL_PORT:-3308}
+      DB_NAME: ${TEST_DB_MYSQL_NAME:-otrs_test}
+      DB_USER: ${TEST_DB_MYSQL_USER:-otrs}
+      DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD:-LetClaude.1n}
+      # Email configuration for queue processing
+      GOTRS_EMAIL_SMTP_HOST: ${SMTP_HOST:-mailhog}
+      GOTRS_EMAIL_SMTP_PORT: ${SMTP_PORT:-1025}
+      GOTRS_EMAIL_SMTP_USER: ${SMTP_USER}
+      GOTRS_EMAIL_SMTP_PASSWORD: ${SMTP_PASSWORD}
+      GOTRS_EMAIL_SMTP_TLS: ${SMTP_TLS:-false}
+      GOTRS_EMAIL_SMTP_SKIP_VERIFY: ${SMTP_SKIP_VERIFY:-true}
+      GOTRS_EMAIL_FROM: ${EMAIL_FROM:-noreply@gotrs.local}
+      GOTRS_EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
+    depends_on:
+      mariadb-test:
+        condition: service_healthy
+    networks:
+      - gotrs-network
+    restart: unless-stopped
+    profiles: ["testdb"]
+
   # Temporal Workflow Engine - COMMENTED OUT until code is implemented
   # temporal:
   #   image: temporalio/auto-setup:1.22.4
@@ -381,6 +492,7 @@ volumes:
   mariadb_data:
   # postgres_data:     # Commented out - using MariaDB instead
   valkey_data:
+  valkey_test_data:
   gotrs_node_modules:
   gotrs_cache:
   gotrs_runtime:

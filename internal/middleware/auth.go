@@ -26,29 +26,27 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		token := m.extractToken(c)
 		if token == "" {
 			if allowTestBypass() {
-				m.setTestContext(c, "test@gotrs.local", "Agent")
+				m.setTestContext(c, "test@gotrs.local", "Admin")
 				c.Next()
 				return
 			}
-			// Check if this is a web page request (accepts HTML) vs API request
-			accept := c.GetHeader("Accept")
-			if strings.Contains(accept, "text/html") {
-				// Web page request - redirect to login
-				c.Redirect(http.StatusFound, "/login")
-				c.Abort()
+			m.unauthorizedResponse(c, "Missing authorization token")
+			return
+		}
+
+		if m.jwtManager == nil {
+			if allowTestBypass() {
+				m.setTestContext(c, "test@gotrs.local", "Admin")
+				c.Next()
 				return
 			}
-			// API request - return JSON error
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "Missing authorization token",
-			})
-			c.Abort()
+			m.unauthorizedResponse(c, "Authentication is not configured")
 			return
 		}
 
 		if allowTestBypass() {
 			if token == "test-token" || strings.HasPrefix(token, "demo_session_") || strings.HasPrefix(token, "demo_customer_") {
-				m.setTestContext(c, "test@gotrs.local", "Agent")
+				m.setTestContext(c, "test@gotrs.local", "Admin")
 				c.Next()
 				return
 			}
@@ -57,23 +55,11 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		claims, err := m.jwtManager.ValidateToken(token)
 		if err != nil {
 			if allowTestBypass() {
-				m.setTestContext(c, "test@gotrs.local", "Agent")
+				m.setTestContext(c, "test@gotrs.local", "Admin")
 				c.Next()
 				return
 			}
-			// Check if this is a web page request (accepts HTML) vs API request
-			accept := c.GetHeader("Accept")
-			if strings.Contains(accept, "text/html") {
-				// Web page request - redirect to login
-				c.Redirect(http.StatusFound, "/login")
-				c.Abort()
-				return
-			}
-			// API request - return JSON error
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "Invalid or expired token",
-			})
-			c.Abort()
+			m.unauthorizedResponse(c, "Invalid or expired token")
 			return
 		}
 
@@ -199,15 +185,43 @@ func (m *AuthMiddleware) extractToken(c *gin.Context) string {
 	return ""
 }
 
+func (m *AuthMiddleware) unauthorizedResponse(c *gin.Context, message string) {
+	accept := c.GetHeader("Accept")
+	if strings.Contains(accept, "text/html") {
+		c.Redirect(http.StatusFound, "/login")
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusUnauthorized, gin.H{
+		"error": message,
+	})
+	c.Abort()
+}
+
 func allowTestBypass() bool {
-	env := strings.ToLower(os.Getenv("APP_ENV"))
-	if env == "production" || env == "prod" {
+	disable := strings.ToLower(strings.TrimSpace(os.Getenv("GOTRS_DISABLE_TEST_AUTH_BYPASS")))
+	switch disable {
+	case "1", "true", "yes", "on":
 		return false
 	}
+
+	env := strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV")))
+	switch env {
+	case "production", "prod":
+		return false
+	}
+
 	if gin.Mode() == gin.TestMode {
 		return true
 	}
-	return env == "" || env == "test" || env == "testing"
+
+	switch env {
+	case "", "test", "testing", "unit", "unit-test", "unit_real", "unit-real":
+		return true
+	}
+
+	return false
 }
 
 func (m *AuthMiddleware) setTestContext(c *gin.Context, email, role string) {

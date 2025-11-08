@@ -9,14 +9,14 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/gotrs-io/gotrs-ce/internal/database"
 )
 
 func TestGetStates(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	tests := []struct {
 		name           string
 		setupMock      func(sqlmock.Sqlmock)
@@ -58,40 +58,40 @@ func TestGetStates(t *testing.T) {
 			},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			require.NoError(t, err)
 			defer db.Close()
-			
+
 			database.SetDB(db)
 			defer database.ResetDB()
-			
+
 			tt.setupMock(mock)
-			
+
 			router := gin.New()
 			router.GET("/api/states", handleGetStates)
-			
+
 			req, _ := http.NewRequest("GET", "/api/states", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, tt.expectedStatus, w.Code)
-			
+
 			var response map[string]interface{}
 			err = json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedBody["success"], response["success"])
-			
+
 			if tt.expectedBody["error"] != nil {
 				assert.Equal(t, tt.expectedBody["error"], response["error"])
 			}
-			
+
 			if tt.expectedBody["data"] != nil {
 				assert.Equal(t, tt.expectedBody["data"], response["data"])
 			}
-			
+
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
@@ -99,7 +99,7 @@ func TestGetStates(t *testing.T) {
 
 func TestCreateState(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	tests := []struct {
 		name           string
 		body           map[string]interface{}
@@ -161,42 +161,42 @@ func TestCreateState(t *testing.T) {
 			},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			require.NoError(t, err)
 			defer db.Close()
-			
+
 			database.SetDB(db)
 			defer database.ResetDB()
-			
+
 			tt.setupMock(mock)
-			
+
 			router := gin.New()
 			router.POST("/api/states", handleCreateState)
-			
+
 			body, _ := json.Marshal(tt.body)
 			req, _ := http.NewRequest("POST", "/api/states", bytes.NewBuffer(body))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, tt.expectedStatus, w.Code)
-			
+
 			var response map[string]interface{}
 			err = json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedBody["success"], response["success"])
-			
+
 			if tt.expectedBody["error"] != nil {
 				assert.Equal(t, tt.expectedBody["error"], response["error"])
 			}
-			
+
 			if tt.expectedBody["data"] != nil {
 				assert.Equal(t, tt.expectedBody["data"], response["data"])
 			}
-			
+
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
@@ -204,7 +204,7 @@ func TestCreateState(t *testing.T) {
 
 func TestUpdateState(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	tests := []struct {
 		name           string
 		stateID        string
@@ -266,45 +266,45 @@ func TestUpdateState(t *testing.T) {
 			},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			require.NoError(t, err)
 			defer db.Close()
-			
+
 			database.SetDB(db)
 			defer database.ResetDB()
-			
+
 			tt.setupMock(mock)
-			
+
 			router := gin.New()
 			router.PUT("/api/states/:id", handleUpdateState)
-			
+
 			body, _ := json.Marshal(tt.body)
 			req, _ := http.NewRequest("PUT", "/api/states/"+tt.stateID, bytes.NewBuffer(body))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, tt.expectedStatus, w.Code)
-			
+
 			var response map[string]interface{}
 			err = json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedBody["success"], response["success"])
-			
+
 			if tt.expectedBody["error"] != nil {
 				assert.Equal(t, tt.expectedBody["error"], response["error"])
 			}
-			
+
 			if tt.expectedBody["data"] != nil {
 				expectedData := tt.expectedBody["data"].(map[string]interface{})
 				responseData := response["data"].(map[string]interface{})
 				assert.Equal(t, expectedData["id"], responseData["id"])
 				assert.Equal(t, expectedData["name"], responseData["name"])
 			}
-			
+
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
@@ -312,7 +312,7 @@ func TestUpdateState(t *testing.T) {
 
 func TestDeleteState(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	tests := []struct {
 		name           string
 		stateID        string
@@ -359,40 +359,40 @@ func TestDeleteState(t *testing.T) {
 			},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			require.NoError(t, err)
 			defer db.Close()
-			
+
 			database.SetDB(db)
 			defer database.ResetDB()
-			
+
 			tt.setupMock(mock)
-			
+
 			router := gin.New()
 			router.DELETE("/api/states/:id", handleDeleteState)
-			
+
 			req, _ := http.NewRequest("DELETE", "/api/states/"+tt.stateID, nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, tt.expectedStatus, w.Code)
-			
+
 			var response map[string]interface{}
 			err = json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedBody["success"], response["success"])
-			
+
 			if tt.expectedBody["error"] != nil {
 				assert.Equal(t, tt.expectedBody["error"], response["error"])
 			}
-			
+
 			if tt.expectedBody["message"] != nil {
 				assert.Equal(t, tt.expectedBody["message"], response["message"])
 			}
-			
+
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}

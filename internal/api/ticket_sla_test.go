@@ -77,7 +77,7 @@ func TestSLACalculation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sla := calculateSLA(tt.priority, tt.createdAt, tt.currentTime)
-			
+
 			assert.Equal(t, tt.wantStatus, sla.Status)
 			assert.WithinDuration(t, tt.wantDeadline, sla.Deadline, 5*time.Minute)
 			assert.InDelta(t, tt.wantPercent, sla.PercentUsed, 5.0)
@@ -263,58 +263,58 @@ func TestAutoEscalation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name      string
-		ticketID  string
-		mockData  map[string]interface{}
-		shouldEscalate bool
+		name            string
+		ticketID        string
+		mockData        map[string]interface{}
+		shouldEscalate  bool
 		escalationLevel string
 	}{
 		{
 			name:     "Auto-escalate overdue high priority",
 			ticketID: "300",
 			mockData: map[string]interface{}{
-				"priority":    "4 high",
-				"created_at":  time.Now().Add(-5 * time.Hour), // Overdue for 4-hour SLA
-				"status":      "open",
-				"escalated":   false,
+				"priority":   "4 high",
+				"created_at": time.Now().Add(-5 * time.Hour), // Overdue for 4-hour SLA
+				"status":     "open",
+				"escalated":  false,
 			},
-			shouldEscalate: true,
+			shouldEscalate:  true,
 			escalationLevel: "senior_agent",
 		},
 		{
 			name:     "Auto-escalate very high priority after 30 min",
 			ticketID: "301",
 			mockData: map[string]interface{}{
-				"priority":    "5 very high",
-				"created_at":  time.Now().Add(-45 * time.Minute),
-				"status":      "open",
-				"escalated":   false,
+				"priority":   "5 very high",
+				"created_at": time.Now().Add(-45 * time.Minute),
+				"status":     "open",
+				"escalated":  false,
 			},
-			shouldEscalate: true,
+			shouldEscalate:  true,
 			escalationLevel: "manager",
 		},
 		{
 			name:     "Don't escalate within SLA",
 			ticketID: "302",
 			mockData: map[string]interface{}{
-				"priority":    "3 normal",
-				"created_at":  time.Now().Add(-2 * time.Hour), // Within 8-hour SLA
-				"status":      "open",
-				"escalated":   false,
+				"priority":   "3 normal",
+				"created_at": time.Now().Add(-2 * time.Hour), // Within 8-hour SLA
+				"status":     "open",
+				"escalated":  false,
 			},
-			shouldEscalate: false,
+			shouldEscalate:  false,
 			escalationLevel: "",
 		},
 		{
 			name:     "Don't escalate already escalated ticket",
 			ticketID: "303",
 			mockData: map[string]interface{}{
-				"priority":    "4 high",
-				"created_at":  time.Now().Add(-5 * time.Hour),
-				"status":      "open",
-				"escalated":   true,
+				"priority":   "4 high",
+				"created_at": time.Now().Add(-5 * time.Hour),
+				"status":     "open",
+				"escalated":  true,
 			},
-			shouldEscalate: false,
+			shouldEscalate:  false,
 			escalationLevel: "",
 		},
 	}
@@ -322,7 +322,7 @@ func TestAutoEscalation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := checkAutoEscalation(tt.mockData)
-			
+
 			assert.Equal(t, tt.shouldEscalate, result.ShouldEscalate)
 			if tt.shouldEscalate {
 				assert.Equal(t, tt.escalationLevel, result.EscalationLevel)
@@ -335,10 +335,10 @@ func TestSLAReport(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name       string
+		name        string
 		queryParams string
-		wantStatus int
-		checkResp  func(t *testing.T, resp map[string]interface{})
+		wantStatus  int
+		checkResp   func(t *testing.T, resp map[string]interface{})
 	}{
 		{
 			name:        "Get SLA report for date range",
@@ -351,7 +351,7 @@ func TestSLAReport(t *testing.T) {
 				assert.Contains(t, resp, "sla_compliance_percent")
 				assert.Contains(t, resp, "average_resolution_time")
 				assert.Contains(t, resp, "by_priority")
-				
+
 				// Check by_priority breakdown
 				priorities := resp["by_priority"].(map[string]interface{})
 				assert.Contains(t, priorities, "5 very high")
@@ -412,13 +412,13 @@ func TestSLAConfiguration(t *testing.T) {
 		{
 			name: "Update SLA configuration",
 			formData: url.Values{
-				"very_high_hours": {"1"},
-				"high_hours":      {"4"},
-				"normal_hours":    {"8"},
-				"low_hours":       {"24"},
-				"very_low_hours":  {"48"},
+				"very_high_hours":     {"1"},
+				"high_hours":          {"4"},
+				"normal_hours":        {"8"},
+				"low_hours":           {"24"},
+				"very_low_hours":      {"48"},
 				"business_hours_only": {"true"},
-				"warning_threshold": {"75"}, // Warn at 75% of SLA
+				"warning_threshold":   {"75"}, // Warn at 75% of SLA
 			},
 			wantStatus: http.StatusOK,
 			checkResp: func(t *testing.T, resp map[string]interface{}) {
@@ -476,43 +476,43 @@ func TestSLAConfiguration(t *testing.T) {
 
 func TestEscalationMatrix(t *testing.T) {
 	tests := []struct {
-		name            string
-		priority        string
-		hoursOverdue    float64
-		previousLevel   string
-		wantLevel       string
-		wantNotifyList  []string
+		name           string
+		priority       string
+		hoursOverdue   float64
+		previousLevel  string
+		wantLevel      string
+		wantNotifyList []string
 	}{
 		{
-			name:          "Normal priority first escalation",
-			priority:      "3 normal",
-			hoursOverdue:  2,
-			previousLevel: "",
-			wantLevel:     "senior_agent",
+			name:           "Normal priority first escalation",
+			priority:       "3 normal",
+			hoursOverdue:   2,
+			previousLevel:  "",
+			wantLevel:      "senior_agent",
 			wantNotifyList: []string{"senior_agents", "team_lead"},
 		},
 		{
-			name:          "High priority second escalation",
-			priority:      "4 high",
-			hoursOverdue:  8,
-			previousLevel: "senior_agent",
-			wantLevel:     "manager",
+			name:           "High priority second escalation",
+			priority:       "4 high",
+			hoursOverdue:   8,
+			previousLevel:  "senior_agent",
+			wantLevel:      "manager",
 			wantNotifyList: []string{"manager", "team_lead", "assigned_agent"},
 		},
 		{
-			name:          "Very high immediate escalation",
-			priority:      "5 very high",
-			hoursOverdue:  0.5,
-			previousLevel: "",
-			wantLevel:     "manager",
+			name:           "Very high immediate escalation",
+			priority:       "5 very high",
+			hoursOverdue:   0.5,
+			previousLevel:  "",
+			wantLevel:      "manager",
 			wantNotifyList: []string{"manager", "senior_agents", "team_lead"},
 		},
 		{
-			name:          "Executive escalation for severe overdue",
-			priority:      "5 very high",
-			hoursOverdue:  24,
-			previousLevel: "manager",
-			wantLevel:     "executive",
+			name:           "Executive escalation for severe overdue",
+			priority:       "5 very high",
+			hoursOverdue:   24,
+			previousLevel:  "manager",
+			wantLevel:      "executive",
 			wantNotifyList: []string{"executive", "manager", "director"},
 		},
 	}
@@ -520,7 +520,7 @@ func TestEscalationMatrix(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := determineEscalationLevel(tt.priority, tt.hoursOverdue, tt.previousLevel)
-			
+
 			assert.Equal(t, tt.wantLevel, result.Level)
 			assert.ElementsMatch(t, tt.wantNotifyList, result.NotifyList)
 		})

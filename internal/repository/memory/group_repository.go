@@ -37,12 +37,12 @@ func (r *GroupRepository) CreateGroup(ctx context.Context, group *models.Group) 
 		idStr = fmt.Sprintf("group_%d", len(r.groups)+1)
 		group.ID = idStr
 	}
-	
+
 	if idStr == "" {
 		idStr = fmt.Sprintf("group_%d", len(r.groups)+1)
 		group.ID = idStr
 	}
-	
+
 	if _, exists := r.groups[idStr]; exists {
 		return fmt.Errorf("group already exists")
 	}
@@ -95,7 +95,7 @@ func (r *GroupRepository) UpdateGroup(ctx context.Context, group *models.Group) 
 	default:
 		return fmt.Errorf("invalid group ID type")
 	}
-	
+
 	if _, exists := r.groups[idStr]; !exists {
 		return fmt.Errorf("group not found")
 	}

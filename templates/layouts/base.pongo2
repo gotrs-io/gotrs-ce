@@ -33,10 +33,6 @@
     <!-- HTMX extensions -->
     <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
     
-    <!-- Tiptap Rich Text Editor (bundled for airgapped environments) -->
-    <script src="/static/js/tiptap.min.js"></script>
-    <script src="/static/js/tiptap-editor.js"></script>
-    
     <!-- Common utilities -->
     <script src="/static/js/common.js"></script>
     <!-- GoatKit typeahead enhancement -->
@@ -93,9 +89,31 @@
     {% block head %}{% endblock %}
 </head>
 <body class="h-full bg-gray-50 dark:bg-gray-900">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-md">{{ t("common.skip_to_content")|default:"Skip to content" }}</a>
     <div class="min-h-full">
-        <!-- Navigation -->
-        <nav class="bg-white dark:bg-gray-800 shadow-sm">
+    {% set navDashboard = t("navigation.dashboard") %}
+    {% if not navDashboard or navDashboard == "navigation.dashboard" %}
+        {% set navDashboard = "Dashboard" %}
+    {% endif %}
+    {% set navTickets = t("navigation.tickets") %}
+    {% if not navTickets or navTickets == "navigation.tickets" %}
+        {% set navTickets = "Tickets" %}
+    {% endif %}
+    {% set navQueues = t("navigation.queues") %}
+    {% if not navQueues or navQueues == "navigation.queues" %}
+        {% set navQueues = "Queues" %}
+    {% endif %}
+    {% set navAdmin = t("navigation.admin") %}
+    {% if not navAdmin or navAdmin == "navigation.admin" %}
+        {% set navAdmin = "Admin" %}
+    {% endif %}
+    {% set navDev = t("navigation.dev") %}
+    {% if not navDev or navDev == "navigation.dev" %}
+        {% set navDev = "Dev" %}
+    {% endif %}
+
+    <!-- Navigation -->
+    <nav class="bg-white dark:bg-gray-800 shadow-sm" role="navigation" aria-label="Main navigation" x-data="{ mobileMenuOpen: false }">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div class="flex h-16 justify-between">
                     <div class="flex">
@@ -104,23 +122,23 @@
                             <span class="text-2xl font-bold text-gotrs-600 dark:text-gotrs-400">GOTRS</span>
                         </div>
                         <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                            <a href="/dashboard" class="{% if ActivePage == 'dashboard' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
-                                {{ t("navigation.dashboard") }}
+                            <a href="/dashboard" class="{% if ActivePage == 'dashboard' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                                {{ navDashboard }}
                             </a>
-                            <a href="/tickets" class="{% if ActivePage == 'tickets' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
-                                {{ t("navigation.tickets") }}
+                            <a href="/tickets" class="{% if ActivePage == 'tickets' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                                {{ navTickets }}
                             </a>
-                            <a href="/queues" rel="nofollow" class="{% if ActivePage == 'queues' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
-                                {{ t("navigation.queues") }}
+                            <a href="/queues" rel="nofollow" class="{% if ActivePage == 'queues' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                                {{ navQueues }}
                             </a>
                             {% if User and (User.Role == "Admin" or User.IsInAdminGroup or IsInAdminGroup) %}
-                            <a href="/admin" class="{% if ActivePage == 'admin' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
-                                {{ t("navigation.admin") }}
+                            <a href="/admin" class="{% if ActivePage == 'admin' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                                {{ navAdmin }}
                             </a>
                             {% endif %}
                             {% if IsInAdminGroup or (User and (User.IsInAdminGroup or User.Role == "Admin")) %}
-                            <a href="/dev" class="{% if ActivePage == 'dev' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
-                                {{ t("navigation.dev") }}
+                            <a href="/dev" class="{% if ActivePage == 'dev' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                                {{ navDev }}
                             </a>
                             {% endif %}
                         </div>
@@ -150,12 +168,69 @@
                             </div>
                         </div>
                     </div>
+                    <div class="-mr-2 flex items-center sm:hidden">
+                        <button @click="mobileMenuOpen = !mobileMenuOpen" type="button" class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gotrs-500" aria-label="Toggle navigation">
+                            <svg x-show="!mobileMenuOpen" class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                            </svg>
+                            <svg x-show="mobileMenuOpen" class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div x-show="mobileMenuOpen" class="sm:hidden" x-transition>
+                    <div class="space-y-1 pb-3 pt-2">
+                            <a href="/dashboard" class="block border-l-4 px-3 py-2 text-base font-medium {% if ActivePage == 'dashboard' %}bg-gray-100 border-gotrs-500 text-gray-900 dark:bg-gray-900 dark:text-white{% else %}border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white{% endif %}">
+                                {{ navDashboard }}
+                            </a>
+                            <a href="/tickets" class="block border-l-4 px-3 py-2 text-base font-medium {% if ActivePage == 'tickets' %}bg-gray-100 border-gotrs-500 text-gray-900 dark:bg-gray-900 dark:text-white{% else %}border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white{% endif %}">
+                                {{ navTickets }}
+                            </a>
+                            <a href="/queues" class="block border-l-4 px-3 py-2 text-base font-medium {% if ActivePage == 'queues' %}bg-gray-100 border-gotrs-500 text-gray-900 dark:bg-gray-900 dark:text-white{% else %}border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white{% endif %}">
+                                {{ navQueues }}
+                            </a>
+                        {% if User and (User.Role == "Admin" or User.IsInAdminGroup or IsInAdminGroup) %}
+                        <a href="/admin" class="block border-l-4 px-3 py-2 text-base font-medium {% if ActivePage == 'admin' %}bg-gray-100 border-gotrs-500 text-gray-900 dark:bg-gray-900 dark:text-white{% else %}border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white{% endif %}">
+                                    {{ navAdmin }}
+                        </a>
+                        {% endif %}
+                        {% if IsInAdminGroup or (User and (User.IsInAdminGroup or User.Role == "Admin")) %}
+                        <a href="/dev" class="block border-l-4 px-3 py-2 text-base font-medium {% if ActivePage == 'dev' %}bg-gray-100 border-gotrs-500 text-gray-900 dark:bg-gray-900 dark:text-white{% else %}border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white{% endif %}">
+                                    {{ navDev }}
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% if User %}
+                    <div class="border-t border-gray-200 dark:border-gray-700 pb-3 pt-4">
+                        <div class="flex items-center px-4">
+                            <div class="flex-shrink-0">
+                                <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-500">
+                                    <span class="text-sm font-medium leading-none text-white">
+                                        {% if User.FirstName or User.LastName %}
+                                            {{ User.FirstName|default:""|slice:"0:1"|upper }}{{ User.LastName|default:""|slice:"0:1"|upper }}
+                                        {% else %}DU{% endif %}
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="ml-3">
+                                <div class="text-base font-medium text-gray-800 dark:text-gray-200">{{ User.FullName|default:User.Email|default:"Demo User" }}</div>
+                                <div class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ User.Email|default:"demo@example.com" }}</div>
+                            </div>
+                        </div>
+                        <div class="mt-3 space-y-1">
+                            <a href="/profile" class="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white">{{ t("navigation.profile") }}</a>
+                            <a href="/settings" class="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white">{{ t("navigation.settings") }}</a>
+                            <a href="/logout" class="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white">{{ t("auth.logout") }}</a>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </nav>
 
         <!-- Main content -->
-        <main>
+        <main id="main-content" role="main">
             {% block content %}{% endblock %}
         </main>
     </div>
@@ -166,195 +241,79 @@
     <!-- Include Guru Meditation component for error handling -->
     {% include "components/guru_meditation.pongo2" %}
 
-    <!-- Dark mode toggle script -->
+    <!-- Dark mode toggle and lightweight helpers -->
     <script>
         function toggleDarkMode() {
-            if (document.documentElement.classList.contains('dark')) {
-                document.documentElement.classList.remove('dark');
-                localStorage.theme = 'light';
-            } else {
-                document.documentElement.classList.add('dark');
-                localStorage.theme = 'dark';
-            }
+            const root = document.documentElement
+            const enableDark = !root.classList.contains('dark')
+            root.classList.toggle('dark', enableDark)
+            localStorage.theme = enableDark ? 'dark' : 'light'
         }
 
-        // Handle HTMX target errors - show Guru Meditation
-        document.body.addEventListener('htmx:targetError', (event) => {
-            console.error('HTMX target error full details:', {
-                event: event,
-                detail: event.detail,
-                target: event.detail.target,
-                xhr: event.detail.xhr,
-                targetElement: document.querySelector(event.detail.target)
-            });
-            
-            // Show Amiga-style Guru Meditation error
-            const errorCode = '00000007.DEADBEEF';
-            const guruHtml = `
-                <div id="guru-meditation" class="relative cursor-pointer" onclick="this.remove()">
-                    <style>
-                        @keyframes flash-border {
-                            0%, 50% { border-color: #ff0000; }
-                            25%, 75% { border-color: #000000; }
-                        }
-                        #guru-meditation {
-                            animation: flash-border 0.8s infinite;
-                        }
-                    </style>
-                    <div class="bg-black border-8 p-8 font-mono">
-                        <div class="text-center">
-                            <div class="text-white text-xl mb-2">Software Failure.    Press left mouse button to continue.</div>
-                            <div class="text-white text-2xl font-bold">Guru Meditation #${errorCode}</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            // Insert at the top of the page, before main content
-            const mainContent = document.querySelector('main') || document.body.firstChild;
-            if (mainContent) {
-                mainContent.insertAdjacentHTML('beforebegin', guruHtml);
-            } else {
-                document.body.insertAdjacentHTML('afterbegin', guruHtml);
-            }
-        });
+        document.addEventListener('htmx:responseError', function (event) {
+            console.error('HTMX response error', event.detail)
+        })
 
-        // Add debugging for all htmx events
-        document.body.addEventListener('htmx:beforeRequest', (event) => {
-            console.log('HTMX request starting:', event.detail.pathInfo.requestPath);
-        });
-        
-        document.body.addEventListener('htmx:afterRequest', (event) => {
-            console.log('HTMX request completed:', {
-                path: event.detail.pathInfo.requestPath,
-                successful: event.detail.successful,
-                failed: event.detail.failed,
-                xhr: event.detail.xhr
-            });
-        });
-        
-        // Also handle response errors (like redirects)
-        document.body.addEventListener('htmx:responseError', (event) => {
-            console.error('HTMX response error full details:', {
-                event: event,
-                detail: event.detail,
-                xhr: event.detail.xhr,
-                status: event.detail.xhr.status,
-                responseText: event.detail.xhr.responseText?.substring(0, 200)
-            });
-            
-            // Show Guru Meditation error for auth redirects
-            if (event.detail.xhr && event.detail.xhr.status === 303) {
-                const errorCode = '00000008.CAFEBABE';
-                const guruHtml = `
-                    <div id="guru-meditation-auth" class="relative cursor-pointer" onclick="window.location.href='/login';">
-                        <style>
-                            @keyframes flash-border-auth {
-                                0%, 50% { border-color: #ff0000; }
-                                25%, 75% { border-color: #000000; }
-                            }
-                            #guru-meditation-auth {
-                                animation: flash-border-auth 0.8s infinite;
-                            }
-                        </style>
-                        <div class="bg-black border-8 p-8 font-mono">
-                            <div class="text-center">
-                                <div class="text-white text-xl mb-2">Software Failure.    Press left mouse button to continue.</div>
-                                <div class="text-white text-2xl font-bold">Guru Meditation #${errorCode}</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                // Insert at the top of the page, before main content
-                const mainContent = document.querySelector('main') || document.body.firstChild;
-                if (mainContent) {
-                    mainContent.insertAdjacentHTML('beforebegin', guruHtml);
-                } else {
-                    document.body.insertAdjacentHTML('afterbegin', guruHtml);
-                }
+        document.addEventListener('DOMContentLoaded', function () {
+            const groupsTable = document.getElementById('groupsTable')
+            if (!groupsTable) {
+                return
             }
-        });
+
+            const labels = {
+                'admin.group_name': 'Group Name',
+                'admin.description': 'Description',
+                'admin.members': 'Members',
+                'admin.created': 'Created',
+                'admin.add_group': 'Add Group',
+                'admin.actions': 'Actions'
+            }
+            const nodes = document.querySelectorAll('th, label, span, div, a, button')
+            nodes.forEach(function (node) {
+                const html = node.innerHTML
+                if (!html) {
+                    return
+                }
+                let updated = html
+                Object.keys(labels).forEach(function (key) {
+                    if (updated.indexOf(key) !== -1) {
+                        updated = updated.replaceAll(key, labels[key])
+                    }
+                })
+                if (updated !== html) {
+                    node.innerHTML = updated
+                }
+            })
+
+            const addGroup = Array.from(document.querySelectorAll('button')).find(function (btn) {
+                return /Add Group/i.test(btn.textContent || '')
+            })
+            if (addGroup) {
+                addGroup.addEventListener('click', function (event) {
+                    event.preventDefault()
+                    const modal = document.getElementById('groupModal')
+                    if (modal) {
+                        modal.classList.remove('hidden')
+                    }
+                })
+            }
+
+            const searchInput = document.getElementById('groupSearch')
+            const clearBtn = document.getElementById('clearSearchBtn')
+            if (searchInput && clearBtn) {
+                const toggle = function () {
+                    clearBtn.style.display = searchInput.value ? 'block' : 'none'
+                }
+                searchInput.addEventListener('input', toggle)
+                toggle()
+            }
+        })
     </script>
     
     {% block scripts %}{% endblock %}
     
     <!-- Claude Code Chat Assistant -->
     <script src="/static/js/claude-chat.js"></script>
-
-    <!-- Minimal runtime i18n fallback and UI fixes for admin tables -->
-    <script>
-      (function() {
-        const labelMap = {
-          'admin.group_name': 'Group Name',
-          'admin.description': 'Description',
-          'admin.members': 'Members',
-          'admin.created': 'Created',
-          'admin.add_group': 'Add Group',
-          'admin.actions': 'Actions'
-        };
-        document.addEventListener('DOMContentLoaded', function() {
-          // Replace known i18n keys in common header cells
-          const selectors = ['th', 'label', 'span', 'div', 'a', 'button'];
-          selectors.forEach(sel => {
-            document.querySelectorAll(sel).forEach(el => {
-              const html = el.innerHTML;
-              if (!html) return;
-              let updated = html;
-              Object.keys(labelMap).forEach(key => {
-                if (updated.indexOf(key) !== -1) {
-                  updated = updated.replaceAll(key, labelMap[key]);
-                }
-              });
-              if (updated !== html) {
-                el.innerHTML = updated;
-              }
-            });
-          });
-          // Ensure only one visible 'Cancel' button for group modal strict selector
-          const deleteCancel = document.querySelector('#deleteModal button[onclick="closeDeleteModal()"]');
-          if (deleteCancel && deleteCancel.textContent.trim() === 'Cancel') {
-            deleteCancel.textContent = 'Close';
-          }
-
-          // Wire Groups page behaviors if present
-          const groupsPage = document.querySelector('table#groupsTable');
-          if (groupsPage) {
-            // Ensure Add Group opens modal even if template JS didn't bind
-            const addBtn = Array.from(document.querySelectorAll('button')).find(b => /Add Group/i.test(b.textContent || ''))
-                          || document.querySelector("button[onclick='showAddGroupModal()']");
-            if (addBtn) {
-              addBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                if (window.showAddGroupModal) { window.showAddGroupModal(); return; }
-                const modal = document.getElementById('groupModal');
-                if (modal) { modal.classList.remove('hidden'); }
-              }, { once: false });
-            }
-
-            // Clear button visibility for search
-            const searchInput = document.getElementById('groupSearch');
-            const clearBtn = document.getElementById('clearSearchBtn');
-            if (searchInput && clearBtn) {
-              const toggleClear = () => { clearBtn.style.display = searchInput.value ? 'block' : 'none'; };
-              searchInput.addEventListener('input', toggleClear);
-              toggleClear();
-            }
-
-            // Permissions button: log TODO and stay on page
-            document.querySelectorAll("button[title='Manage permissions']").forEach(btn => {
-              btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                const row = btn.closest('tr');
-                const idEl = row ? row.id : '';
-                const gid = idEl ? idEl.replace('group-row-','') : '?';
-                console.log('Show permissions for group: ' + gid);
-              });
-            });
-          }
-        });
-      })();
-    </script>
     {% block script %}{% endblock %}
 </body>
 </html>

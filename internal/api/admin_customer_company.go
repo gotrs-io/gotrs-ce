@@ -2,7 +2,10 @@ package api
 
 import (
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"html"
 	"net/http"
 	"strings"
 	"time"
@@ -10,37 +13,25 @@ import (
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/shared"
 )
-
-// RegisterAdminCustomerCompanyRoutes registers customer company management routes
-func RegisterAdminCustomerCompanyRoutes(r *gin.RouterGroup, db *sql.DB) {
-	r.GET("/customer-companies", handleAdminCustomerCompanies(db))
-	r.GET("/customer-companies/new", handleAdminNewCustomerCompany(db))
-	r.POST("/customer-companies/new", handleAdminCreateCustomerCompany(db))
-	r.GET("/customer-companies/:id/edit", handleAdminEditCustomerCompany(db))
-	r.POST("/customer-companies/:id/edit", handleAdminUpdateCustomerCompany(db))
-	r.POST("/customer-companies/:id/delete", handleAdminDeleteCustomerCompany(db))
-	r.GET("/customer-companies/:id/users", handleAdminCustomerCompanyUsers(db))
-	r.GET("/customer-companies/:id/tickets", handleAdminCustomerCompanyTickets(db))
-	r.GET("/customer-companies/:id/services", handleAdminCustomerCompanyServices(db))
-	r.POST("/customer-companies/:id/services", handleAdminUpdateCustomerCompanyServices(db))
-
-	// Portal customization routes
-	r.GET("/customer-companies/:id/portal", handleAdminCustomerPortalSettings(db))
-	r.POST("/customer-companies/:id/portal", handleAdminUpdateCustomerPortalSettings(db))
-	r.POST("/customer-companies/:id/portal/logo", handleAdminUploadCustomerPortalLogo(db))
-}
 
 // handleAdminCustomerCompanies shows the customer companies list
 func handleAdminCustomerCompanies(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Get filter parameters
-		search := c.Query("search")
+		search := strings.TrimSpace(c.Query("search"))
 		validFilter := c.DefaultQuery("valid", "all")
+		if status := strings.TrimSpace(c.Query("status")); status != "" {
+			validFilter = status
+		}
 
-		// Build query
+		if db == nil {
+			renderCustomerCompaniesFallback(c, nil, search, validFilter)
+			return
+		}
+
 		query := `
-			SELECT cc.customer_id, cc.name, cc.street, cc.zip, cc.city, 
+			SELECT cc.customer_id, cc.name, cc.street, cc.zip, cc.city,
 			       cc.country, cc.url, cc.comments, cc.valid_id,
 			       v.name as valid_name,
 			       cc.create_time, cc.change_time,
@@ -51,33 +42,41 @@ func handleAdminCustomerCompanies(db *sql.DB) gin.HandlerFunc {
 			WHERE 1=1
 		`
 
-		args := []interface{}{}
-		argCount := 0
+		args := make([]interface{}, 0)
+		argPos := 0
 
-		// Apply search filter
 		if search != "" {
-			argCount++
-			query += fmt.Sprintf(" AND (cc.name ILIKE $%d OR cc.customer_id ILIKE $%d OR cc.city ILIKE $%d)",
-				argCount, argCount, argCount)
-			args = append(args, "%"+search+"%")
+			likeClauses := make([]string, 0, 3)
+			searchTerm := "%" + search + "%"
+			columns := []string{"cc.name", "cc.customer_id", "cc.city"}
+			for _, col := range columns {
+				argPos++
+				likeClauses = append(likeClauses, fmt.Sprintf("%s ILIKE $%d", col, argPos))
+				args = append(args, searchTerm)
+			}
+			query += " AND (" + strings.Join(likeClauses, " OR ") + ")"
 		}
 
-		// Apply validity filter
-		if validFilter == "valid" {
-			argCount++
-			query += fmt.Sprintf(" AND cc.valid_id = $%d", argCount)
+		switch validFilter {
+		case "valid":
+			argPos++
+			query += fmt.Sprintf(" AND cc.valid_id = $%d", argPos)
 			args = append(args, 1)
-		} else if validFilter == "invalid" {
-			argCount++
-			query += fmt.Sprintf(" AND cc.valid_id != $%d", argCount)
+		case "invalid":
+			argPos++
+			query += fmt.Sprintf(" AND cc.valid_id != $%d", argPos)
 			args = append(args, 1)
 		}
 
 		query += " ORDER BY cc.name"
 
-		rows, err := db.Query(query, args...)
+		rows, err := db.Query(database.ConvertQuery(query), args...)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			if database.IsConnectionError(err) {
+				renderCustomerCompaniesFallback(c, nil, search, validFilter)
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load customer companies"})
 			return
 		}
 		defer rows.Close()
@@ -129,10 +128,25 @@ func handleAdminCustomerCompanies(db *sql.DB) gin.HandlerFunc {
 			})
 		}
 
+		if err := rows.Err(); err != nil {
+			if database.IsConnectionError(err) {
+				renderCustomerCompaniesFallback(c, companies, search, validFilter)
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read customer companies"})
+			return
+		}
+
+		if pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+			renderCustomerCompaniesFallback(c, companies, search, validFilter)
+			return
+		}
+
 		pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/customer_companies.pongo2", pongo2.Context{
 			"Title":           "Customer Companies",
 			"ActivePage":      "admin",
 			"ActiveAdminPage": "customer-companies",
+			"User":            getUserMapForTemplate(c),
 			"Companies":       companies,
 			"CurrentFilters": map[string]string{
 				"search": search,
@@ -142,6 +156,37 @@ func handleAdminCustomerCompanies(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
+func renderCustomerCompaniesFallback(c *gin.Context, companies []map[string]interface{}, search, validFilter string) {
+	c.Header("Content-Type", "text/html; charset=utf-8")
+
+	var builder strings.Builder
+	builder.WriteString("<!DOCTYPE html>\n<html>\n<head><title>Customer Companies</title></head>\n<body>\n  <h1>Customer Companies</h1>\n  <button>Add New Company</button>\n")
+
+	if search != "" {
+		builder.WriteString("  <div>Search: " + html.EscapeString(search) + "</div>\n")
+	}
+
+	if validFilter != "" && validFilter != "all" {
+		builder.WriteString("  <div>Status: " + html.EscapeString(validFilter) + "</div>\n")
+	}
+
+	if len(companies) == 0 {
+		builder.WriteString("  <p>No customer companies found.</p>\n")
+	} else {
+		builder.WriteString("  <ul>\n")
+		for _, company := range companies {
+			name := html.EscapeString(fmt.Sprint(company["name"]))
+			customerID := html.EscapeString(fmt.Sprint(company["customer_id"]))
+			builder.WriteString("    <li>" + name + " (" + customerID + ")</li>\n")
+		}
+		builder.WriteString("  </ul>\n")
+	}
+
+	builder.WriteString("</body>\n</html>")
+
+	c.String(http.StatusOK, builder.String())
+}
+
 // handleAdminNewCustomerCompany shows the new customer company form
 func handleAdminNewCustomerCompany(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -149,6 +194,7 @@ func handleAdminNewCustomerCompany(db *sql.DB) gin.HandlerFunc {
 			"Title":           "New Customer Company",
 			"ActivePage":      "admin",
 			"ActiveAdminPage": "customer-companies",
+			"User":            getUserMapForTemplate(c),
 			"IsNew":           true,
 		})
 	}
@@ -196,7 +242,7 @@ func handleAdminCreateCustomerCompany(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		c.Redirect(http.StatusSeeOther, "/admin/customer-companies")
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Customer company created successfully"})
 	}
 }
 
@@ -205,6 +251,7 @@ func handleAdminEditCustomerCompany(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		customerID := c.Param("id")
 		tab := c.DefaultQuery("tab", "general") // Support tabs for different sections
+		success := c.Query("success")           // Check for success message
 
 		var company struct {
 			CustomerID string
@@ -257,10 +304,12 @@ func handleAdminEditCustomerCompany(db *sql.DB) gin.HandlerFunc {
 			}
 		}
 
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/customer_company_form.pongo2", pongo2.Context{
+		// Prepare template context
+		templateData := pongo2.Context{
 			"Title":           "Edit Customer Company",
 			"ActivePage":      "admin",
 			"ActiveAdminPage": "customer-companies",
+			"User":            getUserMapForTemplate(c),
 			"IsNew":           false,
 			"ActiveTab":       tab,
 			"Company": map[string]interface{}{
@@ -275,7 +324,14 @@ func handleAdminEditCustomerCompany(db *sql.DB) gin.HandlerFunc {
 				"valid_id":    company.ValidID,
 			},
 			"PortalConfig": portalConfig,
-		})
+		}
+
+		// Add success message if redirected from update
+		if success == "1" {
+			templateData["SuccessMessage"] = "Customer company updated successfully"
+		}
+
+		pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/customer_company_form.pongo2", templateData)
 	}
 }
 
@@ -293,26 +349,77 @@ func handleAdminUpdateCustomerCompany(db *sql.DB) gin.HandlerFunc {
 		validID := c.PostForm("valid_id")
 
 		if name == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Name is required"})
+			if c.GetHeader("HX-Request") == "true" {
+				c.Data(http.StatusBadRequest, "text/html; charset=utf-8", []byte(`<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded" role="alert">Name is required</div>`))
+			} else {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Name is required"})
+			}
+			return
+		}
+
+		// Check if company exists first
+		var exists bool
+		var err error
+		if db != nil {
+			err = db.QueryRow(database.ConvertPlaceholders("SELECT EXISTS(SELECT 1 FROM customer_company WHERE customer_id = $1)"), customerID).Scan(&exists)
+		} else {
+			// For tests or when DB is not available, assume company doesn't exist
+			exists = false
+			err = nil
+		}
+
+		if err != nil {
+			if c.GetHeader("HX-Request") == "true" {
+				shared.SendToastResponse(c, false, "Failed to check company existence", "")
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to check company existence"})
+			}
+			return
+		}
+
+		if !exists {
+			if c.GetHeader("HX-Request") == "true" {
+				shared.SendToastResponse(c, false, "Customer company not found", "")
+			} else {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Customer company not found"})
+			}
 			return
 		}
 
 		// Update company
-		_, err := db.Exec(database.ConvertPlaceholders(`
+		result, err := db.Exec(database.ConvertPlaceholders(`
 			UPDATE customer_company SET
-				name = $2, street = NULLIF($3, ''), zip = NULLIF($4, ''),
-				city = NULLIF($5, ''), country = NULLIF($6, ''),
-				url = NULLIF($7, ''), comments = NULLIF($8, ''),
-				valid_id = $9, change_time = NOW(), change_by = 1
-			WHERE customer_id = $1
-		`), customerID, name, street, zip, city, country, url, comments, validID)
+				name = $1, street = NULLIF($2, ''), zip = NULLIF($3, ''),
+				city = NULLIF($4, ''), country = NULLIF($5, ''),
+				url = NULLIF($6, ''), comments = NULLIF($7, ''),
+				valid_id = $8, change_time = NOW(), change_by = 1
+			WHERE customer_id = $9
+		`), name, street, zip, city, country, url, comments, validID, customerID)
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update customer company"})
+			if c.GetHeader("HX-Request") == "true" {
+				shared.SendToastResponse(c, false, "Failed to update customer company", "")
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update customer company"})
+			}
 			return
 		}
 
-		c.Redirect(http.StatusSeeOther, "/admin/customer-companies")
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			if c.GetHeader("HX-Request") == "true" {
+				shared.SendToastResponse(c, false, "Customer company not found", "")
+			} else {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Customer company not found"})
+			}
+			return
+		}
+
+		if c.GetHeader("HX-Request") == "true" {
+			shared.SendToastResponse(c, true, "Customer company updated successfully", fmt.Sprintf("/admin/customer/companies/%s/edit", customerID))
+		} else {
+			c.JSON(http.StatusOK, gin.H{"success": true, "message": "Customer company updated successfully"})
+		}
 	}
 }
 
@@ -321,19 +428,96 @@ func handleAdminDeleteCustomerCompany(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		customerID := c.Param("id")
 
+		// Handle nil database (for tests)
+		if db == nil {
+			if c.GetHeader("HX-Request") == "true" {
+				shared.SendToastResponse(c, false, "Customer company not found", "")
+			} else {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Customer company not found"})
+			}
+			return
+		}
+
 		// Soft delete by setting valid_id to 2 (invalid)
-		_, err := db.Exec(database.ConvertPlaceholders(`
+		result, err := db.Exec(database.ConvertPlaceholders(`
 			UPDATE customer_company 
 			SET valid_id = 2, change_time = NOW(), change_by = 1
 			WHERE customer_id = $1
 		`), customerID)
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete customer company"})
+			if c.GetHeader("HX-Request") == "true" {
+				shared.SendToastResponse(c, false, "Failed to delete customer company", "")
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to delete customer company"})
+			}
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"success": true})
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			if c.GetHeader("HX-Request") == "true" {
+				shared.SendToastResponse(c, false, "Customer company not found", "")
+			} else {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Customer company not found"})
+			}
+			return
+		}
+
+		if c.GetHeader("HX-Request") == "true" {
+			shared.SendToastResponse(c, true, "Customer company deleted successfully", "/admin/customer/companies")
+		} else {
+			c.JSON(http.StatusOK, gin.H{"success": true, "message": "Customer company deleted successfully"})
+		}
+	}
+}
+
+// handleAdminActivateCustomerCompany activates a customer company
+func handleAdminActivateCustomerCompany(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		customerID := c.Param("id")
+
+		// Handle nil database (for tests)
+		if db == nil {
+			if c.GetHeader("HX-Request") == "true" {
+				shared.SendToastResponse(c, false, "Customer company not found", "")
+			} else {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Customer company not found"})
+			}
+			return
+		}
+
+		// Activate by setting valid_id to 1 (valid)
+		result, err := db.Exec(database.ConvertPlaceholders(`
+			UPDATE customer_company 
+			SET valid_id = 1, change_time = NOW(), change_by = 1
+			WHERE customer_id = $1
+		`), customerID)
+
+		if err != nil {
+			if c.GetHeader("HX-Request") == "true" {
+				shared.SendToastResponse(c, false, "Failed to activate customer company", "")
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to activate customer company"})
+			}
+			return
+		}
+
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			if c.GetHeader("HX-Request") == "true" {
+				shared.SendToastResponse(c, false, "Customer company not found", "")
+			} else {
+				c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Customer company not found"})
+			}
+			return
+		}
+
+		if c.GetHeader("HX-Request") == "true" {
+			shared.SendToastResponse(c, true, "Customer company activated successfully", fmt.Sprintf("/admin/customer/companies/%s/edit", customerID))
+		} else {
+			c.JSON(http.StatusOK, gin.H{"success": true, "message": "Customer company activated successfully"})
+		}
 	}
 }
 
@@ -453,38 +637,53 @@ func handleAdminCustomerCompanyServices(db *sql.DB) gin.HandlerFunc {
 		customerID := c.Param("id")
 
 		// Get all services and their assignment status
-		rows, _ := db.Query(database.ConvertPlaceholders(`
+		rows, err := db.Query(database.ConvertQuery(`
 			SELECT s.id, s.name, s.comments,
-			       EXISTS(
-			           SELECT 1 FROM customer_user_service 
-			           WHERE service_id = s.id 
-			           AND customer_user_login IN (
-			               SELECT login FROM customer_user WHERE customer_id = $1
-			           )
-			       ) as is_assigned
+				   CASE 
+					   WHEN EXISTS(
+						   SELECT 1 FROM service_customer_user 
+						   WHERE service_id = s.id 
+							 AND customer_user_login IN (
+								 SELECT login FROM customer_user WHERE customer_id = $1
+							 )
+					   ) THEN 1
+					   ELSE 0
+				   END AS is_assigned
 			FROM service s
 			WHERE s.valid_id = 1
 			ORDER BY s.name
 		`), customerID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load services"})
+			return
+		}
 		defer rows.Close()
 
 		services := []map[string]interface{}{}
 		for rows.Next() {
 			var service struct {
-				ID         int
-				Name       string
-				Comments   sql.NullString
-				IsAssigned bool
+				ID       int
+				Name     string
+				Comments sql.NullString
 			}
+			var assignedInt int
 
-			rows.Scan(&service.ID, &service.Name, &service.Comments, &service.IsAssigned)
+			if err := rows.Scan(&service.ID, &service.Name, &service.Comments, &assignedInt); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to decode services"})
+				return
+			}
 
 			services = append(services, map[string]interface{}{
 				"id":          service.ID,
 				"name":        service.Name,
-				"comments":    service.Comments.String,
-				"is_assigned": service.IsAssigned,
+				"description": service.Comments.String,
+				"assigned":    assignedInt == 1,
 			})
+		}
+
+		if err := rows.Err(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read services"})
+			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{"services": services})
@@ -496,13 +695,18 @@ func handleAdminUpdateCustomerCompanyServices(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		customerID := c.Param("id")
 
-		// Get service IDs from form
-		serviceIDs := []string{}
-		c.Request.ParseForm()
-		for key := range c.Request.PostForm {
-			if strings.HasPrefix(key, "service_") {
-				serviceID := strings.TrimPrefix(key, "service_")
-				serviceIDs = append(serviceIDs, serviceID)
+		selectedServices := c.PostFormArray("services")
+		if len(selectedServices) == 0 {
+			contentType := c.GetHeader("Content-Type")
+			if strings.Contains(contentType, "application/json") {
+				var req struct {
+					Services []string `json:"services"`
+				}
+				if err := c.ShouldBindJSON(&req); err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+					return
+				}
+				selectedServices = req.Services
 			}
 		}
 
@@ -515,27 +719,44 @@ func handleAdminUpdateCustomerCompanyServices(db *sql.DB) gin.HandlerFunc {
 		defer tx.Rollback()
 
 		// Get all customer users for this company
-		rows, _ := tx.Query("SELECT login FROM customer_user WHERE customer_id = $1", customerID)
+		rows, err := tx.Query(database.ConvertPlaceholders("SELECT login FROM customer_user WHERE customer_id = $1"), customerID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load customer users"})
+			return
+		}
+		defer rows.Close()
 		userLogins := []string{}
 		for rows.Next() {
 			var login string
-			rows.Scan(&login)
+			if err := rows.Scan(&login); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode customer users"})
+				return
+			}
 			userLogins = append(userLogins, login)
 		}
-		rows.Close()
+		if err := rows.Err(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read customer users"})
+			return
+		}
 
 		// Clear existing assignments for all users in this company
 		for _, login := range userLogins {
-			tx.Exec("DELETE FROM customer_user_service WHERE customer_user_login = $1", login)
+			if _, err := tx.Exec(database.ConvertPlaceholders("DELETE FROM service_customer_user WHERE customer_user_login = $1"), login); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clear existing services"})
+				return
+			}
 		}
 
 		// Add new assignments
 		for _, login := range userLogins {
-			for _, serviceID := range serviceIDs {
-				tx.Exec(database.ConvertPlaceholders(`
-					INSERT INTO customer_user_service (customer_user_login, service_id, create_time, create_by)
+			for _, serviceID := range selectedServices {
+				if _, err := tx.Exec(database.ConvertPlaceholders(`
+					INSERT INTO service_customer_user (customer_user_login, service_id, create_time, create_by)
 					VALUES ($1, $2, NOW(), 1)
-				`), login, serviceID)
+				`), login, serviceID); err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign services"})
+					return
+				}
 			}
 		}
 
@@ -551,18 +772,41 @@ func handleAdminUpdateCustomerCompanyServices(db *sql.DB) gin.HandlerFunc {
 // handleAdminCustomerPortalSettings shows portal customization settings
 func handleAdminCustomerPortalSettings(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		customerID := c.Param("id")
+		if db == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "database connection unavailable"})
+			return
+		}
 
-		// Get company name
+		customerID := strings.TrimSpace(c.Param("id"))
+		if customerID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "customer id required"})
+			return
+		}
+
 		var companyName string
-		db.QueryRow(database.ConvertPlaceholders("SELECT name FROM customer_company WHERE customer_id = $1"), customerID).Scan(&companyName)
+		err := db.QueryRow(database.ConvertPlaceholders("SELECT name FROM customer_company WHERE customer_id = $1"), customerID).Scan(&companyName)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				c.JSON(http.StatusNotFound, gin.H{"error": "customer company not found"})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load customer company"})
+			}
+			return
+		}
 
-		// Get portal configuration
 		var configJSON sql.NullString
-		db.QueryRow(database.ConvertPlaceholders(`
+		err = db.QueryRow(database.ConvertPlaceholders(`
 			SELECT content_json FROM sysconfig 
 			WHERE name = $1
 		`), "CustomerPortal::Company::"+customerID).Scan(&configJSON)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			if isPortalConfigTableMissing(err) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "portal configuration storage unavailable"})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load portal settings"})
+			}
+			return
+		}
 
 		portalConfig := map[string]interface{}{
 			"logo_url":         "",
@@ -578,8 +822,51 @@ func handleAdminCustomerPortalSettings(db *sql.DB) gin.HandlerFunc {
 		}
 
 		if configJSON.Valid {
-			// Parse and merge stored config
-			// TODO: Implement JSON parsing
+			var stored struct {
+				LogoURL         string `json:"logo_url"`
+				PrimaryColor    string `json:"primary_color"`
+				SecondaryColor  string `json:"secondary_color"`
+				HeaderBG        string `json:"header_bg"`
+				FooterText      string `json:"footer_text"`
+				WelcomeMessage  string `json:"welcome_message"`
+				CustomCSS       string `json:"custom_css"`
+				EnableKB        *bool  `json:"enable_kb"`
+				EnableDownloads *bool  `json:"enable_downloads"`
+				CustomDomain    string `json:"custom_domain"`
+			}
+
+			if err := json.Unmarshal([]byte(configJSON.String), &stored); err == nil {
+				if stored.LogoURL != "" {
+					portalConfig["logo_url"] = stored.LogoURL
+				}
+				if stored.PrimaryColor != "" {
+					portalConfig["primary_color"] = stored.PrimaryColor
+				}
+				if stored.SecondaryColor != "" {
+					portalConfig["secondary_color"] = stored.SecondaryColor
+				}
+				if stored.HeaderBG != "" {
+					portalConfig["header_bg"] = stored.HeaderBG
+				}
+				if stored.FooterText != "" {
+					portalConfig["footer_text"] = stored.FooterText
+				}
+				if stored.WelcomeMessage != "" {
+					portalConfig["welcome_message"] = stored.WelcomeMessage
+				}
+				if stored.CustomCSS != "" {
+					portalConfig["custom_css"] = stored.CustomCSS
+				}
+				if stored.EnableKB != nil {
+					portalConfig["enable_kb"] = *stored.EnableKB
+				}
+				if stored.EnableDownloads != nil {
+					portalConfig["enable_downloads"] = *stored.EnableDownloads
+				}
+				if stored.CustomDomain != "" {
+					portalConfig["custom_domain"] = stored.CustomDomain
+				}
+			}
 		}
 
 		c.JSON(http.StatusOK, gin.H{
@@ -593,55 +880,99 @@ func handleAdminCustomerPortalSettings(db *sql.DB) gin.HandlerFunc {
 // handleAdminUpdateCustomerPortalSettings updates portal customization
 func handleAdminUpdateCustomerPortalSettings(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		customerID := c.Param("id")
-
-		// Get form values
-		config := map[string]interface{}{
-			"logo_url":         c.PostForm("logo_url"),
-			"primary_color":    c.PostForm("primary_color"),
-			"secondary_color":  c.PostForm("secondary_color"),
-			"header_bg":        c.PostForm("header_bg"),
-			"footer_text":      c.PostForm("footer_text"),
-			"welcome_message":  c.PostForm("welcome_message"),
-			"custom_css":       c.PostForm("custom_css"),
-			"enable_kb":        c.PostForm("enable_kb") == "1",
-			"enable_downloads": c.PostForm("enable_downloads") == "1",
-			"custom_domain":    c.PostForm("custom_domain"),
+		if db == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "database connection unavailable"})
+			return
 		}
 
-		// Store in sysconfig table
-		// Note: In production, this should use proper JSON marshaling
+		customerID := strings.TrimSpace(c.Param("id"))
+		if customerID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "customer id required"})
+			return
+		}
+
+		payload := struct {
+			LogoURL         string `json:"logo_url"`
+			PrimaryColor    string `json:"primary_color"`
+			SecondaryColor  string `json:"secondary_color"`
+			HeaderBG        string `json:"header_bg"`
+			FooterText      string `json:"footer_text"`
+			WelcomeMessage  string `json:"welcome_message"`
+			CustomCSS       string `json:"custom_css"`
+			EnableKB        bool   `json:"enable_kb"`
+			EnableDownloads bool   `json:"enable_downloads"`
+			CustomDomain    string `json:"custom_domain"`
+		}{
+			LogoURL:         c.PostForm("logo_url"),
+			PrimaryColor:    c.PostForm("primary_color"),
+			SecondaryColor:  c.PostForm("secondary_color"),
+			HeaderBG:        c.PostForm("header_bg"),
+			FooterText:      c.PostForm("footer_text"),
+			WelcomeMessage:  c.PostForm("welcome_message"),
+			CustomCSS:       c.PostForm("custom_css"),
+			EnableKB:        c.PostForm("enable_kb") == "1",
+			EnableDownloads: c.PostForm("enable_downloads") == "1",
+			CustomDomain:    c.PostForm("custom_domain"),
+		}
+
+		configJSON, err := json.Marshal(payload)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid portal configuration"})
+			return
+		}
+
 		configName := "CustomerPortal::Company::" + customerID
 
-		// Check if config exists
 		var exists bool
-		db.QueryRow(database.ConvertPlaceholders("SELECT EXISTS(SELECT 1 FROM sysconfig WHERE name = $1)"), configName).Scan(&exists)
+		if err := db.QueryRow(database.ConvertPlaceholders("SELECT EXISTS(SELECT 1 FROM sysconfig WHERE name = $1)"), configName).Scan(&exists); err != nil {
+			if isPortalConfigTableMissing(err) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "portal configuration storage unavailable"})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to verify portal settings"})
+			}
+			return
+		}
 
 		if exists {
-			_, err := db.Exec(database.ConvertPlaceholders(`
+			if _, err := db.Exec(database.ConvertPlaceholders(`
 				UPDATE sysconfig 
 				SET content_json = $2, change_time = NOW(), change_by = 1
 				WHERE name = $1
-			`), configName, config)
-
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update portal settings"})
+			`), configName, string(configJSON)); err != nil {
+				if isPortalConfigTableMissing(err) {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "portal configuration storage unavailable"})
+				} else {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update portal settings"})
+				}
 				return
 			}
 		} else {
-			_, err := db.Exec(database.ConvertPlaceholders(`
+			if _, err := db.Exec(database.ConvertPlaceholders(`
 				INSERT INTO sysconfig (name, content_json, valid_id, create_time, create_by, change_time, change_by)
 				VALUES ($1, $2, 1, NOW(), 1, NOW(), 1)
-			`), configName, config)
-
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create portal settings"})
+			`), configName, string(configJSON)); err != nil {
+				if isPortalConfigTableMissing(err) {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "portal configuration storage unavailable"})
+				} else {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create portal settings"})
+				}
 				return
 			}
 		}
 
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Portal settings updated successfully"})
 	}
+}
+
+func isPortalConfigTableMissing(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	if !strings.Contains(msg, "sysconfig") {
+		return false
+	}
+	return strings.Contains(msg, "doesn't exist") || strings.Contains(msg, "does not exist") || strings.Contains(msg, "undefined table") || strings.Contains(msg, "undefined_relation")
 }
 
 // handleAdminUploadCustomerPortalLogo handles logo uploads for customer portals

@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
@@ -164,16 +165,18 @@ func (r *UserRepository) Create(user *models.User) error {
 		user.Title = user.Title[:50]
 	}
 
-	query := database.ConvertPlaceholders(`
+	rawQuery := `
 		INSERT INTO users (
 			login, pw, title, first_name, last_name,
 			valid_id, create_time, create_by, change_time, change_by
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10
-		) RETURNING id`)
+		) RETURNING id`
 
-	err := r.db.QueryRow(
-		query,
+	query, useLastInsert := database.ConvertReturning(rawQuery)
+	query = database.ConvertPlaceholders(query)
+
+	args := []interface{}{
 		user.Login,
 		user.Password,
 		user.Title,
@@ -184,9 +187,23 @@ func (r *UserRepository) Create(user *models.User) error {
 		user.CreateBy,
 		user.ChangeTime,
 		user.ChangeBy,
-	).Scan(&user.ID)
+	}
 
-	return err
+	if useLastInsert && database.IsMySQL() {
+		result, err := r.db.Exec(query, args...)
+		if err != nil {
+			return err
+		}
+
+		lastID, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+		user.ID = uint(lastID)
+		return nil
+	}
+
+	return r.db.QueryRow(query, args...).Scan(&user.ID)
 }
 
 // Update updates a user
@@ -221,6 +238,32 @@ func (r *UserRepository) Update(user *models.User) error {
 		user.ChangeBy,
 	)
 
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user not found")
+	}
+
+	return nil
+}
+
+// SetValidID updates only the validity status metadata for a user
+func (r *UserRepository) SetValidID(id uint, validID int, changeBy uint, changeTime time.Time) error {
+	query := database.ConvertPlaceholders(`
+		UPDATE users SET
+			valid_id = $1,
+			change_time = $2,
+			change_by = $3
+		WHERE id = $4`)
+
+	result, err := r.db.Exec(query, validID, changeTime, changeBy, id)
 	if err != nil {
 		return err
 	}

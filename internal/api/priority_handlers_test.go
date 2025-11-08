@@ -118,9 +118,19 @@ func TestCreatePriority(t *testing.T) {
 				"color": "#ff00ff",
 			},
 			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(`INSERT INTO ticket_priority`).
-					WithArgs("6 critical", "#ff00ff", 1, 1, 1).
-					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(6))
+				mock.ExpectQuery(`SELECT COUNT\(\*\) FROM ticket_priority`).
+					WithArgs("6 critical").
+					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+
+				if database.IsMySQL() {
+					mock.ExpectExec(`INSERT INTO ticket_priority`).
+						WithArgs("6 critical", "#ff00ff", 1, 1, 1).
+						WillReturnResult(sqlmock.NewResult(6, 1))
+				} else {
+					mock.ExpectQuery(`INSERT INTO ticket_priority`).
+						WithArgs("6 critical", "#ff00ff", 1, 1, 1).
+						WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(6))
+				}
 			},
 			expectedStatus: http.StatusCreated,
 			expectedBody: map[string]interface{}{
@@ -152,9 +162,19 @@ func TestCreatePriority(t *testing.T) {
 				"color": "#cdcdcd",
 			},
 			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(`INSERT INTO ticket_priority`).
-					WithArgs("3 normal", "#cdcdcd", 1, 1, 1).
-					WillReturnError(assert.AnError)
+				mock.ExpectQuery(`SELECT COUNT\(\*\) FROM ticket_priority`).
+					WithArgs("3 normal").
+					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+
+				if database.IsMySQL() {
+					mock.ExpectExec(`INSERT INTO ticket_priority`).
+						WithArgs("3 normal", "#cdcdcd", 1, 1, 1).
+						WillReturnError(assert.AnError)
+				} else {
+					mock.ExpectQuery(`INSERT INTO ticket_priority`).
+						WithArgs("3 normal", "#cdcdcd", 1, 1, 1).
+						WillReturnError(assert.AnError)
+				}
 			},
 			expectedStatus: http.StatusInternalServerError,
 			expectedBody: map[string]interface{}{
@@ -260,7 +280,7 @@ func TestUpdatePriority(t *testing.T) {
 				"name": "test",
 			},
 			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(`SELECT color FROM ticket_priority WHERE id = \$1`).
+				mock.ExpectQuery(`SELECT color FROM ticket_priority WHERE id`).
 					WithArgs(999).
 					WillReturnError(sql.ErrNoRows)
 			},
@@ -332,7 +352,7 @@ func TestDeletePriority(t *testing.T) {
 			priorityID: "5",
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectExec(`UPDATE ticket_priority SET valid_id = 2`).
-					WithArgs(5, 1).
+					WithArgs(1, 5).
 					WillReturnResult(sqlmock.NewResult(0, 1))
 			},
 			expectedStatus: http.StatusOK,
@@ -356,7 +376,7 @@ func TestDeletePriority(t *testing.T) {
 			priorityID: "999",
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectExec(`UPDATE ticket_priority SET valid_id = 2`).
-					WithArgs(999, 1).
+					WithArgs(1, 999).
 					WillReturnResult(sqlmock.NewResult(0, 0))
 			},
 			expectedStatus: http.StatusNotFound,

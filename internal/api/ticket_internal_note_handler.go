@@ -20,76 +20,76 @@ import (
 
 // InternalNote represents an internal note on a ticket
 type InternalNote struct {
-	ID              int       `json:"id"`
-	TicketID        int       `json:"ticket_id"`
-	Content         string    `json:"content"`
-	FormattedContent string   `json:"formatted_content"`
-	AuthorID        int       `json:"author_id"`
-	AuthorName      string    `json:"author_name"`
-	Visibility      string    `json:"visibility"` // always "internal"
-	CustomerVisible bool      `json:"customer_visible"` // always false
-	IsPriority      bool      `json:"is_priority"`
-	Category        string    `json:"category"`
-	Mentions        []string  `json:"mentions"`
-	HasMentions     bool      `json:"has_mentions"`
-	HasTeamMention  bool      `json:"has_team_mention"`
-	Attachments     []int     `json:"attachments"`
-	IsEdited        bool      `json:"is_edited"`
-	EditedAt        *time.Time `json:"edited_at,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID               int        `json:"id"`
+	TicketID         int        `json:"ticket_id"`
+	Content          string     `json:"content"`
+	FormattedContent string     `json:"formatted_content"`
+	AuthorID         int        `json:"author_id"`
+	AuthorName       string     `json:"author_name"`
+	Visibility       string     `json:"visibility"`       // always "internal"
+	CustomerVisible  bool       `json:"customer_visible"` // always false
+	IsPriority       bool       `json:"is_priority"`
+	Category         string     `json:"category"`
+	Mentions         []string   `json:"mentions"`
+	HasMentions      bool       `json:"has_mentions"`
+	HasTeamMention   bool       `json:"has_team_mention"`
+	Attachments      []int      `json:"attachments"`
+	IsEdited         bool       `json:"is_edited"`
+	EditedAt         *time.Time `json:"edited_at,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 // NoteHistory represents edit history for a note
 type NoteHistory struct {
-	ID        int       `json:"id"`
-	NoteID    int       `json:"note_id"`
-	Content   string    `json:"content"`
-	EditedBy  int       `json:"edited_by"`
-	EditedAt  time.Time `json:"edited_at"`
-	Version   int       `json:"version"`
+	ID       int       `json:"id"`
+	NoteID   int       `json:"note_id"`
+	Content  string    `json:"content"`
+	EditedBy int       `json:"edited_by"`
+	EditedAt time.Time `json:"edited_at"`
+	Version  int       `json:"version"`
 }
 
 // Mock data for development
 var internalNotes = map[int]map[int]*InternalNote{
 	1: { // Ticket ID 1
 		1: {
-			ID:              1,
-			TicketID:        1,
-			Content:         "Customer has VIP status - expedite resolution",
+			ID:               1,
+			TicketID:         1,
+			Content:          "Customer has VIP status - expedite resolution",
 			FormattedContent: "Customer has VIP status - expedite resolution",
-			AuthorID:        1,
-			AuthorName:      "John Agent",
-			Visibility:      "internal",
-			CustomerVisible: false,
-			Category:        "general",
-			CreatedAt:       time.Now().Add(-24 * time.Hour),
-			UpdatedAt:       time.Now().Add(-24 * time.Hour),
+			AuthorID:         1,
+			AuthorName:       "John Agent",
+			Visibility:       "internal",
+			CustomerVisible:  false,
+			Category:         "general",
+			CreatedAt:        time.Now().Add(-24 * time.Hour),
+			UpdatedAt:        time.Now().Add(-24 * time.Hour),
 		},
 		2: {
-			ID:              2,
-			TicketID:        1,
-			Content:         "Technical analysis: Database connection timeout issue",
+			ID:               2,
+			TicketID:         1,
+			Content:          "Technical analysis: Database connection timeout issue",
 			FormattedContent: "Technical analysis: Database connection timeout issue",
-			AuthorID:        1,
-			AuthorName:      "John Agent",
-			Visibility:      "internal",
-			CustomerVisible: false,
-			Category:        "technical",
-			CreatedAt:       time.Now().Add(-12 * time.Hour),
-			UpdatedAt:       time.Now().Add(-12 * time.Hour),
+			AuthorID:         1,
+			AuthorName:       "John Agent",
+			Visibility:       "internal",
+			CustomerVisible:  false,
+			Category:         "technical",
+			CreatedAt:        time.Now().Add(-12 * time.Hour),
+			UpdatedAt:        time.Now().Add(-12 * time.Hour),
 		},
 		3: {
-			ID:              3,
-			TicketID:        1,
-			Content:         "Note from another user",
+			ID:               3,
+			TicketID:         1,
+			Content:          "Note from another user",
 			FormattedContent: "Note from another user",
-			AuthorID:        2,
-			AuthorName:      "Jane Support",
-			Visibility:      "internal",
-			CustomerVisible: false,
-			CreatedAt:       time.Now().Add(-6 * time.Hour),
-			UpdatedAt:       time.Now().Add(-6 * time.Hour),
+			AuthorID:         2,
+			AuthorName:       "Jane Support",
+			Visibility:       "internal",
+			CustomerVisible:  false,
+			CreatedAt:        time.Now().Add(-6 * time.Hour),
+			UpdatedAt:        time.Now().Add(-6 * time.Hour),
 		},
 	},
 }
@@ -208,13 +208,13 @@ func HandleCreateInternalNote(c *gin.Context) {
 	}
 
 	var req struct {
-		Content       string `json:"content"`
-		Visibility    string `json:"visibility"`
-		IsPriority    bool   `json:"is_priority"`
-		Category      string `json:"category"`
+		Content       string   `json:"content"`
+		Visibility    string   `json:"visibility"`
+		IsPriority    bool     `json:"is_priority"`
+		Category      string   `json:"category"`
 		Mentions      []string `json:"mentions"`
-		AttachmentIDs []int  `json:"attachment_ids"`
-		NotifyUsers   bool   `json:"notify_users"`
+		AttachmentIDs []int    `json:"attachment_ids"`
+		NotifyUsers   bool     `json:"notify_users"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -252,29 +252,29 @@ func HandleCreateInternalNote(c *gin.Context) {
 
 	// Create note
 	note := &InternalNote{
-		ID:              nextNoteID,
-		TicketID:        ticketID,
-		Content:         req.Content,
+		ID:               nextNoteID,
+		TicketID:         ticketID,
+		Content:          req.Content,
 		FormattedContent: RenderMarkdown(req.Content),
-		AuthorID:        userID.(int),
-		AuthorName:      userName.(string),
-		Visibility:      "internal",
-		CustomerVisible: false,
-		IsPriority:      req.IsPriority,
-		Category:        req.Category,
-		Mentions:        mentions,
-		HasMentions:     len(mentions) > 0,
-		HasTeamMention:  hasTeamMention,
-		Attachments:     req.AttachmentIDs,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		AuthorID:         userID.(int),
+		AuthorName:       userName.(string),
+		Visibility:       "internal",
+		CustomerVisible:  false,
+		IsPriority:       req.IsPriority,
+		Category:         req.Category,
+		Mentions:         mentions,
+		HasMentions:      len(mentions) > 0,
+		HasTeamMention:   hasTeamMention,
+		Attachments:      req.AttachmentIDs,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
 	}
 
 	// Initialize ticket notes map if needed
 	if internalNotes[ticketID] == nil {
 		internalNotes[ticketID] = make(map[int]*InternalNote)
 	}
-	
+
 	internalNotes[ticketID][nextNoteID] = note
 	nextNoteID++
 
@@ -315,26 +315,26 @@ func HandleGetInternalNotes(c *gin.Context) {
 	hasMentionsStr := c.Query("has_mentions")
 
 	notes := []InternalNote{}
-	
+
 	if ticketNotes, exists := internalNotes[ticketID]; exists {
 		for _, note := range ticketNotes {
 			// Apply filters
 			if category != "" && note.Category != category {
 				continue
 			}
-			
+
 			if priorityStr == "true" && !note.IsPriority {
 				continue
 			}
-			
+
 			if search != "" && !strings.Contains(strings.ToLower(note.Content), strings.ToLower(search)) {
 				continue
 			}
-			
+
 			if hasMentionsStr == "true" && !note.HasMentions {
 				continue
 			}
-			
+
 			notes = append(notes, *note)
 		}
 	}
@@ -405,7 +405,7 @@ func HandleUpdateInternalNote(c *gin.Context) {
 			Version:  len(noteHistories[noteID]) + 1,
 		}
 		noteHistories[noteID] = append(noteHistories[noteID], history)
-		
+
 		note.Content = req.Content
 		note.FormattedContent = RenderMarkdown(req.Content)
 		note.IsEdited = true
@@ -416,7 +416,7 @@ func HandleUpdateInternalNote(c *gin.Context) {
 	if req.Category != "" {
 		note.Category = req.Category
 	}
-	
+
 	note.IsPriority = req.IsPriority
 	note.UpdatedAt = time.Now()
 
@@ -512,7 +512,7 @@ func handleGetInternalNoteStats(c *gin.Context) {
 		for _, note := range ticketNotes {
 			totalNotes++
 			totalLength += len(note.Content)
-			
+
 			if note.IsPriority {
 				priorityNotes++
 			}
@@ -533,12 +533,12 @@ func handleGetInternalNoteStats(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"statistics": gin.H{
-			"total_notes":          totalNotes,
-			"priority_notes":       priorityNotes,
-			"notes_with_mentions":  notesWithMentions,
-			"notes_by_category":    notesByCategory,
-			"notes_by_author":      notesByAuthor,
-			"average_note_length":  avgLength,
+			"total_notes":         totalNotes,
+			"priority_notes":      priorityNotes,
+			"notes_with_mentions": notesWithMentions,
+			"notes_by_category":   notesByCategory,
+			"notes_by_author":     notesByAuthor,
+			"average_note_length": avgLength,
 		},
 	})
 }
@@ -580,10 +580,10 @@ func handleExportInternalNotes(c *gin.Context) {
 	case "csv":
 		c.Header("Content-Type", "text/csv")
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"internal-notes-ticket-%d-%s.csv\"", ticketID, timestamp))
-		
+
 		writer := csv.NewWriter(c.Writer)
 		writer.Write([]string{"ID", "Author", "Content", "Category", "Priority", "Created"})
-		
+
 		for _, note := range notes {
 			writer.Write([]string{
 				strconv.Itoa(note.ID),
@@ -634,7 +634,7 @@ func handleCreateNoteFromTemplate(c *gin.Context) {
 
 	// Mock template content
 	templateContent := "Issue Type: {{issue_type}}\nRoot Cause: {{root_cause}}\nResolution: Pending investigation"
-	
+
 	// Replace variables
 	for key, value := range req.Variables {
 		placeholder := "{{" + key + "}}"
@@ -664,7 +664,7 @@ func handleCreateNoteFromTemplate(c *gin.Context) {
 	if internalNotes[ticketID] == nil {
 		internalNotes[ticketID] = make(map[int]*InternalNote)
 	}
-	
+
 	internalNotes[ticketID][nextNoteID] = note
 	nextNoteID++
 

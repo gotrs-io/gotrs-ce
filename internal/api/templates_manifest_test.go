@@ -16,7 +16,7 @@ func TestTemplatesManifest(t *testing.T) {
 	if err := os.Chdir(root); err != nil {
 		t.Fatalf("chdir root failed: %v", err)
 	}
-	_ = os.Setenv("APP_ENV", "test")
+	t.Setenv("APP_ENV", "test")
 
 	templatesDir := filepath.Join(root, "templates")
 	strict := os.Getenv("SSR_SMOKE_STRICT") == "1"
@@ -27,9 +27,13 @@ func TestTemplatesManifest(t *testing.T) {
 	}
 	if len(failures) > 0 {
 		if strict {
-			for _, f := range failures { t.Errorf("template invalid/missing: %s", f) }
+			for _, f := range failures {
+				t.Errorf("template invalid/missing: %s", f)
+			}
 			t.Fatalf("%d template(s) invalid or missing (from YAML)", len(failures))
 		}
-		for _, f := range failures { t.Logf("template invalid/missing (non-strict): %s", f) }
+		for _, f := range failures {
+			t.Logf("template invalid/missing (non-strict): %s", f)
+		}
 	}
 }

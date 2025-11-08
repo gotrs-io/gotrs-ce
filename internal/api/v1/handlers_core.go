@@ -55,10 +55,10 @@ func (router *APIRouter) handleSystemStatus(c *gin.Context) {
 	sendSuccess(c, gin.H{
 		"status": "operational",
 		"components": gin.H{
-			"database":    "healthy",
-			"search":      "healthy",
-			"file_store":  "healthy",
-			"email":       "healthy",
+			"database":        "healthy",
+			"search":          "healthy",
+			"file_store":      "healthy",
+			"email":           "healthy",
 			"background_jobs": "healthy",
 		},
 		"uptime":      "99.9%",
@@ -83,7 +83,7 @@ func (router *APIRouter) handleLogin(c *gin.Context) {
 	if loginRequest.Email == "demo@example.com" && loginRequest.Password == "demo" {
 		// Generate JWT token
 		token := "mock_jwt_token_" + time.Now().Format("20060102150405")
-		
+
 		sendSuccess(c, gin.H{
 			"token": token,
 			"user": gin.H{
@@ -113,7 +113,7 @@ func (router *APIRouter) handleRefreshToken(c *gin.Context) {
 
 	// TODO: Implement actual token refresh
 	sendSuccess(c, gin.H{
-		"token": "refreshed_jwt_token_" + time.Now().Format("20060102150405"),
+		"token":      "refreshed_jwt_token_" + time.Now().Format("20060102150405"),
 		"expires_at": time.Now().Add(24 * time.Hour).UTC(),
 	})
 }
@@ -154,10 +154,10 @@ func (router *APIRouter) handleGetCurrentUser(c *gin.Context) {
 	}
 
 	sendSuccess(c, gin.H{
-		"id":    userID,
-		"email": email,
-		"role":  role,
-		"name":  email, // Using email as name for now
+		"id":          userID,
+		"email":       email,
+		"role":        role,
+		"name":        email, // Using email as name for now
 		"permissions": router.rbac.GetRolePermissions(role),
 	})
 }
@@ -201,7 +201,7 @@ func (router *APIRouter) handleGetUserPreferences(c *gin.Context) {
 
 	// TODO: Implement actual preferences retrieval
 	sendSuccess(c, gin.H{
-		"user_id": userID,
+		"user_id":  userID,
 		"language": "en",
 		"timezone": "UTC",
 		"theme":    "light",
@@ -211,7 +211,7 @@ func (router *APIRouter) handleGetUserPreferences(c *gin.Context) {
 			"mobile":  false,
 		},
 		"dashboard": gin.H{
-			"default_view": "tickets",
+			"default_view":   "tickets",
 			"items_per_page": 25,
 		},
 	})
@@ -220,11 +220,11 @@ func (router *APIRouter) handleGetUserPreferences(c *gin.Context) {
 // handleUpdateUserPreferences updates user preferences
 func (router *APIRouter) handleUpdateUserPreferences(c *gin.Context) {
 	var prefsRequest struct {
-		Language string `json:"language"`
-		Timezone string `json:"timezone"`
-		Theme    string `json:"theme"`
-		Notifications gin.H `json:"notifications"`
-		Dashboard gin.H `json:"dashboard"`
+		Language      string `json:"language"`
+		Timezone      string `json:"timezone"`
+		Theme         string `json:"theme"`
+		Notifications gin.H  `json:"notifications"`
+		Dashboard     gin.H  `json:"dashboard"`
 	}
 
 	if err := c.ShouldBindJSON(&prefsRequest); err != nil {
@@ -240,13 +240,13 @@ func (router *APIRouter) handleUpdateUserPreferences(c *gin.Context) {
 
 	// TODO: Implement actual preferences update
 	sendSuccess(c, gin.H{
-		"user_id":    userID,
-		"language":   prefsRequest.Language,
-		"timezone":   prefsRequest.Timezone,
-		"theme":      prefsRequest.Theme,
+		"user_id":       userID,
+		"language":      prefsRequest.Language,
+		"timezone":      prefsRequest.Timezone,
+		"theme":         prefsRequest.Theme,
 		"notifications": prefsRequest.Notifications,
-		"dashboard":  prefsRequest.Dashboard,
-		"updated_at": time.Now().UTC(),
+		"dashboard":     prefsRequest.Dashboard,
+		"updated_at":    time.Now().UTC(),
 	})
 }
 
@@ -273,8 +273,8 @@ func (router *APIRouter) handleChangePassword(c *gin.Context) {
 	// - Hash new password
 	// - Update database
 	sendSuccess(c, gin.H{
-		"user_id": userID,
-		"message": "Password changed successfully",
+		"user_id":    userID,
+		"message":    "Password changed successfully",
 		"changed_at": time.Now().UTC(),
 	})
 }
@@ -290,13 +290,13 @@ func (router *APIRouter) handleGetUserSessions(c *gin.Context) {
 	// TODO: Implement actual session retrieval
 	sendSuccess(c, []gin.H{
 		{
-			"id": "session_1",
-			"user_id": userID,
-			"device": "Chrome on Windows",
+			"id":         "session_1",
+			"user_id":    userID,
+			"device":     "Chrome on Windows",
 			"ip_address": c.ClientIP(),
-			"current": true,
+			"current":    true,
 			"created_at": time.Now().Add(-2 * time.Hour).UTC(),
-			"last_seen": time.Now().UTC(),
+			"last_seen":  time.Now().UTC(),
 		},
 	})
 }
@@ -317,9 +317,9 @@ func (router *APIRouter) handleRevokeSession(c *gin.Context) {
 
 	// TODO: Implement actual session revocation
 	sendSuccess(c, gin.H{
-		"user_id": userID,
+		"user_id":    userID,
 		"session_id": sessionID,
-		"message": "Session revoked successfully",
+		"message":    "Session revoked successfully",
 		"revoked_at": time.Now().UTC(),
 	})
 }

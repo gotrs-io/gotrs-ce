@@ -24,7 +24,7 @@ func handleDevDashboard(c *gin.Context) {
 
 	// Get basic stats
 	stats := make(map[string]interface{})
-	
+
 	// Get ticket count
 	var ticketCount int
 	if err := db.QueryRow(database.ConvertPlaceholders("SELECT COUNT(*) FROM ticket")).Scan(&ticketCount); err == nil {

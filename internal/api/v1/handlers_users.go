@@ -21,7 +21,7 @@ func (router *APIRouter) handleListUsers(c *gin.Context) {
 			"active":     true,
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    users,
@@ -36,12 +36,12 @@ func (router *APIRouter) handleCreateUser(c *gin.Context) {
 		Email     string `json:"email" binding:"required,email"`
 		Password  string `json:"password" binding:"required,min=8"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual user creation
 	user := gin.H{
 		"id":         2,
@@ -52,7 +52,7 @@ func (router *APIRouter) handleCreateUser(c *gin.Context) {
 		"active":     true,
 		"created_at": time.Now(),
 	}
-	
+
 	c.JSON(http.StatusCreated, APIResponse{
 		Success: true,
 		Data:    user,
@@ -61,7 +61,7 @@ func (router *APIRouter) handleCreateUser(c *gin.Context) {
 
 func (router *APIRouter) handleGetUser(c *gin.Context) {
 	userID := c.Param("id")
-	
+
 	// TODO: Implement actual user fetching
 	user := gin.H{
 		"id":         userID,
@@ -73,7 +73,7 @@ func (router *APIRouter) handleGetUser(c *gin.Context) {
 		"created_at": time.Now().AddDate(-1, 0, 0),
 		"updated_at": time.Now(),
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    user,
@@ -82,18 +82,18 @@ func (router *APIRouter) handleGetUser(c *gin.Context) {
 
 func (router *APIRouter) handleUpdateUser(c *gin.Context) {
 	userID := c.Param("id")
-	
+
 	var req struct {
 		FirstName string `json:"first_name"`
 		LastName  string `json:"last_name"`
 		Email     string `json:"email"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual user update
 	user := gin.H{
 		"id":         userID,
@@ -102,7 +102,7 @@ func (router *APIRouter) handleUpdateUser(c *gin.Context) {
 		"email":      req.Email,
 		"updated_at": time.Now(),
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data:    user,
@@ -111,14 +111,14 @@ func (router *APIRouter) handleUpdateUser(c *gin.Context) {
 
 func (router *APIRouter) handleDeleteUser(c *gin.Context) {
 	// userID := c.Param("id")
-	
+
 	// TODO: Implement actual user deletion (usually soft delete)
 	c.JSON(http.StatusNoContent, nil)
 }
 
 func (router *APIRouter) handleActivateUser(c *gin.Context) {
 	userID := c.Param("id")
-	
+
 	// TODO: Implement actual user activation
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
@@ -128,7 +128,7 @@ func (router *APIRouter) handleActivateUser(c *gin.Context) {
 
 func (router *APIRouter) handleDeactivateUser(c *gin.Context) {
 	userID := c.Param("id")
-	
+
 	// TODO: Implement actual user deactivation
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
@@ -138,16 +138,16 @@ func (router *APIRouter) handleDeactivateUser(c *gin.Context) {
 
 func (router *APIRouter) handleResetUserPassword(c *gin.Context) {
 	userID := c.Param("id")
-	
+
 	var req struct {
 		NewPassword string `json:"new_password" binding:"required,min=8"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual password reset
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
@@ -157,16 +157,16 @@ func (router *APIRouter) handleResetUserPassword(c *gin.Context) {
 
 func (router *APIRouter) handleGetUserGroups(c *gin.Context) {
 	userID := c.Param("id")
-	
+
 	// TODO: Implement actual user groups fetching
 	groups := []gin.H{
 		{
-			"id":   1,
-			"name": "admin",
+			"id":          1,
+			"name":        "admin",
 			"permissions": []string{"rw"},
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data: gin.H{
@@ -178,16 +178,16 @@ func (router *APIRouter) handleGetUserGroups(c *gin.Context) {
 
 func (router *APIRouter) handleUpdateUserGroups(c *gin.Context) {
 	userID := c.Param("id")
-	
+
 	var req struct {
 		Groups []int `json:"groups" binding:"required"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		sendError(c, http.StatusBadRequest, "Invalid request: "+err.Error())
 		return
 	}
-	
+
 	// TODO: Implement actual user groups update
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
@@ -200,18 +200,18 @@ func (router *APIRouter) handleGetUserNotifications(c *gin.Context) {
 	if !exists {
 		userID = 1 // Default for testing
 	}
-	
+
 	// TODO: Implement actual notifications fetching
 	notifications := []gin.H{
 		{
-			"id":      1,
-			"type":    "ticket_assigned",
-			"message": "New ticket assigned to you",
-			"read":    false,
+			"id":         1,
+			"type":       "ticket_assigned",
+			"message":    "New ticket assigned to you",
+			"read":       false,
 			"created_at": time.Now().Add(-1 * time.Hour),
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data: gin.H{
@@ -223,7 +223,7 @@ func (router *APIRouter) handleGetUserNotifications(c *gin.Context) {
 
 func (router *APIRouter) handleMarkNotificationRead(c *gin.Context) {
 	// notificationID := c.Param("notification_id")
-	
+
 	// TODO: Implement actual notification marking
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
@@ -243,7 +243,7 @@ func (router *APIRouter) handleListAllUsers(c *gin.Context) {
 
 func (router *APIRouter) handleGetUserActivityLog(c *gin.Context) {
 	userID := c.Param("id")
-	
+
 	// TODO: Implement actual activity log fetching
 	activities := []gin.H{
 		{
@@ -259,7 +259,7 @@ func (router *APIRouter) handleGetUserActivityLog(c *gin.Context) {
 			"timestamp": time.Now().Add(-1 * time.Hour),
 		},
 	}
-	
+
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Data: gin.H{

@@ -10,25 +10,32 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
-	"github.com/gotrs-io/gotrs-ce/internal/api"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/shared"
 	"github.com/stretchr/testify/require"
 )
 
 func TestHandleCustomerInfoPanel_RendersCustomerDetails(t *testing.T) {
-	t.Setenv("DB_DRIVER", "postgres")
+	t.Setenv("TEST_DB_DRIVER", "postgres")
 	gin.SetMode(gin.TestMode)
 
 	_, file, _, ok := runtime.Caller(0)
 	require.True(t, ok)
 	templateDir := filepath.Join(filepath.Dir(file), "..", "..", "templates")
-	api.InitPongo2Renderer(templateDir)
+	renderer, err := shared.NewTemplateRenderer(templateDir)
+	require.NoError(t, err)
+
+	// Set the global renderer
+	shared.SetGlobalRenderer(renderer)
 
 	mockDB, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer mockDB.Close()
 	database.SetDB(mockDB)
 	t.Cleanup(database.ResetDB)
+	database.ResetAdapterForTest()
+	database.SetAdapter(&database.PostgreSQLAdapter{})
+	t.Cleanup(database.ResetAdapterForTest)
 
 	login := "customer@example.com"
 

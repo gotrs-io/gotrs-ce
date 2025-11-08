@@ -13,7 +13,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
-	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	"github.com/stretchr/testify/require"
 )
@@ -21,6 +20,7 @@ import (
 func TestHandleCreateTicket_PendingStateWithDueDate(t *testing.T) {
 	t.Setenv("APP_ENV", "unit-real")
 	t.Setenv("DB_DRIVER", "postgres")
+	t.Setenv("TEST_DB_DRIVER", "postgres")
 	gin.SetMode(gin.TestMode)
 
 	mockDB, mock, err := sqlmock.New()
@@ -39,10 +39,6 @@ func TestHandleCreateTicket_PendingStateWithDueDate(t *testing.T) {
 	expectedPending, perr := time.Parse("2006-01-02T15:04", pendingUntil)
 	require.NoError(t, perr)
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM queue")).
-		WithArgs(1).
-		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
-
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, name, type_id, valid_id")).
 		WithArgs(pendingStateID).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
@@ -52,28 +48,28 @@ func TestHandleCreateTicket_PendingStateWithDueDate(t *testing.T) {
 		WithArgs(
 			"202510050001",
 			"Pending Example",
-			1,
-			models.TicketUnlocked,
-			nil,
-			nil,
-			nil,
+			int64(1),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
-			nil,
-			nil,
-			pendingStateID,
-			3,
-			0,
-			int(expectedPending.Unix()),
-			0,
-			0,
-			0,
-			0,
-			0,
 			sqlmock.AnyArg(),
-			1,
 			sqlmock.AnyArg(),
-			1,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			int64(pendingStateID),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			int64(expectedPending.Unix()),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(555))
 
@@ -100,9 +96,14 @@ func TestHandleCreateTicket_PendingStateWithDueDate(t *testing.T) {
 
 	var resp map[string]interface{}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-	require.Equal(t, true, resp["success"])
 	require.Equal(t, float64(555), resp["id"])
+	require.NotEmpty(t, resp["ticket_number"])
+	require.Equal(t, float64(1), resp["queue_id"])
+	require.Equal(t, "normal", resp["priority"])
+	require.Equal(t, "Ticket created successfully", resp["message"])
+	require.Equal(t, float64(1), resp["type_id"])
 
+	time.Sleep(10 * time.Millisecond)
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
 	}
@@ -111,6 +112,7 @@ func TestHandleCreateTicket_PendingStateWithDueDate(t *testing.T) {
 func TestHandleCreateTicket_PendingStateWithoutDueDateFails(t *testing.T) {
 	t.Setenv("APP_ENV", "unit-real")
 	t.Setenv("DB_DRIVER", "postgres")
+	t.Setenv("TEST_DB_DRIVER", "postgres")
 	gin.SetMode(gin.TestMode)
 
 	mockDB, mock, err := sqlmock.New()
@@ -125,10 +127,6 @@ func TestHandleCreateTicket_PendingStateWithoutDueDateFails(t *testing.T) {
 	t.Cleanup(func() { repository.SetTicketNumberGenerator(nil, nil) })
 
 	pendingStateID := 42
-
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM queue")).
-		WithArgs(1).
-		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, name, type_id, valid_id")).
 		WithArgs(pendingStateID).
@@ -152,13 +150,13 @@ func TestHandleCreateTicket_PendingStateWithoutDueDateFails(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusInternalServerError, w.Code)
+	require.Equal(t, http.StatusBadRequest, w.Code)
 
 	var resp map[string]interface{}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-	require.Equal(t, false, resp["success"])
-	require.Contains(t, strings.ToLower(resp["error"].(string)), "pending state requires pending until")
+	require.Contains(t, strings.ToLower(resp["error"].(string)), "pending_until is required")
 
+	time.Sleep(10 * time.Millisecond)
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
 	}

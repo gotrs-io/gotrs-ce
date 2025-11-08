@@ -139,7 +139,7 @@ func HandleRefreshTokenAPI(c *gin.Context) {
 func HandleLogoutAPI(c *gin.Context) {
 	// In a JWT-based system, logout is typically handled client-side
 	// We could implement token blacklisting here if needed
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Successfully logged out",

@@ -31,18 +31,18 @@ func NewI18nMiddleware() *I18nMiddleware {
 func (m *I18nMiddleware) Handle() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		lang := m.detectLanguage(c)
-		
+
 		// Debug output
 		if queryLang := c.Query("lang"); queryLang != "" {
 			fmt.Printf("DEBUG Middleware: Query lang=%s, Detected lang=%s, Supported=%v\n", queryLang, lang, m.i18n.GetSupportedLanguages())
 		}
-		
+
 		// Store language in context
 		c.Set(LanguageContextKey, lang)
-		
+
 		// Set language in response header
 		c.Header("Content-Language", lang)
-		
+
 		c.Next()
 	}
 }
@@ -55,7 +55,7 @@ func (m *I18nMiddleware) detectLanguage(c *gin.Context) string {
 	// 3. User preference (from authenticated user)
 	// 4. Accept-Language header
 	// 5. Default language
-	
+
 	// 1. Check query parameter
 	if lang := c.Query("lang"); lang != "" {
 		if m.isSupported(lang) {
@@ -64,26 +64,26 @@ func (m *I18nMiddleware) detectLanguage(c *gin.Context) string {
 			return lang
 		}
 	}
-	
+
 	// 2. Check cookie
 	if lang, err := c.Cookie("lang"); err == nil && lang != "" {
 		if m.isSupported(lang) {
 			return lang
 		}
 	}
-	
+
 	// 3. Check user preference (if authenticated)
 	if userLang := m.getUserLanguage(c); userLang != "" {
 		if m.isSupported(userLang) {
 			return userLang
 		}
 	}
-	
+
 	// 4. Check Accept-Language header
 	if lang := m.parseAcceptLanguage(c.GetHeader("Accept-Language")); lang != "" {
 		return lang
 	}
-	
+
 	// 5. Return default language
 	return DefaultLanguage
 }
@@ -93,27 +93,27 @@ func (m *I18nMiddleware) parseAcceptLanguage(header string) string {
 	if header == "" {
 		return ""
 	}
-	
+
 	// Parse Accept-Language header
 	// Example: "en-US,en;q=0.9,es;q=0.8"
 	languages := strings.Split(header, ",")
-	
+
 	for _, lang := range languages {
 		// Remove quality value if present
 		parts := strings.Split(strings.TrimSpace(lang), ";")
 		langCode := strings.TrimSpace(parts[0])
-		
+
 		// Extract primary language code (e.g., "en" from "en-US")
 		if idx := strings.Index(langCode, "-"); idx > 0 {
 			langCode = langCode[:idx]
 		}
-		
+
 		// Check if language is supported
 		if m.isSupported(langCode) {
 			return langCode
 		}
 	}
-	
+
 	return ""
 }
 

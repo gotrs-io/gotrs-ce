@@ -28,7 +28,35 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$PROJECT_ROOT/generated/tdd-comprehensive"
 EVIDENCE_DIR="$PROJECT_ROOT/generated/evidence"
 TEST_RESULTS_DIR="$PROJECT_ROOT/generated/test-results"
-BASE_URL="http://localhost:${BACKEND_PORT:-8081}"
+HOST_BACKEND_PORT="${TEST_BACKEND_PORT:-${BACKEND_PORT:-8081}}"
+HOST_BACKEND_HOST="${BACKEND_HOST:-localhost}"
+TEST_BACKEND_SERVICE_HOST="${TEST_BACKEND_SERVICE_HOST:-backend-test}"
+TEST_BACKEND_CONTAINER_PORT="${TEST_BACKEND_CONTAINER_PORT:-8080}"
+# Prefer explicit test backend base URL when provided for in-cluster calls, but fall back to host mapping.
+TEST_BACKEND_BASE_URL="${TEST_BACKEND_BASE_URL:-http://${TEST_BACKEND_SERVICE_HOST}:${TEST_BACKEND_CONTAINER_PORT}}"
+TEST_BACKEND_HOST="${TEST_BACKEND_HOST:-$TEST_BACKEND_SERVICE_HOST}"
+TEST_BACKEND_HOST_PORT="${TEST_BACKEND_HOST_PORT:-$HOST_BACKEND_PORT}"
+BASE_URL="${GOTRS_BACKEND_BASE_URL:-http://${HOST_BACKEND_HOST}:${HOST_BACKEND_PORT}}"
+
+export BACKEND_HOST="$HOST_BACKEND_HOST"
+export BACKEND_PORT="$HOST_BACKEND_PORT"
+export TEST_BACKEND_BASE_URL
+export TEST_BACKEND_SERVICE_HOST
+export TEST_BACKEND_CONTAINER_PORT
+export TEST_BACKEND_HOST
+export TEST_BACKEND_HOST_PORT
+
+# Ensure compose includes test database definitions
+DEFAULT_COMPOSE_FILES="$PROJECT_ROOT/docker-compose.yml:$PROJECT_ROOT/docker-compose.testdb.yml"
+if [ -z "${COMPOSE_FILE:-}" ]; then
+    export COMPOSE_FILE="$DEFAULT_COMPOSE_FILES"
+else
+    case ":${COMPOSE_FILE:-}:" in
+        *":$PROJECT_ROOT/docker-compose.testdb.yml:") ;;
+        *) export COMPOSE_FILE="$COMPOSE_FILE:$PROJECT_ROOT/docker-compose.testdb.yml" ;;
+    esac
+fi
+
 # Compose/cmd autodetect with robust fallbacks (prefer env provided by Makefile; otherwise detect)
 if [ -n "${CONTAINER_CMD:-}" ] && [ -n "${COMPOSE_CMD:-}" ]; then
     true
@@ -87,6 +115,200 @@ else
         exit 127
     fi
 fi
+
+# Normalize TEST_DB_* environment to ensure isolation from dev/prod databases
+normalize_test_db_env() {
+    local requested_driver="${TEST_DB_DRIVER:-postgres}"
+    local driver_lower
+    driver_lower=$(printf '%s' "$requested_driver" | tr '[:upper:]' '[:lower:]')
+
+    local driver_family driver_value
+    case "$driver_lower" in
+        postgres|pgsql|pg)
+            driver_family="postgres"
+            driver_value="postgres"
+            ;;
+        mysql|mariadb)
+            driver_family="mysql"
+            driver_value="mysql"
+            ;;
+        *)
+            echo "[COMPREHENSIVE] ERROR: Unsupported TEST_DB_DRIVER '$requested_driver'" >&2
+            echo "[COMPREHENSIVE] Supported values: postgres, mysql" >&2
+            exit 2
+            ;;
+    esac
+
+    local default_name default_user default_password default_host default_port
+    if [ "$driver_family" = "postgres" ]; then
+        default_name="gotrs_test"
+        default_user="gotrs_user"
+        default_password="gotrs_password"
+        if [ "$LIMITED_MODE" = "1" ]; then
+            default_host="127.0.0.1"
+            default_port="5433"
+        else
+            default_host="postgres-test"
+            default_port="5432"
+        fi
+    else
+        default_name="otrs_test"
+        default_user="otrs"
+        default_password="LetClaude.1n"
+        if [ "$LIMITED_MODE" = "1" ]; then
+            default_host="127.0.0.1"
+            default_port="3308"
+        else
+            default_host="mariadb-test"
+            default_port="3306"
+        fi
+    fi
+
+    local name="${TEST_DB_NAME:-$default_name}"
+    if [[ "$name" != *_test ]]; then
+        echo "[COMPREHENSIVE] WARNING: TEST_DB_NAME '$name' missing '_test' suffix - enforcing" >&2
+        name="${name}_test"
+    fi
+
+    local host="${TEST_DB_HOST:-$default_host}"
+    local port="${TEST_DB_PORT:-$default_port}"
+    local user="${TEST_DB_USER:-$default_user}"
+    local password="${TEST_DB_PASSWORD:-$default_password}"
+
+    if [ "$LIMITED_MODE" != "1" ]; then
+        if [ "$driver_family" = "postgres" ] && [[ "$host" =~ ^(localhost|127\.0\.0\.1)$ ]]; then
+            echo "[COMPREHENSIVE] Adjusting TEST_DB_HOST to postgres-test for container network" >&2
+            host="postgres-test"
+        fi
+        if [ "$driver_family" = "mysql" ] && [[ "$host" =~ ^(localhost|127\.0\.0\.1)$ ]]; then
+            echo "[COMPREHENSIVE] Adjusting TEST_DB_HOST to mariadb-test for container network" >&2
+            host="mariadb-test"
+        fi
+    fi
+
+    export TEST_DB_DRIVER="$driver_value"
+    export TEST_DB_NAME="$name"
+    export TEST_DB_HOST="$host"
+    export TEST_DB_PORT="$port"
+    export TEST_DB_USER="$user"
+    export TEST_DB_PASSWORD="$password"
+    export APP_ENV="${APP_ENV:-test}"
+
+    export DB_DRIVER="$TEST_DB_DRIVER"
+    export DB_NAME="$TEST_DB_NAME"
+    export DB_HOST="$TEST_DB_HOST"
+    export DB_PORT="$TEST_DB_PORT"
+    export DB_USER="$TEST_DB_USER"
+    export DB_PASSWORD="$TEST_DB_PASSWORD"
+}
+
+# Determine the host/port to use from other containers within the compose network
+resolve_compose_db_endpoint() {
+    local host="$TEST_DB_HOST"
+    local port="$TEST_DB_PORT"
+    local driver="$TEST_DB_DRIVER"
+
+    if [ "$LIMITED_MODE" != "1" ]; then
+        case "$driver" in
+            postgres)
+                if [[ "$host" =~ ^(localhost|127\.0\.0\.1)$ ]]; then
+                    host="postgres-test"
+                fi
+                if [ "$host" = "postgres-test" ] && [ "$port" = "5433" ]; then
+                    port="5432"
+                fi
+                ;;
+            mysql)
+                if [[ "$host" =~ ^(localhost|127\.0\.0\.1)$ ]]; then
+                    host="mariadb-test"
+                fi
+                if [ "$host" = "mariadb-test" ] && [ "$port" = "3308" ]; then
+                    port="3306"
+                fi
+                ;;
+        esac
+    fi
+
+    printf '%s %s' "$host" "$port"
+}
+
+ensure_test_database_ready() {
+    local require_valkey=${1:-0}
+    local driver="${TEST_DB_DRIVER:-postgres}"
+    local db_service="postgres-test"
+    local ready=0
+    local attempt=0
+
+    if [ -z "${COMPOSE_CMD:-}" ]; then
+        echo "[COMPREHENSIVE] ERROR: Compose command unavailable; cannot ensure test database readiness" >&2
+        return 1
+    fi
+
+    if [ "$driver" = "mysql" ]; then
+        db_service="mariadb-test"
+    fi
+
+    if ! $COMPOSE_CMD ps --services 2>/dev/null | grep -q "^$db_service$"; then
+        echo "[COMPREHENSIVE] ERROR: Required test database service '$db_service' not available" >&2
+        return 1
+    fi
+
+    local services=("$db_service")
+    if [ "$require_valkey" = "1" ]; then
+        if $COMPOSE_CMD ps --services 2>/dev/null | grep -q '^valkey-test$'; then
+            services+=("valkey-test")
+        fi
+    fi
+
+    $COMPOSE_CMD up -d "${services[@]}" > "$LOG_DIR/services_start.log" 2>&1 || true
+
+    log "Ensuring $db_service ready (driver=$driver host=$TEST_DB_HOST port=$TEST_DB_PORT user=$TEST_DB_USER name=$TEST_DB_NAME)"
+
+    for _ in {1..40}; do
+        output=""
+        attempt=$((attempt + 1))
+        if [ "$driver" = "postgres" ]; then
+            if $COMPOSE_CMD exec -T "$db_service" pg_isready -U "$TEST_DB_USER" >/dev/null 2>&1; then
+                ready=1
+                break
+            fi
+        else
+            if output=$($COMPOSE_CMD exec -T "$db_service" sh -lc "/usr/bin/mariadb -h127.0.0.1 -P3306 -u\"$TEST_DB_USER\" -p\"$TEST_DB_PASSWORD\" -D\"$TEST_DB_NAME\" -N -s -e 'SELECT 1;'" 2>&1); then
+                if [ -n "$output" ]; then
+                    log "mariadb readiness output: $output"
+                fi
+                ready=1
+                break
+            fi
+        fi
+        if [ -n "${output:-}" ]; then
+            log "Waiting for $db_service (attempt $attempt) - last error: $output"
+        else
+            log "Waiting for $db_service (attempt $attempt)"
+        fi
+        sleep 2
+    done
+
+    if [ "$ready" -eq 0 ]; then
+        echo "[COMPREHENSIVE] ERROR: Test database service '$db_service' did not become ready (driver=$driver host=$TEST_DB_HOST user=$TEST_DB_USER)" >&2
+        return 1
+    fi
+
+    read -r compose_db_host compose_db_port <<< "$(resolve_compose_db_endpoint)"
+    export TEST_DB_HOST="$compose_db_host"
+    export TEST_DB_PORT="$compose_db_port"
+    export DB_DRIVER="$TEST_DB_DRIVER"
+    export DB_HOST="$TEST_DB_HOST"
+    export DB_PORT="$TEST_DB_PORT"
+    export DB_NAME="$TEST_DB_NAME"
+    export DB_USER="$TEST_DB_USER"
+    export DB_PASSWORD="$TEST_DB_PASSWORD"
+    export APP_ENV=test
+
+    return 0
+}
+
+normalize_test_db_env
 
 # Backend start helper (idempotent)
 start_backend_if_needed() {
@@ -171,6 +393,13 @@ run_go() {
     # When using compose's toolbox service, it already mounts gotrs_cache to /workspace/.cache
     # so we only need to point env vars there. Fallback to /tmp cache if no compose volume is present.
     local CACHE_ENV="-e GOCACHE=/workspace/.cache/go-build -e GOMODCACHE=/workspace/.cache/go-mod -e GOTOOLCHAIN=${GOTOOLCHAIN:-auto}"
+    local PASS_ENV=""
+    for var in APP_ENV TEST_DB_DRIVER TEST_DB_HOST TEST_DB_PORT TEST_DB_NAME TEST_DB_USER TEST_DB_PASSWORD TEST_DB_SSLMODE DB_DRIVER DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD DATABASE_URL SKIP_DB_WAIT BACKEND_HOST BACKEND_PORT TEST_BACKEND_BASE_URL TEST_BACKEND_SERVICE_HOST TEST_BACKEND_CONTAINER_PORT TEST_BACKEND_HOST TEST_BACKEND_HOST_PORT; do
+        if [ "${!var+x}" != "" ]; then
+            PASS_ENV="${PASS_ENV} -e ${var}=${!var}"
+        fi
+    done
+    CACHE_ENV="${CACHE_ENV}${PASS_ENV}"
     local CACHE_MOUNTS=""
 
     # Build command payload safely
@@ -347,20 +576,41 @@ verify_comprehensive_compilation() {
         return 1
     fi
 
-    # Static analysis: go vet
-    local vet_status="PASS"
-    if ! GOTOOLCHAIN=auto run_go vet ./... > "$LOG_DIR/go_vet.log" 2>&1; then
-        vet_status="FAIL"
+    # Static analysis package list (exclude Playwright E2E suites)
+    local go_pkg_list="$LOG_DIR/go_packages.list"
+    local -a go_packages=()
+    if GOTOOLCHAIN=auto run_go list ./... > "$go_pkg_list" 2>&1; then
+        while IFS= read -r pkg; do
+            if [[ "$pkg" == github.com/gotrs-io/gotrs-ce* ]] && [[ "$pkg" != *"/tests/e2e"* ]]; then
+                go_packages+=("$pkg")
+            fi
+        done < "$go_pkg_list"
     fi
+
+    # Static analysis: go vet
+    local vet_status="SKIPPED"
+    if [ "${#go_packages[@]}" -gt 0 ]; then
+        vet_status="PASS"
+        if ! GOTOOLCHAIN=auto run_go vet "${go_packages[@]}" > "$LOG_DIR/go_vet.log" 2>&1; then
+            vet_status="FAIL"
+        fi
+    else
+        echo "No packages to vet after filtering E2E suites" > "$LOG_DIR/go_vet.log" 2>&1 || true
+    fi
+
     # Static analysis: staticcheck (installed in toolbox)
-    local staticcheck_status="PASS"
+    local staticcheck_status="SKIPPED"
     if command -v staticcheck >/dev/null 2>&1; then
-        if ! GOTOOLCHAIN=auto run_go staticcheck ./... > "$LOG_DIR/staticcheck.log" 2>&1; then
-            staticcheck_status="FAIL"
+        if [ "${#go_packages[@]}" -gt 0 ]; then
+            staticcheck_status="PASS"
+            if ! GOTOOLCHAIN=auto run_go staticcheck "${go_packages[@]}" > "$LOG_DIR/staticcheck.log" 2>&1; then
+                staticcheck_status="FAIL"
+            fi
+        else
+            echo "No packages to analyze with staticcheck after filtering E2E suites" > "$LOG_DIR/staticcheck.log" 2>&1 || true
         fi
     else
         echo "staticcheck not found in PATH" > "$LOG_DIR/staticcheck.log" 2>&1 || true
-        staticcheck_status="SKIPPED"
     fi
     
     success "Compilation verification: PASS"
@@ -391,22 +641,45 @@ run_comprehensive_unit_tests() {
     
     cd "$PROJECT_ROOT"
     
-    # Set test environment variables
-    export DB_NAME="${DB_NAME:-gotrs}_test"
-    export APP_ENV=test
+    if ! ensure_test_database_ready 0; then
+        fail "Unit tests: test database not ready"
+        jq '.evidence.unit_tests.status = "FAIL" | .evidence.unit_tests.error = "database_not_ready"' \
+            "$evidence_file" > "$evidence_file.tmp" 2>/dev/null && mv "$evidence_file.tmp" "$evidence_file" || true
+        return 1
+    fi
     
     # Run unit tests (quick: minimal; full: exclude examples and e2e)
     local phase
     phase=$(jq -r '.test_phase // "quick"' "$evidence_file" 2>/dev/null || echo "quick")
-    local test_cmd="GOTOOLCHAIN=auto run_go test -v -race -count=1 -timeout=30m"
-    local packages
+    local -a unit_packages=()
     if [ "$phase" = "quick" ]; then
-        packages="./cmd/goats ./generated/tdd-comprehensive ./internal/api ./internal/service"
+        unit_packages=(./cmd/goats ./generated/tdd-comprehensive ./internal/api ./internal/service)
     else
-    packages=$(run_go list ./... | grep -v "/examples$" | grep -v "/tests/e2e" | tr '\n' ' ')
+        local package_list_file="$LOG_DIR/unit_packages.list"
+        if GOTOOLCHAIN=auto run_go list ./... > "$package_list_file" 2>&1; then
+            while IFS= read -r pkg; do
+                if [[ "$pkg" == github.com/gotrs-io/gotrs-ce* ]] && [[ "$pkg" != *"/examples" ]] && [[ "$pkg" != *"/tests"* ]]; then
+                    unit_packages+=("$pkg")
+                fi
+            done < "$package_list_file"
+        fi
+
+        if [ "${#unit_packages[@]}" -eq 0 ]; then
+            fail "Unit tests: no packages available after filtering"
+            jq '.evidence.unit_tests.status = "FAIL" | .evidence.unit_tests.error = "no_unit_packages"' \
+                "$evidence_file" > "$evidence_file.tmp" && mv "$evidence_file.tmp" "$evidence_file"
+            return 1
+        fi
     fi
 
-    if eval "$test_cmd $packages" > "$LOG_DIR/unit_tests.log" 2>&1; then
+    if [ "${#unit_packages[@]}" -eq 0 ]; then
+        fail "Unit tests: no packages queued for execution"
+        jq '.evidence.unit_tests.status = "FAIL" | .evidence.unit_tests.error = "empty_unit_package_list"' \
+            "$evidence_file" > "$evidence_file.tmp" && mv "$evidence_file.tmp" "$evidence_file"
+        return 1
+    fi
+
+    if GOTOOLCHAIN=auto run_go test -v -race -count=1 -timeout=30m "${unit_packages[@]}" > "$LOG_DIR/unit_tests.log" 2>&1; then
         local test_count=$(grep -c "PASS:" "$LOG_DIR/unit_tests.log" || echo "0")
         success "Unit tests: PASS ($test_count tests)"
         jq --arg test_count "$test_count" \
@@ -429,40 +702,34 @@ run_comprehensive_integration_tests() {
     
     log "Phase 3: Comprehensive Integration Tests"
     
-    # Detect postgres service; skip if not available (e.g., MariaDB-only env)
-    if ! $COMPOSE_CMD ps --services 2>/dev/null | grep -q "^postgres$"; then
-        warning "Postgres service not available - skipping integration tests in quick mode"
-        jq '.evidence.integration_tests.status = "SKIPPED" | .evidence.integration_tests.reason = "postgres_service_missing"' \
-            "$evidence_file" > "$evidence_file.tmp" 2>/dev/null && mv "$evidence_file.tmp" "$evidence_file" || true
-        return 0
-    fi
-    
-    # Ensure services are running
-    $COMPOSE_CMD up -d postgres valkey > "$LOG_DIR/services_start.log" 2>&1 || true
-    sleep 10
-    
-    # Wait for database readiness
-    local db_ready=0
-    for i in {1..30}; do
-        if $COMPOSE_CMD exec -T postgres pg_isready -U "${DB_USER:-gotrs}" > /dev/null 2>&1; then
-            db_ready=1
-            break
-        fi
-        sleep 2
-    done
-    
-    if [ "$db_ready" -eq 0 ]; then
+    if ! ensure_test_database_ready 1; then
         fail "Database not ready for integration tests"
         jq '.evidence.integration_tests.status = "FAIL" | .evidence.integration_tests.error = "database_not_ready"' \
             "$evidence_file" > "$evidence_file.tmp" 2>/dev/null && mv "$evidence_file.tmp" "$evidence_file" || true
         return 1
     fi
-    
+
     # Run integration tests with database
     export INTEGRATION_TESTS=true
-    export DB_HOST=localhost
     
-    if GOTOOLCHAIN=auto run_go test -v -tags=integration -timeout=45m ./... > "$LOG_DIR/integration_tests.log" 2>&1; then
+    local integration_pkg_list="$LOG_DIR/integration_packages.list"
+    local -a integration_packages=()
+    if GOTOOLCHAIN=auto run_go list ./... > "$integration_pkg_list" 2>&1; then
+        while IFS= read -r pkg; do
+            if [[ "$pkg" == github.com/gotrs-io/gotrs-ce* ]] && [[ "$pkg" != *"/tests/e2e"* ]]; then
+                integration_packages+=("$pkg")
+            fi
+        done < "$integration_pkg_list"
+    fi
+
+    if [ "${#integration_packages[@]}" -eq 0 ]; then
+        fail "Integration tests: no packages available after filtering"
+        jq '.evidence.integration_tests.status = "FAIL" | .evidence.integration_tests.error = "no_integration_packages"' \
+            "$evidence_file" > "$evidence_file.tmp" 2>/dev/null && mv "$evidence_file.tmp" "$evidence_file" || true
+        return 1
+    fi
+
+    if GOTOOLCHAIN=auto run_go test -v -tags=integration -timeout=45m "${integration_packages[@]}" > "$LOG_DIR/integration_tests.log" 2>&1; then
         local integration_count=$(grep -c "PASS:" "$LOG_DIR/integration_tests.log" || echo "0")
         success "Integration tests: PASS ($integration_count tests)"
         jq --arg test_count "$integration_count" \
@@ -632,30 +899,44 @@ run_comprehensive_database_tests() {
     local evidence_file=$1
     
     log "Phase 6: Comprehensive Database Tests"
+
+    if ! ensure_test_database_ready 0; then
+        fail "Database tests: test database not ready"
+        jq '.evidence.database_tests.status = "FAIL" | .evidence.database_tests.error = "database_not_ready"' \
+            "$evidence_file" > "$evidence_file.tmp" 2>/dev/null && mv "$evidence_file.tmp" "$evidence_file" || true
+        return 1
+    fi
+
+    local compose_db_host compose_db_port
+    read -r compose_db_host compose_db_port <<< "$(resolve_compose_db_endpoint)"
+    export TEST_DB_HOST="$compose_db_host"
+    export TEST_DB_PORT="$compose_db_port"
+    export DB_HOST="$TEST_DB_HOST"
+    export DB_PORT="$TEST_DB_PORT"
     
-    # Prefer MariaDB if postgres is not available
-    if [ "${DB_DRIVER:-mariadb}" = "mariadb" ] || [ "${DB_DRIVER:-mariadb}" = "mysql" ] || $COMPOSE_CMD ps --services 2>/dev/null | grep -q "^mariadb$"; then
-        # Try compose exec if available
-        if $COMPOSE_CMD ps --services 2>/dev/null | grep -q "^mariadb$" && \
-           $COMPOSE_CMD exec -T mariadb sh -lc "mysql -h\"${DB_HOST:-mariadb}\" -P\"${DB_PORT:-3306}\" -u\"${DB_USER:-otrs}\" -p\"${DB_PASSWORD:-CHANGEME}\" -D\"${DB_NAME:-otrs}\" -e 'SELECT 1;'" > "$LOG_DIR/db_connectivity.log" 2>&1; then
+    # Use ONLY test databases - NO fallbacks to production databases
+    if $COMPOSE_CMD ps --services 2>/dev/null | grep -q "^mariadb-test$"; then
+        local mariadb_host="${TEST_DB_HOST:-mariadb-test}"
+        case "$mariadb_host" in
+            127.0.0.1|localhost) mariadb_host="mariadb-test" ;;
+        esac
+        local mariadb_port="${TEST_DB_PORT:-3306}"
+        if [ "$mariadb_host" = "mariadb-test" ] && [ "$mariadb_port" = "3308" ]; then
+            mariadb_port="3306"
+        fi
+        if $COMPOSE_CMD exec -T mariadb-test sh -lc "/usr/bin/mariadb -h\"$mariadb_host\" -P\"$mariadb_port\" -u\"${TEST_DB_USER:-otrs}\" -p\"${TEST_DB_PASSWORD:-LetClaude.1n}\" -D\"${TEST_DB_NAME:-otrs_test}\" -e 'SELECT 1;'" > "$LOG_DIR/db_connectivity.log" 2>&1; then
             success "Database connectivity (MariaDB): PASS"
             jq '.evidence.database_tests.status = "PASS" | .evidence.database_tests.driver = "mariadb"' \
                 "$evidence_file" > "$evidence_file.tmp" 2>/dev/null && mv "$evidence_file.tmp" "$evidence_file" || true
             return 0
-        fi
-        # Fallback via temporary MariaDB image on host network
-        if $CONTAINER_CMD run --rm --network host mariadb:11 sh -lc "mysql -h\"${DB_HOST:-127.0.0.1}\" -P\"${DB_PORT:-3306}\" -u\"${DB_USER:-otrs}\" -p\"${DB_PASSWORD:-CHANGEME}\" -D\"${DB_NAME:-otrs}\" -e 'SELECT 1;'" >> "$LOG_DIR/db_connectivity.log" 2>&1; then
-            success "Database connectivity (MariaDB via mariadb:11): PASS"
-            jq '.evidence.database_tests.status = "PASS" | .evidence.database_tests.driver = "mariadb"' \
+        else
+            fail "Database connectivity: FAIL"
+            jq '.evidence.database_tests.status = "FAIL" | .evidence.database_tests.error = "connectivity_failed"' \
                 "$evidence_file" > "$evidence_file.tmp" 2>/dev/null && mv "$evidence_file.tmp" "$evidence_file" || true
-            return 0
+            return 1
         fi
-        warning "Database connectivity (MariaDB): UNDETERMINED - skipping"
-        jq '.evidence.database_tests.status = "SKIPPED" | .evidence.database_tests.reason = "mariadb_detection_failed"' \
-            "$evidence_file" > "$evidence_file.tmp" 2>/dev/null && mv "$evidence_file.tmp" "$evidence_file" || true
-        return 0
-    else
-        if "$COMPOSE_CMD" ps --services 2>/dev/null | grep -q "^postgres$" && "$COMPOSE_CMD" exec -T postgres psql -U "${DB_USER:-gotrs}" -d "${DB_NAME:-gotrs}_test" -c "SELECT 1;" > "$LOG_DIR/db_connectivity.log" 2>&1; then
+    elif $COMPOSE_CMD ps --services 2>/dev/null | grep -q "^postgres-test$"; then
+        if $COMPOSE_CMD exec -T postgres-test psql -U "${TEST_DB_USER:-gotrs_user}" -d "${TEST_DB_NAME:-gotrs_test}" -c "SELECT 1;" > "$LOG_DIR/db_connectivity.log" 2>&1; then
             success "Database connectivity (Postgres): PASS"
         else
             fail "Database connectivity: FAIL"
@@ -663,11 +944,16 @@ run_comprehensive_database_tests() {
                 "$evidence_file" > "$evidence_file.tmp" 2>/dev/null && mv "$evidence_file.tmp" "$evidence_file" || true
             return 1
         fi
+    else
+        fail "No test database services found (mariadb-test or postgres-test)"
+        jq '.evidence.database_tests.status = "FAIL" | .evidence.database_tests.error = "no_test_database"' \
+            "$evidence_file" > "$evidence_file.tmp" 2>/dev/null && mv "$evidence_file.tmp" "$evidence_file" || true
+        return 1
     fi
     
-    # Skip migrations in quick mode unless postgres is active
-    if $COMPOSE_CMD ps --services 2>/dev/null | grep -q "^postgres$"; then
-        if "$COMPOSE_CMD" exec -T backend gotrs-migrate -path /app/migrations -database "postgres://${DB_USER:-gotrs}:${DB_PASSWORD:-password}@postgres:5432/${DB_NAME:-gotrs}_test?sslmode=disable" up > "$LOG_DIR/db_migrations.log" 2>&1; then
+    # Run migrations on test database
+    if $COMPOSE_CMD ps --services 2>/dev/null | grep -q "^postgres-test$"; then
+    if $COMPOSE_CMD exec -T backend-test gotrs-migrate -path /app/migrations -database "postgres://${TEST_DB_USER:-gotrs_user}:${TEST_DB_PASSWORD:-gotrs_password}@${compose_db_host}:${compose_db_port}/${TEST_DB_NAME:-gotrs_test}?sslmode=disable" up > "$LOG_DIR/db_migrations.log" 2>&1; then
             success "Database migrations: PASS"
             jq '.evidence.database_tests.status = "PASS" | .evidence.database_tests.migrations = "success"' \
                 "$evidence_file" > "$evidence_file.tmp" 2>/dev/null && mv "$evidence_file.tmp" "$evidence_file" || true
@@ -679,7 +965,7 @@ run_comprehensive_database_tests() {
             return 1
         fi
     else
-        warning "Skipping migration tests (no postgres)"
+        warning "Skipping migration tests (no postgres-test)"
         jq '.evidence.database_tests.status = "PASS" | .evidence.database_tests.migrations = "skipped"' \
             "$evidence_file" > "$evidence_file.tmp" 2>/dev/null && mv "$evidence_file.tmp" "$evidence_file" || true
         return 0
@@ -1092,6 +1378,13 @@ run_comprehensive_regression_tests() {
         jq '.evidence.regression_tests.status = "BACKEND_UNAVAILABLE"' "$evidence_file" > "$evidence_file.tmp" 2>/dev/null && mv "$evidence_file.tmp" "$evidence_file" || true
         return 1
     }
+
+    if ! ensure_test_database_ready 0; then
+        fail "Regression tests: test database not ready"
+        jq '.evidence.regression_tests.status = "FAIL" | .evidence.regression_tests.db_integrity = "DATABASE_NOT_READY"' \
+            "$evidence_file" > "$evidence_file.tmp" 2>/dev/null && mv "$evidence_file.tmp" "$evidence_file" || true
+        return 1
+    fi
     
     local regression_failures=0
     
@@ -1118,22 +1411,39 @@ run_comprehensive_regression_tests() {
         jq '.evidence.regression_tests.db_integrity = "SKIPPED_NO_CONTAINER"' \
             "$evidence_file" > "$evidence_file.tmp" && mv "$evidence_file.tmp" "$evidence_file"
     else
-        # Prefer direct container ps when possible
-        if [ -n "$CONTAINER_CMD" ] && $CONTAINER_CMD ps --format "{{.Names}}" | grep -q "^gotrs-mariadb$"; then
-            if $CONTAINER_CMD exec gotrs-mariadb sh -lc "/usr/bin/mariadb -h127.0.0.1 -P\"${DB_PORT:-3306}\" -u\"${DB_USER:-otrs}\" -p\"${DB_PASSWORD:-CHANGEME}\" -e 'SELECT 1;'" >/dev/null 2>&1; then
+        # Use ONLY test databases - NO fallbacks to production databases
+        if [ -n "$CONTAINER_CMD" ] && $CONTAINER_CMD ps --format "{{.Names}}" | grep -q "^gotrs-mariadb-test$"; then
+            local mariadb_host="${TEST_DB_HOST:-mariadb-test}"
+            case "$mariadb_host" in
+                127.0.0.1|localhost) mariadb_host="127.0.0.1" ;;
+            esac
+            local mariadb_port="${TEST_DB_PORT:-3306}"
+            if [ "$mariadb_host" = "127.0.0.1" ] && [ "$mariadb_port" = "3308" ]; then
+                mariadb_port="3306"
+            fi
+            if $CONTAINER_CMD exec gotrs-mariadb-test sh -lc "/usr/bin/mariadb -h\"$mariadb_host\" -P\"$mariadb_port\" -u\"${TEST_DB_USER:-otrs}\" -p\"${TEST_DB_PASSWORD:-LetClaude.1n}\" -e 'SELECT 1;'" >/dev/null 2>&1; then
                 db_ok=1
             fi
-        elif [ -n "$CONTAINER_CMD" ] && $CONTAINER_CMD ps --format "{{.Names}}" | grep -q "^gotrs-postgres$"; then
-            if $CONTAINER_CMD exec -T gotrs-postgres pg_isready -U "${DB_USER:-gotrs}" >/dev/null 2>&1; then
+        elif [ -n "$CONTAINER_CMD" ] && $CONTAINER_CMD ps --format "{{.Names}}" | grep -q "^gotrs-postgres-test$"; then
+            if $CONTAINER_CMD exec -T gotrs-postgres-test pg_isready -U "${TEST_DB_USER:-gotrs_user}" >/dev/null 2>&1; then
                 db_ok=1
             fi
         elif [ -n "$COMPOSE_CMD" ]; then
-            if $COMPOSE_CMD ps --services 2>/dev/null | grep -q "^mariadb$"; then
-                if $COMPOSE_CMD exec -T mariadb sh -lc "/usr/bin/mariadb -h\"${DB_HOST:-mariadb}\" -P\"${DB_PORT:-3306}\" -u\"${DB_USER:-otrs}\" -p\"${DB_PASSWORD:-CHANGEME}\" -e 'SELECT 1;'" >/dev/null 2>&1; then
+            # Check for test database services ONLY (using TEST_DB_ variables)
+            if $COMPOSE_CMD ps --services 2>/dev/null | grep -q "^mariadb-test$"; then
+                local mariadb_host="${TEST_DB_HOST:-mariadb-test}"
+                case "$mariadb_host" in
+                    127.0.0.1|localhost) mariadb_host="mariadb-test" ;;
+                esac
+                local mariadb_port="${TEST_DB_PORT:-3306}"
+                if [ "$mariadb_host" = "mariadb-test" ] && [ "$mariadb_port" = "3308" ]; then
+                    mariadb_port="3306"
+                fi
+                if $COMPOSE_CMD exec -T mariadb-test sh -lc "/usr/bin/mariadb -h\"$mariadb_host\" -P\"$mariadb_port\" -u\"${TEST_DB_USER:-otrs}\" -p\"${TEST_DB_PASSWORD:-LetClaude.1n}\" -e 'SELECT 1;'" >/dev/null 2>&1; then
                     db_ok=1
                 fi
-            elif $COMPOSE_CMD ps --services 2>/dev/null | grep -q "^postgres$"; then
-                if $COMPOSE_CMD exec -T postgres pg_isready -U "${DB_USER:-gotrs}" >/dev/null 2>&1; then
+            elif $COMPOSE_CMD ps --services 2>/dev/null | grep -q "^postgres-test$"; then
+                if $COMPOSE_CMD exec -T postgres-test pg_isready -U "${TEST_DB_USER:-gotrs_user}" >/dev/null 2>&1; then
                     db_ok=1
                 fi
             fi
@@ -1246,8 +1556,6 @@ generate_comprehensive_report() {
     else
         echo '<div class="critical"><h2 class="fail">❌ COMPREHENSIVE FAILURE - QUALITY GATES FAILED</h2><p>DO NOT CLAIM SUCCESS. '$(( gates_total - gates_passed ))' quality gates failed. Fix all failures before claiming success.</p></div>'
     fi)
-
-    <h2>📊 Quality Gate Results</h2>
     <table>
         <tr><th>Quality Gate</th><th>Status</th><th>Evidence</th></tr>
         <tr><td>1. Compilation</td><td class="$(jq -r '.evidence.compilation.status' "$evidence_file" | tr '[:upper:]' '[:lower:]')">$(jq -r '.evidence.compilation.status // "unknown"' "$evidence_file")</td><td>Go build verification</td></tr>

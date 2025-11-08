@@ -172,18 +172,14 @@ func TestArticleAPI(t *testing.T) {
 
 		assert.Equal(t, http.StatusCreated, w.Code)
 
-		var response struct {
-			ID         int       `json:"id"`
-			TicketID   int       `json:"ticket_id"`
-			Subject    string    `json:"subject"`
-			Body       string    `json:"body"`
-			CreateTime time.Time `json:"create_time"`
-		}
+		var response map[string]interface{}
 		json.Unmarshal(w.Body.Bytes(), &response)
-		assert.NotZero(t, response.ID)
-		assert.Equal(t, ticketID, response.TicketID)
-		assert.Equal(t, "New Article", response.Subject)
-		assert.Equal(t, "This is the article body", response.Body)
+		assert.True(t, response["success"].(bool))
+		data := response["data"].(map[string]interface{})
+		assert.NotZero(t, data["id"].(float64))
+		assert.Equal(t, float64(ticketID), data["ticket_id"].(float64))
+		assert.Equal(t, "New Article", data["subject"])
+		assert.Equal(t, "This is the article body", data["body"])
 	})
 
 	t.Run("Update Article", func(t *testing.T) {

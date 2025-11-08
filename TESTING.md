@@ -108,6 +108,10 @@ go tool cover -func=coverage.out
 go tool cover -html=coverage.out -o coverage.html
 ```
 
+### Auth Bypass Controls
+
+The regression harness disables the legacy test auth bypass to match production behavior. Set `GOTRS_DISABLE_TEST_AUTH_BYPASS=1` when running focused suites (for example `make toolbox-test-pkg`) so admin routes require real authentication. Compose-based targets (`make test`, `make test-comprehensive`) export this flag by default.
+
 ## Test Organization
 
 Tests are organized following Go conventions:

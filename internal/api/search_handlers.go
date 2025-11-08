@@ -29,26 +29,26 @@ func NewSearchHandlers() *SearchHandlers {
 // SearchTickets performs a ticket search
 func (h *SearchHandlers) SearchTickets(c *gin.Context) {
 	var request models.SearchRequest
-	
+
 	// Get query parameters
 	request.Query = c.Query("q")
 	if request.Query == "" {
 		request.Query = "*" // Search all if no query
 	}
-	
+
 	// Pagination
 	if page, err := strconv.Atoi(c.Query("page")); err == nil && page > 0 {
 		request.Page = page
 	} else {
 		request.Page = 1
 	}
-	
+
 	if pageSize, err := strconv.Atoi(c.Query("page_size")); err == nil && pageSize > 0 {
 		request.PageSize = pageSize
 	} else {
 		request.PageSize = 20
 	}
-	
+
 	// Filters
 	request.Filters = make(map[string]string)
 	if status := c.Query("status"); status != "" {
@@ -60,46 +60,46 @@ func (h *SearchHandlers) SearchTickets(c *gin.Context) {
 	if queue := c.Query("queue"); queue != "" {
 		request.Filters["queue"] = queue
 	}
-	
+
 	// Sorting
 	request.SortBy = c.Query("sort_by")
 	request.SortOrder = c.Query("sort_order")
-	
+
 	// Highlighting
 	request.Highlight = c.Query("highlight") == "true"
-	
+
 	// Perform search
 	results, err := h.searchService.SearchTickets(c.Request.Context(), &request)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Record search history for authenticated users
 	if userID, exists := c.Get("user_id"); exists {
 		if uid, ok := userID.(uint); ok {
 			h.searchService.RecordSearchHistory(c.Request.Context(), uid, &request, results)
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, results)
 }
 
 // AdvancedSearch performs an advanced search with filters
 func (h *SearchHandlers) AdvancedSearch(c *gin.Context) {
 	var filter models.SearchFilter
-	
+
 	if err := c.ShouldBindJSON(&filter); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	results, err := h.searchService.SearchWithFilter(c.Request.Context(), &filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Record search history
 	if userID, exists := c.Get("user_id"); exists {
 		if uid, ok := userID.(uint); ok {
@@ -110,7 +110,7 @@ func (h *SearchHandlers) AdvancedSearch(c *gin.Context) {
 			h.searchService.RecordSearchHistory(c.Request.Context(), uid, request, results)
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, results)
 }
 
@@ -121,15 +121,15 @@ func (h *SearchHandlers) GetSearchSuggestions(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "text parameter required"})
 		return
 	}
-	
+
 	field := c.DefaultQuery("field", "title")
-	
+
 	suggestions, err := h.searchService.GetSearchSuggestions(c.Request.Context(), text)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"suggestions": suggestions,
 		"field":       field,
@@ -139,24 +139,24 @@ func (h *SearchHandlers) GetSearchSuggestions(c *gin.Context) {
 // SaveSearch saves a search query
 func (h *SearchHandlers) SaveSearch(c *gin.Context) {
 	var savedSearch models.SavedSearch
-	
+
 	if err := c.ShouldBindJSON(&savedSearch); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Set user ID from context
 	if userID, exists := c.Get("user_id"); exists {
 		savedSearch.UserID = userID.(uint)
 	} else {
 		savedSearch.UserID = 1 // Default for testing
 	}
-	
+
 	if err := h.searchService.SaveSearch(c.Request.Context(), &savedSearch); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, savedSearch)
 }
 
@@ -166,13 +166,13 @@ func (h *SearchHandlers) GetSavedSearches(c *gin.Context) {
 	if uid, exists := c.Get("user_id"); exists {
 		userID = uid.(uint)
 	}
-	
+
 	searches, err := h.searchService.GetSavedSearches(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, searches)
 }
 
@@ -183,13 +183,13 @@ func (h *SearchHandlers) GetSavedSearch(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid saved search ID"})
 		return
 	}
-	
+
 	search, err := h.searchService.GetSavedSearch(c.Request.Context(), uint(id))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, search)
 }
 
@@ -200,13 +200,13 @@ func (h *SearchHandlers) ExecuteSavedSearch(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid saved search ID"})
 		return
 	}
-	
+
 	results, err := h.searchService.ExecuteSavedSearch(c.Request.Context(), uint(id))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, results)
 }
 
@@ -216,18 +216,18 @@ func (h *SearchHandlers) GetSearchHistory(c *gin.Context) {
 	if uid, exists := c.Get("user_id"); exists {
 		userID = uid.(uint)
 	}
-	
+
 	limit := 50
 	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 {
 		limit = l
 	}
-	
+
 	history, err := h.searchService.GetSearchHistory(c.Request.Context(), userID, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, history)
 }
 
@@ -236,25 +236,25 @@ func (h *SearchHandlers) GetSearchAnalytics(c *gin.Context) {
 	// Parse date range
 	from := time.Now().AddDate(0, 0, -30) // Default: last 30 days
 	to := time.Now()
-	
+
 	if fromStr := c.Query("from"); fromStr != "" {
 		if parsed, err := time.Parse(time.RFC3339, fromStr); err == nil {
 			from = parsed
 		}
 	}
-	
+
 	if toStr := c.Query("to"); toStr != "" {
 		if parsed, err := time.Parse(time.RFC3339, toStr); err == nil {
 			to = parsed
 		}
 	}
-	
+
 	analytics, err := h.searchService.GetSearchAnalytics(c.Request.Context(), from, to)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, analytics)
 }
 
@@ -266,13 +266,13 @@ func (h *SearchHandlers) ReindexTickets(c *gin.Context) {
 		// TODO: Implement actual ticket fetching from database
 		return []models.Ticket{}, nil
 	}
-	
+
 	stats, err := h.searchService.ReindexAllTickets(c.Request.Context(), fetcher)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Reindexing completed",
 		"stats":   stats,
@@ -282,34 +282,34 @@ func (h *SearchHandlers) ReindexTickets(c *gin.Context) {
 // IndexTicket indexes a single ticket
 func (h *SearchHandlers) IndexTicket(c *gin.Context) {
 	var ticket models.Ticket
-	
+
 	if err := c.ShouldBindJSON(&ticket); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	if err := h.searchService.IndexTicket(c.Request.Context(), &ticket); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Ticket indexed successfully"})
 }
 
 // UpdateTicketIndex updates a ticket in the search index
 func (h *SearchHandlers) UpdateTicketIndex(c *gin.Context) {
 	var ticket models.Ticket
-	
+
 	if err := c.ShouldBindJSON(&ticket); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	if err := h.searchService.UpdateTicketInIndex(c.Request.Context(), &ticket); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Ticket index updated successfully"})
 }
 
@@ -320,11 +320,11 @@ func (h *SearchHandlers) DeleteTicketFromIndex(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket_number required"})
 		return
 	}
-	
+
 	if err := h.searchService.DeleteTicketFromIndex(c.Request.Context(), ticketNumber); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Ticket removed from index"})
 }

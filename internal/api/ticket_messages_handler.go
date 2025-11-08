@@ -1,17 +1,17 @@
 package api
 
 import (
-    "fmt"
-    "net/http"
-    "regexp"
-    "strconv"
-    "strings"
-    "time"
-    "os"
+	"fmt"
+	"net/http"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
 
-    "github.com/gin-gonic/gin"
-    "github.com/gotrs-io/gotrs-ce/internal/models"
-    "github.com/gotrs-io/gotrs-ce/internal/service"
+	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/models"
+	"github.com/gotrs-io/gotrs-ce/internal/service"
 )
 
 // handleGetTicketMessages retrieves all messages/articles for a ticket
@@ -22,67 +22,67 @@ func handleGetTicketMessages(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket ID is required"})
 		return
 	}
-	
+
 	ticketID, err := strconv.ParseUint(ticketIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ticket ID"})
 		return
 	}
-	
+
 	// Get current user info
 	_, _, userRole, hasUser := getCurrentUser(c)
 	if !hasUser {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
 		return
 	}
-	
+
 	// TODO: Verify user can access this ticket (use existing RBAC)
 	// For now, basic role checking
 	if userRole != string(models.RoleAdmin) && userRole != string(models.RoleAgent) && userRole != string(models.RoleCustomer) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permissions"})
 		return
 	}
-	
-    // Test-mode, DB-less fallback to avoid background DB openers
-    if os.Getenv("APP_ENV") == "test" && os.Getenv("DB_HOST") == "" && os.Getenv("DATABASE_URL") == "" {
-        if ticketID != 1 {
-            c.JSON(http.StatusNotFound, gin.H{"error": "ticket not found"})
-            return
-        }
-        messages := []*service.SimpleTicketMessage{}
-        if c.GetHeader("HX-Request") != "" {
-            c.Header("Content-Type", "text/html")
-            c.String(http.StatusOK, renderSimpleMessagesHTML(messages))
-            return
-        }
-        c.JSON(http.StatusOK, gin.H{
-            "success":  true,
-            "messages": messages,
-            "total":    len(messages),
-            "pagination": gin.H{"page": 1, "per_page": 50, "has_more": false},
-        })
-        return
-    }
 
-    // Get messages from the ticket service (real path)
-    ticketService := GetTicketService()
-    if ticketService == nil {
-        // As a last resort in tests, return empty
-        c.JSON(http.StatusOK, gin.H{"success": true, "messages": []string{}, "total": 0, "pagination": gin.H{"page":1,"per_page":50,"has_more":false}})
-        return
-    }
-    messages, err := ticketService.GetMessages(uint(ticketID))
-    if err != nil {
-        // If ticket not found, return 404
-        if strings.Contains(err.Error(), "not found") {
-            c.JSON(http.StatusNotFound, gin.H{"error": "ticket not found"})
-            return
-        }
-        // For other errors, return 500
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve messages"})
-        return
-    }
-	
+	// Test-mode, DB-less fallback to avoid background DB openers
+	if os.Getenv("APP_ENV") == "test" && os.Getenv("DB_HOST") == "" && os.Getenv("DATABASE_URL") == "" {
+		if ticketID != 1 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "ticket not found"})
+			return
+		}
+		messages := []*service.SimpleTicketMessage{}
+		if c.GetHeader("HX-Request") != "" {
+			c.Header("Content-Type", "text/html")
+			c.String(http.StatusOK, renderSimpleMessagesHTML(messages))
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"success":    true,
+			"messages":   messages,
+			"total":      len(messages),
+			"pagination": gin.H{"page": 1, "per_page": 50, "has_more": false},
+		})
+		return
+	}
+
+	// Get messages from the ticket service (real path)
+	ticketService := GetTicketService()
+	if ticketService == nil {
+		// As a last resort in tests, return empty
+		c.JSON(http.StatusOK, gin.H{"success": true, "messages": []string{}, "total": 0, "pagination": gin.H{"page": 1, "per_page": 50, "has_more": false}})
+		return
+	}
+	messages, err := ticketService.GetMessages(uint(ticketID))
+	if err != nil {
+		// If ticket not found, return 404
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "ticket not found"})
+			return
+		}
+		// For other errors, return 500
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve messages"})
+		return
+	}
+
 	// Check if this is an HTMX request
 	if c.GetHeader("HX-Request") != "" {
 		// Return HTML fragment for HTMX
@@ -90,7 +90,7 @@ func handleGetTicketMessages(c *gin.Context) {
 		c.String(http.StatusOK, renderSimpleMessagesHTML(messages))
 		return
 	}
-	
+
 	// Return JSON for API requests
 	c.JSON(http.StatusOK, gin.H{
 		"success":  true,
@@ -112,20 +112,20 @@ func handleAddTicketMessage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket ID is required"})
 		return
 	}
-	
+
 	ticketID, err := strconv.ParseUint(ticketIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ticket ID"})
 		return
 	}
-	
+
 	// Get current user info
 	userID, userEmail, userRole, hasUser := getCurrentUser(c)
 	if !hasUser {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
 		return
 	}
-	
+
 	// Parse request body
 	var req struct {
 		Content    string `json:"content" binding:"required"`
@@ -136,24 +136,24 @@ func handleAddTicketMessage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 		return
 	}
-	
+
 	// Validate required fields
 	if strings.TrimSpace(req.Content) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "content is required"})
 		return
 	}
-	
+
 	// Set defaults
 	if req.Subject == "" {
 		req.Subject = fmt.Sprintf("Re: Ticket #%d", ticketID)
 	}
-	
-    // Determine message type based on user role and internal flag (case-insensitive)
-    roleLower := strings.ToLower(userRole)
-    isInternal := req.IsInternal && (roleLower == "admin" || roleLower == "agent")
-	
-    // Create the message
-    message := &service.SimpleTicketMessage{
+
+	// Determine message type based on user role and internal flag (case-insensitive)
+	roleLower := strings.ToLower(userRole)
+	isInternal := req.IsInternal && (roleLower == "admin" || roleLower == "agent")
+
+	// Create the message
+	message := &service.SimpleTicketMessage{
 		Subject:     req.Subject,
 		Body:        req.Content,
 		IsInternal:  isInternal,
@@ -164,60 +164,59 @@ func handleAddTicketMessage(c *gin.Context) {
 		IsPublic:    !isInternal,
 		CreatedAt:   time.Now(),
 	}
-	
+
 	if userRole == "customer" {
 		message.AuthorType = "Customer"
 	}
-	
-    // Prepare article representation used in both paths
-    newMessage := models.Article{
-        ID:                   0,
-        TicketID:             int(ticketID),
-        Subject:              message.Subject,
-        Body:                 message.Body,
-        CreateTime:           message.CreatedAt,
-        CreateBy:             int(userID),
-        IsVisibleForCustomer: 1,
-        ArticleTypeID:        models.ArticleTypeNoteExternal,
-        SenderTypeID:         models.SenderTypeAgent,
-        BodyType:             "text/plain",
-    }
-    if isInternal {
-        newMessage.IsVisibleForCustomer = 0
-        newMessage.ArticleTypeID = models.ArticleTypeNoteInternal
-    }
-    if roleLower == "customer" {
-        newMessage.SenderTypeID = models.SenderTypeCustomer
-    }
 
-    // Test-mode, DB-less fallback: simulate success without touching DB/services
-    if os.Getenv("APP_ENV") == "test" && os.Getenv("DB_HOST") == "" && os.Getenv("DATABASE_URL") == "" {
-        if ticketID != 1 {
-            c.JSON(http.StatusNotFound, gin.H{"error": "ticket not found"})
-            return
-        }
-        // Return minimal created response
-        c.JSON(http.StatusCreated, gin.H{
-            "success":    true,
-            "message":    "Message added successfully",
-            "message_id": 1,
-            "article":    newMessage,
-        })
-        return
-    }
+	// Prepare article representation used in both paths
+	newMessage := models.Article{
+		ID:                   0,
+		TicketID:             int(ticketID),
+		Subject:              message.Subject,
+		Body:                 message.Body,
+		CreateTime:           message.CreatedAt,
+		CreateBy:             int(userID),
+		IsVisibleForCustomer: 1,
+		ArticleTypeID:        models.ArticleTypeNoteExternal,
+		SenderTypeID:         models.SenderTypeAgent,
+		BodyType:             "text/plain",
+	}
+	if isInternal {
+		newMessage.IsVisibleForCustomer = 0
+		newMessage.ArticleTypeID = models.ArticleTypeNoteInternal
+	}
+	if roleLower == "customer" {
+		newMessage.SenderTypeID = models.SenderTypeCustomer
+	}
 
-    // Create new article/message using the service (real path)
-    ticketService := GetTicketService()
-    if err := ticketService.AddMessage(uint(ticketID), message); err != nil {
-        if strings.Contains(err.Error(), "not found") {
-            c.JSON(http.StatusNotFound, gin.H{"error": "ticket not found"})
-            return
-        }
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create message"})
-        return
-    }
-    
-	
+	// Test-mode, DB-less fallback: simulate success without touching DB/services
+	if os.Getenv("APP_ENV") == "test" && os.Getenv("DB_HOST") == "" && os.Getenv("DATABASE_URL") == "" {
+		if ticketID != 1 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "ticket not found"})
+			return
+		}
+		// Return minimal created response
+		c.JSON(http.StatusCreated, gin.H{
+			"success":    true,
+			"message":    "Message added successfully",
+			"message_id": 1,
+			"article":    newMessage,
+		})
+		return
+	}
+
+	// Create new article/message using the service (real path)
+	ticketService := GetTicketService()
+	if err := ticketService.AddMessage(uint(ticketID), message); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "ticket not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create message"})
+		return
+	}
+
 	// Check if this is an HTMX request
 	if c.GetHeader("HX-Request") != "" {
 		// Return updated message list HTML for HTMX
@@ -226,7 +225,7 @@ func handleAddTicketMessage(c *gin.Context) {
 		c.String(http.StatusOK, renderSingleMessageHTML(newMessage))
 		return
 	}
-	
+
 	// Return JSON response for API requests
 	c.JSON(http.StatusCreated, gin.H{
 		"success":    true,
@@ -243,29 +242,28 @@ func getCurrentUser(c *gin.Context) (uint, string, string, bool) {
 	userID, idExists := c.Get("user_id")
 	email, emailExists := c.Get("user_email")
 	role, roleExists := c.Get("user_role")
-	
+
 	if !idExists || !emailExists || !roleExists {
 		return 0, "", "", false
 	}
-	
+
 	id, ok := userID.(uint)
 	if !ok {
 		return 0, "", "", false
 	}
-	
+
 	emailStr, ok := email.(string)
 	if !ok {
 		return 0, "", "", false
 	}
-	
+
 	roleStr, ok := role.(string)
 	if !ok {
 		return 0, "", "", false
 	}
-	
+
 	return id, emailStr, roleStr, true
 }
-
 
 // renderMessagesHTML renders the message list as HTML for HTMX
 // renderSimpleMessagesHTML renders SimpleTicketMessage objects as HTML
@@ -273,13 +271,13 @@ func renderSimpleMessagesHTML(messages []*service.SimpleTicketMessage) string {
 	if len(messages) == 0 {
 		return `<div class="text-gray-500 text-center py-8">No messages found.</div>`
 	}
-	
+
 	html := `<div class="space-y-4">`
 	for _, msg := range messages {
 		html += renderSimpleMessageHTML(msg)
 	}
 	html += `</div>`
-	
+
 	return html
 }
 
@@ -289,23 +287,23 @@ func renderSimpleMessageHTML(msg *service.SimpleTicketMessage) string {
 	if msg.IsInternal {
 		internalBadge = `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-200 ml-2">Internal</span>`
 	}
-	
+
 	// Get formatted time
 	formattedTime := msg.CreatedAt.Format("Jan 2, 2006 3:04 PM")
-	
+
 	// Get initials from author name
 	initials := "U"
 	if len(msg.AuthorName) > 0 {
 		initials = string(msg.AuthorName[0])
 	}
-	
+
 	// Build attachments HTML
 	attachmentsHTML := ""
 	if len(msg.Attachments) > 0 {
 		attachmentsHTML = `<div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
 			<p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Attachments:</p>
 			<div class="space-y-1">`
-		
+
 		for _, att := range msg.Attachments {
 			// Format file size
 			sizeStr := formatFileSize(att.Size)
@@ -332,7 +330,7 @@ func renderSimpleMessageHTML(msg *service.SimpleTicketMessage) string {
 						%s
 					</div>`, att.URL, att.Filename, att.ContentType, getAttachmentIcon(att.ContentType))
 			}
-			
+
 			attachmentsHTML += fmt.Sprintf(`
 				<div class="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-lg hover:shadow-md transition-shadow"
 				     data-attachment-url="%s" 
@@ -355,13 +353,13 @@ func renderSimpleMessageHTML(msg *service.SimpleTicketMessage) string {
 					</div>
 				</div>`,
 				att.URL, att.Filename, att.ContentType,
-				thumbnailHTML, att.Filename, att.ContentType, sizeStr, 
+				thumbnailHTML, att.Filename, att.ContentType, sizeStr,
 				att.URL, att.Filename, att.ContentType, att.URL)
 		}
-		
+
 		attachmentsHTML += `</div></div>`
 	}
-	
+
 	// Process message body based on content type
 	processedBody := msg.Body
 	if strings.Contains(msg.ContentType, "text/html") || (strings.Contains(msg.Body, "<") && strings.Contains(msg.Body, ">")) {
@@ -374,7 +372,7 @@ func renderSimpleMessageHTML(msg *service.SimpleTicketMessage) string {
 		// Plain text - escape HTML entities
 		processedBody = strings.ReplaceAll(msg.Body, "\n", "<br>")
 	}
-	
+
 	return fmt.Sprintf(`
 	<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
 		<div class="flex items-start justify-between">
@@ -413,18 +411,19 @@ func renderSimpleMessageHTML(msg *service.SimpleTicketMessage) string {
 }
 
 // renderMessagesHTML renders articles as HTML. Currently not referenced.
+//
 //nolint:unused
 func renderMessagesHTML(messages []models.Article) string {
 	if len(messages) == 0 {
 		return `<div class="text-gray-500 text-center py-8">No messages found.</div>`
 	}
-	
+
 	html := `<div class="space-y-4">`
 	for _, msg := range messages {
 		html += renderSingleMessageHTML(msg)
 	}
 	html += `</div>`
-	
+
 	return html
 }
 
@@ -434,14 +433,14 @@ func renderSingleMessageHTML(msg models.Article) string {
 	if msg.IsVisibleForCustomer == 0 {
 		internalBadge = `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-200 ml-2">Internal</span>`
 	}
-	
+
 	// Get formatted time
 	formattedTime := msg.CreateTime.Format("Jan 2, 2006 3:04 PM")
-	
+
 	// Get author name (simplified - would come from User join in real implementation)
 	authorName := fmt.Sprintf("User %d", msg.CreateBy)
 	authorEmail := "user@example.com"
-	
+
 	// Convert body to string if it's interface{}
 	bodyStr := ""
 	if msg.Body != nil {
@@ -451,7 +450,7 @@ func renderSingleMessageHTML(msg models.Article) string {
 			bodyStr = string(bytes)
 		}
 	}
-	
+
 	return fmt.Sprintf(`
 	<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
 		<div class="flex items-start justify-between">
@@ -492,16 +491,16 @@ func getInitials(name string) string {
 	if name == "" {
 		return "?"
 	}
-	
+
 	parts := strings.Fields(name)
 	if len(parts) == 0 {
 		return "?"
 	}
-	
+
 	if len(parts) == 1 {
 		return strings.ToUpper(parts[0][:1])
 	}
-	
+
 	return strings.ToUpper(parts[0][:1] + parts[len(parts)-1][:1])
 }
 

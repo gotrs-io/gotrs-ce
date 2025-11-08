@@ -1,6 +1,7 @@
 package service
 
 import (
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -282,15 +283,35 @@ func (s *SimpleTicketService) GetMessages(ticketID uint) ([]*SimpleTicketMessage
 
 	// Now query attachments for all articles
 	if len(articleIDs) > 0 {
-		attachRows, err := db.Query(database.ConvertPlaceholders(`
-			SELECT att.id, att.article_id, att.filename, 
-			       COALESCE(att.content_type, 'application/octet-stream'), 
-			       COALESCE(att.content_size, '0'),
-			       att.content
-			FROM article_data_mime_attachment att
-			WHERE att.article_id = ANY($1)
-			ORDER BY att.id
-		`), pq.Array(articleIDs))
+		var attachRows *sql.Rows
+		if database.IsMySQL() {
+			placeholders := make([]string, len(articleIDs))
+			args := make([]interface{}, len(articleIDs))
+			for i, id := range articleIDs {
+				placeholders[i] = "?"
+				args[i] = id
+			}
+			query := fmt.Sprintf(`
+				SELECT att.id, att.article_id, att.filename,
+				       COALESCE(att.content_type, 'application/octet-stream'),
+				       COALESCE(att.content_size, '0'),
+				       att.content
+				FROM article_data_mime_attachment att
+				WHERE att.article_id IN (%s)
+				ORDER BY att.id
+			`, strings.Join(placeholders, ","))
+			attachRows, err = db.Query(query, args...)
+		} else {
+			attachRows, err = db.Query(database.ConvertPlaceholders(`
+				SELECT att.id, att.article_id, att.filename, 
+				       COALESCE(att.content_type, 'application/octet-stream'), 
+				       COALESCE(att.content_size, '0'),
+				       att.content
+				FROM article_data_mime_attachment att
+				WHERE att.article_id = ANY($1)
+				ORDER BY att.id
+			`), pq.Array(articleIDs))
+		}
 
 		if err == nil {
 			defer attachRows.Close()

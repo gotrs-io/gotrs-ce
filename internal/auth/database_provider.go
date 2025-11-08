@@ -3,9 +3,9 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
-	"errors"
 
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
@@ -128,7 +128,7 @@ func (p *DatabaseAuthProvider) authenticateCustomerUser(ctx context.Context, use
 	query := `
 		SELECT id, login, email, customer_id, first_name, last_name, pw, valid_id
 		FROM customer_user
-		WHERE login = $1
+		WHERE login = ?
 	`
 
 	err := p.db.QueryRowContext(ctx, query, username).Scan(
@@ -170,7 +170,9 @@ func (p *DatabaseAuthProvider) authenticateCustomerUser(ctx context.Context, use
 // Register database provider factory.
 func init() {
 	_ = RegisterProvider("database", func(deps ProviderDependencies) (AuthProvider, error) {
-		if deps.DB == nil { return nil, errors.New("db required for database auth provider") }
+		if deps.DB == nil {
+			return nil, errors.New("db required for database auth provider")
+		}
 		return NewDatabaseAuthProvider(deps.DB), nil
 	})
 }

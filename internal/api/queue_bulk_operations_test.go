@@ -28,13 +28,13 @@ func TestQueueBulkSelectionInterface(t *testing.T) {
 				assert.Contains(t, body, `type="checkbox"`)
 				assert.Contains(t, body, `id="select-all-queues"`)
 				assert.Contains(t, body, `Select All`)
-				
+
 				// Each queue should have a selection checkbox
 				assert.Contains(t, body, `name="queue-select"`)
 				assert.Contains(t, body, `value="1"`) // Queue ID as value
 				assert.Contains(t, body, `value="2"`)
 				assert.Contains(t, body, `value="3"`)
-				
+
 				// Should have bulk actions toolbar (hidden by default)
 				assert.Contains(t, body, `id="bulk-actions-toolbar"`)
 				assert.Contains(t, body, `style="display: none"`) // Hidden initially
@@ -75,15 +75,15 @@ func TestQueueBulkActionsToolbar(t *testing.T) {
 			checkResponse: func(t *testing.T, body string) {
 				// Should show selection count
 				assert.Contains(t, body, "2 queues selected")
-				
+
 				// Should show bulk action buttons
 				assert.Contains(t, body, "Activate Selected")
 				assert.Contains(t, body, "Deactivate Selected")
 				assert.Contains(t, body, "Delete Selected")
-				
+
 				// Delete button should have warning style
 				assert.Contains(t, body, "bg-red-600")
-				
+
 				// Should have cancel selection button
 				assert.Contains(t, body, "Cancel Selection")
 			},
@@ -219,7 +219,7 @@ func TestQueueBulkDelete(t *testing.T) {
 			checkResponse: func(t *testing.T, body string) {
 				// Debug: print the response body
 				t.Logf("Response body: %s", body)
-				
+
 				var response struct {
 					Success bool     `json:"success"`
 					Message string   `json:"message"`
@@ -303,7 +303,7 @@ func TestQueueBulkDelete(t *testing.T) {
 				}
 				queueIDs += "confirm=true"
 			}
-			
+
 			t.Logf("Sending form data: %s", queueIDs)
 
 			req, _ := http.NewRequest("DELETE", "/api/queues/bulk", strings.NewReader(queueIDs))
@@ -335,11 +335,11 @@ func TestQueueBulkSelectionJavaScript(t *testing.T) {
 				// Should have JavaScript for select all functionality
 				assert.Contains(t, body, "selectAllQueues")
 				assert.Contains(t, body, "updateBulkToolbar")
-				
+
 				// Should handle individual checkbox changes
 				assert.Contains(t, body, "queue-select")
 				assert.Contains(t, body, "addEventListener")
-				
+
 				// Should update toolbar visibility
 				assert.Contains(t, body, "bulk-actions-toolbar")
 				assert.Contains(t, body, "toolbar.style.display = 'block'")

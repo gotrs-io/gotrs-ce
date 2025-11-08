@@ -13,19 +13,19 @@ import (
 
 // SearchResult represents a search result item
 type SearchResult struct {
-	ID          int                    `json:"id"`
-	Subject     string                 `json:"subject"`
-	Body        string                 `json:"body"`
-	Status      string                 `json:"status"`
-	Priority    string                 `json:"priority"`
-	QueueID     int                    `json:"queue_id"`
-	QueueName   string                 `json:"queue_name"`
-	AssigneeID  int                    `json:"assignee_id"`
-	AssigneeName string                `json:"assignee_name"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
-	Score       float64                `json:"score"`
-	Highlights  map[string]string      `json:"highlights,omitempty"`
+	ID           int               `json:"id"`
+	Subject      string            `json:"subject"`
+	Body         string            `json:"body"`
+	Status       string            `json:"status"`
+	Priority     string            `json:"priority"`
+	QueueID      int               `json:"queue_id"`
+	QueueName    string            `json:"queue_name"`
+	AssigneeID   int               `json:"assignee_id"`
+	AssigneeName string            `json:"assignee_name"`
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
+	Score        float64           `json:"score"`
+	Highlights   map[string]string `json:"highlights,omitempty"`
 }
 
 // SavedSearch represents a user's saved search
@@ -68,43 +68,43 @@ var nextHistoryID = 1
 // Mock tickets for searching
 var searchableTickets = []SearchResult{
 	{
-		ID:       1,
-		Subject:  "Network issue with server",
-		Body:     "The server is experiencing network connectivity problems",
-		Status:   "open",
-		Priority: "high",
-		QueueID:  1,
-		QueueName: "IT Support",
-		AssigneeID: 1,
+		ID:           1,
+		Subject:      "Network issue with server",
+		Body:         "The server is experiencing network connectivity problems",
+		Status:       "open",
+		Priority:     "high",
+		QueueID:      1,
+		QueueName:    "IT Support",
+		AssigneeID:   1,
 		AssigneeName: "John Doe",
-		CreatedAt: time.Now().Add(-2 * time.Hour),
-		UpdatedAt: time.Now().Add(-1 * time.Hour),
+		CreatedAt:    time.Now().Add(-2 * time.Hour),
+		UpdatedAt:    time.Now().Add(-1 * time.Hour),
 	},
 	{
-		ID:       2,
-		Subject:  "Password reset request",
-		Body:     "User needs urgent password reset for email account",
-		Status:   "pending",
-		Priority: "medium",
-		QueueID:  1,
-		QueueName: "IT Support",
-		AssigneeID: 2,
+		ID:           2,
+		Subject:      "Password reset request",
+		Body:         "User needs urgent password reset for email account",
+		Status:       "pending",
+		Priority:     "medium",
+		QueueID:      1,
+		QueueName:    "IT Support",
+		AssigneeID:   2,
 		AssigneeName: "Jane Smith",
-		CreatedAt: time.Now().Add(-5 * time.Hour),
-		UpdatedAt: time.Now().Add(-3 * time.Hour),
+		CreatedAt:    time.Now().Add(-5 * time.Hour),
+		UpdatedAt:    time.Now().Add(-3 * time.Hour),
 	},
 	{
-		ID:       3,
-		Subject:  "Email server error",
-		Body:     "Critical server error preventing email delivery",
-		Status:   "open",
-		Priority: "critical",
-		QueueID:  2,
-		QueueName: "Email Admin",
-		AssigneeID: 1,
+		ID:           3,
+		Subject:      "Email server error",
+		Body:         "Critical server error preventing email delivery",
+		Status:       "open",
+		Priority:     "critical",
+		QueueID:      2,
+		QueueName:    "Email Admin",
+		AssigneeID:   1,
 		AssigneeName: "John Doe",
-		CreatedAt: time.Now().Add(-1 * time.Hour),
-		UpdatedAt: time.Now().Add(-30 * time.Minute),
+		CreatedAt:    time.Now().Add(-1 * time.Hour),
+		UpdatedAt:    time.Now().Add(-30 * time.Minute),
 	},
 }
 
@@ -123,17 +123,17 @@ func handleAdvancedTicketSearch(c *gin.Context) {
 	assigneeStr := c.Query("assignee")
 	createdFrom := c.Query("created_from")
 	createdTo := c.Query("created_to")
-	
+
 	// Pagination
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "20")
 	page, _ := strconv.Atoi(pageStr)
 	limit, _ := strconv.Atoi(limitStr)
-	
+
 	// Sorting
 	sortBy := c.DefaultQuery("sort", "relevance")
 	order := c.DefaultQuery("order", "desc")
-	
+
 	// Highlighting
 	highlight := c.Query("highlight") == "true"
 
@@ -145,13 +145,13 @@ func handleAdvancedTicketSearch(c *gin.Context) {
 		// Basic text search (simplified - in production use full-text search)
 		if query != "*" {
 			searchText := strings.ToLower(ticket.Subject + " " + ticket.Body)
-			
+
 			// Handle field-specific queries
 			if strings.Contains(query, ":") {
 				parts := strings.SplitN(query, ":", 2)
 				field := strings.ToLower(parts[0])
 				value := strings.Trim(parts[1], "\"")
-				
+
 				switch field {
 				case "subject":
 					if !strings.Contains(strings.ToLower(ticket.Subject), strings.ToLower(value)) {
@@ -309,9 +309,9 @@ func handleAdvancedTicketSearch(c *gin.Context) {
 // handleSearchSuggestions returns search suggestions based on partial query
 func handleSearchSuggestions(c *gin.Context) {
 	query := c.Query("q")
-	
+
 	var suggestions []string
-	
+
 	// Only suggest for queries with 2+ characters
 	if len(query) >= 2 {
 		// Mock suggestions (in production, use actual search index)
@@ -322,23 +322,23 @@ func handleSearchSuggestions(c *gin.Context) {
 			"server", "server error", "server down",
 			"login", "login failed", "login issue",
 		}
-		
+
 		for _, suggestion := range allSuggestions {
 			if strings.HasPrefix(strings.ToLower(suggestion), strings.ToLower(query)) {
 				suggestions = append(suggestions, suggestion)
 			}
 		}
-		
+
 		// Limit to 10 suggestions
 		if len(suggestions) > 10 {
 			suggestions = suggestions[:10]
 		}
 	}
-	
+
 	if suggestions == nil {
 		suggestions = []string{}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"suggestions": suggestions,
 	})
@@ -349,12 +349,12 @@ func handleSaveSearchHistory(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	query := c.Query("q")
 	name := c.Query("name")
-	
+
 	if query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Query is required"})
 		return
 	}
-	
+
 	history := SearchHistory{
 		ID:        nextHistoryID,
 		UserID:    userID.(int),
@@ -363,10 +363,10 @@ func handleSaveSearchHistory(c *gin.Context) {
 		Results:   10, // Mock result count
 		CreatedAt: time.Now(),
 	}
-	
+
 	searchHistory = append(searchHistory, history)
 	nextHistoryID++
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Search saved to history",
 		"id":      history.ID,
@@ -376,14 +376,14 @@ func handleSaveSearchHistory(c *gin.Context) {
 // handleGetSearchHistory returns user's search history
 func handleGetSearchHistory(c *gin.Context) {
 	userID, _ := c.Get("user_id")
-	
+
 	var userHistory []SearchHistory
 	for _, h := range searchHistory {
 		if h.UserID == userID.(int) {
 			userHistory = append(userHistory, h)
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"history": userHistory,
 	})
@@ -397,9 +397,9 @@ func handleDeleteSearchHistory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
-	
+
 	userID, _ := c.Get("user_id")
-	
+
 	// Remove from history
 	var newHistory []SearchHistory
 	found := false
@@ -410,14 +410,14 @@ func handleDeleteSearchHistory(c *gin.Context) {
 		}
 		newHistory = append(newHistory, h)
 	}
-	
+
 	if !found {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Search not found in history"})
 		return
 	}
-	
+
 	searchHistory = newHistory
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Search removed from history",
 	})
@@ -428,12 +428,12 @@ func handleCreateSavedSearch(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	name := c.Query("name")
 	query := c.Query("q")
-	
+
 	if name == "" || query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Name and query are required"})
 		return
 	}
-	
+
 	search := &SavedSearch{
 		ID:        nextSavedSearchID,
 		UserID:    userID.(int),
@@ -442,10 +442,10 @@ func handleCreateSavedSearch(c *gin.Context) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	
+
 	savedSearches[nextSavedSearchID] = search
 	nextSavedSearchID++
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Search saved successfully",
 		"id":      search.ID,
@@ -455,14 +455,14 @@ func handleCreateSavedSearch(c *gin.Context) {
 // handleGetSavedSearches returns user's saved searches
 func handleGetSavedSearches(c *gin.Context) {
 	userID, _ := c.Get("user_id")
-	
+
 	var userSearches []SavedSearch
 	for _, s := range savedSearches {
 		if s.UserID == userID.(int) {
 			userSearches = append(userSearches, *s)
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"searches": userSearches,
 	})
@@ -476,28 +476,28 @@ func handleExecuteSavedSearch(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
-	
+
 	userID, _ := c.Get("user_id")
-	
+
 	search, exists := savedSearches[id]
 	if !exists || search.UserID != userID.(int) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Saved search not found"})
 		return
 	}
-	
+
 	// Execute the search (simplified - reuse the search logic)
 	var results []SearchResult
-    for _, ticket := range searchableTickets {
-        // Simple match for demo
-        if strings.Contains(search.Query, "open") && ticket.Status == "open" {
-            results = append(results, ticket)
-            continue
-        }
-        if strings.Contains(search.Query, "critical") && ticket.Priority == "critical" {
-            results = append(results, ticket)
-        }
-    }
-	
+	for _, ticket := range searchableTickets {
+		// Simple match for demo
+		if strings.Contains(search.Query, "open") && ticket.Status == "open" {
+			results = append(results, ticket)
+			continue
+		}
+		if strings.Contains(search.Query, "critical") && ticket.Priority == "critical" {
+			results = append(results, ticket)
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"results": results,
 		"total":   len(results),
@@ -513,17 +513,17 @@ func handleUpdateSavedSearch(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
-	
+
 	userID, _ := c.Get("user_id")
 	name := c.Query("name")
 	query := c.Query("q")
-	
+
 	search, exists := savedSearches[id]
 	if !exists || search.UserID != userID.(int) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Saved search not found"})
 		return
 	}
-	
+
 	if name != "" {
 		search.Name = name
 	}
@@ -531,7 +531,7 @@ func handleUpdateSavedSearch(c *gin.Context) {
 		search.Query = query
 	}
 	search.UpdatedAt = time.Now()
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Saved search updated",
 	})
@@ -545,17 +545,17 @@ func handleDeleteSavedSearch(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
-	
+
 	userID, _ := c.Get("user_id")
-	
+
 	search, exists := savedSearches[id]
 	if !exists || search.UserID != userID.(int) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Saved search not found"})
 		return
 	}
-	
+
 	delete(savedSearches, id)
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Saved search deleted",
 	})
@@ -565,27 +565,27 @@ func handleDeleteSavedSearch(c *gin.Context) {
 func handleExportSearchResults(c *gin.Context) {
 	query := c.Query("q")
 	format := c.Query("format")
-	
+
 	if query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Search query is required"})
 		return
 	}
-	
+
 	// Get search results (simplified)
-    var results []SearchResult
-    results = append(results, searchableTickets...)
-	
+	var results []SearchResult
+	results = append(results, searchableTickets...)
+
 	timestamp := time.Now().Format("20060102-150405")
-	
+
 	switch format {
 	case "csv":
 		c.Header("Content-Type", "text/csv")
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"tickets-%s.csv\"", timestamp))
-		
+
 		writer := csv.NewWriter(c.Writer)
 		// Write headers
 		writer.Write([]string{"ID", "Subject", "Status", "Priority", "Queue", "Assignee", "Created"})
-		
+
 		// Write data
 		for _, ticket := range results {
 			writer.Write([]string{
@@ -599,25 +599,25 @@ func handleExportSearchResults(c *gin.Context) {
 			})
 		}
 		writer.Flush()
-		
+
 	case "json":
 		c.Header("Content-Type", "application/json")
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"tickets-%s.json\"", timestamp))
-		
+
 		c.JSON(http.StatusOK, gin.H{
-			"tickets": results,
+			"tickets":     results,
 			"exported_at": time.Now(),
-			"total": len(results),
+			"total":       len(results),
 		})
-		
+
 	case "xlsx":
 		c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"tickets-%s.xlsx\"", timestamp))
-		
+
 		// For demo, just send empty Excel file marker
 		// In production, use a library like excelize to generate actual Excel file
 		c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", []byte("Excel file content"))
-		
+
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid export format. Supported: csv, json, xlsx"})
 	}

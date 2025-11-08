@@ -66,8 +66,8 @@ func TestCreateInternalNote(t *testing.T) {
 			name:     "Create note with attachments",
 			ticketID: "1",
 			payload: map[string]interface{}{
-				"content":       "See attached internal documentation",
-				"visibility":    "internal",
+				"content":        "See attached internal documentation",
+				"visibility":     "internal",
 				"attachment_ids": []int{1, 2},
 			},
 			userRole:   "agent",

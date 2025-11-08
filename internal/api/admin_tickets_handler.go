@@ -70,8 +70,8 @@ func HandleAdminTickets(c *gin.Context) {
 		args = append(args, searchStr)
 	}
 
-    // Count total for pagination (parameterized, cross-DB)
-    countQuery := `
+	// Count total for pagination (parameterized, cross-DB)
+	countQuery := `
         SELECT COUNT(*)
         FROM ticket t
         JOIN ticket_state ts ON t.ticket_state_id = ts.id
@@ -79,28 +79,28 @@ func HandleAdminTickets(c *gin.Context) {
         WHERE 1=1
     `
 
-    var countArgs []interface{}
-    countArgCount := 0
-    if statusFilter != "" && statusFilter != "all" {
-        countArgCount++
-        countQuery += fmt.Sprintf(" AND ts.name = $%d", countArgCount)
-        countArgs = append(countArgs, statusFilter)
-    }
-    if queueFilter != "" && queueFilter != "all" {
-        countArgCount++
-        countQuery += fmt.Sprintf(" AND q.name = $%d", countArgCount)
-        countArgs = append(countArgs, queueFilter)
-    }
-    if searchQuery != "" {
-        countArgCount++
-        countQuery += fmt.Sprintf(" AND (t.tn ILIKE $%d OR t.title ILIKE $%d)", countArgCount, countArgCount)
-        countArgs = append(countArgs, "%"+searchQuery+"%")
-    }
+	var countArgs []interface{}
+	countArgCount := 0
+	if statusFilter != "" && statusFilter != "all" {
+		countArgCount++
+		countQuery += fmt.Sprintf(" AND ts.name = $%d", countArgCount)
+		countArgs = append(countArgs, statusFilter)
+	}
+	if queueFilter != "" && queueFilter != "all" {
+		countArgCount++
+		countQuery += fmt.Sprintf(" AND q.name = $%d", countArgCount)
+		countArgs = append(countArgs, queueFilter)
+	}
+	if searchQuery != "" {
+		countArgCount++
+		countQuery += fmt.Sprintf(" AND (t.tn ILIKE $%d OR t.title ILIKE $%d)", countArgCount, countArgCount)
+		countArgs = append(countArgs, "%"+searchQuery+"%")
+	}
 
-    var totalCount int
-    if err := db.QueryRow(database.ConvertPlaceholders(countQuery), countArgs...).Scan(&totalCount); err != nil {
-        totalCount = 0
-    }
+	var totalCount int
+	if err := db.QueryRow(database.ConvertPlaceholders(countQuery), countArgs...).Scan(&totalCount); err != nil {
+		totalCount = 0
+	}
 
 	// Add ordering and pagination
 	query += " ORDER BY t.create_time DESC LIMIT $" + strconv.Itoa(argCount+1) + " OFFSET $" + strconv.Itoa(argCount+2)
@@ -120,18 +120,18 @@ func HandleAdminTickets(c *gin.Context) {
 	var tickets []map[string]interface{}
 	for rows.Next() {
 		var ticket struct {
-			ID           int
-			Number       string
-			Title        string
-			CreateTime   string
-			ChangeTime   string
-			State        string
-			Priority     string
-			Queue        string
-			Customer     string
-			AssignedTo   string
+			ID         int
+			Number     string
+			Title      string
+			CreateTime string
+			ChangeTime string
+			State      string
+			Priority   string
+			Queue      string
+			Customer   string
+			AssignedTo string
 		}
-		
+
 		err := rows.Scan(
 			&ticket.ID, &ticket.Number, &ticket.Title,
 			&ticket.CreateTime, &ticket.ChangeTime,
@@ -143,21 +143,21 @@ func HandleAdminTickets(c *gin.Context) {
 		}
 
 		tickets = append(tickets, map[string]interface{}{
-			"id":           ticket.ID,
-			"number":       ticket.Number,
-			"title":        ticket.Title,
-			"create_time":  ticket.CreateTime,
-			"change_time":  ticket.ChangeTime,
-			"state":        ticket.State,
-			"priority":     ticket.Priority,
-			"queue":        ticket.Queue,
-			"customer":     ticket.Customer,
-			"assigned_to":  ticket.AssignedTo,
+			"id":          ticket.ID,
+			"number":      ticket.Number,
+			"title":       ticket.Title,
+			"create_time": ticket.CreateTime,
+			"change_time": ticket.ChangeTime,
+			"state":       ticket.State,
+			"priority":    ticket.Priority,
+			"queue":       ticket.Queue,
+			"customer":    ticket.Customer,
+			"assigned_to": ticket.AssignedTo,
 		})
 	}
 
 	// Get available states for filter
-    stateRows, _ := db.Query(database.ConvertPlaceholders("SELECT DISTINCT name FROM ticket_state WHERE valid_id = 1 ORDER BY name"))
+	stateRows, _ := db.Query(database.ConvertPlaceholders("SELECT DISTINCT name FROM ticket_state WHERE valid_id = 1 ORDER BY name"))
 	var states []string
 	if stateRows != nil {
 		defer stateRows.Close()
@@ -169,7 +169,7 @@ func HandleAdminTickets(c *gin.Context) {
 	}
 
 	// Get available queues for filter
-    queueRows, _ := db.Query(database.ConvertPlaceholders("SELECT DISTINCT name FROM queue WHERE valid_id = 1 ORDER BY name"))
+	queueRows, _ := db.Query(database.ConvertPlaceholders("SELECT DISTINCT name FROM queue WHERE valid_id = 1 ORDER BY name"))
 	var queues []string
 	if queueRows != nil {
 		defer queueRows.Close()
@@ -182,7 +182,7 @@ func HandleAdminTickets(c *gin.Context) {
 
 	// Calculate pagination
 	totalPages := (totalCount + limit - 1) / limit
-	
+
 	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/tickets.pongo2", pongo2.Context{
 		"User":         getUserFromContext(c),
 		"ActivePage":   "admin",

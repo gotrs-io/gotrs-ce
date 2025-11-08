@@ -1,12 +1,12 @@
 package api
 
 import (
-    "net/http"
-    "os"
-    "strconv"
+	"net/http"
+	"os"
+	"strconv"
 
-    "github.com/gin-gonic/gin"
-    "github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 )
 
 // HandleListArticlesAPI handles GET /api/v1/tickets/:ticket_id/articles
@@ -19,58 +19,58 @@ func HandleListArticlesAPI(c *gin.Context) {
 	}
 	_ = userID // Will use for permission checks later
 
-    // Parse ticket ID (accept both :ticket_id and :id)
-    ticketParam := c.Param("ticket_id")
-    if ticketParam == "" {
-        ticketParam = c.Param("id")
-    }
-    ticketID, err := strconv.Atoi(ticketParam)
+	// Parse ticket ID (accept both :ticket_id and :id)
+	ticketParam := c.Param("ticket_id")
+	if ticketParam == "" {
+		ticketParam = c.Param("id")
+	}
+	ticketID, err := strconv.Atoi(ticketParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
 
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        if os.Getenv("APP_ENV") == "test" {
-            c.JSON(http.StatusOK, gin.H{
-                "articles": []gin.H{},
-                "total": 0,
-            })
-            return
-        }
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
-        return
-    }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		if os.Getenv("APP_ENV") == "test" {
+			c.JSON(http.StatusOK, gin.H{
+				"articles": []gin.H{},
+				"total":    0,
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+		return
+	}
 
-    // Check if ticket exists (OTRS uses singular table names)
+	// Check if ticket exists (OTRS uses singular table names)
 	var ticketExists int
 	checkQuery := database.ConvertPlaceholders(`
 		SELECT 1 FROM ticket WHERE id = $1
 	`)
 	db.QueryRow(checkQuery, ticketID).Scan(&ticketExists)
-    if ticketExists != 1 {
-        // In tests, fall back to stub response if ticket not present
-        if os.Getenv("APP_ENV") == "test" {
-            c.JSON(http.StatusOK, gin.H{
-                "articles": []gin.H{{
-                    "id":        1,
-                    "ticket_id": ticketID,
-                    "subject":   "Test Subject",
-                    "body":      "Test Body",
-                    "from_email": "sender@example.com",
-                    "to_email":   "recipient@example.com",
-                    "create_time": "2025-01-01T00:00:00Z",
-                }},
-                "total": 1,
-            })
-            return
-        }
-        c.JSON(http.StatusNotFound, gin.H{"error": "Ticket not found"})
-        return
-    }
+	if ticketExists != 1 {
+		// In tests, fall back to stub response if ticket not present
+		if os.Getenv("APP_ENV") == "test" {
+			c.JSON(http.StatusOK, gin.H{
+				"articles": []gin.H{{
+					"id":          1,
+					"ticket_id":   ticketID,
+					"subject":     "Test Subject",
+					"body":        "Test Body",
+					"from_email":  "sender@example.com",
+					"to_email":    "recipient@example.com",
+					"create_time": "2025-01-01T00:00:00Z",
+				}},
+				"total": 1,
+			})
+			return
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "Ticket not found"})
+		return
+	}
 
-    // Get articles for the ticket (OTRS tables are singular: article)
+	// Get articles for the ticket (OTRS tables are singular: article)
 	query := database.ConvertPlaceholders(`
 		SELECT a.id, a.ticket_id, a.article_type_id, a.article_sender_type_id,
 			a.from_email, a.to_email, a.cc, a.subject, a.body,
@@ -93,19 +93,19 @@ func HandleListArticlesAPI(c *gin.Context) {
 	articles := []gin.H{}
 	for rows.Next() {
 		var article struct {
-			ID                   int
-			TicketID             int
-			ArticleTypeID        int
-			ArticleSenderTypeID  int
-			FromEmail            string
-			ToEmail              string
-			CC                   *string
-			Subject              string
-			Body                 string
-			CreateTime           string
-			CreateBy             int
-			ArticleType          *string
-			SenderType           *string
+			ID                  int
+			TicketID            int
+			ArticleTypeID       int
+			ArticleSenderTypeID int
+			FromEmail           string
+			ToEmail             string
+			CC                  *string
+			Subject             string
+			Body                string
+			CreateTime          string
+			CreateBy            int
+			ArticleType         *string
+			SenderType          *string
 		}
 
 		err := rows.Scan(
@@ -143,7 +143,7 @@ func HandleListArticlesAPI(c *gin.Context) {
 		}
 
 		// Check for attachments if requested
-        if c.Query("include_attachments") == "true" {
+		if c.Query("include_attachments") == "true" {
 			attachQuery := database.ConvertPlaceholders(`
                 SELECT id, filename, content_type, content_size
                 FROM article_attachment

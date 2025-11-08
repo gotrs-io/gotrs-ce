@@ -25,20 +25,20 @@ func TestQueueListPage(t *testing.T) {
 				// Should contain the New Queue button with HTMX
 				assert.Contains(t, body, "New Queue")
 				assert.Contains(t, body, `hx-get="/queues/new"`)
-				
+
 				// Should contain queue items
 				assert.Contains(t, body, "Raw")
 				assert.Contains(t, body, "Junk")
-				
+
 				// Each queue should have Edit and Delete buttons
 				assert.Contains(t, body, "Edit")
 				assert.Contains(t, body, "Delete")
-				
+
 				// Edit buttons should have HTMX attributes
 				assert.Contains(t, body, `hx-get="/queues/1/edit"`)
 				assert.Contains(t, body, `hx-get="/queues/2/edit"`)
-				
-				// Delete buttons should have HTMX attributes  
+
+				// Delete buttons should have HTMX attributes
 				assert.Contains(t, body, `hx-get="/queues/1/delete"`)
 				assert.Contains(t, body, `hx-get="/queues/2/delete"`)
 			},
@@ -130,7 +130,7 @@ func TestQueueListEditActions(t *testing.T) {
 		},
 		{
 			name:           "should render edit form for different queue",
-			queueID:        "2", 
+			queueID:        "2",
 			expectedStatus: http.StatusOK,
 			checkResponse: func(t *testing.T, body string) {
 				// Should render edit form for Junk queue
@@ -179,7 +179,7 @@ func TestQueueListDeleteActions(t *testing.T) {
 				assert.Contains(t, body, "Are you sure")
 				assert.Contains(t, body, "Misc")
 				assert.Contains(t, body, "cannot be undone")
-				
+
 				// Should have delete and cancel buttons
 				assert.Contains(t, body, `hx-delete="/api/queues/3"`)
 				assert.Contains(t, body, "Delete Queue")
@@ -196,7 +196,7 @@ func TestQueueListDeleteActions(t *testing.T) {
 				assert.Contains(t, body, "Raw")
 				assert.Contains(t, body, "contains tickets")
 				assert.Contains(t, body, "2 tickets")
-				
+
 				// Should NOT have delete button (only close)
 				assert.NotContains(t, body, "Delete Queue")
 				assert.Contains(t, body, "Close")
@@ -247,7 +247,7 @@ func TestQueueListRefreshAfterActions(t *testing.T) {
 		},
 		{
 			name:           "should refresh queue list after successful update",
-			method:         "PUT", 
+			method:         "PUT",
 			endpoint:       "/api/queues/1",
 			formData:       "name=Raw+Updated&comment=Updated+description",
 			expectedStatus: http.StatusOK,
@@ -265,7 +265,7 @@ func TestQueueListRefreshAfterActions(t *testing.T) {
 			formData:       "",
 			expectedStatus: http.StatusOK,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
-				// Should trigger queue list refresh 
+				// Should trigger queue list refresh
 				assert.Contains(t, w.Header().Get("HX-Trigger"), "queue-deleted")
 				assert.Equal(t, "/queues", w.Header().Get("HX-Redirect"))
 			},
@@ -275,7 +275,7 @@ func TestQueueListRefreshAfterActions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
-			
+
 			// Register the handlers
 			router.POST("/api/queues", handleCreateQueueWithHTMX)
 			router.PUT("/api/queues/:id", handleUpdateQueueWithHTMX)
@@ -316,17 +316,17 @@ func TestQueueListActions_UIInteractions(t *testing.T) {
 			checkResponse: func(t *testing.T, body string) {
 				// Should have properly positioned action buttons
 				assert.Contains(t, body, "New Queue")
-				
+
 				// Each queue item should have action buttons
 				// Looking for button containers and proper spacing
 				assert.Contains(t, body, "Edit")
 				assert.Contains(t, body, "Delete")
-				
+
 				// Buttons should have proper styling classes
 				assert.Contains(t, body, "inline-flex items-center") // Button styling classes
-				
+
 				// Should maintain list structure with actions
-				assert.Contains(t, body, "<li>") // List items
+				assert.Contains(t, body, "<li>")          // List items
 				assert.Contains(t, body, "role=\"list\"") // Accessibility
 			},
 		},
@@ -338,7 +338,7 @@ func TestQueueListActions_UIInteractions(t *testing.T) {
 				// Should always show New Queue button
 				assert.Contains(t, body, "New Queue")
 				assert.Contains(t, body, `hx-get="/queues/new"`)
-				
+
 				// Should have queue management header
 				assert.Contains(t, body, "Queue Management")
 			},

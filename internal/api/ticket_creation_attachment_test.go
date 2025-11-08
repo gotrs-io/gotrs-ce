@@ -22,9 +22,9 @@ func TestCreateTicketWithAttachments(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name         string
-		formData     map[string]string
-		attachments  []struct {
+		name        string
+		formData    map[string]string
+		attachments []struct {
 			fieldName string
 			fileName  string
 			content   string
@@ -109,7 +109,7 @@ func TestCreateTicketWithAttachments(t *testing.T) {
 			name: "Create ticket with large attachment",
 			formData: map[string]string{
 				"title":          "Performance issue",
-				"customer_email": "admin@example.com", 
+				"customer_email": "admin@example.com",
 				"body":           "System performance degraded, see attached logs",
 				"priority":       "critical",
 			},
@@ -145,7 +145,7 @@ func TestCreateTicketWithAttachments(t *testing.T) {
 				mimeType  string
 			}{
 				{
-					fieldName: "attachment", 
+					fieldName: "attachment",
 					fileName:  "suspicious.exe",
 					content:   "fake-exe-binary-content",
 					mimeType:  "application/octet-stream",
@@ -178,14 +178,14 @@ func TestCreateTicketWithAttachments(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// This test SHOULD FAIL initially because attachment handling doesn't exist
 			router := gin.New()
-			
+
 			// Setup test router with real handler
 			router.POST("/api/tickets", func(c *gin.Context) {
 				// Mock user context
 				c.Set("user_role", "Agent")
 				c.Set("user_id", uint(1))
 				c.Set("user_email", "test@example.com")
-				
+
 				// Use the real handler
 				handleCreateTicket(c)
 			})
@@ -244,7 +244,7 @@ func TestTicketCreationWithAttachmentsErrorHandling(t *testing.T) {
 		{
 			name: "Missing required fields with attachment",
 			formData: map[string]string{
-				"title": "Incomplete ticket", 
+				"title": "Incomplete ticket",
 				// Missing customer_email and body
 			},
 			wantStatus: http.StatusBadRequest,
@@ -268,7 +268,7 @@ func TestTicketCreationWithAttachmentsErrorHandling(t *testing.T) {
 			name: "File too large",
 			formData: map[string]string{
 				"title":          "Large file test",
-				"customer_email": "user@example.com", 
+				"customer_email": "user@example.com",
 				"body":           "Testing file size limits",
 			},
 			// File size limit testing would be done in actual implementation
@@ -297,7 +297,7 @@ func TestTicketCreationWithAttachmentsErrorHandling(t *testing.T) {
 
 			req := httptest.NewRequest("POST", "/api/tickets", body)
 			req.Header.Set("Content-Type", writer.FormDataContentType())
-			
+
 			if tt.setupRequest != nil {
 				tt.setupRequest(req)
 			}
@@ -318,9 +318,9 @@ func TestTicketCreationWithAttachmentsErrorHandling(t *testing.T) {
 // Test to verify the exact 500 error user reported is fixed
 func TestTicketCreation500Fix(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	t.Run("Fix for reported 500 error with attachments", func(t *testing.T) {
-		// This reproduces the exact error: "Response Status Error Code 500 from /api/tickets" 
+		// This reproduces the exact error: "Response Status Error Code 500 from /api/tickets"
 		// when creating tickets with attachments
 		router := gin.New()
 		router.POST("/api/tickets", func(c *gin.Context) {
@@ -333,12 +333,12 @@ func TestTicketCreation500Fix(t *testing.T) {
 		// Create a ticket creation request with attachment (the scenario causing 500)
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
-		
+
 		writer.WriteField("title", "Test ticket with attachment")
 		writer.WriteField("customer_email", "user@example.com")
 		writer.WriteField("body", "This ticket has an attachment")
 		writer.WriteField("priority", "normal")
-		
+
 		// Add a file attachment (this likely causes the current 500 error)
 		part, _ := writer.CreateFormFile("attachment", "test.txt")
 		io.WriteString(part, "test file content")
@@ -354,10 +354,10 @@ func TestTicketCreation500Fix(t *testing.T) {
 		if w.Code == http.StatusInternalServerError {
 			var resp map[string]interface{}
 			json.Unmarshal(w.Body.Bytes(), &resp)
-			
+
 			// Verify this is the specific 500 error (not some other error)
 			t.Logf("Current 500 error response: %v", resp)
-			
+
 			// The fix should make this return 201 Created with proper attachment handling
 			// assert.Equal(t, http.StatusCreated, w.Code) // This will pass after fix
 		} else {

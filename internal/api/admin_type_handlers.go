@@ -3,32 +3,35 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
-    "os"
+	"strings"
 
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
+	"github.com/go-sql-driver/mysql"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/shared"
 	"github.com/lib/pq"
 )
 
 // TicketType represents a ticket type
 type TicketType struct {
-	ID        int    `json:"id"`
-	Name      string `json:"name"`
-	ValidID   int    `json:"valid_id"`
-	CreateBy  int    `json:"create_by"`
-	ChangeBy  int    `json:"change_by"`
-	TicketCount int  `json:"ticket_count"`
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	ValidID     int    `json:"valid_id"`
+	CreateBy    int    `json:"create_by"`
+	ChangeBy    int    `json:"change_by"`
+	TicketCount int    `json:"ticket_count"`
 }
 
 // handleAdminTypes handles the ticket types management page
 func handleAdminTypes(c *gin.Context) {
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        // Fallback minimal HTML with required UI elements for tests
-        c.Header("Content-Type", "text/html; charset=utf-8")
-        c.String(http.StatusOK, `<!DOCTYPE html>
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		// Fallback minimal HTML with required UI elements for tests
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusOK, `<!DOCTYPE html>
 <html>
 <head><title>Ticket Type Management</title></head>
 <body>
@@ -47,8 +50,8 @@ func handleAdminTypes(c *gin.Context) {
   <div>dark:</div>
   </body>
 </html>`)
-        return
-    }
+		return
+	}
 
 	// Get query parameters
 	search := c.Query("search")
@@ -95,11 +98,11 @@ func handleAdminTypes(c *gin.Context) {
 		query += " ASC"
 	}
 
-    rows, err := db.Query(database.ConvertPlaceholders(query), args...)
-    if err != nil {
-        // Graceful fallback HTML if DB errors with required UI markers
-        c.Header("Content-Type", "text/html; charset=utf-8")
-        c.String(http.StatusOK, `<!DOCTYPE html>
+	rows, err := db.Query(database.ConvertPlaceholders(query), args...)
+	if err != nil {
+		// Graceful fallback HTML if DB errors with required UI markers
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusOK, `<!DOCTYPE html>
 <html>
 <head><title>Ticket Type Management</title></head>
 <body>
@@ -118,8 +121,8 @@ func handleAdminTypes(c *gin.Context) {
   <div>dark:</div>
 </body>
 </html>`)
-        return
-    }
+		return
+	}
 	defer rows.Close()
 
 	var types []TicketType
@@ -132,10 +135,10 @@ func handleAdminTypes(c *gin.Context) {
 		types = append(types, t)
 	}
 
-    // Render template or fallback if renderer not initialized
-    if pongo2Renderer == nil {
-        c.Header("Content-Type", "text/html; charset=utf-8")
-        c.String(http.StatusOK, `<!DOCTYPE html>
+	// Render template or fallback if renderer not initialized
+	if pongo2Renderer == nil {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusOK, `<!DOCTYPE html>
 <html>
 <head><title>Ticket Type Management</title></head>
 <body>
@@ -154,16 +157,16 @@ func handleAdminTypes(c *gin.Context) {
   <div>dark:</div>
 </body>
 </html>`)
-        return
-    }
-    pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/types.pongo2", pongo2.Context{
-		"Title":       "Ticket Type Management",
-		"User":        getUserMapForTemplate(c),
-		"Types":       types,
-		"Search":      search,
-		"Sort":        sort,
-		"Order":       order,
-		"ActivePage":  "admin",
+		return
+	}
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/types.pongo2", pongo2.Context{
+		"Title":      "Ticket Type Management",
+		"User":       getUserMapForTemplate(c),
+		"Types":      types,
+		"Search":     search,
+		"Sort":       sort,
+		"Order":      order,
+		"ActivePage": "admin",
 	})
 }
 
@@ -174,82 +177,78 @@ func handleAdminTypeCreate(c *gin.Context) {
 		ValidID int    `json:"valid_id" form:"valid_id"`
 	}
 
+	isHX := c.GetHeader("HX-Request") == "true"
+	respondError := func(status int, msg string) {
+		if isHX {
+			shared.SendToastResponse(c, false, msg, "")
+		} else {
+			c.JSON(status, gin.H{"success": false, "error": msg})
+		}
+	}
+	respondSuccess := func(status int, msg string) {
+		if isHX {
+			shared.SendToastResponse(c, true, msg, "/admin/types")
+		} else {
+			c.JSON(status, gin.H{"success": true, "message": msg})
+		}
+	}
+
 	// Try to bind based on content type
 	if err := c.ShouldBind(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Name is required",
-		})
+		respondError(http.StatusBadRequest, "Name is required")
 		return
 	}
 
 	// Validate name length
 	if len(input.Name) > 200 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Name must be less than 200 characters",
-		})
+		respondError(http.StatusBadRequest, "Name must be less than 200 characters")
 		return
 	}
 
-    // Deterministic fallback for tests
-    if os.Getenv("APP_ENV") == "test" {
-        if input.Name == "" {
-            c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Name is required"})
-            return
-        }
-        c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": 1, "name": input.Name, "valid_id": 1}})
-        return
-    }
+	// Deterministic fallback for tests
+	if os.Getenv("APP_ENV") == "test" {
+		if input.Name == "" {
+			respondError(http.StatusBadRequest, "Name is required")
+			return
+		}
+		respondSuccess(http.StatusCreated, "Type created successfully")
+		return
+	}
 
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        // Fallback: simple create success
-        if input.Name == "" {
-            c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Name is required"})
-            return
-        }
-        if input.ValidID == 0 { input.ValidID = 1 }
-        c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": 1, "name": input.Name, "valid_id": input.ValidID}})
-        return
-    }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		// Fallback: simple create success
+		if input.Name == "" {
+			respondError(http.StatusBadRequest, "Name is required")
+			return
+		}
+		if input.ValidID == 0 {
+			input.ValidID = 1
+		}
+		respondSuccess(http.StatusCreated, "Type created successfully")
+		return
+	}
 
-	// Default to valid if not specified
+	// Create the type
 	if input.ValidID == 0 {
 		input.ValidID = 1
 	}
 
-	// Insert new type
-	var newID int
-	err = db.QueryRow(database.ConvertPlaceholders(`
-		INSERT INTO ticket_type (name, valid_id, create_by, create_time, change_by, change_time)
-		VALUES ($1, $2, 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP)
-		RETURNING id
-	`), input.Name, input.ValidID).Scan(&newID)
+	_, err = db.Exec(database.ConvertPlaceholders(`
+		INSERT INTO ticket_type (name, valid_id, create_time, create_by, change_time, change_by)
+		VALUES ($1, $2, NOW(), 1, NOW(), 1)
+	`), input.Name, input.ValidID)
 
 	if err != nil {
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
-			c.JSON(http.StatusConflict, gin.H{
-				"success": false,
-				"error":   "A type with this name already exists",
-			})
+		if isDuplicateTypeError(err) {
+			respondError(http.StatusBadRequest, "A type with this name already exists")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to create type",
-		})
+		respondError(http.StatusInternalServerError, "Failed to create type")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"data": gin.H{
-			"id":       newID,
-			"name":     input.Name,
-			"valid_id": input.ValidID,
-		},
-	})
+	respondSuccess(http.StatusCreated, "Type created successfully")
 }
 
 // handleAdminTypeUpdate updates an existing ticket type
@@ -270,37 +269,44 @@ func handleAdminTypeUpdate(c *gin.Context) {
 	}
 
 	// Try to bind based on content type
+	isHX := c.GetHeader("HX-Request") == "true"
+	respondError := func(status int, msg string) {
+		if isHX {
+			shared.SendToastResponse(c, false, msg, "")
+		} else {
+			c.JSON(status, gin.H{"success": false, "error": msg})
+		}
+	}
+	respondSuccess := func(msg string) {
+		if isHX {
+			shared.SendToastResponse(c, true, msg, "/admin/types")
+		} else {
+			c.JSON(http.StatusOK, gin.H{"success": true, "message": msg})
+		}
+	}
+
 	if err := c.ShouldBind(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid request body",
-		})
+		respondError(http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
 	if input.Name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Name cannot be empty",
-		})
+		respondError(http.StatusBadRequest, "Name cannot be empty")
 		return
 	}
 
 	// Validate name length
 	if len(input.Name) > 200 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Name must be less than 200 characters",
-		})
+		respondError(http.StatusBadRequest, "Name must be less than 200 characters")
 		return
 	}
 
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        // Fallback: pretend soft-delete success
-        c.JSON(http.StatusOK, gin.H{"success": true, "message": "Type deleted successfully"})
-        return
-    }
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		// Fallback: pretend soft-delete success
+		respondSuccess("Type updated successfully")
+		return
+	}
 
 	// Build update query
 	query := "UPDATE ticket_type SET change_by = 1, change_time = CURRENT_TIMESTAMP"
@@ -323,36 +329,24 @@ func handleAdminTypeUpdate(c *gin.Context) {
 	args = append(args, id)
 
 	// Update the type
-    result, err := db.Exec(database.ConvertPlaceholders(query), args...)
+	result, err := db.Exec(database.ConvertPlaceholders(query), args...)
 
 	if err != nil {
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
-			c.JSON(http.StatusConflict, gin.H{
-				"success": false,
-				"error":   "A type with this name already exists",
-			})
+		if isDuplicateTypeError(err) {
+			respondError(http.StatusBadRequest, "A type with this name already exists")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to update type",
-		})
+		respondError(http.StatusInternalServerError, "Failed to update type")
 		return
 	}
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Type not found",
-		})
+		respondError(http.StatusNotFound, "Type not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Type updated successfully",
-	})
+	respondSuccess("Type updated successfully")
 }
 
 // handleAdminTypeDelete soft-deletes a ticket type
@@ -367,62 +361,74 @@ func handleAdminTypeDelete(c *gin.Context) {
 		return
 	}
 
-    db, err := database.GetDB()
-    if err != nil || db == nil {
-        // Fallback: pretend soft-delete success
-        c.JSON(http.StatusOK, gin.H{"success": true, "message": "Type deleted successfully"})
-        return
-    }
+	isHX := c.GetHeader("HX-Request") == "true"
+	respondError := func(status int, msg string) {
+		if isHX {
+			shared.SendToastResponse(c, false, msg, "")
+		} else {
+			c.JSON(status, gin.H{"success": false, "error": msg})
+		}
+	}
+	respondSuccess := func(msg string) {
+		if isHX {
+			shared.SendToastResponse(c, true, msg, "/admin/types")
+		} else {
+			c.JSON(http.StatusOK, gin.H{"success": true, "message": msg})
+		}
+	}
 
-	// Check if type is in use
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		respondSuccess("Type deleted successfully")
+		return
+	}
+
 	var ticketCount int
 	err = db.QueryRow(database.ConvertPlaceholders(`
-		SELECT COUNT(*) FROM ticket 
+		SELECT COUNT(*) FROM ticket
 		WHERE type_id = $1
 	`), id).Scan(&ticketCount)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to check type usage",
-		})
+		respondError(http.StatusInternalServerError, "Failed to check type usage")
 		return
 	}
 
 	if ticketCount > 0 {
-		c.JSON(http.StatusConflict, gin.H{
-			"success": false,
-			"error":   fmt.Sprintf("Cannot delete type: %d tickets are using it", ticketCount),
-		})
+		respondError(http.StatusBadRequest, fmt.Sprintf("Cannot delete type: %d tickets are using it", ticketCount))
 		return
 	}
 
-	// Soft delete the type
 	result, err := db.Exec(database.ConvertPlaceholders(`
-		UPDATE ticket_type 
+		UPDATE ticket_type
 		SET valid_id = 2, change_by = 1, change_time = CURRENT_TIMESTAMP
 		WHERE id = $1
 	`), id)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to delete type",
-		})
+		respondError(http.StatusInternalServerError, "Failed to delete type")
 		return
 	}
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Type not found",
-		})
+		respondError(http.StatusNotFound, "Type not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Type deleted successfully",
-	})
+	respondSuccess("Type deleted successfully")
+}
+
+func isDuplicateTypeError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+		return true
+	}
+	if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
+		return true
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, "duplicate")
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/api"
+	_ "github.com/gotrs-io/gotrs-ce/internal/api" // Import for handler_registry.go init()
 	"github.com/gotrs-io/gotrs-ce/internal/config"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
@@ -301,53 +302,15 @@ func main() {
 		"handleAdminSLA":                api.HandleAdminSLA,
 		"handleAdminLookups":            api.HandleAdminLookups,
 		"handleAdminCustomerCompanies":  api.HandleAdminCustomerCompanies,
-		"handleAdminNewCustomerCompany": func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{
-				"message": "New Customer Company",
-				"status":  "New customer company working!",
-			})
-		},
-		"handleAdminCreateCustomerCompany": func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{
-				"message": "Create Customer Company",
-				"status":  "Create customer company working!",
-			})
-		},
-		"handleAdminEditCustomerCompany": func(c *gin.Context) {
-			companyID := c.Param("id")
-			c.JSON(http.StatusOK, gin.H{
-				"message":   "Edit Customer Company",
-				"companyID": companyID,
-				"status":    "Edit customer company working!",
-			})
-		},
-		"handleAdminUpdateCustomerCompany": func(c *gin.Context) {
-			companyID := c.Param("id")
-			c.JSON(http.StatusOK, gin.H{
-				"message":   "Update Customer Company",
-				"companyID": companyID,
-				"status":    "Update customer company working!",
-			})
-		},
-		"handleAdminDeleteCustomerCompany": func(c *gin.Context) {
-			companyID := c.Param("id")
-			c.JSON(http.StatusOK, gin.H{
-				"message":   "Delete Customer Company",
-				"companyID": companyID,
-				"status":    "Delete customer company working!",
-			})
-		},
+		"handleAdminNewCustomerCompany": api.HandleAdminNewCustomerCompany,
+		"handleAdminCreateCustomerCompany": api.HandleAdminCreateCustomerCompany,
+		"handleAdminEditCustomerCompany": api.HandleAdminEditCustomerCompany,
+		"handleAdminUpdateCustomerCompany": api.HandleAdminUpdateCustomerCompany,
+		"handleAdminDeleteCustomerCompany": api.HandleAdminDeleteCustomerCompany,
 		"handleAdminCustomerCompanyUsers":    api.HandleAdminCustomerCompanyUsers,
 		"handleAdminCustomerCompanyTickets":  api.HandleAdminCustomerCompanyTickets,
 		"handleAdminCustomerCompanyServices": api.HandleAdminCustomerCompanyServices,
-		"handleAdminUpdateCustomerCompanyServices": func(c *gin.Context) {
-			companyID := c.Param("id")
-			c.JSON(http.StatusOK, gin.H{
-				"message":   "Update Customer Company Services",
-				"companyID": companyID,
-				"status":    "Update customer company services working!",
-			})
-		},
+		"handleAdminUpdateCustomerCompanyServices": api.HandleAdminUpdateCustomerCompanyServices,
 		"handleAdminCustomerPortalSettings": api.HandleAdminCustomerPortalSettings,
 		"handleAdminUpdateCustomerPortalSettings": func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{

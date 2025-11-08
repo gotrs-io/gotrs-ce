@@ -2,10 +2,10 @@ package middleware
 
 import (
 	"context"
-	"net/http"
-	"time"
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"net/http"
+	"time"
 )
 
 // DatabaseHealthCheck middleware checks database connectivity
@@ -22,7 +22,7 @@ func DatabaseHealthCheck() gin.HandlerFunc {
 		// Check database connection
 		db, err := database.GetDB()
 		if err != nil || db == nil {
-			handleDatabaseError(c, "Unable to connect to the database", 
+			handleDatabaseError(c, "Unable to connect to the database",
 				"The database server appears to be offline or unreachable. Please ensure the database container is running and try again.",
 				"")
 			return
@@ -31,7 +31,7 @@ func DatabaseHealthCheck() gin.HandlerFunc {
 		// Create a context with timeout for the ping (2 seconds max)
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		
+
 		// Test the connection with a simple ping
 		if err := db.PingContext(ctx); err != nil {
 			handleDatabaseError(c, "Database is not responding",
@@ -48,11 +48,11 @@ func handleDatabaseError(c *gin.Context, message, details, suggestion string) {
 	// Check if this is an API request
 	if isDatabaseCheckAPIRequest(c) {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"error": "Database connection failed",
-			"message": message,
-			"details": details,
+			"error":      "Database connection failed",
+			"message":    message,
+			"details":    details,
 			"suggestion": suggestion,
-			"status": http.StatusServiceUnavailable,
+			"status":     http.StatusServiceUnavailable,
 		})
 		c.Abort()
 		return
@@ -160,7 +160,7 @@ func handleDatabaseError(c *gin.Context, message, details, suggestion string) {
     </script>
 </body>
 </html>`
-	
+
 	c.Data(http.StatusServiceUnavailable, "text/html; charset=utf-8", []byte(htmlContent))
 	c.Abort()
 }
@@ -172,6 +172,6 @@ func isDatabaseCheckAPIRequest(c *gin.Context) bool {
 	}
 	// Check Accept header
 	accept := c.GetHeader("Accept")
-	return accept == "application/json" || 
-	       c.GetHeader("Content-Type") == "application/json"
+	return accept == "application/json" ||
+		c.GetHeader("Content-Type") == "application/json"
 }

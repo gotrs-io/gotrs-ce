@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-11-08T20:26:46.84112819Z",
+  "generatedAt": "2025-11-09T08:39:47.917331206Z",
   "routes": [
     {
       "group": "admin",
@@ -176,6 +176,26 @@
       "method": "DELETE",
       "path": "/admin/groups/:id/members/:userId",
       "handler": "handleRemoveUserFromGroup",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "GET",
+      "path": "/admin/groups/:id/permissions",
+      "handler": "handleGroupPermissions",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "POST",
+      "path": "/admin/groups/:id/permissions",
+      "handler": "handleSaveGroupPermissions",
       "middleware": [
         "auth",
         "admin"

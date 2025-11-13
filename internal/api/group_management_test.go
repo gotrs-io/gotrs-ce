@@ -224,13 +224,15 @@ func TestAdminGroupManagement(t *testing.T) {
 		SetupHTMXRoutes(router)
 
 		req, _ := http.NewRequest("GET", "/admin/groups/1/permissions", nil)
+		req.Header.Set("Accept", "application/json")
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
 		var response map[string]interface{}
 		if err := json.Unmarshal(w.Body.Bytes(), &response); err == nil {
 			assert.True(t, response["success"].(bool))
-			assert.NotNil(t, response["data"])
+			assert.Contains(t, response, "group")
+			assert.Contains(t, response, "permission_keys")
 		}
 	})
 
@@ -242,19 +244,35 @@ func TestAdminGroupManagement(t *testing.T) {
 		router := gin.New()
 		SetupHTMXRoutes(router)
 
-		permissions := map[string][]string{
-			"rw": []string{"ticket_create", "ticket_update"},
-			"ro": []string{"ticket_view"},
+		payload := map[string]interface{}{
+			"assignments": []map[string]interface{}{
+				{
+					"user_id": 1,
+					"permissions": map[string]bool{
+						"ro":        true,
+						"move_into": true,
+						"create":    false,
+						"note":      false,
+						"owner":     false,
+						"priority":  false,
+						"rw":        false,
+					},
+				},
+			},
 		}
 
-		jsonBody, _ := json.Marshal(permissions)
-		req, _ := http.NewRequest("PUT", "/admin/groups/1/permissions", bytes.NewBuffer(jsonBody))
+		jsonBody, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", "/admin/groups/1/permissions", bytes.NewBuffer(jsonBody))
 		req.Header.Set("Content-Type", "application/json")
 
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		if err := json.Unmarshal(w.Body.Bytes(), &response); err == nil {
+			assert.True(t, response["success"].(bool))
+		}
 	})
 }
 

@@ -112,6 +112,17 @@ spec:
       method: DELETE
       handler: handleRemoveUserFromGroup
       description: "Remove user from group"
+
+    - path: /groups/:id/permissions
+      method: GET
+      handler: handleGroupPermissions
+      template: pages/admin/group_permissions.pongo2
+      description: "Get queue-centric permissions for a group"
+
+    - path: /groups/:id/permissions
+      method: POST
+      handler: handleSaveGroupPermissions
+      description: "Update queue-centric permissions for a group"
       
     # Group users API endpoints (for frontend compatibility)
     - path: /groups/:id/users

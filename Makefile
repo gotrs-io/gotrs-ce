@@ -423,9 +423,9 @@ toolbox-run:
 # API testing with automatic authentication
 api-call:
 	@if [ -z "$(ENDPOINT)" ]; then echo "❌ ENDPOINT required. Usage: make api-call [METHOD=GET] ENDPOINT=/api/v1/tickets [BODY='{}']"; exit 1; fi
-	@if [ -z "$(METHOD)" ]; then METHOD=GET; fi; \
-	printf "\n🔧 Making API call: $$METHOD $(ENDPOINT)\n"; \
-	$(call ensure_caches); \
+	@if [ -z "$(METHOD)" ]; then METHOD=GET; fi;
+	@printf "\n🔧 Making API call: $$METHOD $(ENDPOINT)\n";
+	$(call ensure_caches);
 	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
 		echo "ERROR: $(COMPOSE_CMD)"; \
 		echo "Please install the required compose tool and try again."; \
@@ -441,9 +441,9 @@ api-call:
 .PHONY: api-call-form
 api-call-form:
 	@if [ -z "$(ENDPOINT)" ]; then echo "❌ ENDPOINT required. Usage: make api-call-form [METHOD=PUT] ENDPOINT=/admin/users/1 [DATA='a=b&c=d']"; exit 1; fi
-	@if [ -z "$(METHOD)" ]; then METHOD=PUT; fi; \
-	printf "\n🔧 Making form API call: $$METHOD $(ENDPOINT)\n"; \
-	$(call ensure_caches); \
+	@if [ -z "$(METHOD)" ]; then METHOD=PUT; fi;
+	@printf "\n🔧 Making form API call: $$METHOD $(ENDPOINT)\n";
+	$(call ensure_caches);
 	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
 		echo "ERROR: $(COMPOSE_CMD)"; \
 		echo "Please install the required compose tool and try again."; \
@@ -459,9 +459,9 @@ api-call-form:
 .PHONY: http-call
 http-call:
 	@if [ -z "$(ENDPOINT)" ]; then echo "❌ ENDPOINT required. Usage: make http-call [METHOD=GET] ENDPOINT=/ [BODY='...'] [CONTENT_TYPE='text/html']"; exit 1; fi
-	@if [ -z "$(METHOD)" ]; then METHOD=GET; fi; \
-	printf "\n🔧 Making public HTTP call: $$METHOD $(ENDPOINT)\n"; \
-	$(call ensure_caches); \
+	@if [ -z "$(METHOD)" ]; then METHOD=GET; fi;
+	@printf "\n🔧 Making public HTTP call: $$METHOD $(ENDPOINT)\n";
+	$(call ensure_caches);
 	$(CONTAINER_CMD) run --rm \
 		--security-opt label=disable \
 		-v "$$PWD:/workspace" \
@@ -832,6 +832,19 @@ toolbox-mod-tidy:
 		gotrs-toolbox:latest \
 		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go mod tidy && go mod download'
 
+.PHONY: toolbox-gofmt
+toolbox-gofmt:
+	@$(MAKE) toolbox-build
+	@printf "\n🧹 Running gofmt in toolbox...\n"
+	@$(call ensure_caches)
+	@$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-v "$$PWD:/workspace" \
+		-w /workspace \
+		-u "$$UID:$$GID" \
+		gotrs-toolbox:latest \
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; if [ -n "$(FILES)" ]; then gofmt -w $(FILES); else find . -path "./vendor" -prune -o -name "*.go" -print | xargs gofmt -w; fi'
+
 # Run tests for a specific package (PKG=./internal/api) with optional TEST pattern
 .PHONY: toolbox-test-pkg
 toolbox-test-pkg:
@@ -1157,7 +1170,8 @@ test-stack-teardown:
 	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
 		exit 0; \
 	fi
-	@$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml --profile testdb -f docker-compose.test.yaml down -v --remove-orphans >/dev/null 2>&1 || true
+	# Preserve shared volumes (mariadb_data, etc.) to avoid nuking dev/prod data during test runs
+	@$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml --profile testdb -f docker-compose.test.yaml down --remove-orphans >/dev/null 2>&1 || true
 
 test-up:
 	@printf "🚀 Starting test environment...\n"

@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -63,6 +64,62 @@ var pongo2Renderer *Pongo2Renderer
 
 type Pongo2Renderer struct {
 	templateSet *pongo2.TemplateSet
+}
+
+type permissionDefinition struct {
+	Key         string
+	Label       string
+	Description string
+}
+
+type groupPermissionsGroup struct {
+	ID         uint
+	Name       string
+	Comments   string
+	ValidID    int
+	QueueCount int
+}
+
+type groupPermissionMember struct {
+	ID          uint
+	Login       string
+	FirstName   string
+	LastName    string
+	Permissions map[string]bool
+}
+
+type groupPermissionsQueue struct {
+	ID        uint
+	Name      string
+	Comment   string
+	ValidID   int
+	UserCount int
+}
+
+type groupPermissionsData struct {
+	Group   groupPermissionsGroup
+	Members []groupPermissionMember
+	Queues  []groupPermissionsQueue
+}
+
+var groupPermissionDefinitions = []permissionDefinition{
+	{Key: string(repository.PermissionRO), Label: "RO", Description: "Read tickets"},
+	{Key: string(repository.PermissionMoveInto), Label: "Move", Description: "Move tickets into queue"},
+	{Key: string(repository.PermissionCreate), Label: "Create", Description: "Create tickets"},
+	{Key: string(repository.PermissionNote), Label: "Note", Description: "Add notes"},
+	{Key: string(repository.PermissionOwner), Label: "Owner", Description: "Take ownership"},
+	{Key: string(repository.PermissionPriority), Label: "Priority", Description: "Update priority"},
+	{Key: string(repository.PermissionRW), Label: "RW", Description: "Full access"},
+}
+
+var groupPermissionKeys = []string{
+	string(repository.PermissionRO),
+	string(repository.PermissionMoveInto),
+	string(repository.PermissionCreate),
+	string(repository.PermissionNote),
+	string(repository.PermissionOwner),
+	string(repository.PermissionPriority),
+	string(repository.PermissionRW),
 }
 
 func humanizeDuration(d time.Duration) string {
@@ -143,6 +200,145 @@ func selectedAttr(current, expected string) string {
 		return " selected"
 	}
 	return ""
+}
+
+func defaultGroupPermissionMap() map[string]bool {
+	perms := make(map[string]bool, len(groupPermissionKeys))
+	for _, key := range groupPermissionKeys {
+		perms[key] = false
+	}
+	return perms
+}
+
+func normalizeGroupPermissionMap(input map[string]bool) map[string]bool {
+	perms := defaultGroupPermissionMap()
+	for key, value := range input {
+		if _, ok := perms[key]; ok {
+			perms[key] = value
+		}
+	}
+	return perms
+}
+
+func wantsJSONResponse(c *gin.Context) bool {
+	if strings.EqualFold(c.GetHeader("HX-Request"), "true") {
+		return true
+	}
+	if strings.EqualFold(c.GetHeader("X-Requested-With"), "XMLHttpRequest") {
+		return true
+	}
+	accept := strings.ToLower(c.GetHeader("Accept"))
+	return strings.Contains(accept, "application/json")
+}
+
+func stubGroupPermissionsData(groupID uint) *groupPermissionsData {
+	return &groupPermissionsData{
+		Group: groupPermissionsGroup{
+			ID:       groupID,
+			Name:     fmt.Sprintf("Group %d", groupID),
+			Comments: "",
+		},
+		Members: []groupPermissionMember{},
+		Queues:  []groupPermissionsQueue{},
+	}
+}
+
+func fetchGroupPermissionsData(db *sql.DB, groupID uint) (*groupPermissionsData, error) {
+	groupRepo := repository.NewGroupRepository(db)
+	group, err := groupRepo.GetByID(groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	queueRepo := repository.NewQueueRepository(db)
+	queueList, err := queueRepo.List()
+	if err != nil {
+		return nil, err
+	}
+
+	queues := make([]groupPermissionsQueue, 0)
+	for _, q := range queueList {
+		if q == nil {
+			continue
+		}
+		if q.GroupID != groupID {
+			continue
+		}
+		queues = append(queues, groupPermissionsQueue{
+			ID:      q.ID,
+			Name:    q.Name,
+			Comment: q.Comment,
+			ValidID: q.ValidID,
+		})
+	}
+
+	permRepo := repository.NewPermissionRepository(db)
+	permissionMap, err := permRepo.GetGroupPermissions(groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	userRepo := repository.NewUserRepository(db)
+	members := make([]groupPermissionMember, 0, len(permissionMap))
+	for userID, permKeys := range permissionMap {
+		user, err := userRepo.GetByID(userID)
+		if err != nil {
+			continue
+		}
+		if user.ValidID != 1 {
+			continue
+		}
+		perms := defaultGroupPermissionMap()
+		for _, key := range permKeys {
+			if _, ok := perms[key]; ok {
+				perms[key] = true
+			}
+		}
+		members = append(members, groupPermissionMember{
+			ID:          user.ID,
+			Login:       user.Login,
+			FirstName:   user.FirstName,
+			LastName:    user.LastName,
+			Permissions: perms,
+		})
+	}
+
+	sort.Slice(members, func(i, j int) bool {
+		il := strings.ToLower(members[i].Login)
+		jl := strings.ToLower(members[j].Login)
+		if il == jl {
+			return members[i].ID < members[j].ID
+		}
+		return il < jl
+	})
+
+	for idx := range queues {
+		queues[idx].UserCount = len(members)
+	}
+
+	meta := groupPermissionsGroup{
+		ID:         groupID,
+		Name:       group.Name,
+		Comments:   group.Comments,
+		ValidID:    group.ValidID,
+		QueueCount: len(queues),
+	}
+
+	return &groupPermissionsData{
+		Group:   meta,
+		Members: members,
+		Queues:  queues,
+	}, nil
+}
+
+func respondWithGroupPermissionsJSON(c *gin.Context, data *groupPermissionsData) {
+	c.JSON(http.StatusOK, gin.H{
+		"success":         true,
+		"group":           data.Group,
+		"members":         data.Members,
+		"queues":          data.Queues,
+		"permission_keys": groupPermissionDefinitions,
+	})
 }
 
 func htmxHandlerSkipDB() bool {
@@ -1047,13 +1243,9 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 			adminRoutes.PUT("/permissions/user/:userId", handleUpdateUserPermissions)
 			adminRoutes.POST("/permissions/user/:userId", handleUpdateUserPermissions) // HTML form support
 			adminRoutes.GET("/permissions/group/:groupId", handleGetGroupPermissionMatrix)
-			// Back-compat for tests expecting group permissions endpoints
-			adminRoutes.GET("/groups/:id/permissions", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"group_id": c.Param("id"), "permissions": gin.H{}}})
-			})
-			adminRoutes.PUT("/groups/:id/permissions", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{"success": true})
-			})
+			adminRoutes.GET("/groups/:id/permissions", handleGroupPermissions)
+			adminRoutes.PUT("/groups/:id/permissions", handleSaveGroupPermissions)
+			adminRoutes.POST("/groups/:id/permissions", handleSaveGroupPermissions)
 			adminRoutes.POST("/permissions/clone", handleCloneUserPermissions)
 
 			// Group Management (OTRS AdminGroup)
@@ -1150,12 +1342,9 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 			adminRoutes.GET("/groups/:id/users", handleGetGroupUsers)
 			adminRoutes.POST("/groups/:id/users", handleAddUserToGroup)
 			adminRoutes.DELETE("/groups/:id/users/:userId", handleRemoveUserFromGroup)
-			adminRoutes.GET("/groups/:id/permissions", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"group_id": c.Param("id"), "permissions": gin.H{}}})
-			})
-			adminRoutes.PUT("/groups/:id/permissions", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{"success": true})
-			})
+			adminRoutes.GET("/groups/:id/permissions", handleGroupPermissions)
+			adminRoutes.PUT("/groups/:id/permissions", handleSaveGroupPermissions)
+			adminRoutes.POST("/groups/:id/permissions", handleSaveGroupPermissions)
 		}
 	}
 
@@ -7868,6 +8057,110 @@ func handleRemoveUserFromGroup(c *gin.Context) {
 	})
 }
 
+// handleGroupPermissions shows a queue-centric matrix for a group's assignments
+func handleGroupPermissions(c *gin.Context) {
+	groupIDStr := c.Param("id")
+	groupIDValue, err := strconv.ParseUint(groupIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid group ID"})
+		return
+	}
+	groupID := uint(groupIDValue)
+
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		if htmxHandlerSkipDB() {
+			respondWithGroupPermissionsJSON(c, stubGroupPermissionsData(groupID))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	data, err := fetchGroupPermissionsData(db, groupID)
+	if err != nil {
+		errMsg := err.Error()
+		status := http.StatusInternalServerError
+		if strings.Contains(strings.ToLower(errMsg), "not found") {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{"success": false, "error": errMsg})
+		return
+	}
+
+	if wantsJSONResponse(c) {
+		respondWithGroupPermissionsJSON(c, data)
+		return
+	}
+
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/group_permissions.pongo2", pongo2.Context{
+		"Group":          data.Group,
+		"Members":        data.Members,
+		"Queues":         data.Queues,
+		"PermissionKeys": groupPermissionDefinitions,
+		"User":           getUserMapForTemplate(c),
+		"ActivePage":     "admin",
+	})
+}
+
+type groupPermissionAssignment struct {
+	UserID      uint            `json:"user_id"`
+	Permissions map[string]bool `json:"permissions"`
+}
+
+type saveGroupPermissionsRequest struct {
+	Assignments []groupPermissionAssignment `json:"assignments"`
+}
+
+// handleSaveGroupPermissions updates permission flags for members in a group
+func handleSaveGroupPermissions(c *gin.Context) {
+	groupIDStr := c.Param("id")
+	groupIDValue, err := strconv.ParseUint(groupIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid group ID"})
+		return
+	}
+	groupID := uint(groupIDValue)
+
+	var payload saveGroupPermissionsRequest
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid permission payload"})
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil || db == nil {
+		if htmxHandlerSkipDB() {
+			respondWithGroupPermissionsJSON(c, stubGroupPermissionsData(groupID))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
+		return
+	}
+
+	permService := service.NewPermissionService(db)
+	for _, assignment := range payload.Assignments {
+		if assignment.UserID == 0 {
+			continue
+		}
+		normalized := normalizeGroupPermissionMap(assignment.Permissions)
+		if err := permService.UpdateUserPermissions(assignment.UserID, map[uint]map[string]bool{
+			groupID: normalized,
+		}); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to update permissions"})
+			return
+		}
+	}
+
+	data, err := fetchGroupPermissionsData(db, groupID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to refresh permissions"})
+		return
+	}
+
+	respondWithGroupPermissionsJSON(c, data)
+}
+
 // handleCustomerSearch handles customer search for autocomplete
 func handleCustomerSearch(c *gin.Context) {
 	query := c.Query("q")
@@ -7998,6 +8291,8 @@ func handleGetGroupMembers(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": true,
 				"data":    []map[string]interface{}{},
+				"members": []map[string]interface{}{},
+				"count":   0,
 			})
 			return
 		}
@@ -8022,6 +8317,8 @@ func handleGetGroupMembers(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": true,
 				"data":    []map[string]interface{}{},
+				"members": []map[string]interface{}{},
+				"count":   0,
 			})
 			return
 		}
@@ -8054,6 +8351,8 @@ func handleGetGroupMembers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    members,
+		"members": members,
+		"count":   len(members),
 	})
 }
 

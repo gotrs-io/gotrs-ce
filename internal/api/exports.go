@@ -38,6 +38,8 @@ var (
 	HandleGroupMembers            = handleGetGroupMembers
 	HandleAddUserToGroup          = handleAddUserToGroup
 	HandleRemoveUserFromGroup     = handleRemoveUserFromGroup
+	HandleGroupPermissions        = handleGroupPermissions
+	HandleSaveGroupPermissions    = handleSaveGroupPermissions
 	HandleAdminQueues             = handleAdminQueues
 	HandleAdminPriorities         = handleAdminPriorities
 	HandleAdminPermissions        = handleAdminPermissions // Renamed from roles

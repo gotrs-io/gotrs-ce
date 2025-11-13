@@ -159,8 +159,8 @@
                         </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                <a href="#" onclick="console.log('Show members for group: {{ group.ID }}'); return false;" class="text-sm text-gotrs-600 hover:text-gotrs-900 dark:text-gotrs-400 dark:hover:text-gotrs-300">
-                            <span id="member-count-{{ group.ID }}">—</span> members
+                        <a href="#" onclick="showGroupMembers({{ group.ID }}); return false;" class="text-sm text-gotrs-600 hover:text-gotrs-900 dark:text-gotrs-400 dark:hover:text-gotrs-300">
+                            <span id="member-count-{{ group.ID }}">{{ group.MemberCount }}</span> members
                         </a>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -189,7 +189,7 @@
                                 </svg>
                             </button>
                             <button
-                                onclick="console.log('Show permissions for group: {{ group.ID }}'); return false;"
+                                onclick="showGroupPermissions({{ group.ID }}); return false;"
                                 title="Manage permissions"
                                 class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                             >
@@ -832,21 +832,22 @@ function showGroupMembers(groupId) {
 }
 
 function loadGroupMembers(groupId) {
-    fetch(`/admin/groups/${groupId}/users`, {
+    fetch(`/admin/groups/${groupId}/members`, {
         credentials: 'include'
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success && data.users) {
+        if (data.success) {
+            const members = data.members || data.data || data.users || [];
             const membersList = document.getElementById('groupMembersList');
             membersList.innerHTML = '';
             
-            if (data.users.length === 0) {
+            if (members.length === 0) {
                 membersList.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">No members in this group</p>';
                 return;
             }
             
-            data.users.forEach(user => {
+            members.forEach(user => {
                 const memberItem = document.createElement('div');
                 memberItem.className = 'flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 last:border-b-0';
                 memberItem.innerHTML = `
@@ -873,6 +874,11 @@ function loadGroupMembers(groupId) {
                 `;
                 membersList.appendChild(memberItem);
             });
+
+            const countEl = document.getElementById(`member-count-${groupId}`);
+            if (countEl) {
+                countEl.textContent = members.length;
+            }
         }
     })
     .catch(error => {
@@ -913,7 +919,7 @@ function addUserToGroup() {
         return;
     }
     
-    fetch(`/admin/groups/${groupId}/users`, {
+    fetch(`/admin/groups/${groupId}/members`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -930,13 +936,14 @@ function addUserToGroup() {
             document.getElementById('addUserSelect').value = '';
             
             // Update the member count in the main table
-            fetch(`/admin/groups/${groupId}/users`, {
+            fetch(`/admin/groups/${groupId}/members`, {
                 credentials: 'include'
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success && data.users) {
-                    document.getElementById(`member-count-${groupId}`).textContent = data.users.length;
+                if (data.success) {
+                    const members = data.members || data.data || data.users || [];
+                    document.getElementById(`member-count-${groupId}`).textContent = members.length;
                 }
             });
             
@@ -956,7 +963,7 @@ function removeUserFromGroup(groupId, userId) {
         return;
     }
     
-    fetch(`/admin/groups/${groupId}/users/${userId}`, {
+    fetch(`/admin/groups/${groupId}/members/${userId}`, {
         method: 'DELETE',
         credentials: 'include'
     })
@@ -968,13 +975,14 @@ function removeUserFromGroup(groupId, userId) {
             loadAvailableUsers(groupId);
             
             // Update the member count in the main table
-            fetch(`/admin/groups/${groupId}/users`, {
+            fetch(`/admin/groups/${groupId}/members`, {
                 credentials: 'include'
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success && data.users) {
-                    document.getElementById(`member-count-${groupId}`).textContent = data.users.length;
+                if (data.success) {
+                    const members = data.members || data.data || data.users || [];
+                    document.getElementById(`member-count-${groupId}`).textContent = members.length;
                 }
             });
             
@@ -996,8 +1004,7 @@ function closeGroupMembersModal() {
 }
 
 function showGroupPermissions(groupId) {
-    // Redirect to permissions page with group filter
-    window.location.href = `/admin/permissions?group=${groupId}`;
+    window.location.href = `/admin/groups/${groupId}/permissions`;
 }
 
 // Handle Enter key in modal
@@ -1014,13 +1021,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load member counts for each group
     {% for group in Groups %}
-    fetch(`/admin/groups/{{ group.ID }}/users`, {
+    fetch(`/admin/groups/{{ group.ID }}/members`, {
         credentials: 'include'
     })
         .then(response => response.json())
         .then(data => {
-            if (data.success && data.users) {
-                document.getElementById('member-count-{{ group.ID }}').textContent = data.users.length;
+            if (data.success) {
+                const members = data.members || data.data || data.users || [];
+                document.getElementById('member-count-{{ group.ID }}').textContent = members.length;
             }
         })
         .catch(error => console.error('Error loading members for group {{ group.ID }}:', error));

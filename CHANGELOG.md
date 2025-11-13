@@ -29,6 +29,8 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 - Database connectivity issues in test environments with proper network configuration for test containers.
 - Auth middleware, YAML fallback guards, and legacy route middleware now respect `GOTRS_DISABLE_TEST_AUTH_BYPASS`, preventing unauthenticated access to admin surfaces during regression runs.
 - Admin groups overview now renders the `comments` column so descriptions entered in Znuny/OTRS appear in the group list UI.
+- Admin groups membership links now launch the modal and load data through `/members`, restoring the key icon and member count actions.
+- Queue-centric group permissions view with HTML + JSON endpoints for `/admin/groups/:id/permissions`.
 
 ### Changed
 - User repository Create and Update methods now include title length validation and proper SQL placeholder conversion.

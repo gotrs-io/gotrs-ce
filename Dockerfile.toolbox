@@ -35,11 +35,13 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 ARG GOIMPORTS_VERSION=v0.24.0
 ARG GOSEC_VERSION=v2.21.4
 ARG STATICCHECK_VERSION=2024.1.1
+ARG GOLANGCI_LINT_VERSION=v1.60.3
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go install golang.org/x/tools/cmd/goimports@${GOIMPORTS_VERSION} && \
     go install github.com/securego/gosec/v2/cmd/gosec@${GOSEC_VERSION} && \
-    go install honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}
+    go install honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION} && \
+    go install github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
 
 # ============================================
 # Final toolbox image
@@ -88,6 +90,9 @@ RUN if [ ! -x /usr/local/go/bin/go ]; then \
             rm /tmp/go.tgz; \
         fi && /usr/local/go/bin/go version || (echo 'Go toolchain unavailable after fallback' && exit 1)
 
+# Ensure Go toolchain binaries are reachable even if PATH filtering occurs
+RUN for bin in /usr/local/go/bin/*; do ln -sf "$bin" /usr/local/bin/$(basename "$bin"); done
+
 # Copy workspace files for development
 COPY --chown=appuser:appgroup . /workspace/
 
@@ -107,7 +112,8 @@ ENV GOCACHE=/workspace/.cache/go-build \
     GOTOOLCHAIN=local \
     NPM_CONFIG_CACHE=/workspace/.cache/npm \
     XDG_CACHE_HOME=/workspace/.cache/xdg \
-    PATH=/usr/local/go/bin:/usr/local/bin:$PATH
+    PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Default to bash shell for interactive use
 CMD ["/bin/bash"]
+ 

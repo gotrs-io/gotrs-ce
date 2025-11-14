@@ -15,11 +15,11 @@ import (
 func setupTestRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	
+
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"status": "healthy",
+			"status":  "healthy",
 			"service": "gotrs-backend",
 		})
 	})
@@ -37,7 +37,7 @@ func setupTestRouter() *gin.Engine {
 			})
 		})
 	}
-	
+
 	return r
 }
 
@@ -79,10 +79,10 @@ func TestAPIStatusEndpoint(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, true, response["success"])
-		
+
 		data, ok := response["data"].(map[string]interface{})
 		require.True(t, ok, "data should be a map")
-		
+
 		assert.Equal(t, "GOTRS API is running", data["message"])
 		assert.Equal(t, "0.1.0", data["version"])
 	})
@@ -96,7 +96,7 @@ func TestGinModeConfiguration(t *testing.T) {
 
 		// Set production mode
 		os.Setenv("APP_ENV", "production")
-		
+
 		// In a real test, we'd need to call the main function logic
 		// For now, we just verify the environment variable is set
 		assert.Equal(t, "production", os.Getenv("APP_ENV"))
@@ -109,7 +109,7 @@ func TestGinModeConfiguration(t *testing.T) {
 
 		// Set development mode
 		os.Setenv("APP_ENV", "development")
-		
+
 		assert.NotEqual(t, "production", os.Getenv("APP_ENV"))
 	})
 }
@@ -128,7 +128,7 @@ func TestPortConfiguration(t *testing.T) {
 		defer os.Setenv("APP_PORT", originalPort)
 
 		os.Unsetenv("APP_PORT")
-		
+
 		// In actual implementation, we'd test the default value logic
 		// For now, we verify the env var is empty
 		assert.Empty(t, os.Getenv("APP_PORT"))
@@ -166,7 +166,7 @@ func TestMethodNotAllowed(t *testing.T) {
 
 func BenchmarkHealthEndpoint(b *testing.B) {
 	router := setupTestRouter()
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		w := httptest.NewRecorder()
@@ -177,7 +177,7 @@ func BenchmarkHealthEndpoint(b *testing.B) {
 
 func BenchmarkAPIStatusEndpoint(b *testing.B) {
 	router := setupTestRouter()
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		w := httptest.NewRecorder()

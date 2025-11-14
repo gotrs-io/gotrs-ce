@@ -94,8 +94,7 @@
 
           <div>
             <label for="country" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Country</label>
-            <input type="text" name="country" id="country" value="{{ Company.country|default:'' }}"
-                   class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm">
+            {% include "partials/forms/country_select.pongo2" with field_id="country" field_name="country" selected_country=Company.country|default:'' %}
           </div>
 
           <div>

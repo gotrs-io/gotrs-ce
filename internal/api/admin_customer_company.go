@@ -242,7 +242,7 @@ func handleAdminCreateCustomerCompany(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Customer company created successfully"})
+		shared.SendToastResponse(c, true, "Customer company created successfully", fmt.Sprintf("/admin/customer/companies/%s/edit", customerID))
 	}
 }
 
@@ -415,11 +415,7 @@ func handleAdminUpdateCustomerCompany(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		if c.GetHeader("HX-Request") == "true" {
-			shared.SendToastResponse(c, true, "Customer company updated successfully", fmt.Sprintf("/admin/customer/companies/%s/edit", customerID))
-		} else {
-			c.JSON(http.StatusOK, gin.H{"success": true, "message": "Customer company updated successfully"})
-		}
+		shared.SendToastResponse(c, true, "Customer company updated successfully", fmt.Sprintf("/admin/customer/companies/%s/edit", customerID))
 	}
 }
 
@@ -464,11 +460,7 @@ func handleAdminDeleteCustomerCompany(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		if c.GetHeader("HX-Request") == "true" {
-			shared.SendToastResponse(c, true, "Customer company deleted successfully", "/admin/customer/companies")
-		} else {
-			c.JSON(http.StatusOK, gin.H{"success": true, "message": "Customer company deleted successfully"})
-		}
+		shared.SendToastResponse(c, true, "Customer company deleted successfully", "/admin/customer/companies")
 	}
 }
 
@@ -513,11 +505,7 @@ func handleAdminActivateCustomerCompany(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		if c.GetHeader("HX-Request") == "true" {
-			shared.SendToastResponse(c, true, "Customer company activated successfully", fmt.Sprintf("/admin/customer/companies/%s/edit", customerID))
-		} else {
-			c.JSON(http.StatusOK, gin.H{"success": true, "message": "Customer company activated successfully"})
-		}
+		shared.SendToastResponse(c, true, "Customer company activated successfully", fmt.Sprintf("/admin/customer/companies/%s/edit", customerID))
 	}
 }
 
@@ -960,7 +948,7 @@ func handleAdminUpdateCustomerPortalSettings(db *sql.DB) gin.HandlerFunc {
 			}
 		}
 
-		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Portal settings updated successfully"})
+		shared.SendToastResponse(c, true, "Portal settings updated successfully", fmt.Sprintf("/admin/customer/companies/%s/edit?tab=portal", customerID))
 	}
 }
 

@@ -400,8 +400,7 @@
                     
                     <div>
                         <label for="country" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Country</label>
-                        <input type="text" id="country" name="country"
-                               class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-gotrs-500 focus:border-gotrs-500 dark:bg-gray-700 dark:text-white">
+                        {% include "partials/forms/country_select.pongo2" with field_id="country" field_name="country" select_classes="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-gotrs-500 focus:border-gotrs-500 dark:bg-gray-700 dark:text-white" %}
                     </div>
                     
                     <div class="md:col-span-2">

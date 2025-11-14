@@ -21,6 +21,9 @@
     "add_user_tooltip": "Add a new user",
     "add_user": "Add User",
     "clear_search": "Clear search",
+  "user_search_placeholder": "Search by name, login, or email...",
+  "users_no_results": "No users found matching your criteria",
+  "user_duplicate_error": "A user with this login already exists. Please choose a different login.",
     "user_name": "Name",
     "login": "Login",
     "last_login": "Last Login",
@@ -46,6 +49,18 @@
     "activate": "Activate",
     "deactivate": "Deactivate",
     "password_reset_success": "Password reset successfully",
+  "password_reset_error": "Failed to reset password",
+  "password_requirement_length_initial": "At least 8 characters",
+  "password_requirement_length_template": "At least {min} characters",
+  "password_requirement_match": "Passwords match",
+  "password_requirement_contains_default": "Contains uppercase, lowercase, and number",
+  "password_requirement_contains_template": "Contains {requirements}",
+  "password_requirement_none": "No additional requirements",
+  "password_requirement_uppercase": "uppercase",
+  "password_requirement_lowercase": "lowercase",
+  "password_requirement_digit": "number",
+  "password_requirement_special": "special character (!@#$%^&*)",
+  "password_requirements_incomplete": "Please ensure all password requirements are met",
     "total_users": "Total Users",
     "total_groups": "Total Groups",
     "active_tickets": "Active Tickets",
@@ -93,6 +108,16 @@
     "add_type": "Add Type",
     "users_title": "Users",
     "groups_title": "Groups",
+  "user_status_update_error": "Failed to update user status",
+  "user_status_update_error_detail": "Failed to update user status:",
+  "user_load_error": "Failed to load user data:",
+  "network_error_prefix": "Network error:",
+  "activate_user_title": "Activate User",
+  "deactivate_user_title": "Deactivate User",
+  "activate_user_message": "This user will be able to log in and access the system.",
+  "deactivate_user_message": "This user will no longer be able to log in or access the system.",
+  "new_password": "New Password",
+  "confirm_password": "Confirm Password",
     "lookups": {
       "description": "Manage lookup data"
     },
@@ -147,7 +172,8 @@
       }
     },
     "filters": {
-      "all_statuses": "All Statuses"
+      "all_statuses": "All Statuses",
+      "all_groups": "All Groups"
     },
     "modules": {
       "priority": {

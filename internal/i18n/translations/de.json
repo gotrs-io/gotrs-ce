@@ -52,7 +52,8 @@
       }
     },
     "filters": {
-      "all_statuses": "Alle Status"
+      "all_statuses": "Alle Status",
+      "all_groups": "Alle Gruppen"
     },
     "modules": {
       "priority": {
@@ -136,6 +137,9 @@
     "add_user_tooltip": "Neuen Benutzer hinzufügen",
     "add_user": "Benutzer hinzufügen",
     "clear_search": "Suche leeren",
+  "user_search_placeholder": "Nach Name, Login oder E-Mail suchen...",
+  "users_no_results": "Keine Benutzer passend zu Ihren Kriterien gefunden",
+  "user_duplicate_error": "Ein Benutzer mit diesem Login existiert bereits. Bitte wählen Sie einen anderen Login.",
     "user_name": "Name",
     "login": "Login",
     "last_login": "Letzte Anmeldung",
@@ -161,6 +165,18 @@
     "activate": "Aktivieren",
     "deactivate": "Deaktivieren",
     "password_reset_success": "Passwort erfolgreich zurückgesetzt",
+  "password_reset_error": "Passwort konnte nicht zurückgesetzt werden",
+  "password_requirement_length_initial": "Mindestens 8 Zeichen",
+  "password_requirement_length_template": "Mindestens {min} Zeichen",
+  "password_requirement_match": "Passwörter stimmen überein",
+  "password_requirement_contains_default": "Enthält Großbuchstaben, Kleinbuchstaben und Zahl",
+  "password_requirement_contains_template": "Enthält {requirements}",
+  "password_requirement_none": "Keine zusätzlichen Anforderungen",
+  "password_requirement_uppercase": "Großbuchstaben",
+  "password_requirement_lowercase": "Kleinbuchstaben",
+  "password_requirement_digit": "Zahl",
+  "password_requirement_special": "Sonderzeichen (!@#$%^&*)",
+  "password_requirements_incomplete": "Bitte stellen Sie sicher, dass alle Passwortanforderungen erfüllt sind",
     "total_users": "Benutzer gesamt",
     "total_groups": "Gruppen gesamt",
     "active_tickets": "Aktive Tickets",
@@ -207,6 +223,16 @@
     "add_type": "Typ hinzufügen",
     "users_title": "Benutzer",
     "groups_title": "Gruppen",
+    "user_status_update_error": "Benutzerstatus konnte nicht aktualisiert werden",
+    "user_status_update_error_detail": "Benutzerstatus konnte nicht aktualisiert werden:",
+    "user_load_error": "Benutzerdaten konnten nicht geladen werden:",
+    "network_error_prefix": "Netzwerkfehler:",
+    "activate_user_title": "Benutzer aktivieren",
+    "deactivate_user_title": "Benutzer deaktivieren",
+    "activate_user_message": "Dieser Benutzer kann sich anmelden und auf das System zugreifen.",
+    "deactivate_user_message": "Dieser Benutzer kann sich nicht mehr anmelden oder auf das System zugreifen.",
+    "new_password": "Neues Passwort",
+    "confirm_password": "Passwort bestätigen",
     "lookups": {
       "description": "Stammdaten verwalten"
     },
@@ -216,9 +242,7 @@
       "edit": "Bearbeiten",
       "enable": "Aktivieren",
       "view": "Details anzeigen"
-    }
-  },
-  "agent": {
+    },
     "ticket": {
       "zoom": {
         "title": "Ticket Zoom"

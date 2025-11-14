@@ -15,6 +15,7 @@ import (
 	_ "github.com/gotrs-io/gotrs-ce/internal/api" // Import for handler_registry.go init()
 	"github.com/gotrs-io/gotrs-ce/internal/config"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/lookups"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 	"github.com/gotrs-io/gotrs-ce/internal/notifications"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
@@ -25,6 +26,7 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/services/adapter"
 	"github.com/gotrs-io/gotrs-ce/internal/services/k8s"
 	"github.com/gotrs-io/gotrs-ce/internal/services/scheduler"
+	"github.com/gotrs-io/gotrs-ce/internal/shared"
 	"github.com/gotrs-io/gotrs-ce/internal/ticketnumber"
 	"github.com/gotrs-io/gotrs-ce/internal/yamlmgmt"
 )
@@ -70,6 +72,9 @@ func main() {
 	if err := config.Load(configDir); err != nil {
 		log.Printf("Warning: Failed to load config: %v", err)
 		// Continue with defaults
+	}
+	if err := lookups.LoadCountries(configDir); err != nil {
+		log.Printf("Warning: falling back to embedded country list: %v", err)
 	}
 
 	// Get database connection
@@ -303,6 +308,11 @@ func main() {
 		"handleAdminServices":                      api.HandleAdminServices,
 		"handleAdminSLA":                           api.HandleAdminSLA,
 		"handleAdminLookups":                       api.HandleAdminLookups,
+		"handleAdminSettings":                      api.HandleAdminSettings,
+		"handleAdminTemplates":                     api.HandleAdminTemplates,
+		"handleAdminReports":                       api.HandleAdminReports,
+		"handleAdminLogs":                          api.HandleAdminLogs,
+		"handleAdminBackup":                        api.HandleAdminBackup,
 		"handleAdminCustomerCompanies":             api.HandleAdminCustomerCompanies,
 		"handleAdminNewCustomerCompany":            api.HandleAdminNewCustomerCompany,
 		"handleAdminCreateCustomerCompany":         api.HandleAdminCreateCustomerCompany,
@@ -326,6 +336,16 @@ func main() {
 				"status":  "Upload customer portal logo working!",
 			})
 		},
+		"HandleAdminCustomerUsersList":       api.HandleAdminCustomerUsersList,
+		"HandleAdminCustomerUsersGet":        api.HandleAdminCustomerUsersGet,
+		"HandleAdminCustomerUsersCreate":     api.HandleAdminCustomerUsersCreate,
+		"HandleAdminCustomerUsersUpdate":     api.HandleAdminCustomerUsersUpdate,
+		"HandleAdminCustomerUsersDelete":     api.HandleAdminCustomerUsersDelete,
+		"HandleAdminCustomerUsersTickets":    api.HandleAdminCustomerUsersTickets,
+		"HandleAdminCustomerUsersImportForm": api.HandleAdminCustomerUsersImportForm,
+		"HandleAdminCustomerUsersImport":     api.HandleAdminCustomerUsersImport,
+		"HandleAdminCustomerUsersExport":     api.HandleAdminCustomerUsersExport,
+		"HandleAdminCustomerUsersBulkAction": api.HandleAdminCustomerUsersBulkAction,
 
 		// Basic system handlers
 		"handleRoot": func(c *gin.Context) {
@@ -422,8 +442,32 @@ func main() {
 	r.MaxMultipartMemory = 128 << 20 // 128MB
 
 	// Initialize pongo2 renderer for template rendering
-	templateDir := "./templates"
+	templateDir := os.Getenv("TEMPLATES_DIR")
+	if templateDir == "" {
+		candidates := []string{
+			"./templates",
+			"./web/templates",
+			"/app/templates",
+			"/app/web/templates",
+		}
+		for _, candidate := range candidates {
+			if fi, err := os.Stat(candidate); err == nil && fi.IsDir() {
+				templateDir = candidate
+				break
+			}
+		}
+		if templateDir == "" {
+			// Fall back to original relative path for test environments
+			templateDir = "./templates"
+		}
+	}
 	api.InitPongo2Renderer(templateDir)
+	if renderer, err := shared.NewTemplateRenderer(templateDir); err != nil {
+		log.Printf("⚠️  Failed to initialize shared renderer (dir=%s): %v", templateDir, err)
+	} else {
+		shared.SetGlobalRenderer(renderer)
+		log.Printf("✅ Shared renderer initialized (dir=%s)", templateDir)
+	}
 
 	// Load YAML routes
 	routesDir := os.Getenv("ROUTES_DIR")

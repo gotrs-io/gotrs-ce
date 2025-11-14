@@ -3,6 +3,7 @@ package shared
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -40,7 +41,11 @@ func SendToastResponse(c *gin.Context, success bool, message, redirectPath strin
 	} else {
 		// For regular form submissions, redirect back with success message
 		if success && redirectPath != "" {
-			c.Redirect(http.StatusFound, redirectPath+"?success=1")
+			suffix := "?success=1"
+			if strings.Contains(redirectPath, "?") {
+				suffix = "&success=1"
+			}
+			c.Redirect(http.StatusFound, redirectPath+suffix)
 		} else {
 			c.JSON(http.StatusOK, gin.H{"success": success, "message": message})
 		}

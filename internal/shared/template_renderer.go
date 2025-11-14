@@ -2,6 +2,7 @@ package shared
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/i18n"
+	"github.com/gotrs-io/gotrs-ce/internal/lookups"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 )
 
@@ -61,6 +63,7 @@ func (r *TemplateRenderer) HTML(c *gin.Context, code int, name string, data inte
 	ctx["getLang"] = func() string { return lang }
 	ctx["getDirection"] = func() string { return string(i18n.GetDirection(lang)) }
 	ctx["isRTL"] = func() bool { return i18n.IsRTL(lang) }
+	ctx["Countries"] = lookups.Countries()
 
 	// Get the template (fallback for tests when templates missing)
 	if r == nil || r.templateSet == nil {
@@ -70,7 +73,7 @@ func (r *TemplateRenderer) HTML(c *gin.Context, code int, name string, data inte
 	}
 	tmpl, err := r.templateSet.FromFile(name)
 	if err != nil {
-		// Fallback for missing templates
+		log.Printf("Shared renderer failed to load template %q: %v", name, err)
 		c.String(code, "Template not found: %s", name)
 		return
 	}

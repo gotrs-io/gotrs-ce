@@ -31,6 +31,7 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/history"
 	"github.com/gotrs-io/gotrs-ce/internal/i18n"
 	"github.com/gotrs-io/gotrs-ce/internal/ldap"
+	"github.com/gotrs-io/gotrs-ce/internal/lookups"
 	"github.com/gotrs-io/gotrs-ce/internal/mailqueue"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
@@ -168,6 +169,7 @@ func (r *Pongo2Renderer) HTML(c *gin.Context, code int, name string, data interf
 	ctx["getLang"] = func() string { return lang }
 	ctx["getDirection"] = func() string { return string(i18n.GetDirection(lang)) }
 	ctx["isRTL"] = func() bool { return i18n.IsRTL(lang) }
+	ctx["Countries"] = lookups.Countries()
 
 	// Get the template (fallback for tests when templates missing)
 	if r == nil || r.templateSet == nil {
@@ -1652,6 +1654,26 @@ func underConstruction(feature string) gin.HandlerFunc {
 			"ActivePage": "admin",
 		})
 	}
+}
+
+func handleAdminSettings(c *gin.Context) {
+	underConstruction("System Settings")(c)
+}
+
+func handleAdminTemplates(c *gin.Context) {
+	underConstruction("Template Management")(c)
+}
+
+func handleAdminReports(c *gin.Context) {
+	underConstruction("Reports")(c)
+}
+
+func handleAdminLogs(c *gin.Context) {
+	underConstruction("Audit Logs")(c)
+}
+
+func handleAdminBackup(c *gin.Context) {
+	underConstruction("Backup & Restore")(c)
 }
 
 // Helper function for API endpoints under construction

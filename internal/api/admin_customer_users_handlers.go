@@ -71,6 +71,7 @@ func HandleAdminCustomerUsersList(c *gin.Context) {
 		%s
 		ORDER BY cu.last_name, cu.first_name
 		LIMIT $%d OFFSET $%d`, whereClause, argIndex, argIndex+1)
+	query = database.ConvertPlaceholders(query)
 
 	args = append(args, limit, offset)
 
@@ -80,6 +81,7 @@ func HandleAdminCustomerUsersList(c *gin.Context) {
 		FROM customer_user cu
 		LEFT JOIN customer_company cc ON cu.customer_id = cc.customer_id
 		%s`, whereClause)
+	countQuery = database.ConvertPlaceholders(countQuery)
 
 	var totalCount int
 	if len(args) > 2 { // Has filters
@@ -232,6 +234,7 @@ func HandleAdminCustomerUsersGet(c *gin.Context) {
 		FROM customer_user cu
 		LEFT JOIN customer_company cc ON cu.customer_id = cc.customer_id
 		WHERE cu.id = $1`
+	query = database.ConvertPlaceholders(query)
 
 	var customer map[string]interface{} = make(map[string]interface{})
 	var companyName sql.NullString
@@ -340,7 +343,7 @@ func HandleAdminCustomerUsersCreate(c *gin.Context) {
 
 	// Check if login already exists
 	var existingID int
-	checkQuery := "SELECT id FROM customer_user WHERE login = $1"
+	checkQuery := database.ConvertPlaceholders("SELECT id FROM customer_user WHERE login = $1")
 	err = db.QueryRow(checkQuery, req.Login).Scan(&existingID)
 	if err == nil {
 		c.JSON(http.StatusConflict, gin.H{
@@ -359,7 +362,7 @@ func HandleAdminCustomerUsersCreate(c *gin.Context) {
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 1, 1
 		) RETURNING id`
-
+	insertQuery = database.ConvertPlaceholders(insertQuery)
 	var newID int
 	err = db.QueryRow(insertQuery,
 		req.Login, req.Email, req.CustomerID, req.Password, req.Title,
@@ -443,7 +446,7 @@ func HandleAdminCustomerUsersUpdate(c *gin.Context) {
 
 	// Check if login exists for another user
 	var existingID int
-	checkQuery := "SELECT id FROM customer_user WHERE login = $1 AND id != $2"
+	checkQuery := database.ConvertPlaceholders("SELECT id FROM customer_user WHERE login = $1 AND id != $2")
 	err = db.QueryRow(checkQuery, req.Login, id).Scan(&existingID)
 	if err == nil {
 		c.JSON(http.StatusConflict, gin.H{
@@ -477,6 +480,7 @@ func HandleAdminCustomerUsersUpdate(c *gin.Context) {
 		updateQuery += " WHERE id = $16"
 		args = append(args, id)
 	}
+	updateQuery = database.ConvertPlaceholders(updateQuery)
 
 	result, err := db.Exec(updateQuery, args...)
 	if err != nil {
@@ -538,6 +542,7 @@ func HandleAdminCustomerUsersDelete(c *gin.Context) {
 		UPDATE customer_user 
 		SET valid_id = 2, change_time = CURRENT_TIMESTAMP, change_by = 1
 		WHERE id = $1`
+	updateQuery = database.ConvertPlaceholders(updateQuery)
 
 	result, err := db.Exec(updateQuery, id)
 	if err != nil {
@@ -606,6 +611,7 @@ func HandleAdminCustomerUsersTickets(c *gin.Context) {
 		WHERE t.customer_user_id = $1
 		ORDER BY t.create_time DESC
 		LIMIT 100`
+	query = database.ConvertPlaceholders(query)
 
 	rows, err := db.Query(query, customerLogin)
 	if err != nil {
@@ -738,7 +744,7 @@ func HandleAdminCustomerUsersImport(c *gin.Context) {
 
 		// Check if customer user already exists
 		var existingID int
-		checkQuery := "SELECT id FROM customer_user WHERE login = $1"
+		checkQuery := database.ConvertPlaceholders("SELECT id FROM customer_user WHERE login = $1")
 		err = db.QueryRow(checkQuery, login).Scan(&existingID)
 		if err == nil {
 			errors = append(errors, fmt.Sprintf("Row %d: Login %s already exists", i+1, login))
@@ -755,6 +761,7 @@ func HandleAdminCustomerUsersImport(c *gin.Context) {
 			) VALUES (
 				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 1, 1, 1
 			)`
+		insertQuery = database.ConvertPlaceholders(insertQuery)
 
 		_, err = db.Exec(insertQuery,
 			login,
@@ -913,18 +920,18 @@ func HandleAdminCustomerUsersBulkAction(c *gin.Context) {
 		return
 	}
 
-	var query string
+	var setClause string
 	var message string
 
 	switch req.Action {
 	case "enable":
-		query = "UPDATE customer_user SET valid_id = 1, change_time = CURRENT_TIMESTAMP, change_by = 1 WHERE id = ANY($1)"
+		setClause = "valid_id = 1, change_time = CURRENT_TIMESTAMP, change_by = 1"
 		message = "Customer users enabled successfully"
 	case "disable":
-		query = "UPDATE customer_user SET valid_id = 2, change_time = CURRENT_TIMESTAMP, change_by = 1 WHERE id = ANY($1)"
+		setClause = "valid_id = 2, change_time = CURRENT_TIMESTAMP, change_by = 1"
 		message = "Customer users disabled successfully"
 	case "delete":
-		query = "UPDATE customer_user SET valid_id = 2, change_time = CURRENT_TIMESTAMP, change_by = 1 WHERE id = ANY($1)"
+		setClause = "valid_id = 2, change_time = CURRENT_TIMESTAMP, change_by = 1"
 		message = "Customer users deleted successfully"
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -948,7 +955,17 @@ func HandleAdminCustomerUsersBulkAction(c *gin.Context) {
 		intIDs = append(intIDs, id)
 	}
 
-	result, err := db.Exec(query, intIDs)
+	placeholders := make([]string, len(intIDs))
+	args := make([]interface{}, len(intIDs))
+	for i, id := range intIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
+	}
+
+	query := fmt.Sprintf("UPDATE customer_user SET %s WHERE id IN (%s)", setClause, strings.Join(placeholders, ","))
+	query = database.ConvertPlaceholders(query)
+
+	result, err := db.Exec(query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

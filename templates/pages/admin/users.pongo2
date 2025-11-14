@@ -43,7 +43,7 @@
                         id="userSearch"
                         name="search"
                         class="block w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gotrs-500 focus:border-gotrs-500 sm:text-sm"
-                        placeholder="Search by name, login, or email..."
+                        placeholder="{{ t('admin.user_search_placeholder') }}"
                         onkeyup="handleSearchInput()"
                     >
                     <!-- Clear button -->
@@ -62,12 +62,12 @@
             </div>
             <div class="flex gap-2">
                 <select id="statusFilter" onchange="filterUsers()" class="block rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm">
-                    <option value="">All Status</option>
-                    <option value="1">Active</option>
-                    <option value="2">Inactive</option>
+                    <option value="">{{ t('common.all_statuses') }}</option>
+                    <option value="1">{{ t('admin.active') }}</option>
+                    <option value="2">{{ t('admin.inactive') }}</option>
                 </select>
                 <select id="groupFilter" onchange="filterUsers()" class="block rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm">
-                    <option value="">All Groups</option>
+                    <option value="">{{ t('admin.filters.all_groups') }}</option>
                     {% for group in Groups %}
                     <option value="{{ group.ID }}">{{ group.Name }}</option>
                     {% endfor %}
@@ -303,8 +303,8 @@
                                 {{ t("admin.groups") }}
                             </label>
                             <div class="mt-1 flex items-center gap-2">
-                                <button type="button" onclick="selectAllGroups(true)" class="text-xs px-2 py-1 border rounded-md text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">Select all</button>
-                                <button type="button" onclick="selectAllGroups(false)" class="text-xs px-2 py-1 border rounded-md text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">Clear</button>
+                                <button type="button" onclick="selectAllGroups(true)" class="text-xs px-2 py-1 border rounded-md text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">{{ t("labels.select_all") }}</button>
+                                <button type="button" onclick="selectAllGroups(false)" class="text-xs px-2 py-1 border rounded-md text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">{{ t("buttons.clear") }}</button>
                             </div>
                             <div id="groupsList" class="mt-2 max-h-64 overflow-y-auto rounded-md border border-gray-300 dark:border-gray-600 divide-y divide-gray-100 dark:divide-gray-700">
                                 {% for group in Groups %}
@@ -343,6 +343,36 @@
 <script>
 // Sorting functionality
 let currentSort = { column: null, direction: 'asc' };
+
+const i18nMessages = {
+    duplicateUser: `{{ t("admin.user_duplicate_error") }}`,
+    genericError: `{{ t("messages.error_occurred") }}`,
+    networkError: `{{ t("admin.network_error_prefix") }}`,
+    userLoadError: `{{ t("admin.user_load_error") }}`,
+    statusUpdateError: `{{ t("admin.user_status_update_error") }}`,
+    statusUpdateErrorDetail: `{{ t("admin.user_status_update_error_detail") }}`,
+    activateUserTitle: `{{ t("admin.activate_user_title") }}`,
+    deactivateUserTitle: `{{ t("admin.deactivate_user_title") }}`,
+    activateUserMessage: `{{ t("admin.activate_user_message") }}`,
+    deactivateUserMessage: `{{ t("admin.deactivate_user_message") }}`,
+    passwordRequirementsIncomplete: `{{ t("admin.password_requirements_incomplete") }}`,
+    passwordResetError: `{{ t("admin.password_reset_error") }}`,
+    usersNoResults: `{{ t("admin.users_no_results") }}`,
+    confirmTitle: `{{ t("buttons.confirm_action") }}`,
+    confirmMessage: `{{ t("messages.confirm_action") }}`,
+    confirmButton: `{{ t("buttons.confirm") }}`,
+    cancelButton: `{{ t("buttons.cancel") }}`,
+    lengthTemplate: `{{ t("admin.password_requirement_length_template") }}`,
+    lengthInitial: `{{ t("admin.password_requirement_length_initial") }}`,
+    matchText: `{{ t("admin.password_requirement_match") }}`,
+    containsDefault: `{{ t("admin.password_requirement_contains_default") }}`,
+    containsTemplate: `{{ t("admin.password_requirement_contains_template") }}`,
+    containsNone: `{{ t("admin.password_requirement_none") }}`,
+    requirementUppercase: `{{ t("admin.password_requirement_uppercase") }}`,
+    requirementLowercase: `{{ t("admin.password_requirement_lowercase") }}`,
+    requirementDigit: `{{ t("admin.password_requirement_digit") }}`,
+    requirementSpecial: `{{ t("admin.password_requirement_special") }}`
+};
 
 // Search handling
 function handleSearchInput() {
@@ -499,7 +529,7 @@ function filterUsers() {
                     <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p class="mt-2 text-sm">No users found matching your criteria</p>
+                    <p class="mt-2 text-sm">{{ t("admin.users_no_results") }}</p>
                 </td>
             `;
             tbody.appendChild(newNoResultsRow);
@@ -570,7 +600,7 @@ function submitUserForm(event) {
         } else {
             // Check if this is a duplicate username error
             if (data.error && data.error.includes('duplicate key') && data.error.includes('users_login_key')) {
-                showError('A user with this login already exists. Please choose a different login.');
+                showError(i18nMessages.duplicateUser);
                 // Focus the login field for easy correction
                 const loginField = document.getElementById('login');
                 if (loginField) {
@@ -580,12 +610,12 @@ function submitUserForm(event) {
                 // Keep the modal open - don't close it
                 return;
             } else {
-                showError(data.error || 'An error occurred');
+                showError(data.error || i18nMessages.genericError);
             }
         }
     })
     .catch(error => {
-        showError('Network error: ' + error.message);
+        showError(`${i18nMessages.networkError} ${error.message}`);
     });
 }
 
@@ -634,7 +664,7 @@ function editUser(userId) {
             }
         })
         .catch(err => {
-            showError('Failed to load user data: ' + err.message);
+            showError(`${i18nMessages.userLoadError} ${err.message}`);
         });
 }
 
@@ -711,11 +741,11 @@ function showGuruMeditation(title, message) {
                     </div>
                     <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
                         <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100" id="confirmTitle">
-                            Confirm Action
+                            {{ t("buttons.confirm_action") }}
                         </h3>
                         <div class="mt-2">
                             <p class="text-sm text-gray-500 dark:text-gray-400" id="confirmMessage">
-                                Are you sure you want to proceed?
+                                {{ t("messages.confirm_action") }}
                             </p>
                         </div>
                     </div>
@@ -724,11 +754,11 @@ function showGuruMeditation(title, message) {
             <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button type="button" id="confirmButton" onclick="executeConfirmAction()" 
                     class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm">
-                    Confirm
+                    {{ t("buttons.confirm") }}
                 </button>
                 <button type="button" onclick="closeConfirmModal()" 
                     class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                    Cancel
+                    {{ t("buttons.cancel") }}
                 </button>
             </div>
         </div>
@@ -759,7 +789,7 @@ function showGuruMeditation(title, message) {
                             <div class="mt-4 space-y-4">
                                 <div>
                                     <label for="newPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                                        New Password
+                                        {{ t("admin.new_password") }}
                                     </label>
                                     <div class="mt-1 relative">
                                         <input type="password" id="newPassword" name="new_password" autocomplete="new-password"
@@ -787,7 +817,7 @@ function showGuruMeditation(title, message) {
                                 
                                 <div>
                                     <label for="confirmPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                                        Confirm Password
+                                        {{ t("admin.confirm_password") }}
                                     </label>
                                     <input type="password" id="confirmPassword" name="confirm_password" autocomplete="new-password"
                                         class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm px-3 py-2"
@@ -801,19 +831,19 @@ function showGuruMeditation(title, message) {
                                         <svg id="lengthIcon" class="h-4 w-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                         </svg>
-                                        <span class="text-gray-600 dark:text-gray-400">At least 8 characters</span>
+                                        <span class="text-gray-600 dark:text-gray-400">{{ t("admin.password_requirement_length_initial") }}</span>
                                     </div>
                                     <div id="matchCheck" class="flex items-center text-sm">
                                         <svg id="matchIcon" class="h-4 w-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                         </svg>
-                                        <span class="text-gray-600 dark:text-gray-400">Passwords match</span>
+                                        <span class="text-gray-600 dark:text-gray-400">{{ t("admin.password_requirement_match") }}</span>
                                     </div>
                                     <div id="strengthCheck" class="flex items-center text-sm">
                                         <svg id="strengthIcon" class="h-4 w-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                         </svg>
-                                        <span class="text-gray-600 dark:text-gray-400">Contains uppercase, lowercase, and number</span>
+                                        <span class="text-gray-600 dark:text-gray-400">{{ t("admin.password_requirement_contains_default") }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -824,11 +854,11 @@ function showGuruMeditation(title, message) {
             <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button type="button" onclick="confirmPasswordReset()" 
                     class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
-                    Reset Password
+                    {{ t("admin.reset_password") }}
                 </button>
                 <button type="button" onclick="closePasswordResetModal()" 
                     class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                    Cancel
+                    {{ t("buttons.cancel") }}
                 </button>
             </div>
         </div>
@@ -864,10 +894,15 @@ function showConfirmModal(title, message, action, type = 'warning') {
     const modal = document.getElementById('confirmModal');
     const icon = document.getElementById('confirmIcon');
     const button = document.getElementById('confirmButton');
+    const cancelBtn = document.querySelector('#confirmModal button[onclick="closeConfirmModal()"]');
     
-    document.getElementById('confirmTitle').textContent = title;
-    document.getElementById('confirmMessage').textContent = message;
+    document.getElementById('confirmTitle').textContent = title || i18nMessages.confirmTitle;
+    document.getElementById('confirmMessage').textContent = message || i18nMessages.confirmMessage;
     currentConfirmAction = action;
+    button.textContent = i18nMessages.confirmButton;
+    if (cancelBtn) {
+        cancelBtn.textContent = i18nMessages.cancelButton;
+    }
     
     // Set icon and button style based on type
     if (type === 'danger') {
@@ -902,13 +937,13 @@ function executeConfirmAction() {
 
 function toggleUserStatus(userId, currentStatus) {
     const newStatus = currentStatus === 1 ? 2 : 1;
-    const action = newStatus === 1 ? '{{ t("admin.activate") }}' : '{{ t("admin.deactivate") }}';
+    const title = newStatus === 1 ? i18nMessages.activateUserTitle : i18nMessages.deactivateUserTitle;
     const message = newStatus === 1 ? 
-        'This user will be able to log in and access the system.' : 
-        'This user will no longer be able to log in or access the system.';
+        i18nMessages.activateUserMessage : 
+        i18nMessages.deactivateUserMessage;
     
     showConfirmModal(
-        `${action} User`, 
+        title, 
         message,
         () => {
             fetch(`/admin/users/${userId}/status`, {
@@ -923,12 +958,12 @@ function toggleUserStatus(userId, currentStatus) {
                     closeConfirmModal();
                     setTimeout(() => location.reload(), 100);
                 } else {
-                    showError(data.error || 'Failed to update user status');
+                    showError(data.error || i18nMessages.statusUpdateError);
                 }
             })
             .catch(error => {
                 console.error('Error updating status:', error);
-                showError('Failed to update user status: ' + error);
+                showError(`${i18nMessages.statusUpdateErrorDetail} ${error}`);
             });
         },
         'warning'
@@ -991,22 +1026,22 @@ function updatePasswordPolicyDisplay() {
     // Update the length requirement text
     const lengthText = document.querySelector('#lengthCheck span');
     if (lengthText) {
-        lengthText.textContent = `At least ${passwordPolicy.minLength} characters`;
+        lengthText.textContent = i18nMessages.lengthTemplate.replace('{min}', passwordPolicy.minLength);
     }
     
     // Update the strength requirement text
     const strengthText = document.querySelector('#strengthCheck span');
     if (strengthText) {
         const requirements = [];
-        if (passwordPolicy.requireUppercase) requirements.push('uppercase');
-        if (passwordPolicy.requireLowercase) requirements.push('lowercase');
-        if (passwordPolicy.requireDigit) requirements.push('number');
-        if (passwordPolicy.requireSpecial) requirements.push('special character (!@#$%^&*)');
-        
+        if (passwordPolicy.requireUppercase) requirements.push(i18nMessages.requirementUppercase);
+        if (passwordPolicy.requireLowercase) requirements.push(i18nMessages.requirementLowercase);
+        if (passwordPolicy.requireDigit) requirements.push(i18nMessages.requirementDigit);
+        if (passwordPolicy.requireSpecial) requirements.push(i18nMessages.requirementSpecial);
+
         if (requirements.length > 0) {
-            strengthText.textContent = `Contains ${requirements.join(', ')}`;
+            strengthText.textContent = i18nMessages.containsTemplate.replace('{requirements}', requirements.join(', '));
         } else {
-            strengthText.textContent = 'No additional requirements';
+            strengthText.textContent = i18nMessages.containsNone;
         }
     }
 }
@@ -1076,7 +1111,7 @@ function passwordsValid() {
 
 function confirmPasswordReset() {
     if (!passwordsValid()) {
-        showError('Please ensure all password requirements are met');
+        showError(i18nMessages.passwordRequirementsIncomplete);
         return;
     }
     
@@ -1095,8 +1130,11 @@ function confirmPasswordReset() {
             // Show success notification
             showNotification('{{ t("admin.password_reset_success") }}', 'success');
         } else {
-            showError(data.error || 'Failed to reset password');
+            showError(data.error || i18nMessages.passwordResetError);
         }
+    })
+    .catch(error => {
+        showError(`${i18nMessages.passwordResetError} ${error.message || error}`);
     });
 }
 

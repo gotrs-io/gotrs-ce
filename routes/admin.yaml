@@ -326,3 +326,86 @@ spec:
       method: POST
       handler: handleAdminUploadCustomerPortalLogo
       description: "Upload customer portal logo"
+
+    # Customer user management
+    - path: /customer-users
+      method: GET
+      handler: HandleAdminCustomerUsersList
+      template: pages/admin/customer_users.pongo2
+      description: "Display customer user management"
+
+    - path: /customer-users/:id
+      method: GET
+      handler: HandleAdminCustomerUsersGet
+      description: "Get customer user details"
+
+    - path: /customer-users
+      method: POST
+      handler: HandleAdminCustomerUsersCreate
+      description: "Create customer user"
+
+    - path: /customer-users/:id
+      method: PUT
+      handler: HandleAdminCustomerUsersUpdate
+      description: "Update customer user"
+
+    - path: /customer-users/:id
+      method: DELETE
+      handler: HandleAdminCustomerUsersDelete
+      description: "Delete customer user"
+
+    - path: /customer-users/:id/tickets
+      method: GET
+      handler: HandleAdminCustomerUsersTickets
+      description: "Get customer user tickets"
+
+    - path: /customer-users/import
+      method: GET
+      handler: HandleAdminCustomerUsersImportForm
+      description: "Display customer user import form"
+
+    - path: /customer-users/import
+      method: POST
+      handler: HandleAdminCustomerUsersImport
+      description: "Import customer users"
+
+    - path: /customer-users/export
+      method: GET
+      handler: HandleAdminCustomerUsersExport
+      description: "Export customer users"
+
+    - path: /customer-users/bulk-action
+      method: POST
+      handler: HandleAdminCustomerUsersBulkAction
+      description: "Perform customer user bulk action"
+
+    # System operations
+    - path: /settings
+      method: GET
+      handler: handleAdminSettings
+      template: pages/under_construction.pongo2
+      description: "Display system configuration page"
+
+    - path: /templates
+      method: GET
+      handler: handleAdminTemplates
+      template: pages/under_construction.pongo2
+      description: "Display template management page"
+
+    - path: /reports
+      method: GET
+      handler: handleAdminReports
+      template: pages/under_construction.pongo2
+      description: "Display reports overview"
+
+    - path: /logs
+      method: GET
+      handler: handleAdminLogs
+      template: pages/under_construction.pongo2
+      description: "Display audit logs placeholder"
+
+    - path: /backup
+      method: GET
+      handler: handleAdminBackup
+      template: pages/under_construction.pongo2
+      description: "Display backup and restore placeholder"

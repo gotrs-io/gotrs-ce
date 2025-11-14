@@ -41,31 +41,133 @@
         <h2 id="admin-actions" class="text-xl font-semibold text-gray-900 dark:text-white">System Administration</h2>
         <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <a href="/admin/users" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
-                <h3 class="text-lg font-medium text-gray-900 dark:text-white">User Management</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage agent and customer accounts</p>
+                <div class="flex items-start">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-md bg-gotrs-50 text-gotrs-600 dark:bg-gotrs-900 dark:text-gotrs-300">
+                        <i class="fa-solid fa-users text-xl" aria-hidden="true"></i>
+                    </div>
+                    <div class="ml-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">User Management</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage agent and customer accounts</p>
+                    </div>
+                </div>
             </a>
             <a href="/admin/groups" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
-                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Group Management</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Configure teams and escalation paths</p>
+                <div class="flex items-start">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-md bg-gotrs-50 text-gotrs-600 dark:bg-gotrs-900 dark:text-gotrs-300">
+                        <i class="fa-solid fa-people-group text-xl" aria-hidden="true"></i>
+                    </div>
+                    <div class="ml-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Group Management</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Configure teams and escalation paths</p>
+                    </div>
+                </div>
             </a>
             <a href="/admin/permissions" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
-                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Permissions</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Adjust agent access levels</p>
+                <div class="flex items-start">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-md bg-gotrs-50 text-gotrs-600 dark:bg-gotrs-900 dark:text-gotrs-300">
+                        <i class="fa-solid fa-user-shield text-xl" aria-hidden="true"></i>
+                    </div>
+                    <div class="ml-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Permissions</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Adjust agent access levels</p>
+                    </div>
+                </div>
             </a>
             <a href="/admin/settings" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
-                <h3 class="text-lg font-medium text-gray-900 dark:text-white">System Configuration</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Tune platform preferences</p>
+                <div class="flex items-start">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-md bg-gotrs-50 text-gotrs-600 dark:bg-gotrs-900 dark:text-gotrs-300">
+                        <i class="fa-solid fa-sliders text-xl" aria-hidden="true"></i>
+                    </div>
+                    <div class="ml-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">System Configuration</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Tune platform preferences</p>
+                    </div>
+                </div>
             </a>
             <a href="/admin/reports" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
-                <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ "Reports & Analytics"|safe }}</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Track performance insights</p>
+                <div class="flex items-start">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-md bg-gotrs-50 text-gotrs-600 dark:bg-gotrs-900 dark:text-gotrs-300">
+                        <i class="fa-solid fa-chart-line text-xl" aria-hidden="true"></i>
+                    </div>
+                    <div class="ml-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ "Reports & Analytics"|safe }}</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Track performance insights</p>
+                    </div>
+                </div>
             </a>
             <a href="/admin/logs" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
-                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Audit Logs</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Review administrative actions</p>
+                <div class="flex items-start">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-md bg-gotrs-50 text-gotrs-600 dark:bg-gotrs-900 dark:text-gotrs-300">
+                        <i class="fa-solid fa-clipboard-list text-xl" aria-hidden="true"></i>
+                    </div>
+                    <div class="ml-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Audit Logs</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Review administrative actions</p>
+                    </div>
+                </div>
             </a>
         </div>
     </section>
+        <section class="mt-10" aria-labelledby="customer-admin">
+            <h2 id="customer-admin" class="text-xl font-semibold text-gray-900 dark:text-white">Customer Administration</h2>
+            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <a href="/admin/customer/companies" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
+                    <div class="flex items-start">
+                        <div class="flex h-12 w-12 items-center justify-center rounded-md bg-gotrs-50 text-gotrs-600 dark:bg-gotrs-900 dark:text-gotrs-300">
+                            <i class="fa-solid fa-building text-xl" aria-hidden="true"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Customer Organizations</h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage company records and branding</p>
+                        </div>
+                    </div>
+                </a>
+                <a href="/admin/customer-users" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
+                    <div class="flex items-start">
+                        <div class="flex h-12 w-12 items-center justify-center rounded-md bg-gotrs-50 text-gotrs-600 dark:bg-gotrs-900 dark:text-gotrs-300">
+                            <i class="fa-solid fa-id-badge text-xl" aria-hidden="true"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Customer Users</h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Maintain customer identities and access</p>
+                        </div>
+                    </div>
+                </a>
+                <a href="/admin/groups" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
+                    <div class="flex items-start">
+                        <div class="flex h-12 w-12 items-center justify-center rounded-md bg-gotrs-50 text-gotrs-600 dark:bg-gotrs-900 dark:text-gotrs-300">
+                            <i class="fa-solid fa-people-group text-xl" aria-hidden="true"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Customer Groups</h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Configure shared permissions and access</p>
+                        </div>
+                    </div>
+                </a>
+                <a href="/admin/queues" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
+                    <div class="flex items-start">
+                        <div class="flex h-12 w-12 items-center justify-center rounded-md bg-gotrs-50 text-gotrs-600 dark:bg-gotrs-900 dark:text-gotrs-300">
+                            <i class="fa-solid fa-inbox text-xl" aria-hidden="true"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Queues</h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Control ticket routing and ownership</p>
+                        </div>
+                    </div>
+                </a>
+                <a href="/admin/lookups" class="block bg-white dark:bg-gray-800 shadow rounded-lg p-5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gotrs-500">
+                    <div class="flex items-start">
+                        <div class="flex h-12 w-12 items-center justify-center rounded-md bg-gotrs-50 text-gotrs-600 dark:bg-gotrs-900 dark:text-gotrs-300">
+                            <i class="fa-solid fa-list-check text-xl" aria-hidden="true"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Lookups</h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage states, priorities, and types</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </section>
 
     <section class="mt-10" aria-labelledby="recent-activity">
         <h2 id="recent-activity" class="text-xl font-semibold text-gray-900 dark:text-white">Recent Admin Activity</h2>

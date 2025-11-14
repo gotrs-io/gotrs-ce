@@ -99,6 +99,11 @@ func ensureCoreHandlers() {
 		"handleClaudeChatDemo":    handleClaudeChatDemo,
 		"HandleGetSessionTimeout": HandleGetSessionTimeout,
 		"HandleSetSessionTimeout": HandleSetSessionTimeout,
+		"handleAdminSettings":     handleAdminSettings,
+		"handleAdminTemplates":    handleAdminTemplates,
+		"handleAdminReports":      handleAdminReports,
+		"handleAdminLogs":         handleAdminLogs,
+		"handleAdminBackup":       handleAdminBackup,
 
 		// Static and basic routes
 		"handleStaticFiles":       HandleStaticFiles,
@@ -258,6 +263,18 @@ func ensureCoreHandlers() {
 			}
 			handleAdminUploadCustomerPortalLogo(db)(c)
 		},
+
+		// Customer user handlers - full implementations
+		"HandleAdminCustomerUsersList":       HandleAdminCustomerUsersList,
+		"HandleAdminCustomerUsersGet":        HandleAdminCustomerUsersGet,
+		"HandleAdminCustomerUsersCreate":     HandleAdminCustomerUsersCreate,
+		"HandleAdminCustomerUsersUpdate":     HandleAdminCustomerUsersUpdate,
+		"HandleAdminCustomerUsersDelete":     HandleAdminCustomerUsersDelete,
+		"HandleAdminCustomerUsersTickets":    HandleAdminCustomerUsersTickets,
+		"HandleAdminCustomerUsersImportForm": HandleAdminCustomerUsersImportForm,
+		"HandleAdminCustomerUsersImport":     HandleAdminCustomerUsersImport,
+		"HandleAdminCustomerUsersExport":     HandleAdminCustomerUsersExport,
+		"HandleAdminCustomerUsersBulkAction": HandleAdminCustomerUsersBulkAction,
 
 		// Agent handlers (wrap to avoid DB in tests)
 		"handleAgentTickets": func(c *gin.Context) {

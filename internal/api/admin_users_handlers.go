@@ -99,12 +99,18 @@ func HandleAdminUsers(c *gin.Context) {
 		c.String(http.StatusOK, "<h1>Users</h1>")
 		return
 	}
+	user := getUserMapForTemplate(c)
+	isInAdminGroup := false
+	if v, ok := user["IsInAdminGroup"].(bool); ok {
+		isInAdminGroup = v
+	}
 	renderer.HTML(c, http.StatusOK, "pages/admin/users.pongo2", gin.H{
-		"Title":      "Users",
-		"Users":      users,
-		"Groups":     groups,
-		"User":       shared.GetUserMapForTemplate(c),
-		"ActivePage": "admin",
+		"Title":          "Users",
+		"Users":          users,
+		"Groups":         groups,
+		"User":           user,
+		"IsInAdminGroup": isInAdminGroup,
+		"ActivePage":     "admin",
 	})
 }
 

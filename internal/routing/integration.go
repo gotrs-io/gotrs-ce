@@ -204,6 +204,24 @@ func registerAdminHandlers(handlers map[string]gin.HandlerFunc, db *sql.DB) {
 	handlers["handleAdminUpdateCustomerPortalSettings"] = wrapHandler(db, "handleAdminUpdateCustomerPortalSettings")
 	handlers["handleAdminUploadCustomerPortalLogo"] = wrapHandler(db, "handleAdminUploadCustomerPortalLogo")
 
+	// Customer user handlers bridge YAML loader to real implementations
+	handlers["HandleAdminCustomerUsersList"] = wrapHandler(db, "HandleAdminCustomerUsersList")
+	handlers["HandleAdminCustomerUsersGet"] = wrapHandler(db, "HandleAdminCustomerUsersGet")
+	handlers["HandleAdminCustomerUsersCreate"] = wrapHandler(db, "HandleAdminCustomerUsersCreate")
+	handlers["HandleAdminCustomerUsersUpdate"] = wrapHandler(db, "HandleAdminCustomerUsersUpdate")
+	handlers["HandleAdminCustomerUsersDelete"] = wrapHandler(db, "HandleAdminCustomerUsersDelete")
+	handlers["HandleAdminCustomerUsersTickets"] = wrapHandler(db, "HandleAdminCustomerUsersTickets")
+	handlers["HandleAdminCustomerUsersImportForm"] = wrapHandler(db, "HandleAdminCustomerUsersImportForm")
+	handlers["HandleAdminCustomerUsersImport"] = wrapHandler(db, "HandleAdminCustomerUsersImport")
+	handlers["HandleAdminCustomerUsersExport"] = wrapHandler(db, "HandleAdminCustomerUsersExport")
+	handlers["HandleAdminCustomerUsersBulkAction"] = wrapHandler(db, "HandleAdminCustomerUsersBulkAction")
+	// Admin placeholder sections served via HTMX templates
+	handlers["handleAdminSettings"] = wrapHandler(db, "handleAdminSettings")
+	handlers["handleAdminTemplates"] = wrapHandler(db, "handleAdminTemplates")
+	handlers["handleAdminReports"] = wrapHandler(db, "handleAdminReports")
+	handlers["handleAdminLogs"] = wrapHandler(db, "handleAdminLogs")
+	handlers["handleAdminBackup"] = wrapHandler(db, "handleAdminBackup")
+
 	// Add other admin handlers...
 }
 
@@ -340,7 +358,7 @@ func wrapHandler(db *sql.DB, handlerName string) gin.HandlerFunc {
 			originalDB, _ := database.GetDB()
 			database.SetDB(db)
 			defer database.SetDB(originalDB)
-			
+
 			handler(c)
 		} else {
 			// Placeholder for unimplemented handlers

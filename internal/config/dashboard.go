@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-    "os"
+	"os"
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
@@ -23,9 +23,9 @@ type DashboardConfig struct {
 
 // DashboardSpec contains the actual dashboard configuration
 type DashboardSpec struct {
-	Dashboard    Dashboard              `yaml:"dashboard"`
-	Colors       map[string]ColorScheme `yaml:"colors"`
-	Icons        map[string]string      `yaml:"icons"`
+	Dashboard Dashboard              `yaml:"dashboard"`
+	Colors    map[string]ColorScheme `yaml:"colors"`
+	Icons     map[string]string      `yaml:"icons"`
 }
 
 // Dashboard represents the main dashboard configuration
@@ -101,7 +101,7 @@ func (dm *DashboardManager) LoadDashboard(name string) (*DashboardConfig, error)
 
 	// Load from file
 	filename := filepath.Join(dm.configPath, fmt.Sprintf("%s.yaml", name))
-    data, err := os.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read dashboard config %s: %w", filename, err)
 	}
@@ -127,11 +127,11 @@ func (dm *DashboardManager) validateConfig(config *DashboardConfig) error {
 	if config.APIVersion == "" {
 		return fmt.Errorf("apiVersion is required")
 	}
-	
+
 	if config.Kind == "" {
 		return fmt.Errorf("kind is required")
 	}
-	
+
 	if config.Spec.Dashboard.Title == "" {
 		return fmt.Errorf("dashboard title is required")
 	}
@@ -150,12 +150,12 @@ func (dm *DashboardManager) validateConfig(config *DashboardConfig) error {
 		if tile.Color == "" {
 			return fmt.Errorf("tile[%d]: color is required", i)
 		}
-		
+
 		// Validate color scheme exists
 		if _, exists := config.Spec.Colors[tile.Color]; !exists {
 			return fmt.Errorf("tile[%d]: color '%s' not defined in color schemes", i, tile.Color)
 		}
-		
+
 		// Validate icon exists
 		if _, exists := config.Spec.Icons[tile.Icon]; !exists {
 			return fmt.Errorf("tile[%d]: icon '%s' not defined in icon mappings", i, tile.Icon)
@@ -170,7 +170,7 @@ func (dm *DashboardManager) GetColorScheme(config *DashboardConfig, color string
 	if scheme, exists := config.Spec.Colors[color]; exists {
 		return scheme
 	}
-	
+
 	// Return default gray if color not found
 	return ColorScheme{
 		Background: "bg-gray-100 dark:bg-gray-700",
@@ -184,7 +184,7 @@ func (dm *DashboardManager) GetIconPath(config *DashboardConfig, icon string) st
 	if path, exists := config.Spec.Icons[icon]; exists {
 		return path
 	}
-	
+
 	// Return default icon if not found
 	return "M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12V15.75z"
 }
@@ -199,7 +199,7 @@ func (dm *DashboardManager) ReloadDashboard(name string) error {
 // GetTilesByCategory returns tiles grouped by category
 func (dm *DashboardManager) GetTilesByCategory(config *DashboardConfig) map[string][]Tile {
 	categories := make(map[string][]Tile)
-	
+
 	for _, tile := range config.Spec.Dashboard.Tiles {
 		category := tile.Category
 		if category == "" {
@@ -207,7 +207,7 @@ func (dm *DashboardManager) GetTilesByCategory(config *DashboardConfig) map[stri
 		}
 		categories[category] = append(categories[category], tile)
 	}
-	
+
 	return categories
 }
 

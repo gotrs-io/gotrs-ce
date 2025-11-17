@@ -39,7 +39,7 @@ func main() {
 		translations["tickets"] = make(map[string]interface{})
 	}
 	tickets := translations["tickets"].(map[string]interface{})
-	
+
 	// Add all the ticket action keys
 	tickets["reply"] = "Reply"
 	tickets["reply_all"] = "Reply All"
@@ -130,7 +130,7 @@ func main() {
 		deTranslations["tickets"] = make(map[string]interface{})
 	}
 	deTickets := deTranslations["tickets"].(map[string]interface{})
-	
+
 	// Add German translations for ticket actions
 	deTickets["reply"] = "Antworten"
 	deTickets["reply_all"] = "Allen antworten"

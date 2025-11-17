@@ -15,12 +15,12 @@ func TestI18nInitialization(t *testing.T) {
 func TestSupportedLanguages(t *testing.T) {
 	i18n := GetInstance()
 	langs := i18n.GetSupportedLanguages()
-	
+
 	// Should have at least English and German
 	if len(langs) < 2 {
 		t.Errorf("Expected at least 2 languages, got %d", len(langs))
 	}
-	
+
 	// Check that English and German are supported
 	hasEn := false
 	hasDe := false
@@ -32,7 +32,7 @@ func TestSupportedLanguages(t *testing.T) {
 			hasDe = true
 		}
 	}
-	
+
 	if !hasEn {
 		t.Error("English (en) should be supported")
 	}
@@ -43,12 +43,12 @@ func TestSupportedLanguages(t *testing.T) {
 
 func TestTranslationKeys(t *testing.T) {
 	i18n := GetInstance()
-	
+
 	tests := []struct {
-		name     string
-		lang     string
-		key      string
-		expected string
+		name        string
+		lang        string
+		key         string
+		expected    string
 		shouldExist bool
 	}{
 		// English translations
@@ -57,32 +57,32 @@ func TestTranslationKeys(t *testing.T) {
 		{"English queues", "en", "navigation.queues", "Queues", true},
 		{"English admin dashboard", "en", "admin.dashboard", "Admin Dashboard", true},
 		{"English queue new", "en", "queues.new_queue", "New Queue", true},
-		
+
 		// German translations
 		{"German app name", "de", "app.name", "GOTRS", true},
 		{"German dashboard", "de", "navigation.dashboard", "Übersicht", true},
 		{"German queues", "de", "navigation.queues", "Queues", true},
 		{"German admin dashboard", "de", "admin.dashboard", "Admin-Dashboard", true},
 		{"German queue new", "de", "queues.new_queue", "Neue Queue", true},
-		
+
 		// Common translations
 		{"English all", "en", "common.all", "All", true},
 		{"German all", "de", "common.all", "Alle", true},
 		{"English unassigned", "en", "common.unassigned", "Unassigned", true},
 		{"German unassigned", "de", "common.unassigned", "Nicht zugewiesen", true},
-		
+
 		// Status translations
 		{"English status active", "en", "status.active", "Active", true},
 		{"German status active", "de", "status.active", "Aktiv", true},
-		
+
 		// Non-existent key should return the key itself
 		{"Non-existent key", "en", "non.existent.key", "non.existent.key", false},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := i18n.T(tt.lang, tt.key)
-			
+
 			if tt.shouldExist {
 				if result != tt.expected {
 					t.Errorf("T(%q, %q) = %q; want %q", tt.lang, tt.key, result, tt.expected)
@@ -99,7 +99,7 @@ func TestTranslationKeys(t *testing.T) {
 
 func TestNestedTranslations(t *testing.T) {
 	i18n := GetInstance()
-	
+
 	// Test that nested keys work correctly
 	tests := []struct {
 		lang string
@@ -112,7 +112,7 @@ func TestNestedTranslations(t *testing.T) {
 		{"de", "admin.dashboard"},
 		{"de", "queues.new_queue"},
 	}
-	
+
 	for _, tt := range tests {
 		result := i18n.T(tt.lang, tt.key)
 		// Should not return the key itself (meaning translation was found)
@@ -124,7 +124,7 @@ func TestNestedTranslations(t *testing.T) {
 
 func TestFallbackToEnglish(t *testing.T) {
 	i18n := GetInstance()
-	
+
 	// Test fallback for unsupported language
 	result := i18n.T("fr", "app.name")
 	if result != "GOTRS" {
@@ -134,7 +134,7 @@ func TestFallbackToEnglish(t *testing.T) {
 
 func TestTranslationWithArgs(t *testing.T) {
 	i18n := GetInstance()
-	
+
 	// Note: This test assumes the translation system supports placeholders
 	// We may need to adjust based on actual implementation
 	tests := []struct {
@@ -146,7 +146,7 @@ func TestTranslationWithArgs(t *testing.T) {
 		// If we have translations with placeholders like "Showing %d results"
 		// {"en", "common.showing_count", []interface{}{10}, "Showing 10 results"},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
 			result := i18n.T(tt.lang, tt.key, tt.args...)

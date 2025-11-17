@@ -1,18 +1,18 @@
 package ldap
 
 import (
-    "log"
-    "net/http"
+	"log"
+	"net/http"
 
-    "github.com/gin-gonic/gin"
-    "golang.org/x/text/cases"
-    "golang.org/x/text/language"
+	"github.com/gin-gonic/gin"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // AuthMiddleware provides LDAP authentication middleware
 type AuthMiddleware struct {
-	provider   *Provider
-	enabled    bool
+	provider     *Provider
+	enabled      bool
 	fallbackAuth bool // If true, fall back to local auth when LDAP fails
 }
 
@@ -22,7 +22,7 @@ func NewAuthMiddleware(config *Config, enabled, fallbackAuth bool) *AuthMiddlewa
 	if enabled && config != nil {
 		provider = NewProvider(config)
 	}
-	
+
 	return &AuthMiddleware{
 		provider:     provider,
 		enabled:      enabled,
@@ -35,17 +35,17 @@ func (m *AuthMiddleware) AuthenticateUser(username, password string) (*User, err
 	if !m.enabled || m.provider == nil {
 		return nil, nil // Not enabled, fall back to local auth
 	}
-	
+
 	result := m.provider.Authenticate(username, password)
 	if !result.Success {
 		if m.fallbackAuth {
-			log.Printf("LDAP authentication failed for %s: %s, falling back to local auth", 
+			log.Printf("LDAP authentication failed for %s: %s, falling back to local auth",
 				username, result.ErrorMessage)
 			return nil, nil // Allow fallback to local auth
 		}
 		return nil, &AuthError{Message: result.ErrorMessage}
 	}
-	
+
 	return result.User, nil
 }
 
@@ -64,14 +64,14 @@ func (m *AuthMiddleware) HandleLogin(c *gin.Context) {
 		Username string `json:"username" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&loginRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid login request: " + err.Error(),
 		})
 		return
 	}
-	
+
 	// Try LDAP authentication first
 	user, err := m.AuthenticateUser(loginRequest.Username, loginRequest.Password)
 	if err != nil {
@@ -80,7 +80,7 @@ func (m *AuthMiddleware) HandleLogin(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	if user != nil {
 		// LDAP authentication successful
 		// TODO: Create or update user in local database
@@ -92,7 +92,7 @@ func (m *AuthMiddleware) HandleLogin(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Fall back to local authentication if enabled
 	if m.fallbackAuth {
 		// TODO: Call local authentication handler
@@ -101,7 +101,7 @@ func (m *AuthMiddleware) HandleLogin(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusUnauthorized, gin.H{
 		"error": "Authentication failed",
 	})
@@ -114,24 +114,24 @@ func (m *AuthMiddleware) SyncUserMiddleware() gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		
+
 		// Get current user from context (set by JWT middleware)
 		_, exists := c.Get("user")
 		if !exists {
 			c.Next()
 			return
 		}
-		
+
 		// Check if user came from LDAP
 		sourceInterface, hasSource := c.Get("auth_source")
 		if !hasSource || sourceInterface != "ldap" {
 			c.Next()
 			return
 		}
-		
+
 		// TODO: Implement user synchronization logic
 		// This would update user information from LDAP if it has changed
-		
+
 		c.Next()
 	})
 }
@@ -144,7 +144,7 @@ func (m *AuthMiddleware) TestConnectionHandler(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	err := m.provider.TestConnection()
 	if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
@@ -153,7 +153,7 @@ func (m *AuthMiddleware) TestConnectionHandler(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "LDAP connection test successful",
@@ -168,7 +168,7 @@ func (m *AuthMiddleware) GetUserInfoHandler(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	username := c.Param("username")
 	if username == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -176,7 +176,7 @@ func (m *AuthMiddleware) GetUserInfoHandler(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Connect to LDAP
 	if err := m.provider.Connect(); err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
@@ -186,7 +186,7 @@ func (m *AuthMiddleware) GetUserInfoHandler(c *gin.Context) {
 		return
 	}
 	defer m.provider.Close()
-	
+
 	// Find user
 	user, err := m.provider.findUser(username)
 	if err != nil {
@@ -196,24 +196,24 @@ func (m *AuthMiddleware) GetUserInfoHandler(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	if user == nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "User not found",
 		})
 		return
 	}
-	
+
 	// Get user groups
 	groups, err := m.provider.getUserGroups(user.DN)
 	if err != nil {
 		log.Printf("Failed to get groups for user %s: %v", username, err)
 		groups = []string{}
 	}
-	
+
 	user.Groups = groups
 	user.Role = m.provider.determineRole(groups)
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"user":    user,
@@ -244,11 +244,11 @@ func (m *AuthMiddleware) getConfiguration(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Return sanitized configuration (without sensitive data)
 	config := *m.provider.config
 	config.BindPassword = "" // Don't return password
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"enabled": m.enabled,
 		"config":  config,
@@ -261,14 +261,14 @@ func (m *AuthMiddleware) setConfiguration(c *gin.Context) {
 		Config       *Config `json:"config"`
 		FallbackAuth bool    `json:"fallback_auth"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid configuration: " + err.Error(),
 		})
 		return
 	}
-	
+
 	// Validate configuration if LDAP is being enabled
 	if req.Enabled && req.Config != nil {
 		errors := ValidateConfig(req.Config)
@@ -280,14 +280,14 @@ func (m *AuthMiddleware) setConfiguration(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	// Update middleware configuration
 	m.enabled = req.Enabled
 	m.fallbackAuth = req.FallbackAuth
-	
+
 	if req.Enabled && req.Config != nil {
 		m.provider = NewProvider(req.Config)
-		
+
 		// Test the configuration
 		if err := m.provider.TestConnection(); err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{
@@ -299,9 +299,9 @@ func (m *AuthMiddleware) setConfiguration(c *gin.Context) {
 	} else {
 		m.provider = nil
 	}
-	
+
 	// TODO: Save configuration to database or file
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "LDAP configuration updated successfully",
@@ -318,21 +318,21 @@ func (m *AuthMiddleware) TemplateHandler(c *gin.Context) {
 	ldapType := c.Param("type")
 	if ldapType == "" {
 		// Return available templates
-        templates := make(map[string]interface{})
-        title := cases.Title(language.English)
-        for name := range DefaultConfigs {
-            templates[name] = map[string]string{
-                "name":        title.String(name),
-                "description": getTemplateDescription(name),
-            }
-        }
-		
+		templates := make(map[string]interface{})
+		title := cases.Title(language.English)
+		for name := range DefaultConfigs {
+			templates[name] = map[string]string{
+				"name":        title.String(name),
+				"description": getTemplateDescription(name),
+			}
+		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"templates": templates,
 		})
 		return
 	}
-	
+
 	template, err := GetConfigTemplate(ldapType)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -340,7 +340,7 @@ func (m *AuthMiddleware) TemplateHandler(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"template":    template,
 		"description": getTemplateDescription(ldapType),
@@ -350,13 +350,13 @@ func (m *AuthMiddleware) TemplateHandler(c *gin.Context) {
 func getTemplateDescription(ldapType string) string {
 	descriptions := map[string]string{
 		"active_directory": "Microsoft Active Directory with typical AD schema and attributes",
-		"openldap":        "OpenLDAP with standard LDAP schema and posixAccount objects",
-		"389ds":           "389 Directory Server (Red Hat Directory Server) configuration",
+		"openldap":         "OpenLDAP with standard LDAP schema and posixAccount objects",
+		"389ds":            "389 Directory Server (Red Hat Directory Server) configuration",
 	}
-	
+
 	if desc, exists := descriptions[ldapType]; exists {
 		return desc
 	}
-	
+
 	return "Generic LDAP configuration template"
 }

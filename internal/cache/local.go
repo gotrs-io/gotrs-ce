@@ -7,12 +7,12 @@ import (
 
 // LocalCache provides an in-memory cache with TTL support
 type LocalCache struct {
-	mu         sync.RWMutex
-	items      map[string]*LocalCacheItem
-	maxSize    int
-	stats      *LocalCacheStats
-	stopCh     chan struct{}
-	config     *LocalCacheConfig
+	mu      sync.RWMutex
+	items   map[string]*LocalCacheItem
+	maxSize int
+	stats   *LocalCacheStats
+	stopCh  chan struct{}
+	config  *LocalCacheConfig
 }
 
 // LocalCacheItem represents a cached item
@@ -26,12 +26,12 @@ type LocalCacheItem struct {
 
 // LocalCacheStats tracks local cache statistics
 type LocalCacheStats struct {
-	Hits    int64
-	Misses  int64
-	Sets    int64
-	Deletes int64
+	Hits      int64
+	Misses    int64
+	Sets      int64
+	Deletes   int64
 	Evictions int64
-	Size    int64
+	Size      int64
 }
 
 // NewLocalCache creates a new local cache
@@ -43,10 +43,10 @@ func NewLocalCache(config *LocalCacheConfig) *LocalCache {
 		stopCh:  make(chan struct{}),
 		config:  config,
 	}
-	
+
 	// Start cleanup goroutine
 	go lc.cleanupLoop(config.CleanupInterval)
-	
+
 	return lc
 }
 
@@ -54,19 +54,19 @@ func NewLocalCache(config *LocalCacheConfig) *LocalCache {
 func (lc *LocalCache) Get(key string) (interface{}, bool) {
 	lc.mu.RLock()
 	defer lc.mu.RUnlock()
-	
+
 	item, exists := lc.items[key]
 	if !exists {
 		lc.stats.Misses++
 		return nil, false
 	}
-	
+
 	// Check if expired
 	if time.Now().After(item.ExpiresAt) {
 		lc.stats.Misses++
 		return nil, false
 	}
-	
+
 	item.AccessedAt = time.Now()
 	lc.stats.Hits++
 	return item.Value, true
@@ -76,17 +76,17 @@ func (lc *LocalCache) Get(key string) (interface{}, bool) {
 func (lc *LocalCache) Set(key string, value interface{}, ttl time.Duration) {
 	lc.mu.Lock()
 	defer lc.mu.Unlock()
-	
+
 	// Evict if at capacity
 	if len(lc.items) >= lc.maxSize {
 		lc.evictLRU()
 	}
-	
+
 	expiresAt := time.Now().Add(ttl)
 	if ttl == 0 {
 		expiresAt = time.Now().Add(lc.config.DefaultTTL)
 	}
-	
+
 	lc.items[key] = &LocalCacheItem{
 		Value:      value,
 		ExpiresAt:  expiresAt,
@@ -94,7 +94,7 @@ func (lc *LocalCache) Set(key string, value interface{}, ttl time.Duration) {
 		CreatedAt:  time.Now(),
 		Size:       1, // TODO: Calculate actual size
 	}
-	
+
 	lc.stats.Sets++
 	lc.stats.Size = int64(len(lc.items))
 }
@@ -103,7 +103,7 @@ func (lc *LocalCache) Set(key string, value interface{}, ttl time.Duration) {
 func (lc *LocalCache) Delete(key string) {
 	lc.mu.Lock()
 	defer lc.mu.Unlock()
-	
+
 	if _, exists := lc.items[key]; exists {
 		delete(lc.items, key)
 		lc.stats.Deletes++
@@ -115,7 +115,7 @@ func (lc *LocalCache) Delete(key string) {
 func (lc *LocalCache) Clear() {
 	lc.mu.Lock()
 	defer lc.mu.Unlock()
-	
+
 	lc.items = make(map[string]*LocalCacheItem)
 	lc.stats.Size = 0
 }
@@ -124,7 +124,7 @@ func (lc *LocalCache) Clear() {
 func (lc *LocalCache) GetStats() *LocalCacheStats {
 	lc.mu.RLock()
 	defer lc.mu.RUnlock()
-	
+
 	return &LocalCacheStats{
 		Hits:      lc.stats.Hits,
 		Misses:    lc.stats.Misses,
@@ -139,14 +139,14 @@ func (lc *LocalCache) GetStats() *LocalCacheStats {
 func (lc *LocalCache) evictLRU() {
 	var oldestKey string
 	var oldestTime time.Time
-	
+
 	for key, item := range lc.items {
 		if oldestKey == "" || item.AccessedAt.Before(oldestTime) {
 			oldestKey = key
 			oldestTime = item.AccessedAt
 		}
 	}
-	
+
 	if oldestKey != "" {
 		delete(lc.items, oldestKey)
 		lc.stats.Evictions++
@@ -157,7 +157,7 @@ func (lc *LocalCache) evictLRU() {
 func (lc *LocalCache) cleanupLoop(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -172,7 +172,7 @@ func (lc *LocalCache) cleanupLoop(interval time.Duration) {
 func (lc *LocalCache) cleanup() {
 	lc.mu.Lock()
 	defer lc.mu.Unlock()
-	
+
 	now := time.Now()
 	for key, item := range lc.items {
 		if now.After(item.ExpiresAt) {
@@ -180,7 +180,7 @@ func (lc *LocalCache) cleanup() {
 			lc.stats.Evictions++
 		}
 	}
-	
+
 	lc.stats.Size = int64(len(lc.items))
 }
 

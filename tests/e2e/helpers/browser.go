@@ -3,9 +3,9 @@ package helpers
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
-	"strings"
 
 	"github.com/gotrs-io/gotrs-ce/tests/e2e/config"
 	"github.com/playwright-community/playwright-go"
@@ -93,7 +93,7 @@ func (b *BrowserHelper) Setup() error {
 func (b *BrowserHelper) TearDown() {
 	// Take screenshot on failure
 	if b.t.Failed() && b.Config.Screenshots && b.Page != nil {
-		screenshotPath := fmt.Sprintf("./test-results/screenshots/%s_%d.png", 
+		screenshotPath := fmt.Sprintf("./test-results/screenshots/%s_%d.png",
 			b.t.Name(), time.Now().Unix())
 		b.Page.Screenshot(playwright.PageScreenshotOptions{
 			Path: playwright.String(screenshotPath),

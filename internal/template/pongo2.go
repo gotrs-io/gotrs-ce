@@ -3,8 +3,8 @@ package template
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
-    "strings"
 
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
@@ -29,47 +29,46 @@ func NewPongo2Renderer(templateDir string, debug bool) *Pongo2Renderer {
 	}
 }
 
-
 // Instance returns a Pongo2 template instance, using cache if not in debug mode
 func (r *Pongo2Renderer) Instance(name string, data interface{}) *pongo2.Template {
-    var tmpl *pongo2.Template
-    var err error
-    // no shadowing warnings
-	
+	var tmpl *pongo2.Template
+	var err error
+	// no shadowing warnings
+
 	// Use absolute path for templates
 	fullPath := r.TemplateDir + "/" + name
 	fmt.Printf("DEBUG Instance: Loading template from %s\n", fullPath)
-	
-    if r.Debug {
+
+	if r.Debug {
 		// Always load from disk in debug mode
 		tmpl, err = pongo2.FromFile(fullPath)
 		if err != nil {
 			fmt.Printf("DEBUG Instance Error: %v\n", err)
 		}
-    } else {
+	} else {
 		// Use cache in production
 		r.mu.RLock()
-        tmpl = r.cache[name]
+		tmpl = r.cache[name]
 		r.mu.RUnlock()
-		
-        if tmpl == nil {
-            t, e := pongo2.FromFile(fullPath)
-            if e == nil {
-                r.mu.Lock()
-                r.cache[name] = t
-                r.mu.Unlock()
-                tmpl = t
-            } else {
-                err = e
-            }
+
+		if tmpl == nil {
+			t, e := pongo2.FromFile(fullPath)
+			if e == nil {
+				r.mu.Lock()
+				r.cache[name] = t
+				r.mu.Unlock()
+				tmpl = t
+			} else {
+				err = e
+			}
 		}
 	}
-	
-    if err != nil {
-        // Return a template that will show the error
-        tmpl, _ = pongo2.FromString("Template error")
-    }
-	
+
+	if err != nil {
+		// Return a template that will show the error
+		tmpl, _ = pongo2.FromString("Template error")
+	}
+
 	return tmpl
 }
 
@@ -78,13 +77,13 @@ func (r *Pongo2Renderer) Render(c *gin.Context, code int, name string, data inte
 	// Get language from context
 	lang := middleware.GetLanguage(c)
 	i18nInstance := i18n.GetInstance()
-	
+
 	// Debug: Log the detected language
 	fmt.Printf("DEBUG: Detected language: %s\n", lang)
-	
+
 	// Convert data to pongo2.Context
 	ctx := make(pongo2.Context)
-	
+
 	// Add i18n function that captures the language
 	ctx["t"] = func(key string, args ...interface{}) string {
 		v := i18nInstance.T(lang, key, args...)
@@ -108,7 +107,7 @@ func (r *Pongo2Renderer) Render(c *gin.Context, code int, name string, data inte
 		}
 		return last
 	}
-	
+
 	// Add language helpers
 	ctx["getLang"] = func() string {
 		return lang
@@ -119,12 +118,12 @@ func (r *Pongo2Renderer) Render(c *gin.Context, code int, name string, data inte
 	ctx["isRTL"] = func() bool {
 		return i18n.IsRTL(lang)
 	}
-	
+
 	// Add language info to context
 	ctx["Lang"] = lang
 	ctx["Direction"] = string(i18n.GetDirection(lang))
 	ctx["IsRTL"] = i18n.IsRTL(lang)
-	
+
 	// Add the data
 	switch v := data.(type) {
 	case pongo2.Context:
@@ -142,14 +141,14 @@ func (r *Pongo2Renderer) Render(c *gin.Context, code int, name string, data inte
 	default:
 		ctx["Data"] = data
 	}
-	
+
 	// Get template
 	tmpl := r.Instance(name, data)
-	
+
 	// Set response headers
 	c.Header("Content-Type", "text/html; charset=utf-8")
 	c.Status(code)
-	
+
 	// Execute template
 	return tmpl.ExecuteWriter(ctx, c.Writer)
 }

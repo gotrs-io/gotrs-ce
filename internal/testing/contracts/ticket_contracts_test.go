@@ -13,10 +13,10 @@ func TestTicketContracts(t *testing.T) {
 	// Set up router
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	
+
 	// Use mock handlers for testing
 	mocks := &MockHandlers{}
-	
+
 	// Register API v1 routes with mock handlers
 	v1 := r.Group("/api/v1")
 	{
@@ -27,13 +27,13 @@ func TestTicketContracts(t *testing.T) {
 		v1.PUT("/tickets/:id", mocks.HandleUpdateTicket)
 		v1.DELETE("/tickets/:id", mocks.HandleDeleteTicket)
 	}
-	
+
 	// Create contract tester
 	ct := NewContractTest(t, r)
-	
+
 	// Get a valid JWT token for authenticated requests
 	validToken := "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test"
-	
+
 	// Contract: List Tickets
 	ct.AddContract(Contract{
 		Name:        "GET /api/v1/tickets - List Tickets",
@@ -72,7 +72,7 @@ func TestTicketContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Get Single Ticket
 	ct.AddContract(Contract{
 		Name:        "GET /api/v1/tickets/:id - Get Ticket",
@@ -90,13 +90,13 @@ func TestTicketContracts(t *testing.T) {
 					"success": BooleanSchema{Required: true},
 					"data": ObjectSchema{
 						Properties: map[string]Schema{
-							"id":              NumberSchema{Required: true},
-							"ticket_number":   StringSchema{Required: true},
-							"title":           StringSchema{Required: true},
-							"state_id":        NumberSchema{},
-							"priority_id":     NumberSchema{},
-							"queue_id":        NumberSchema{},
-							"customer_id":     StringSchema{},
+							"id":               NumberSchema{Required: true},
+							"ticket_number":    StringSchema{Required: true},
+							"title":            StringSchema{Required: true},
+							"state_id":         NumberSchema{},
+							"priority_id":      NumberSchema{},
+							"queue_id":         NumberSchema{},
+							"customer_id":      StringSchema{},
 							"customer_user_id": StringSchema{},
 						},
 					},
@@ -104,7 +104,7 @@ func TestTicketContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Create Ticket
 	ct.AddContract(Contract{
 		Name:        "POST /api/v1/tickets - Create Ticket",
@@ -116,10 +116,10 @@ func TestTicketContracts(t *testing.T) {
 			"Content-Type":  "application/json",
 		},
 		Body: map[string]interface{}{
-			"title":       "Test Ticket",
-			"queue_id":    1,
-			"priority_id": 3,
-			"state_id":    1,
+			"title":            "Test Ticket",
+			"queue_id":         1,
+			"priority_id":      3,
+			"state_id":         1,
 			"customer_user_id": "customer@example.com",
 			"article": map[string]interface{}{
 				"subject": "Initial message",
@@ -146,7 +146,7 @@ func TestTicketContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Update Ticket
 	ct.AddContract(Contract{
 		Name:        "PUT /api/v1/tickets/:id - Update Ticket",
@@ -168,7 +168,7 @@ func TestTicketContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Delete (Archive) Ticket
 	ct.AddContract(Contract{
 		Name:        "DELETE /api/v1/tickets/:id - Archive Ticket",
@@ -182,7 +182,7 @@ func TestTicketContracts(t *testing.T) {
 			Status: 204,
 		},
 	})
-	
+
 	// Contract: Invalid Ticket ID
 	ct.AddContract(Contract{
 		Name:        "GET /api/v1/tickets/:id - Invalid ID",
@@ -199,7 +199,7 @@ func TestTicketContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Unauthorized Access
 	ct.AddContract(Contract{
 		Name:        "GET /api/v1/tickets - No Auth",
@@ -213,7 +213,7 @@ func TestTicketContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Invalid Request Body
 	ct.AddContract(Contract{
 		Name:        "POST /api/v1/tickets - Invalid Body",
@@ -235,7 +235,7 @@ func TestTicketContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Run all contracts
 	ct.Run()
 }
@@ -245,10 +245,10 @@ func TestTicketActionContracts(t *testing.T) {
 	// Set up router
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	
+
 	// Use mock handlers for testing
 	mocks := &MockHandlers{}
-	
+
 	// Register API v1 routes with mock handlers
 	v1 := r.Group("/api/v1")
 	{
@@ -257,12 +257,12 @@ func TestTicketActionContracts(t *testing.T) {
 		v1.POST("/tickets/:id/reopen", mocks.HandleReopenTicket)
 		v1.POST("/tickets/:id/assign", mocks.HandleAssignTicket)
 	}
-	
+
 	// Create contract tester
 	ct := NewContractTest(t, r)
-	
+
 	validToken := "Bearer valid_token"
-	
+
 	// Contract: Close Ticket
 	ct.AddContract(Contract{
 		Name:        "POST /api/v1/tickets/:id/close - Close Ticket",
@@ -307,7 +307,7 @@ func TestTicketActionContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Reopen Ticket
 	ct.AddContract(Contract{
 		Name:        "POST /api/v1/tickets/:id/reopen - Reopen Ticket",
@@ -351,7 +351,7 @@ func TestTicketActionContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Assign Ticket
 	ct.AddContract(Contract{
 		Name:        "POST /api/v1/tickets/:id/assign - Assign Ticket",
@@ -383,7 +383,7 @@ func TestTicketActionContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Close Already Closed Ticket
 	ct.AddContract(Contract{
 		Name:        "POST /api/v1/tickets/:id/close - Already Closed",
@@ -404,7 +404,7 @@ func TestTicketActionContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Reopen Open Ticket
 	ct.AddContract(Contract{
 		Name:        "POST /api/v1/tickets/:id/reopen - Already Open",
@@ -425,7 +425,7 @@ func TestTicketActionContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Assign to Invalid User
 	ct.AddContract(Contract{
 		Name:        "POST /api/v1/tickets/:id/assign - Invalid User",
@@ -446,7 +446,7 @@ func TestTicketActionContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Run all contracts
 	ct.Run()
 }

@@ -1,9 +1,9 @@
 package service
 
 import (
+	"context"
 	"testing"
 	"time"
-	"context"
 
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/repository/memory"
@@ -36,10 +36,10 @@ func TestLDAPService_Configuration(t *testing.T) {
 				ObjectGUID:  "objectGUID",
 				ObjectSID:   "objectSid",
 			},
-			AutoCreateUsers:  true,
-			AutoUpdateUsers:  true,
-			SyncInterval:     1 * time.Hour,
-			DefaultRole:      "user",
+			AutoCreateUsers: true,
+			AutoUpdateUsers: true,
+			SyncInterval:    1 * time.Hour,
+			DefaultRole:     "user",
 		}
 
 		// This would normally test actual LDAP connection
@@ -85,7 +85,7 @@ func TestLDAPService_Configuration(t *testing.T) {
 
 		err := ldapService.validateConfig(config)
 		assert.NoError(t, err)
-		
+
 		// Should set Active Directory defaults
 		assert.Equal(t, "sAMAccountName", config.AttributeMap.Username)
 		assert.Equal(t, "mail", config.AttributeMap.Email)
@@ -100,7 +100,7 @@ func TestLDAPService_Configuration(t *testing.T) {
 
 	t.Run("GetSyncStatus_NotConfigured", func(t *testing.T) {
 		status := ldapService.GetSyncStatus()
-		
+
 		assert.False(t, status["configured"].(bool))
 		assert.False(t, status["auto_sync"].(bool))
 		assert.Equal(t, 1*time.Hour, status["sync_interval"].(time.Duration))
@@ -136,17 +136,17 @@ func TestLDAPService_UserMapping(t *testing.T) {
 
 		// Mock LDAP entry attributes
 		attributes := map[string]string{
-			"sAMAccountName":   "jdoe",
-			"mail":             "john.doe@example.com",
-			"givenName":        "John",
-			"sn":               "Doe",
-			"displayName":      "John Doe",
-			"telephoneNumber":  "+1-555-0123",
-			"department":       "IT",
-			"title":            "Senior Developer",
-			"manager":          "cn=Jane Smith,ou=Users,dc=example,dc=com",
-			"objectGUID":       "12345678-1234-1234-1234-123456789abc",
-			"objectSid":        "S-1-5-21-123456789-123456789-123456789-1001",
+			"sAMAccountName":     "jdoe",
+			"mail":               "john.doe@example.com",
+			"givenName":          "John",
+			"sn":                 "Doe",
+			"displayName":        "John Doe",
+			"telephoneNumber":    "+1-555-0123",
+			"department":         "IT",
+			"title":              "Senior Developer",
+			"manager":            "cn=Jane Smith,ou=Users,dc=example,dc=com",
+			"objectGUID":         "12345678-1234-1234-1234-123456789abc",
+			"objectSid":          "S-1-5-21-123456789-123456789-123456789-1001",
 			"userAccountControl": "512", // Normal account
 		}
 
@@ -296,7 +296,7 @@ func TestLDAPService_RoleMapping(t *testing.T) {
 	roleRepo.CreateRole(context.TODO(), adminRole)
 
 	userRole := &models.Role{
-		ID:          "user", 
+		ID:          "user",
 		Name:        "user",
 		Description: "Regular user role",
 		IsActive:    true,
@@ -307,9 +307,9 @@ func TestLDAPService_RoleMapping(t *testing.T) {
 
 	// Configure LDAP with role mappings
 	config := &LDAPConfig{
-		DefaultRole:  "user",
-		AdminGroups:  []string{"Domain Admins", "IT Administrators"},
-		UserGroups:   []string{"Domain Users", "Employees"},
+		DefaultRole: "user",
+		AdminGroups: []string{"Domain Admins", "IT Administrators"},
+		UserGroups:  []string{"Domain Users", "Employees"},
 	}
 	ldapService.config = config
 

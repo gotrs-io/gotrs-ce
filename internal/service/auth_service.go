@@ -35,7 +35,9 @@ func NewAuthService(db *sql.DB, jwtManager *auth.JWTManager) *AuthService {
 	if len(providers) == 0 {
 		// Always fall back to direct database provider
 		p, err := auth.CreateProvider("database", deps)
-		if err == nil { providers = append(providers, p) }
+		if err == nil {
+			providers = append(providers, p)
+		}
 	}
 	authenticator := auth.NewAuthenticator(providers...)
 	return &AuthService{authenticator: authenticator, jwtManager: jwtManager}
@@ -47,19 +49,33 @@ var globalConfigAdapter *yamlmgmt.ConfigAdapter
 func SetConfigAdapter(ca *yamlmgmt.ConfigAdapter) { globalConfigAdapter = ca }
 
 func getConfiguredProviderOrder() []string {
-	if globalConfigAdapter == nil { return []string{"database"} }
+	if globalConfigAdapter == nil {
+		return []string{"database"}
+	}
 	v, err := globalConfigAdapter.GetConfigValue("Auth::Providers")
-	if err != nil { return []string{"database"} }
+	if err != nil {
+		return []string{"database"}
+	}
 	// Expect slice
 	switch raw := v.(type) {
 	case []interface{}:
 		out := []string{}
-		for _, r := range raw { if s, ok := r.(string); ok { out = append(out, strings.ToLower(s)) } }
-		if len(out) > 0 { return out }
+		for _, r := range raw {
+			if s, ok := r.(string); ok {
+				out = append(out, strings.ToLower(s))
+			}
+		}
+		if len(out) > 0 {
+			return out
+		}
 	case []string:
 		tmp := []string{}
-		for _, s := range raw { tmp = append(tmp, strings.ToLower(s)) }
-		if len(tmp) > 0 { return tmp }
+		for _, s := range raw {
+			tmp = append(tmp, strings.ToLower(s))
+		}
+		if len(tmp) > 0 {
+			return tmp
+		}
 	}
 	return []string{"database"}
 }
@@ -71,18 +87,18 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*mo
 	if err != nil {
 		return nil, "", "", err
 	}
-	
+
 	// Generate tokens using the JWT manager
 	accessToken, err := s.jwtManager.GenerateToken(user.ID, user.Email, user.Role, 0)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate access token: %w", err)
 	}
-	
+
 	refreshToken, err := s.jwtManager.GenerateRefreshToken(user.ID, user.Email)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate refresh token: %w", err)
 	}
-	
+
 	return user, accessToken, refreshToken, nil
 }
 
@@ -93,7 +109,7 @@ func (s *AuthService) ValidateToken(tokenString string) (*models.User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid token: %w", err)
 	}
-	
+
 	// Create user object from token claims
 	user := &models.User{
 		ID:    claims.UserID,
@@ -101,7 +117,7 @@ func (s *AuthService) ValidateToken(tokenString string) (*models.User, error) {
 		Email: claims.Email,
 		Role:  claims.Role,
 	}
-	
+
 	return user, nil
 }
 
@@ -112,7 +128,7 @@ func (s *AuthService) RefreshToken(refreshToken string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Generate new access token
 	// Note: We need to get the full user details, for now using basic info from claims
 	return s.jwtManager.GenerateToken(0, claims.Subject, "User", 0) // TODO: Get actual user ID and role

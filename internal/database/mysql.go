@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
 	// _ "github.com/go-sql-driver/mysql" // TODO: Add when implementing MySQL support
 )
 
@@ -26,13 +25,13 @@ func NewMySQLDatabase(config DatabaseConfig) *MySQLDatabase {
 // Connect establishes connection to MySQL database
 func (m *MySQLDatabase) Connect() error {
 	dsn := m.buildDSN()
-	
+
 	var err error
 	m.db, err = sql.Open("mysql", dsn)
 	if err != nil {
 		return fmt.Errorf("failed to open MySQL connection: %w", err)
 	}
-	
+
 	// Configure connection pool
 	if m.config.MaxOpenConns > 0 {
 		m.db.SetMaxOpenConns(m.config.MaxOpenConns)
@@ -46,7 +45,7 @@ func (m *MySQLDatabase) Connect() error {
 	if m.config.ConnMaxIdleTime > 0 {
 		m.db.SetConnMaxIdleTime(m.config.ConnMaxIdleTime)
 	}
-	
+
 	return m.Ping()
 }
 
@@ -116,7 +115,7 @@ func (m *MySQLDatabase) TableExists(ctx context.Context, tableName string) (bool
 		FROM information_schema.tables 
 		WHERE table_schema = DATABASE() 
 		AND table_name = ?`
-	
+
 	var exists bool
 	err := m.db.QueryRowContext(ctx, query, tableName).Scan(&exists)
 	return exists, err
@@ -147,18 +146,18 @@ func (m *MySQLDatabase) CreateIndex(ctx context.Context, tableName, indexName st
 	if unique {
 		uniqueClause = "UNIQUE "
 	}
-	
+
 	quotedColumns := make([]string, len(columns))
 	for i, col := range columns {
 		quotedColumns[i] = m.Quote(col)
 	}
-	
+
 	query := fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)",
 		uniqueClause,
 		m.Quote(indexName),
 		m.Quote(tableName),
 		strings.Join(quotedColumns, ", "))
-	
+
 	_, err := m.db.ExecContext(ctx, query)
 	return err
 }
@@ -205,23 +204,23 @@ func (m *MySQLDatabase) BuildSelect(tableName string, columns []string, where st
 	for i, col := range columns {
 		quotedColumns[i] = m.Quote(col)
 	}
-	
+
 	query := fmt.Sprintf("SELECT %s FROM %s",
 		strings.Join(quotedColumns, ", "),
 		m.Quote(tableName))
-	
+
 	if where != "" {
 		query += " WHERE " + where
 	}
-	
+
 	if orderBy != "" {
 		query += " ORDER BY " + orderBy
 	}
-	
+
 	if limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d", limit)
 	}
-	
+
 	return query
 }
 
@@ -259,7 +258,7 @@ func (m *MySQLDatabase) Stats() sql.DBStats {
 func (m *MySQLDatabase) IsHealthy() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	return m.db.PingContext(ctx) == nil
 }
 
@@ -268,19 +267,19 @@ func (m *MySQLDatabase) buildDSN() string {
 	// MySQL DSN format: user:password@tcp(host:port)/dbname
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
 		m.config.Username, m.config.Password, m.config.Host, m.config.Port, m.config.Database)
-	
+
 	// Add parameters
 	params := []string{"parseTime=true"} // Always parse time
-	
+
 	// Add additional options
 	for key, value := range m.config.Options {
 		params = append(params, fmt.Sprintf("%s=%s", key, value))
 	}
-	
+
 	if len(params) > 0 {
 		dsn += "?" + strings.Join(params, "&")
 	}
-	
+
 	return dsn
 }
 

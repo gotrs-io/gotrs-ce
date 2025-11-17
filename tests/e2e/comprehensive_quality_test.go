@@ -32,10 +32,10 @@ func TestComprehensiveQuality(t *testing.T) {
 	browser.Page.OnConsole(func(msg playwright.ConsoleMessage) {
 		mu.Lock()
 		defer mu.Unlock()
-		
+
 		text := msg.Text()
 		consoleMessages = append(consoleMessages, fmt.Sprintf("[%s] %s", msg.Type(), text))
-		
+
 		if msg.Type() == "error" {
 			consoleErrors = append(consoleErrors, text)
 			t.Logf("Console ERROR: %s", text)
@@ -66,10 +66,10 @@ func TestComprehensiveQuality(t *testing.T) {
 
 			err = browser.Page.Fill("input[name='email']", "admin@demo.com")
 			require.NoError(t, err)
-			
+
 			err = browser.Page.Fill("input[name='password']", "demo123")
 			require.NoError(t, err)
-			
+
 			err = browser.Page.Press("input[name='password']", "Enter")
 			require.NoError(t, err)
 			time.Sleep(2 * time.Second)
@@ -83,16 +83,16 @@ func TestComprehensiveQuality(t *testing.T) {
 			// Logout first
 			browser.NavigateTo("/logout")
 			time.Sleep(1 * time.Second)
-			
+
 			err := browser.NavigateTo("/login")
 			require.NoError(t, err)
-			
+
 			err = browser.Page.Fill("input[name='email']", "admin@demo.com")
 			require.NoError(t, err)
-			
+
 			err = browser.Page.Fill("input[name='password']", "wrongpassword")
 			require.NoError(t, err)
-			
+
 			err = browser.Page.Press("input[name='password']", "Enter")
 			require.NoError(t, err)
 			time.Sleep(2 * time.Second)
@@ -100,7 +100,7 @@ func TestComprehensiveQuality(t *testing.T) {
 			// Should show error
 			errorVisible, _ := browser.Page.Locator(".error, .alert-danger, [role='alert']").IsVisible()
 			assert.True(t, errorVisible, "Should show error message for invalid login")
-			
+
 			// Should stay on login page
 			url := browser.Page.URL()
 			assert.Contains(t, url, "/login", "Should stay on login page")
@@ -109,10 +109,10 @@ func TestComprehensiveQuality(t *testing.T) {
 		t.Run("Edge: SQL injection attempt", func(t *testing.T) {
 			err := browser.Page.Fill("input[name='email']", "admin'--")
 			require.NoError(t, err)
-			
+
 			err = browser.Page.Fill("input[name='password']", "x")
 			require.NoError(t, err)
-			
+
 			err = browser.Page.Press("input[name='password']", "Enter")
 			require.NoError(t, err)
 			time.Sleep(2 * time.Second)
@@ -139,7 +139,7 @@ func TestComprehensiveQuality(t *testing.T) {
 		mu.Unlock()
 
 		groupName := fmt.Sprintf("QualityTest_%d", time.Now().Unix())
-		
+
 		t.Run("Positive: Create valid group", func(t *testing.T) {
 			// Open modal
 			err := browser.Page.Click("button:has-text('Add Group')")
@@ -149,10 +149,10 @@ func TestComprehensiveQuality(t *testing.T) {
 			// Fill form
 			err = browser.Page.Fill("input#groupName", groupName)
 			require.NoError(t, err)
-			
+
 			err = browser.Page.Fill("textarea#groupComments", "Quality test group")
 			require.NoError(t, err)
-			
+
 			// Submit
 			err = browser.Page.Click("button[type='submit']:has-text('Save')")
 			require.NoError(t, err)
@@ -163,7 +163,7 @@ func TestComprehensiveQuality(t *testing.T) {
 			errorCount := len(consoleErrors)
 			networkErrorCount := len(networkErrors)
 			mu.Unlock()
-			
+
 			assert.Equal(t, 0, errorCount, "No console errors should occur")
 			assert.Equal(t, 0, networkErrorCount, "No network errors should occur")
 
@@ -181,10 +181,10 @@ func TestComprehensiveQuality(t *testing.T) {
 			// Try same name
 			err = browser.Page.Fill("input#groupName", groupName)
 			require.NoError(t, err)
-			
+
 			err = browser.Page.Fill("textarea#groupComments", "Duplicate attempt")
 			require.NoError(t, err)
-			
+
 			// Submit
 			err = browser.Page.Click("button[type='submit']:has-text('Save')")
 			require.NoError(t, err)
@@ -212,7 +212,7 @@ func TestComprehensiveQuality(t *testing.T) {
 			// Don't fill name
 			err = browser.Page.Fill("textarea#groupComments", "No name test")
 			require.NoError(t, err)
-			
+
 			// Try to submit
 			err = browser.Page.Click("button[type='submit']:has-text('Save')")
 			require.NoError(t, err)
@@ -229,7 +229,7 @@ func TestComprehensiveQuality(t *testing.T) {
 
 		t.Run("Positive: Create inactive group", func(t *testing.T) {
 			inactiveName := fmt.Sprintf("Inactive_%d", time.Now().Unix())
-			
+
 			// Open modal
 			err := browser.Page.Click("button:has-text('Add Group')")
 			require.NoError(t, err)
@@ -238,13 +238,13 @@ func TestComprehensiveQuality(t *testing.T) {
 			// Fill form with inactive status
 			err = browser.Page.Fill("input#groupName", inactiveName)
 			require.NoError(t, err)
-			
+
 			err = browser.Page.Fill("textarea#groupComments", "Inactive group test")
 			require.NoError(t, err)
-			
+
 			_, err = browser.Page.Locator("select#groupStatus").SelectOption(playwright.SelectOptionValues{Values: &[]string{"2"}})
 			require.NoError(t, err)
-			
+
 			// Submit
 			err = browser.Page.Click("button[type='submit']:has-text('Save')")
 			require.NoError(t, err)
@@ -270,7 +270,7 @@ func TestComprehensiveQuality(t *testing.T) {
 		t.Run("Edge: XSS attempt in group name", func(t *testing.T) {
 			xssName := fmt.Sprintf("XSS_%d", time.Now().Unix())
 			xssPayload := "<script>alert('XSS')</script>"
-			
+
 			// Open modal
 			err := browser.Page.Click("button:has-text('Add Group')")
 			require.NoError(t, err)
@@ -279,10 +279,10 @@ func TestComprehensiveQuality(t *testing.T) {
 			// Try XSS in comments
 			err = browser.Page.Fill("input#groupName", xssName)
 			require.NoError(t, err)
-			
+
 			err = browser.Page.Fill("textarea#groupComments", xssPayload)
 			require.NoError(t, err)
-			
+
 			// Submit
 			err = browser.Page.Click("button[type='submit']:has-text('Save')")
 			require.NoError(t, err)
@@ -310,10 +310,10 @@ func TestComprehensiveQuality(t *testing.T) {
 			err := browser.NavigateTo("/admin/groups")
 			require.NoError(t, err)
 			time.Sleep(2 * time.Second)
-			
+
 			loadTime := time.Since(start)
 			assert.Less(t, loadTime, 3*time.Second, "Page should load within 3 seconds")
-			
+
 			if loadTime < 1*time.Second {
 				t.Logf("✓ Excellent: Page loaded in %v", loadTime)
 			} else if loadTime < 2*time.Second {
@@ -331,12 +331,12 @@ func TestComprehensiveQuality(t *testing.T) {
 				if btnVisible, _ := deleteBtn.IsVisible(); btnVisible {
 					deleteBtn.Click()
 					time.Sleep(500 * time.Millisecond)
-					
+
 					// Handle confirmation
 					browser.Page.OnDialog(func(dialog playwright.Dialog) {
 						dialog.Accept()
 					})
-					
+
 					// Check for custom confirm modal
 					confirmBtn := browser.Page.Locator("button:has-text('Delete')").Last()
 					if confirmVisible, _ := confirmBtn.IsVisible(); confirmVisible {
@@ -405,7 +405,7 @@ func TestComprehensiveQuality(t *testing.T) {
 				t.Logf("  - %s", err)
 			}
 		}
-		
+
 		t.Logf("Network Errors (5xx): %d", len(networkErrors))
 		for i, err := range networkErrors {
 			if i < 5 { // Show first 5 errors
@@ -416,7 +416,7 @@ func TestComprehensiveQuality(t *testing.T) {
 		// Quality assertions
 		assert.LessOrEqual(t, len(consoleErrors), 0, "Should have no console errors")
 		assert.LessOrEqual(t, len(networkErrors), 0, "Should have no server errors")
-		
+
 		if len(consoleErrors) == 0 && len(networkErrors) == 0 {
 			t.Log("✓ EXCELLENT: No errors detected during testing")
 		}
@@ -452,7 +452,7 @@ func TestConcurrentAccess(t *testing.T) {
 
 			// Create a group
 			groupName := fmt.Sprintf("Concurrent_%d_%d", browserNum, time.Now().Unix())
-			
+
 			err = browser.NavigateTo("/admin/groups")
 			if err != nil {
 				errors <- fmt.Errorf("browser %d navigation failed: %v", browserNum, err)
@@ -538,7 +538,7 @@ func TestNegativeScenarios(t *testing.T) {
 	t.Run("Session timeout simulation", func(t *testing.T) {
 		// Clear cookies to simulate session timeout
 		browser.Page.Context().ClearCookies()
-		
+
 		// Try to access protected page
 		err := browser.NavigateTo("/admin/groups")
 		require.NoError(t, err)

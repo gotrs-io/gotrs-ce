@@ -26,7 +26,7 @@ func TestAdminGroupsUI(t *testing.T) {
 		// Navigate to admin dashboard
 		err = browser.NavigateTo("/admin")
 		require.NoError(t, err, "Should navigate to admin dashboard")
-		
+
 		// Wait for page to load
 		time.Sleep(2 * time.Second)
 

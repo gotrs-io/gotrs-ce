@@ -401,7 +401,7 @@ func TestAdminCustomerCompaniesPlaywright(t *testing.T) {
 		var consoleMessages []string
 		browser.Page.OnConsole(func(msg playwright.ConsoleMessage) {
 			consoleMessages = append(consoleMessages, fmt.Sprintf("[%s] %s", msg.Type(), msg.Text()))
-			
+
 			if msg.Type() == "error" {
 				t.Logf("Console ERROR: %s", msg.Text())
 			}
@@ -529,8 +529,7 @@ func TestAdminCustomerCompaniesAPIPlaywright(t *testing.T) {
 func contains(text, substr string) bool {
 	return len(text) >= len(substr) &&
 		(text == substr ||
-			len(text) > len(substr) && (
-				containsString(text, substr) ||
+			len(text) > len(substr) && (containsString(text, substr) ||
 				containsString(text, toLower(substr)) ||
 				containsString(toLower(text), substr)))
 }

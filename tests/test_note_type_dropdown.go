@@ -13,10 +13,10 @@ import (
 // instead of a text field, matching OTRS feature parity
 func TestNoteTypeDropdown(t *testing.T) {
 	tests := []struct {
-		name          string
-		checkFor      string
-		shouldExist   bool
-		description   string
+		name        string
+		checkFor    string
+		shouldExist bool
+		description string
 	}{
 		{
 			name:        "Dropdown exists for note type",
@@ -69,12 +69,12 @@ func TestNoteTypeDropdown(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			found := strings.Contains(modalHTML, tt.checkFor)
-			
+
 			if tt.shouldExist && !found {
 				t.Errorf("Test '%s' failed: Expected to find '%s' but it was not present. %s",
 					tt.name, tt.checkFor, tt.description)
 			}
-			
+
 			if !tt.shouldExist && found {
 				t.Errorf("Test '%s' failed: Expected NOT to find '%s' but it was present. %s",
 					tt.name, tt.checkFor, tt.description)
@@ -213,7 +213,7 @@ func main() {
 	t := &testing.T{}
 	TestNoteTypeDropdown(t)
 	TestNoteSubmissionWithType(t)
-	
+
 	if t.Failed() {
 		log.Fatal("Tests failed - note type dropdown not implemented correctly")
 	} else {

@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	abstractDB   IDatabase
-	initOnce sync.Once
+	abstractDB IDatabase
+	initOnce   sync.Once
 )
 
 // Manager provides a singleton database instance using the abstraction layer
@@ -32,15 +32,15 @@ func (m *Manager) Initialize(config DatabaseConfig) error {
 		if err != nil {
 			return
 		}
-		
+
 		err = abstractDB.Connect()
 		if err != nil {
 			return
 		}
-		
+
 		m.database = abstractDB
 	})
-	
+
 	return err
 }
 
@@ -50,7 +50,7 @@ func GetAbstractDB() (*sql.DB, error) {
 		// Fallback to legacy connection method
 		return getLegacyDB()
 	}
-	
+
 	// If we have the abstraction layer, we need to extract the underlying sql.DB
 	// This is a temporary bridge for backward compatibility
 	switch d := abstractDB.(type) {
@@ -83,19 +83,19 @@ func InitializeDefault() error {
 func getLegacyDB() (*sql.DB, error) {
 	// This is the original code from connection.go for fallback
 	config := LoadConfigFromEnv()
-	
+
 	if config.Type != PostgreSQL {
 		return nil, fmt.Errorf("legacy mode only supports PostgreSQL")
 	}
-	
+
 	postgres := NewPostgreSQLDatabase(config)
 	err := postgres.Connect()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Set the global database instance
 	abstractDB = postgres
-	
+
 	return postgres.db, nil
 }

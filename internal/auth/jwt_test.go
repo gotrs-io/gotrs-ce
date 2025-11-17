@@ -50,7 +50,7 @@ func TestJWTManager(t *testing.T) {
 	t.Run("ValidateToken rejects expired token", func(t *testing.T) {
 		// Create manager with very short duration
 		shortManager := NewJWTManager(secretKey, 1*time.Nanosecond)
-		
+
 		token, err := shortManager.GenerateToken(1, "test@example.com", "Admin", 1)
 		require.NoError(t, err)
 
@@ -84,11 +84,11 @@ func TestJWTManager(t *testing.T) {
 
 func TestJWTManagerConcurrency(t *testing.T) {
 	jwtManager := NewJWTManager("test-secret", 1*time.Hour)
-	
+
 	// Test concurrent token generation
 	t.Run("Concurrent token generation", func(t *testing.T) {
 		done := make(chan bool, 10)
-		
+
 		for i := 0; i < 10; i++ {
 			go func(id int) {
 				token, err := jwtManager.GenerateToken(uint(id), "test@example.com", "User", uint(id))
@@ -97,7 +97,7 @@ func TestJWTManagerConcurrency(t *testing.T) {
 				done <- true
 			}(i)
 		}
-		
+
 		for i := 0; i < 10; i++ {
 			<-done
 		}

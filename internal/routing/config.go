@@ -7,8 +7,8 @@ import (
 
 // RouteConfig represents a complete route configuration file
 type RouteConfig struct {
-	APIVersion string       `yaml:"apiVersion"`
-	Kind       string       `yaml:"kind"`
+	APIVersion string        `yaml:"apiVersion"`
+	Kind       string        `yaml:"kind"`
 	Metadata   RouteMetadata `yaml:"metadata"`
 	Spec       RouteSpec     `yaml:"spec"`
 }
@@ -26,8 +26,8 @@ type RouteMetadata struct {
 
 // RouteSpec defines the actual routes and their configuration
 type RouteSpec struct {
-	Prefix     string       `yaml:"prefix"`
-	Middleware []string     `yaml:"middleware"`
+	Prefix     string            `yaml:"prefix"`
+	Middleware []string          `yaml:"middleware"`
 	Routes     []RouteDefinition `yaml:"routes"`
 	RateLimit  *RateLimitConfig  `yaml:"rateLimit"`
 }
@@ -70,10 +70,10 @@ type OpenAPISpec struct {
 
 // OpenAPIParameter defines an OpenAPI parameter
 type OpenAPIParameter struct {
-	Name        string `yaml:"name"`
-	In          string `yaml:"in"` // path, query, header, cookie
-	Description string `yaml:"description"`
-	Required    bool   `yaml:"required"`
+	Name        string                 `yaml:"name"`
+	In          string                 `yaml:"in"` // path, query, header, cookie
+	Description string                 `yaml:"description"`
+	Required    bool                   `yaml:"required"`
 	Schema      map[string]interface{} `yaml:"schema"`
 }
 
@@ -147,16 +147,16 @@ type FeatureFlag struct {
 	Enabled     bool      `yaml:"enabled"`
 	Description string    `yaml:"description"`
 	EnabledFor  []string  `yaml:"enabledFor"` // Specific tenants or users
-	Percentage  int       `yaml:"percentage"`  // For gradual rollout
+	Percentage  int       `yaml:"percentage"` // For gradual rollout
 	StartDate   time.Time `yaml:"startDate"`
 	EndDate     time.Time `yaml:"endDate"`
 }
 
 // RouteGroup represents a logical grouping of routes
 type RouteGroup struct {
-	Name        string   `yaml:"name"`
-	Prefix      string   `yaml:"prefix"`
-	Middleware  []string `yaml:"middleware"`
-	Files       []string `yaml:"files"` // YAML files to include
-	Enabled     bool     `yaml:"enabled"`
+	Name       string   `yaml:"name"`
+	Prefix     string   `yaml:"prefix"`
+	Middleware []string `yaml:"middleware"`
+	Files      []string `yaml:"files"` // YAML files to include
+	Enabled    bool     `yaml:"enabled"`
 }

@@ -11,10 +11,10 @@ func TestUserContracts(t *testing.T) {
 	// Set up router
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	
+
 	// Use mock handlers for testing
 	mocks := &MockHandlers{}
-	
+
 	// Register API v1 routes with mock handlers
 	v1 := r.Group("/api/v1")
 	{
@@ -24,19 +24,19 @@ func TestUserContracts(t *testing.T) {
 		v1.POST("/users", mocks.HandleCreateUser)
 		v1.PUT("/users/:id", mocks.HandleUpdateUser)
 		v1.DELETE("/users/:id", mocks.HandleDeleteUser)
-		
+
 		// User group endpoints
 		v1.GET("/users/:id/groups", mocks.HandleGetUserGroups)
 		v1.POST("/users/:id/groups", mocks.HandleAddUserToGroup)
 		v1.DELETE("/users/:id/groups/:group_id", mocks.HandleRemoveUserFromGroup)
 	}
-	
+
 	// Create contract tester
 	ct := NewContractTest(t, r)
-	
+
 	// Get a valid JWT token for authenticated requests
 	validToken := "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test"
-	
+
 	// Contract: List Users
 	ct.AddContract(Contract{
 		Name:        "GET /api/v1/users - List Users",
@@ -282,9 +282,9 @@ func TestUserContracts(t *testing.T) {
 					"data": ArraySchema{
 						ItemsSchema: ObjectSchema{
 							Properties: map[string]Schema{
-								"id":              NumberSchema{Required: true},
-								"name":            StringSchema{Required: true},
-								"permission_key":  StringSchema{},
+								"id":               NumberSchema{Required: true},
+								"name":             StringSchema{Required: true},
+								"permission_key":   StringSchema{},
 								"permission_value": NumberSchema{},
 							},
 						},

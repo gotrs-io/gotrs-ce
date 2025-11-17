@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	_ "github.com/lib/pq"
 	"github.com/gotrs-io/gotrs-ce/internal/components/dynamic"
+	_ "github.com/lib/pq"
 	"gopkg.in/yaml.v2"
 )
 

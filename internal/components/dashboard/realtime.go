@@ -15,67 +15,67 @@ import (
 
 // MetricsCollector collects and broadcasts real-time metrics
 type MetricsCollector struct {
-	db          interface{}
-	clients     map[*Client]bool
-	clientsMu   sync.RWMutex
-	broadcast   chan MetricUpdate
-	register    chan *Client
-	unregister  chan *Client
-	metrics     *SystemMetrics
-	metricsMu   sync.RWMutex
-	collectors  map[string]CollectorFunc
-	updateRate  time.Duration
+	db         interface{}
+	clients    map[*Client]bool
+	clientsMu  sync.RWMutex
+	broadcast  chan MetricUpdate
+	register   chan *Client
+	unregister chan *Client
+	metrics    *SystemMetrics
+	metricsMu  sync.RWMutex
+	collectors map[string]CollectorFunc
+	updateRate time.Duration
 }
 
 // Client represents a WebSocket client
 type Client struct {
-	ID         string
-	conn       *websocket.Conn
-	send       chan []byte
-	collector  *MetricsCollector
-	filters    []string // Which metrics to receive
-	role       string   // User role for access control
+	ID        string
+	conn      *websocket.Conn
+	send      chan []byte
+	collector *MetricsCollector
+	filters   []string // Which metrics to receive
+	role      string   // User role for access control
 }
 
 // SystemMetrics holds all system metrics
 type SystemMetrics struct {
-	Timestamp     time.Time                      `json:"timestamp"`
-	System        SystemStats                    `json:"system"`
-	Tickets       TicketMetrics                  `json:"tickets"`
-	Users         UserMetrics                    `json:"users"`
-	Performance   PerformanceMetrics             `json:"performance"`
-	Queues        []QueueMetrics                 `json:"queues"`
-	SLA           SLAMetrics                     `json:"sla"`
-	Trends        TrendMetrics                   `json:"trends"`
-	Alerts        []Alert                        `json:"alerts"`
-	CustomMetrics map[string]interface{}         `json:"custom"`
+	Timestamp     time.Time              `json:"timestamp"`
+	System        SystemStats            `json:"system"`
+	Tickets       TicketMetrics          `json:"tickets"`
+	Users         UserMetrics            `json:"users"`
+	Performance   PerformanceMetrics     `json:"performance"`
+	Queues        []QueueMetrics         `json:"queues"`
+	SLA           SLAMetrics             `json:"sla"`
+	Trends        TrendMetrics           `json:"trends"`
+	Alerts        []Alert                `json:"alerts"`
+	CustomMetrics map[string]interface{} `json:"custom"`
 }
 
 // SystemStats represents system-level statistics
 type SystemStats struct {
-	Uptime           time.Duration `json:"uptime"`
-	DatabaseStatus   string        `json:"database_status"`
-	CacheHitRatio    float64       `json:"cache_hit_ratio"`
-	ActiveSessions   int           `json:"active_sessions"`
-	MemoryUsage      float64       `json:"memory_usage_percent"`
-	CPUUsage         float64       `json:"cpu_usage_percent"`
-	DiskUsage        float64       `json:"disk_usage_percent"`
-	ErrorRate        float64       `json:"error_rate"`
-	RequestsPerSec   float64       `json:"requests_per_sec"`
+	Uptime         time.Duration `json:"uptime"`
+	DatabaseStatus string        `json:"database_status"`
+	CacheHitRatio  float64       `json:"cache_hit_ratio"`
+	ActiveSessions int           `json:"active_sessions"`
+	MemoryUsage    float64       `json:"memory_usage_percent"`
+	CPUUsage       float64       `json:"cpu_usage_percent"`
+	DiskUsage      float64       `json:"disk_usage_percent"`
+	ErrorRate      float64       `json:"error_rate"`
+	RequestsPerSec float64       `json:"requests_per_sec"`
 }
 
 // TicketMetrics represents ticket-related metrics
 type TicketMetrics struct {
-	TotalOpen        int     `json:"total_open"`
-	TotalClosed      int     `json:"total_closed"`
-	TotalPending     int     `json:"total_pending"`
-	CreatedToday     int     `json:"created_today"`
-	ClosedToday      int     `json:"closed_today"`
-	AvgResponseTime  float64 `json:"avg_response_time_hours"`
+	TotalOpen         int     `json:"total_open"`
+	TotalClosed       int     `json:"total_closed"`
+	TotalPending      int     `json:"total_pending"`
+	CreatedToday      int     `json:"created_today"`
+	ClosedToday       int     `json:"closed_today"`
+	AvgResponseTime   float64 `json:"avg_response_time_hours"`
 	AvgResolutionTime float64 `json:"avg_resolution_time_hours"`
-	EscalatedCount   int     `json:"escalated_count"`
-	OverdueCount     int     `json:"overdue_count"`
-	UnassignedCount  int     `json:"unassigned_count"`
+	EscalatedCount    int     `json:"escalated_count"`
+	OverdueCount      int     `json:"overdue_count"`
+	UnassignedCount   int     `json:"unassigned_count"`
 }
 
 // UserMetrics represents user-related metrics
@@ -92,35 +92,35 @@ type UserMetrics struct {
 
 // QueueMetrics represents metrics for a specific queue
 type QueueMetrics struct {
-	QueueID          int     `json:"queue_id"`
-	QueueName        string  `json:"queue_name"`
-	TicketsWaiting   int     `json:"tickets_waiting"`
-	AvgWaitTime      float64 `json:"avg_wait_time_minutes"`
-	LongestWaitTime  float64 `json:"longest_wait_time_minutes"`
-	AgentsAssigned   int     `json:"agents_assigned"`
-	ProcessingRate   float64 `json:"processing_rate_per_hour"`
+	QueueID         int     `json:"queue_id"`
+	QueueName       string  `json:"queue_name"`
+	TicketsWaiting  int     `json:"tickets_waiting"`
+	AvgWaitTime     float64 `json:"avg_wait_time_minutes"`
+	LongestWaitTime float64 `json:"longest_wait_time_minutes"`
+	AgentsAssigned  int     `json:"agents_assigned"`
+	ProcessingRate  float64 `json:"processing_rate_per_hour"`
 }
 
 // PerformanceMetrics represents system performance metrics
 type PerformanceMetrics struct {
-	AvgResponseTime  float64            `json:"avg_response_time_ms"`
-	P95ResponseTime  float64            `json:"p95_response_time_ms"`
-	P99ResponseTime  float64            `json:"p99_response_time_ms"`
-	ErrorRate        float64            `json:"error_rate_percent"`
-	Throughput       float64            `json:"throughput_requests_per_sec"`
-	DatabaseQueries  int                `json:"database_queries_per_sec"`
-	SlowQueries      int                `json:"slow_queries_count"`
-	EndpointMetrics  map[string]float64 `json:"endpoint_metrics"`
+	AvgResponseTime float64            `json:"avg_response_time_ms"`
+	P95ResponseTime float64            `json:"p95_response_time_ms"`
+	P99ResponseTime float64            `json:"p99_response_time_ms"`
+	ErrorRate       float64            `json:"error_rate_percent"`
+	Throughput      float64            `json:"throughput_requests_per_sec"`
+	DatabaseQueries int                `json:"database_queries_per_sec"`
+	SlowQueries     int                `json:"slow_queries_count"`
+	EndpointMetrics map[string]float64 `json:"endpoint_metrics"`
 }
 
 // SLAMetrics represents SLA compliance metrics
 type SLAMetrics struct {
-	ComplianceRate   float64         `json:"compliance_rate_percent"`
-	BreachedTickets  int             `json:"breached_tickets"`
-	AtRiskTickets    int             `json:"at_risk_tickets"`
-	MetTargets       int             `json:"met_targets"`
-	TotalTargets     int             `json:"total_targets"`
-	ByPriority       map[string]SLAStatus `json:"by_priority"`
+	ComplianceRate  float64              `json:"compliance_rate_percent"`
+	BreachedTickets int                  `json:"breached_tickets"`
+	AtRiskTickets   int                  `json:"at_risk_tickets"`
+	MetTargets      int                  `json:"met_targets"`
+	TotalTargets    int                  `json:"total_targets"`
+	ByPriority      map[string]SLAStatus `json:"by_priority"`
 }
 
 // SLAStatus represents SLA status for a priority level
@@ -133,31 +133,31 @@ type SLAStatus struct {
 
 // TrendMetrics represents trend analysis
 type TrendMetrics struct {
-	TicketTrend      Trend `json:"ticket_trend"`       // up, down, stable
-	ResponseTrend    Trend `json:"response_trend"`
-	ResolutionTrend  Trend `json:"resolution_trend"`
-	UserGrowthTrend  Trend `json:"user_growth_trend"`
+	TicketTrend       Trend `json:"ticket_trend"` // up, down, stable
+	ResponseTrend     Trend `json:"response_trend"`
+	ResolutionTrend   Trend `json:"resolution_trend"`
+	UserGrowthTrend   Trend `json:"user_growth_trend"`
 	SatisfactionTrend Trend `json:"satisfaction_trend"`
 }
 
 // Trend represents a metric trend
 type Trend struct {
-	Direction   string  `json:"direction"` // up, down, stable
-	Change      float64 `json:"change_percent"`
-	LastValue   float64 `json:"last_value"`
+	Direction    string  `json:"direction"` // up, down, stable
+	Change       float64 `json:"change_percent"`
+	LastValue    float64 `json:"last_value"`
 	CurrentValue float64 `json:"current_value"`
-	Period      string  `json:"period"` // hour, day, week, month
+	Period       string  `json:"period"` // hour, day, week, month
 }
 
 // Alert represents a system alert
 type Alert struct {
-	ID          string    `json:"id"`
-	Level       string    `json:"level"` // info, warning, error, critical
-	Type        string    `json:"type"`
-	Message     string    `json:"message"`
-	Timestamp   time.Time `json:"timestamp"`
-	AffectedItem string   `json:"affected_item"`
-	Action      string    `json:"action_required"`
+	ID           string    `json:"id"`
+	Level        string    `json:"level"` // info, warning, error, critical
+	Type         string    `json:"type"`
+	Message      string    `json:"message"`
+	Timestamp    time.Time `json:"timestamp"`
+	AffectedItem string    `json:"affected_item"`
+	Action       string    `json:"action_required"`
 }
 
 // MetricUpdate represents a real-time metric update
@@ -190,10 +190,10 @@ func NewMetricsCollector(db interface{}) *MetricsCollector {
 		collectors: make(map[string]CollectorFunc),
 		updateRate: 5 * time.Second,
 	}
-	
+
 	// Register default collectors
 	mc.registerDefaultCollectors()
-	
+
 	return mc
 }
 
@@ -207,21 +207,21 @@ func (mc *MetricsCollector) Start(ctx context.Context) {
 func (mc *MetricsCollector) run(ctx context.Context) {
 	ticker := time.NewTicker(mc.updateRate)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
-			
+
 		case client := <-mc.register:
 			mc.clientsMu.Lock()
 			mc.clients[client] = true
 			mc.clientsMu.Unlock()
 			log.Printf("Client %s connected. Total clients: %d", client.ID, len(mc.clients))
-			
+
 			// Send initial metrics
 			mc.sendInitialMetrics(client)
-			
+
 		case client := <-mc.unregister:
 			mc.clientsMu.Lock()
 			if _, ok := mc.clients[client]; ok {
@@ -232,10 +232,10 @@ func (mc *MetricsCollector) run(ctx context.Context) {
 			} else {
 				mc.clientsMu.Unlock()
 			}
-			
+
 		case update := <-mc.broadcast:
 			mc.broadcastUpdate(update)
-			
+
 		case <-ticker.C:
 			mc.broadcastFullMetrics()
 		}
@@ -246,7 +246,7 @@ func (mc *MetricsCollector) run(ctx context.Context) {
 func (mc *MetricsCollector) collectMetrics(ctx context.Context) {
 	ticker := time.NewTicker(mc.updateRate)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -261,9 +261,9 @@ func (mc *MetricsCollector) collectMetrics(ctx context.Context) {
 func (mc *MetricsCollector) updateAllMetrics(ctx context.Context) {
 	mc.metricsMu.Lock()
 	defer mc.metricsMu.Unlock()
-	
+
 	mc.metrics.Timestamp = time.Now()
-	
+
 	// Update each metric category
 	for name, collector := range mc.collectors {
 		if data, err := collector(ctx); err == nil {
@@ -319,10 +319,10 @@ func (mc *MetricsCollector) broadcastUpdate(update MetricUpdate) {
 		log.Printf("Error marshaling update: %v", err)
 		return
 	}
-	
+
 	mc.clientsMu.RLock()
 	defer mc.clientsMu.RUnlock()
-	
+
 	for client := range mc.clients {
 		if mc.shouldSendToClient(client, update.Type) {
 			select {
@@ -341,15 +341,15 @@ func (mc *MetricsCollector) broadcastFullMetrics() {
 	mc.metricsMu.RLock()
 	message, err := json.Marshal(mc.metrics)
 	mc.metricsMu.RUnlock()
-	
+
 	if err != nil {
 		log.Printf("Error marshaling metrics: %v", err)
 		return
 	}
-	
+
 	mc.clientsMu.RLock()
 	defer mc.clientsMu.RUnlock()
-	
+
 	for client := range mc.clients {
 		select {
 		case client.send <- message:
@@ -366,12 +366,12 @@ func (mc *MetricsCollector) sendInitialMetrics(client *Client) {
 	mc.metricsMu.RLock()
 	message, err := json.Marshal(mc.metrics)
 	mc.metricsMu.RUnlock()
-	
+
 	if err != nil {
 		log.Printf("Error marshaling initial metrics: %v", err)
 		return
 	}
-	
+
 	select {
 	case client.send <- message:
 	default:
@@ -385,14 +385,14 @@ func (mc *MetricsCollector) shouldSendToClient(client *Client, metricType string
 	if len(client.filters) == 0 {
 		return true // No filters, send everything
 	}
-	
+
 	// Check if metric type is in client's filters
 	for _, filter := range client.filters {
 		if filter == metricType || filter == "*" {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -418,7 +418,7 @@ func (mc *MetricsCollector) registerDefaultCollectors() {
 			RequestsPerSec: 125.4,
 		}, nil
 	}
-	
+
 	// Ticket metrics collector
 	mc.collectors["tickets"] = func(ctx context.Context) (interface{}, error) {
 		// TODO: Implement actual database queries
@@ -435,7 +435,7 @@ func (mc *MetricsCollector) registerDefaultCollectors() {
 			UnassignedCount:   7,
 		}, nil
 	}
-	
+
 	// User metrics collector
 	mc.collectors["users"] = func(ctx context.Context) (interface{}, error) {
 		// TODO: Implement actual database queries
@@ -450,7 +450,7 @@ func (mc *MetricsCollector) registerDefaultCollectors() {
 			AvgSessionLength: 35.7,
 		}, nil
 	}
-	
+
 	// Add more default collectors...
 }
 
@@ -461,7 +461,7 @@ func (mc *MetricsCollector) HandleWebSocket(c *gin.Context) {
 		log.Printf("WebSocket upgrade error: %v", err)
 		return
 	}
-	
+
 	client := &Client{
 		ID:        fmt.Sprintf("client_%d", time.Now().UnixNano()),
 		conn:      conn,
@@ -470,9 +470,9 @@ func (mc *MetricsCollector) HandleWebSocket(c *gin.Context) {
 		filters:   []string{}, // Can be configured based on request params
 		role:      c.GetString("user_role"),
 	}
-	
+
 	mc.register <- client
-	
+
 	// Start goroutines for reading and writing
 	go client.readPump()
 	go client.writePump()
@@ -484,13 +484,13 @@ func (c *Client) readPump() {
 		c.collector.unregister <- c
 		c.conn.Close()
 	}()
-	
+
 	c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	c.conn.SetPongHandler(func(string) error {
 		c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		return nil
 	})
-	
+
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
@@ -499,7 +499,7 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-		
+
 		// Handle client messages (e.g., filter updates)
 		c.handleMessage(message)
 	}
@@ -512,7 +512,7 @@ func (c *Client) writePump() {
 		ticker.Stop()
 		c.conn.Close()
 	}()
-	
+
 	for {
 		select {
 		case message, ok := <-c.send:
@@ -521,24 +521,24 @@ func (c *Client) writePump() {
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			
+
 			w, err := c.conn.NextWriter(websocket.TextMessage)
 			if err != nil {
 				return
 			}
 			w.Write(message)
-			
+
 			// Add queued messages to the current WebSocket message
 			n := len(c.send)
 			for i := 0; i < n; i++ {
 				w.Write([]byte("\n"))
 				w.Write(<-c.send)
 			}
-			
+
 			if err := w.Close(); err != nil {
 				return
 			}
-			
+
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -555,7 +555,7 @@ func (c *Client) handleMessage(message []byte) {
 		log.Printf("Error parsing client message: %v", err)
 		return
 	}
-	
+
 	// Handle different message types
 	if msgType, ok := msg["type"].(string); ok {
 		switch msgType {

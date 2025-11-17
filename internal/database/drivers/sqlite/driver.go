@@ -1,13 +1,13 @@
 package sqlite
 
 import (
-    "context"
-    "database/sql"
-    "fmt"
-    "strings"
+	"context"
+	"database/sql"
+	"fmt"
+	"strings"
 
-    "github.com/gotrs-io/gotrs-ce/internal/database"
-    _ "github.com/mattn/go-sqlite3"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // SQLiteDriver implements the DatabaseDriver interface for SQLite
@@ -28,18 +28,18 @@ func (d *SQLiteDriver) Connect(ctx context.Context, dsn string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
 		return err
 	}
-	
+
 	// Enable foreign keys
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		db.Close()
 		return err
 	}
-	
+
 	d.db = db
 	return nil
 }
@@ -63,17 +63,17 @@ func (d *SQLiteDriver) Ping(ctx context.Context) error {
 // CreateTable generates and returns a CREATE TABLE query for SQLite
 func (d *SQLiteDriver) CreateTable(schema database.TableSchema) (database.Query, error) {
 	var parts []string
-	
+
 	// Determine primary key field
 	pkField := schema.PK
 	if pkField == "" {
 		pkField = "id"
 	}
-	
+
 	// Build column definitions
 	for colName, colDef := range schema.Columns {
 		colSQL := fmt.Sprintf("%s %s", colName, d.MapType(colDef.Type))
-		
+
 		// Handle primary key with AUTOINCREMENT for serial types
 		if colName == pkField {
 			if strings.Contains(strings.ToLower(colDef.Type), "serial") {
@@ -82,15 +82,15 @@ func (d *SQLiteDriver) CreateTable(schema database.TableSchema) (database.Query,
 				colSQL += " PRIMARY KEY"
 			}
 		}
-		
+
 		if colDef.Required && colName != pkField {
 			colSQL += " NOT NULL"
 		}
-		
+
 		if colDef.Unique && colName != pkField {
 			colSQL += " UNIQUE"
 		}
-		
+
 		if colDef.Default != nil && colName != pkField {
 			switch v := colDef.Default.(type) {
 			case string:
@@ -109,10 +109,10 @@ func (d *SQLiteDriver) CreateTable(schema database.TableSchema) (database.Query,
 				}
 			}
 		}
-		
+
 		parts = append(parts, colSQL)
 	}
-	
+
 	// Add timestamps if requested
 	if schema.Timestamps {
 		if _, ok := schema.Columns["create_time"]; !ok {
@@ -128,10 +128,10 @@ func (d *SQLiteDriver) CreateTable(schema database.TableSchema) (database.Query,
 			parts = append(parts, "change_by INTEGER NOT NULL")
 		}
 	}
-	
-	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n    %s\n)", 
+
+	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n    %s\n)",
 		schema.Name, strings.Join(parts, ",\n    "))
-	
+
 	return database.Query{SQL: sql, Args: nil}, nil
 }
 
@@ -150,7 +150,7 @@ func (d *SQLiteDriver) TableExists(tableName string) (bool, error) {
 		FROM sqlite_master 
 		WHERE type='table' 
 		AND name = ?`
-	
+
 	var exists bool
 	err := d.db.QueryRow(query, tableName).Scan(&exists)
 	return exists, err
@@ -161,19 +161,19 @@ func (d *SQLiteDriver) Insert(table string, data map[string]interface{}) (databa
 	columns := make([]string, 0, len(data))
 	placeholders := make([]string, 0, len(data))
 	values := make([]interface{}, 0, len(data))
-	
+
 	for col, val := range data {
 		columns = append(columns, col)
 		placeholders = append(placeholders, "?")
 		values = append(values, val)
 	}
-	
+
 	// SQLite 3.35+ supports RETURNING
 	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING *",
 		table,
 		strings.Join(columns, ", "),
 		strings.Join(placeholders, ", "))
-	
+
 	return database.Query{SQL: sql, Args: values}, nil
 }
 
@@ -181,21 +181,21 @@ func (d *SQLiteDriver) Insert(table string, data map[string]interface{}) (databa
 func (d *SQLiteDriver) Update(table string, data map[string]interface{}, where string, whereArgs ...interface{}) (database.Query, error) {
 	setClauses := make([]string, 0, len(data))
 	values := make([]interface{}, 0, len(data)+len(whereArgs))
-	
+
 	for col, val := range data {
 		setClauses = append(setClauses, fmt.Sprintf("%s = ?", col))
 		values = append(values, val)
 	}
-	
+
 	// Add where arguments
 	values = append(values, whereArgs...)
-	
+
 	// SQLite 3.35+ supports RETURNING
 	sql := fmt.Sprintf("UPDATE %s SET %s WHERE %s RETURNING *",
 		table,
 		strings.Join(setClauses, ", "),
 		where)
-	
+
 	return database.Query{SQL: sql, Args: values}, nil
 }
 
@@ -211,12 +211,12 @@ func (d *SQLiteDriver) Select(table string, columns []string, where string, wher
 	if len(columns) > 0 {
 		cols = strings.Join(columns, ", ")
 	}
-	
+
 	sql := fmt.Sprintf("SELECT %s FROM %s", cols, table)
 	if where != "" {
 		sql += " WHERE " + where
 	}
-	
+
 	return database.Query{SQL: sql, Args: whereArgs}, nil
 }
 
@@ -224,12 +224,12 @@ func (d *SQLiteDriver) Select(table string, columns []string, where string, wher
 func (d *SQLiteDriver) MapType(schemaType string) string {
 	// SQLite has a very simple type system
 	schemaType = strings.ToLower(schemaType)
-	
+
 	// Handle parameterized types
 	if strings.HasPrefix(schemaType, "varchar") {
 		return "TEXT"
 	}
-	
+
 	switch schemaType {
 	case "serial", "bigserial", "int", "integer", "bigint", "smallint":
 		return "INTEGER"
@@ -260,7 +260,7 @@ func (d *SQLiteDriver) SupportsReturning() bool {
 	if err != nil {
 		return false
 	}
-	
+
 	// Parse version and check if >= 3.35.0
 	parts := strings.Split(version, ".")
 	if len(parts) >= 2 {
@@ -290,12 +290,12 @@ func (d *SQLiteDriver) BeginTx(ctx context.Context) (database.Transaction, error
 	if d.db == nil {
 		return nil, sql.ErrConnDone
 	}
-	
+
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &sqliteTransaction{tx: tx}, nil
 }
 

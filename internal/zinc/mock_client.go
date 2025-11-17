@@ -190,7 +190,7 @@ func (c *MockZincClient) GetDocument(ctx context.Context, index string, id strin
 
 	// Convert to map
 	result := make(map[string]interface{})
-	
+
 	switch v := doc.(type) {
 	case map[string]interface{}:
 		result = v
@@ -417,20 +417,20 @@ func (c *MockZincClient) Suggest(ctx context.Context, index string, text string,
 	// Simple mock implementation
 	suggestions := []string{}
 	textLower := strings.ToLower(text)
-	
+
 	// Common terms that might be suggested
 	terms := []string{"email", "password", "network", "error", "login", "ticket"}
-	
+
 	for _, term := range terms {
 		if strings.HasPrefix(term, textLower) {
 			suggestions = append(suggestions, term)
 		}
 	}
-	
+
 	// Always suggest "email" for "emal" (typo correction)
 	if textLower == "emal" {
 		suggestions = append(suggestions, "email")
 	}
-	
+
 	return suggestions, nil
 }

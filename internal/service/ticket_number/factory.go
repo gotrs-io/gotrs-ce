@@ -17,20 +17,20 @@ func NewGeneratorFromConfig(db *sql.DB, config map[string]interface{}) (TicketNu
 			generatorType = "date"
 		}
 	}
-	
+
 	switch generatorType {
 	case "date":
 		return createDateGenerator(db, config)
-		
+
 	case "auto_increment":
 		return createAutoIncrementGenerator(db, config)
-		
+
 	case "random":
 		return createRandomGenerator(config)
-		
+
 	case "date_checksum":
 		return createDateChecksumGenerator(db, config)
-		
+
 	default:
 		return nil, fmt.Errorf("unknown generator type: %s", generatorType)
 	}
@@ -42,7 +42,7 @@ func createDateGenerator(db *sql.DB, config map[string]interface{}) (*DateGenera
 		CounterDigits: 6,
 		ResetDaily:    true,
 	}
-	
+
 	// Parse date-specific config
 	if dateSettings, ok := config["date"].(map[string]interface{}); ok {
 		if v, ok := dateSettings["include_hour"].(bool); ok {
@@ -55,7 +55,7 @@ func createDateGenerator(db *sql.DB, config map[string]interface{}) (*DateGenera
 			dateConfig.ResetDaily = v
 		}
 	}
-	
+
 	return NewDateGenerator(db, dateConfig), nil
 }
 
@@ -65,7 +65,7 @@ func createAutoIncrementGenerator(db *sql.DB, config map[string]interface{}) (*A
 		MinDigits: 7,
 		StartFrom: 1000,
 	}
-	
+
 	// Parse auto_increment-specific config
 	if aiSettings, ok := config["auto_increment"].(map[string]interface{}); ok {
 		if v, ok := aiSettings["prefix"].(string); ok {
@@ -82,7 +82,7 @@ func createAutoIncrementGenerator(db *sql.DB, config map[string]interface{}) (*A
 			aiConfig.StartFrom = int64(v)
 		}
 	}
-	
+
 	return NewAutoIncrementGenerator(db, aiConfig), nil
 }
 
@@ -92,7 +92,7 @@ func createRandomGenerator(config map[string]interface{}) (*RandomGenerator, err
 		Charset: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
 		Prefix:  "TKT-",
 	}
-	
+
 	// Parse random-specific config
 	if randomSettings, ok := config["random"].(map[string]interface{}); ok {
 		if v, ok := randomSettings["length"].(int); ok {
@@ -105,7 +105,7 @@ func createRandomGenerator(config map[string]interface{}) (*RandomGenerator, err
 			randomConfig.Prefix = v
 		}
 	}
-	
+
 	return NewRandomGenerator(randomConfig), nil
 }
 
@@ -116,7 +116,7 @@ func createDateChecksumGenerator(db *sql.DB, config map[string]interface{}) (*Da
 		ChecksumLength: 2,
 		ResetDaily:     true,
 	}
-	
+
 	// Parse date_checksum-specific config
 	if dcSettings, ok := config["date_checksum"].(map[string]interface{}); ok {
 		if v, ok := dcSettings["separator"].(string); ok {
@@ -132,6 +132,6 @@ func createDateChecksumGenerator(db *sql.DB, config map[string]interface{}) (*Da
 			dcConfig.ResetDaily = v
 		}
 	}
-	
+
 	return NewDateChecksumGenerator(db, dcConfig), nil
 }

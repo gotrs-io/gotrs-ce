@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
 	// _ "github.com/godror/godror" // TODO: Add when implementing Oracle support
 )
 
@@ -29,7 +28,7 @@ func (o *OracleDatabase) Connect() error {
 	// dsn := o.buildDSN()
 	// var err error
 	// o.db, err = sql.Open("godror", dsn)
-    return fmt.Errorf("oracle driver not yet implemented - requires github.com/godror/godror")
+	return fmt.Errorf("oracle driver not yet implemented - requires github.com/godror/godror")
 }
 
 // Close closes the database connection
@@ -94,19 +93,19 @@ func (o *OracleDatabase) BeginTx(ctx context.Context, opts *sql.TxOptions) (ITra
 // TableExists checks if a table exists (stub implementation)
 func (o *OracleDatabase) TableExists(ctx context.Context, tableName string) (bool, error) {
 	// TODO: Implement Oracle-specific table existence check
-    return false, fmt.Errorf("tableExists not yet implemented for Oracle")
+	return false, fmt.Errorf("tableExists not yet implemented for Oracle")
 }
 
 // GetTableColumns returns column information for a table (stub implementation)
 func (o *OracleDatabase) GetTableColumns(ctx context.Context, tableName string) ([]ColumnInfo, error) {
 	// TODO: Implement Oracle-specific column introspection
-    return []ColumnInfo{}, fmt.Errorf("getTableColumns not yet implemented for Oracle")
+	return []ColumnInfo{}, fmt.Errorf("getTableColumns not yet implemented for Oracle")
 }
 
 // CreateTable creates a table from definition (stub implementation)
 func (o *OracleDatabase) CreateTable(ctx context.Context, definition *TableDefinition) error {
 	// TODO: Implement Oracle-specific CREATE TABLE
-    return fmt.Errorf("createTable not yet implemented for Oracle")
+	return fmt.Errorf("createTable not yet implemented for Oracle")
 }
 
 // DropTable drops a table
@@ -119,7 +118,7 @@ func (o *OracleDatabase) DropTable(ctx context.Context, tableName string) error 
 // CreateIndex creates an index (stub implementation)
 func (o *OracleDatabase) CreateIndex(ctx context.Context, tableName, indexName string, columns []string, unique bool) error {
 	// TODO: Implement Oracle-specific CREATE INDEX
-    return fmt.Errorf("createIndex not yet implemented for Oracle")
+	return fmt.Errorf("createIndex not yet implemented for Oracle")
 }
 
 // DropIndex drops an index
@@ -164,24 +163,24 @@ func (o *OracleDatabase) BuildSelect(tableName string, columns []string, where s
 	for i, col := range columns {
 		quotedColumns[i] = o.Quote(col)
 	}
-	
+
 	query := fmt.Sprintf("SELECT %s FROM %s",
 		strings.Join(quotedColumns, ", "),
 		o.Quote(tableName))
-	
+
 	if where != "" {
 		query += " WHERE " + where
 	}
-	
+
 	if orderBy != "" {
 		query += " ORDER BY " + orderBy
 	}
-	
+
 	// Oracle uses ROWNUM for limiting
 	if limit > 0 {
 		query = fmt.Sprintf("SELECT * FROM (%s) WHERE ROWNUM <= %d", query, limit)
 	}
-	
+
 	return query
 }
 
@@ -225,10 +224,10 @@ func (o *OracleDatabase) IsHealthy() bool {
 	if o.db == nil {
 		return false
 	}
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	return o.db.PingContext(ctx) == nil
 }
 

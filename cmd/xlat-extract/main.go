@@ -5,22 +5,22 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
-    "golang.org/x/text/cases"
-    "golang.org/x/text/language"
 )
 
 // TranslationKey represents a translation key found in templates
 type TranslationKey struct {
-	Key      string
-	File     string
-	Line     int
-	Context  string
-	Default  string
+	Key     string
+	File    string
+	Line    int
+	Context string
+	Default string
 }
 
 // TranslationMap represents the structure of a translation JSON file
@@ -38,7 +38,7 @@ func main() {
 	flag.Parse()
 
 	langs := strings.Split(*languages, ",")
-	
+
 	// Find all template files
 	templateFiles, err := findTemplateFiles(*templateDir)
 	if err != nil {
@@ -58,7 +58,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error extracting from %s: %v\n", file, err)
 			continue
 		}
-		
+
 		for _, key := range extractedKeys {
 			// Use the first occurrence of each key
 			if _, exists := keys[key.Key]; !exists {
@@ -73,7 +73,7 @@ func main() {
 
 	// Group keys by prefix for better organization
 	groupedKeys := groupKeysByPrefix(keys)
-	
+
 	if *dryRun {
 		// Just print what we found
 		printExtractedKeys(groupedKeys)
@@ -93,19 +93,19 @@ func main() {
 // findTemplateFiles recursively finds all .pongo2 and .html template files
 func findTemplateFiles(dir string) ([]string, error) {
 	var files []string
-	
+
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		
+
 		if !info.IsDir() && (strings.HasSuffix(path, ".pongo2") || strings.HasSuffix(path, ".html")) {
 			files = append(files, path)
 		}
-		
+
 		return nil
 	})
-	
+
 	return files, err
 }
 
@@ -120,7 +120,7 @@ func extractKeysFromFile(filename string, moduleMode bool) ([]*TranslationKey, e
 	var keys []*TranslationKey
 	scanner := bufio.NewScanner(file)
 	lineNum := 0
-	
+
 	// Regex patterns for different translation function formats
 	patterns := []*regexp.Regexp{
 		// {{ t("key") }}
@@ -132,32 +132,32 @@ func extractKeysFromFile(filename string, moduleMode bool) ([]*TranslationKey, e
 		// @key format for module definitions
 		regexp.MustCompile(`@([a-zA-Z0-9._]+)`),
 	}
-	
+
 	for scanner.Scan() {
 		lineNum++
 		line := scanner.Text()
-		
+
 		for _, pattern := range patterns {
 			matches := pattern.FindAllStringSubmatch(line, -1)
 			for _, match := range matches {
 				key := match[1]
-				
+
 				// Skip non-translation @ symbols (like @click in Alpine.js)
 				if strings.HasPrefix(match[0], "@") && strings.Contains(key, "click") {
 					continue
 				}
-				
+
 				// Filter based on mode
 				if moduleMode && !strings.Contains(key, "module") {
 					continue
 				}
-				
+
 				// Handle dynamic keys (with ~) specially
 				if strings.Contains(match[0], "~") {
 					// Extract the base part before ~
 					key = extractDynamicKeyBase(key)
 				}
-				
+
 				keys = append(keys, &TranslationKey{
 					Key:     key,
 					File:    filename,
@@ -168,7 +168,7 @@ func extractKeysFromFile(filename string, moduleMode bool) ([]*TranslationKey, e
 			}
 		}
 	}
-	
+
 	return keys, scanner.Err()
 }
 
@@ -196,20 +196,20 @@ func extractDefault(match []string) string {
 // groupKeysByPrefix groups translation keys by their prefix
 func groupKeysByPrefix(keys map[string]*TranslationKey) map[string]map[string]*TranslationKey {
 	grouped := make(map[string]map[string]*TranslationKey)
-	
+
 	for key, tk := range keys {
 		parts := strings.Split(key, ".")
 		prefix := "root"
 		if len(parts) > 1 {
 			prefix = parts[0]
 		}
-		
+
 		if grouped[prefix] == nil {
 			grouped[prefix] = make(map[string]*TranslationKey)
 		}
 		grouped[prefix][key] = tk
 	}
-	
+
 	return grouped
 }
 
@@ -220,16 +220,16 @@ func printExtractedKeys(grouped map[string]map[string]*TranslationKey) {
 		prefixes = append(prefixes, prefix)
 	}
 	sort.Strings(prefixes)
-	
+
 	for _, prefix := range prefixes {
 		fmt.Printf("\n=== %s ===\n", prefix)
-		
+
 		var keys []string
 		for key := range grouped[prefix] {
 			keys = append(keys, key)
 		}
 		sort.Strings(keys)
-		
+
 		for _, key := range keys {
 			tk := grouped[prefix][key]
 			fmt.Printf("  %s", key)
@@ -244,7 +244,7 @@ func printExtractedKeys(grouped map[string]map[string]*TranslationKey) {
 // generateTranslationFile generates or updates a translation file for a language
 func generateTranslationFile(outputDir, lang string, grouped map[string]map[string]*TranslationKey, verbose bool) error {
 	filename := filepath.Join(outputDir, fmt.Sprintf("%s.json", lang))
-	
+
 	// Load existing translations if file exists
 	existing := make(TranslationMap)
 	if data, err := os.ReadFile(filename); err == nil {
@@ -252,48 +252,48 @@ func generateTranslationFile(outputDir, lang string, grouped map[string]map[stri
 			fmt.Fprintf(os.Stderr, "Warning: could not parse existing %s: %v\n", filename, err)
 		}
 	}
-	
+
 	// Build the new translation map
 	translations := buildTranslationMap(grouped, existing, lang)
-	
+
 	// Create output directory if it doesn't exist
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return err
 	}
-	
+
 	// Write the translation file
 	data, err := json.MarshalIndent(translations, "", "  ")
 	if err != nil {
 		return err
 	}
-	
+
 	if err := os.WriteFile(filename, data, 0644); err != nil {
 		return err
 	}
-	
+
 	if verbose {
 		fmt.Printf("Wrote %s with %d keys\n", filename, countKeys(translations))
 	}
-	
+
 	return nil
 }
 
 // buildTranslationMap builds a nested translation map from grouped keys
 func buildTranslationMap(grouped map[string]map[string]*TranslationKey, existing TranslationMap, lang string) TranslationMap {
 	result := make(TranslationMap)
-	
+
 	// Copy existing translations first
 	for k, v := range existing {
 		result[k] = v
 	}
-	
+
 	// Add new keys
 	for _, keys := range grouped {
 		for _, tk := range keys {
 			setNestedValue(result, tk.Key, getTranslationValue(tk, lang))
 		}
 	}
-	
+
 	return result
 }
 
@@ -301,7 +301,7 @@ func buildTranslationMap(grouped map[string]map[string]*TranslationKey, existing
 func setNestedValue(m TranslationMap, key string, value string) {
 	parts := strings.Split(key, ".")
 	current := m
-	
+
 	for i, part := range parts {
 		if i == len(parts)-1 {
 			// Last part - set the value if it doesn't exist
@@ -313,7 +313,7 @@ func setNestedValue(m TranslationMap, key string, value string) {
 			if current[part] == nil {
 				current[part] = make(TranslationMap)
 			}
-			
+
 			// Move to the next level
 			if next, ok := current[part].(TranslationMap); ok {
 				current = next
@@ -333,23 +333,23 @@ func getTranslationValue(tk *TranslationKey, lang string) string {
 	if tk.Default != "" && lang == "en" {
 		return tk.Default
 	}
-	
+
 	// Generate a readable default based on the key
 	parts := strings.Split(tk.Key, ".")
 	if len(parts) > 0 {
 		lastPart := parts[len(parts)-1]
 		// Convert snake_case or camelCase to Title Case
-        words := regexp.MustCompile(`[_\-]|([a-z])([A-Z])`).ReplaceAllString(lastPart, "$1 $2")
-        title := cases.Title(language.English)
-        words = title.String(strings.ToLower(words))
-		
+		words := regexp.MustCompile(`[_\-]|([a-z])([A-Z])`).ReplaceAllString(lastPart, "$1 $2")
+		title := cases.Title(language.English)
+		words = title.String(strings.ToLower(words))
+
 		// Add [DE] prefix for German to indicate it needs translation
 		if lang == "de" {
 			return "[DE] " + words
 		}
 		return words
 	}
-	
+
 	return tk.Key
 }
 

@@ -26,22 +26,22 @@ type Permission struct {
 
 // Additional role names (RoleAdmin and RoleAgent are defined in user.go)
 const (
-	RoleUser   = "user"
-	RoleGuest  = "guest"
+	RoleUser  = "user"
+	RoleGuest = "guest"
 )
 
 // Common permissions
 const (
-	PermissionViewTickets      = "view_tickets"
-	PermissionCreateTickets    = "create_tickets"
-	PermissionEditTickets      = "edit_tickets"
-	PermissionDeleteTickets    = "delete_tickets"
-	PermissionAssignTickets    = "assign_tickets"
-	PermissionViewAllTickets   = "view_all_tickets"
-	PermissionManageUsers      = "manage_users"
-	PermissionManageQueues     = "manage_queues"
-	PermissionManageSettings   = "manage_settings"
-	PermissionViewReports      = "view_reports"
-	PermissionManageTemplates  = "manage_templates"
-	PermissionManageWorkflows  = "manage_workflows"
+	PermissionViewTickets     = "view_tickets"
+	PermissionCreateTickets   = "create_tickets"
+	PermissionEditTickets     = "edit_tickets"
+	PermissionDeleteTickets   = "delete_tickets"
+	PermissionAssignTickets   = "assign_tickets"
+	PermissionViewAllTickets  = "view_all_tickets"
+	PermissionManageUsers     = "manage_users"
+	PermissionManageQueues    = "manage_queues"
+	PermissionManageSettings  = "manage_settings"
+	PermissionViewReports     = "view_reports"
+	PermissionManageTemplates = "manage_templates"
+	PermissionManageWorkflows = "manage_workflows"
 )

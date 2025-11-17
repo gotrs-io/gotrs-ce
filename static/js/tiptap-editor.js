@@ -4,6 +4,88 @@
 let editors = {};
 let tiptapLastKeyboardNavigation = false;
 
+function registerTiptapInstance(elementId, instanceApi) {
+    if (!elementId) return;
+    editors[elementId] = instanceApi;
+}
+
+function getTiptapInstance(elementId) {
+    return elementId ? editors[elementId] : undefined;
+}
+
+function formatHtmlContent(html) {
+    if (typeof html !== 'string') return '';
+    const trimmed = html.trim();
+    if (!trimmed) return '';
+
+    const normalized = trimmed.replace(/>\s+</g, '><');
+    const segments = normalized
+        .replace(/></g, '>$cutHere<$')
+        .split('$cutHere$')
+        .map(segment => segment.trim())
+        .filter(Boolean);
+
+    const lines = [];
+    let depth = 0;
+
+    segments.forEach((segment) => {
+        if (/^<\//.test(segment)) {
+            depth = Math.max(depth - 1, 0);
+        }
+
+        lines.push(`${'    '.repeat(depth)}${segment}`);
+
+        if (/^<[^!?\/][^>]*[^/]?>$/.test(segment)) {
+            depth += 1;
+        }
+    });
+
+    return lines.join('\n');
+}
+
+function isLikelyHtml(content) {
+    return typeof content === 'string' && /<[^>]+>/.test(content);
+}
+
+function normalizeTextareaValue(content) {
+    if (!content) return '';
+    return isLikelyHtml(content) ? formatHtmlContent(content) : content;
+}
+
+function insertTextAtCursor(target, snippet) {
+    if (!target) return false;
+    const start = target.selectionStart ?? target.value.length;
+    const end = target.selectionEnd ?? target.value.length;
+    const before = target.value.slice(0, start);
+    const after = target.value.slice(end);
+    target.value = `${before}${snippet}${after}`;
+    const next = start + snippet.length;
+    if (typeof target.setSelectionRange === 'function') {
+        target.setSelectionRange(next, next);
+    }
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+}
+
+function insertLiteralIntoMarkdown(elementId, text) {
+    const instance = getTiptapInstance(elementId);
+    if (!instance || !instance.markdownTextarea) return false;
+    return insertTextAtCursor(instance.markdownTextarea, text);
+}
+
+function insertLiteralIntoEditor(elementId, text) {
+    if (!text) return false;
+    const instance = getTiptapInstance(elementId);
+    if (!instance) return false;
+    if (instance.getMode() === 'markdown') {
+        return insertLiteralIntoMarkdown(elementId, text);
+    }
+    if (!instance.editor) return false;
+    const payload = { type: 'text', text };
+    instance.editor.chain().focus().insertContent(payload).run();
+    return true;
+}
+
 document.addEventListener('keydown', (evt) => {
     if (evt.key === 'Tab') {
         tiptapLastKeyboardNavigation = true;
@@ -26,6 +108,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     window.TiptapEditor.init = function(elementId, options) {
         return initTiptapEditor(elementId, options);
+    };
+    window.TiptapEditor.insertLiteral = function(elementId, text) {
+        return insertLiteralIntoEditor(elementId, text);
+    };
+    window.TiptapEditor.insertMarkdownLiteral = function(elementId, text) {
+        return insertLiteralIntoMarkdown(elementId, text);
     };
 });
 
@@ -231,6 +319,7 @@ function initTiptapEditor(elementId, options = {}) {
     const contentElement = container.querySelector('.tiptap-content');
     if (contentElement) {
         contentElement.setAttribute('tabindex', '0');
+        contentElement.style.whiteSpace = 'pre-wrap';
     }
 
     // Initialize Tiptap editor (using bundled Tiptap)
@@ -243,6 +332,22 @@ function initTiptapEditor(elementId, options = {}) {
     let editor = null;
     let markdownTextarea = null;
     let currentMode = config.editorMode;
+    const instanceApi = {
+        getMode: () => currentMode,
+        get editor() {
+            return editor;
+        },
+        set editor(value) {
+            editor = value;
+        },
+        get markdownTextarea() {
+            return markdownTextarea;
+        },
+        set markdownTextarea(value) {
+            markdownTextarea = value;
+        }
+    };
+    registerTiptapInstance(elementId, instanceApi);
 
     // Update toolbar visibility and mode button text
     function updateToolbarVisibility() {
@@ -277,7 +382,10 @@ function initTiptapEditor(elementId, options = {}) {
         if (fromMode === toMode) return content;
 
         if (fromMode === 'richtext' && toMode === 'markdown') {
-            return window.Tiptap.htmlToMarkdown ? window.Tiptap.htmlToMarkdown(content) : content;
+            if (window.Tiptap.htmlToMarkdown) {
+                return window.Tiptap.htmlToMarkdown(content);
+            }
+            return normalizeTextareaValue(content);
         } else if (fromMode === 'markdown' && toMode === 'richtext') {
             return window.Tiptap.markdownToHTML ? window.Tiptap.markdownToHTML(content) : content;
         }
@@ -308,7 +416,7 @@ function initTiptapEditor(elementId, options = {}) {
         } = window.Tiptap;
 
         const contentElement = container.querySelector('.tiptap-content');
-        editor = new Editor({
+        instanceApi.editor = new Editor({
             element: contentElement,
             extensions: [
                 StarterKit.configure({
@@ -358,21 +466,23 @@ function initTiptapEditor(elementId, options = {}) {
         if (markdownTextarea) return;
 
         const contentElement = container.querySelector('.tiptap-content');
-        markdownTextarea = document.createElement('textarea');
-        markdownTextarea.className = 'w-full h-64 p-3 border border-gray-300 dark:border-gray-600 rounded-md font-mono text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white';
-        markdownTextarea.placeholder = config.placeholder;
-        markdownTextarea.value = content;
-        markdownTextarea.disabled = config.mode !== 'edit';
+        const textarea = document.createElement('textarea');
+        textarea.className = 'w-full h-64 p-3 border border-gray-300 dark:border-gray-600 rounded-md font-mono text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white';
+        textarea.placeholder = config.placeholder;
+        textarea.value = content;
+        textarea.disabled = config.mode !== 'edit';
 
         contentElement.innerHTML = '';
-        contentElement.appendChild(markdownTextarea);
+        contentElement.appendChild(textarea);
 
-        markdownTextarea.addEventListener('input', () => {
+        textarea.addEventListener('input', () => {
             console.log('Markdown textarea content updated');
             if (config.onUpdate) {
-                config.onUpdate(markdownTextarea.value);
+                config.onUpdate(textarea.value);
             }
         });
+
+        instanceApi.markdownTextarea = textarea;
     }
 
     // Toggle between modes
@@ -387,11 +497,11 @@ function initTiptapEditor(elementId, options = {}) {
         // Destroy current editor/textarea
         if (editor) {
             editor.destroy();
-            editor = null;
+            instanceApi.editor = null;
         }
         if (markdownTextarea) {
             markdownTextarea.remove();
-            markdownTextarea = null;
+            instanceApi.markdownTextarea = null;
         }
 
         // Switch mode and reinitialize
@@ -729,12 +839,12 @@ function initTiptapEditor(elementId, options = {}) {
         }
     }
 
-    // Store editor instance and return interface
-    editors[elementId] = {
+    Object.assign(instanceApi, {
         getHTML: () => {
             if (currentMode === 'richtext' && editor) {
                 return editor.getHTML();
-            } else if (currentMode === 'markdown' && markdownTextarea) {
+            }
+            if (currentMode === 'markdown' && markdownTextarea) {
                 return markdownTextarea.value;
             }
             return '';
@@ -742,7 +852,8 @@ function initTiptapEditor(elementId, options = {}) {
         getMarkdown: () => {
             if (currentMode === 'markdown' && markdownTextarea) {
                 return markdownTextarea.value;
-            } else if (currentMode === 'richtext' && editor) {
+            }
+            if (currentMode === 'richtext' && editor) {
                 return window.Tiptap.htmlToMarkdown ? window.Tiptap.htmlToMarkdown(editor.getHTML()) : editor.getHTML();
             }
             return '';
@@ -750,18 +861,19 @@ function initTiptapEditor(elementId, options = {}) {
         setContent: (content, mode = null) => {
             const targetMode = mode || currentMode;
             if (targetMode === 'richtext') {
-                const htmlContent = currentMode === 'markdown' ? (window.Tiptap.markdownToHTML ? window.Tiptap.markdownToHTML(content) : content) : content;
+                const htmlContent = currentMode === 'markdown'
+                    ? (window.Tiptap.markdownToHTML ? window.Tiptap.markdownToHTML(content) : content)
+                    : content;
                 if (editor) {
                     editor.commands.setContent(htmlContent);
                 }
-            } else {
-                const markdownContent = currentMode === 'richtext' ? (window.Tiptap.htmlToMarkdown ? window.Tiptap.htmlToMarkdown(content) : content) : content;
-                if (markdownTextarea) {
-                    markdownTextarea.value = markdownContent;
-                }
+            } else if (markdownTextarea) {
+                const markdownContent = currentMode === 'richtext'
+                    ? (window.Tiptap.htmlToMarkdown ? window.Tiptap.htmlToMarkdown(content) : content)
+                    : content;
+                markdownTextarea.value = markdownContent;
             }
         },
-        getMode: () => currentMode,
         setMode: (mode) => {
             if (mode !== currentMode) {
                 toggleMode();
@@ -770,16 +882,16 @@ function initTiptapEditor(elementId, options = {}) {
         destroy: () => {
             if (editor) {
                 editor.destroy();
-                editor = null;
+                instanceApi.editor = null;
             }
             if (markdownTextarea) {
                 markdownTextarea.remove();
-                markdownTextarea = null;
+                instanceApi.markdownTextarea = null;
             }
         }
-    };
+    });
 
-    return editors[elementId];
+    return instanceApi;
 }
 
 function updateToolbarState(editor, toolbar) {
@@ -876,23 +988,24 @@ function updateToolbarState(editor, toolbar) {
 }
 
 function getEditorContent(elementId) {
-    const editor = editors[elementId];
-    if (!editor) return '';
-    return editor.getHTML();
+    const instance = getTiptapInstance(elementId);
+    if (!instance || !instance.editor) return '';
+    return instance.editor.getHTML();
 }
 
-function setEditorContent(elementId, content) {
-    const editor = editors[elementId];
-    if (!editor) return;
-    editor.commands.setContent(content);
+function setEditorContent(elementId, content, mode) {
+    const instance = getTiptapInstance(elementId);
+    if (!instance || !instance.editor) return;
+    instance.editor.commands.setContent(content, mode);
 }
 
 function destroyEditor(elementId) {
-    const editor = editors[elementId];
-    if (editor) {
-        editor.destroy();
-        delete editors[elementId];
+    const instance = getTiptapInstance(elementId);
+    if (!instance) return;
+    if (instance.editor) {
+        instance.editor.destroy();
     }
+    delete editors[elementId];
 }
 
 // Add CSS for toolbar buttons

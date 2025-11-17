@@ -1,18 +1,18 @@
 package service
 
 import (
-    "context"
-    "crypto/tls"
-    "fmt"
-    "log"
-    "net"
-    "strings"
-    "sync"
-    "time"
+	"context"
+	"crypto/tls"
+	"fmt"
+	"log"
+	"net"
+	"strings"
+	"sync"
+	"time"
 
-    "github.com/go-ldap/ldap/v3"
-    "github.com/gotrs-io/gotrs-ce/internal/models"
-    "github.com/gotrs-io/gotrs-ce/internal/repository/memory"
+	"github.com/go-ldap/ldap/v3"
+	"github.com/gotrs-io/gotrs-ce/internal/models"
+	"github.com/gotrs-io/gotrs-ce/internal/repository/memory"
 )
 
 // LDAPService handles LDAP/Active Directory integration
@@ -41,27 +41,27 @@ type AuthLog struct {
 
 // LDAPConfig represents LDAP configuration
 type LDAPConfig struct {
-	Host                string            `json:"host"`
-	Port                int               `json:"port"`
-	BaseDN              string            `json:"base_dn"`
-	BindDN              string            `json:"bind_dn"`
-	BindPassword        string            `json:"bind_password"`
-	UserFilter          string            `json:"user_filter"`
-	UserSearchBase      string            `json:"user_search_base,omitempty"`
-	GroupFilter         string            `json:"group_filter,omitempty"`
-	GroupSearchBase     string            `json:"group_search_base,omitempty"`
-	UseTLS              bool              `json:"use_tls"`
-	StartTLS            bool              `json:"start_tls"`
-	InsecureSkipVerify  bool              `json:"insecure_skip_verify"`
-	AttributeMap        LDAPAttributeMap  `json:"attribute_map"`
+	Host                 string           `json:"host"`
+	Port                 int              `json:"port"`
+	BaseDN               string           `json:"base_dn"`
+	BindDN               string           `json:"bind_dn"`
+	BindPassword         string           `json:"bind_password"`
+	UserFilter           string           `json:"user_filter"`
+	UserSearchBase       string           `json:"user_search_base,omitempty"`
+	GroupFilter          string           `json:"group_filter,omitempty"`
+	GroupSearchBase      string           `json:"group_search_base,omitempty"`
+	UseTLS               bool             `json:"use_tls"`
+	StartTLS             bool             `json:"start_tls"`
+	InsecureSkipVerify   bool             `json:"insecure_skip_verify"`
+	AttributeMap         LDAPAttributeMap `json:"attribute_map"`
 	GroupMemberAttribute string           `json:"group_member_attribute"`
-	AutoCreateUsers     bool              `json:"auto_create_users"`
-	AutoUpdateUsers     bool              `json:"auto_update_users"`
-	AutoCreateGroups    bool              `json:"auto_create_groups"`
-	SyncInterval        time.Duration     `json:"sync_interval"`
-	DefaultRole         string            `json:"default_role"`
-	AdminGroups         []string          `json:"admin_groups,omitempty"`
-	UserGroups          []string          `json:"user_groups,omitempty"`
+	AutoCreateUsers      bool             `json:"auto_create_users"`
+	AutoUpdateUsers      bool             `json:"auto_update_users"`
+	AutoCreateGroups     bool             `json:"auto_create_groups"`
+	SyncInterval         time.Duration    `json:"sync_interval"`
+	DefaultRole          string           `json:"default_role"`
+	AdminGroups          []string         `json:"admin_groups,omitempty"`
+	UserGroups           []string         `json:"user_groups,omitempty"`
 }
 
 // LDAPAttributeMap maps LDAP attributes to GOTRS user fields
@@ -364,28 +364,28 @@ func (s *LDAPService) Stop() {
 
 // connect establishes connection to LDAP server
 func (s *LDAPService) connect(config *LDAPConfig) (*ldap.Conn, error) {
-    // Prefer URL-based dialing with timeout
-    scheme := "ldap"
-    if config.UseTLS {
-        scheme = "ldaps"
-    }
-    url := fmt.Sprintf("%s://%s:%d", scheme, config.Host, config.Port)
-    dialer := &net.Dialer{Timeout: 10 * time.Second}
+	// Prefer URL-based dialing with timeout
+	scheme := "ldap"
+	if config.UseTLS {
+		scheme = "ldaps"
+	}
+	url := fmt.Sprintf("%s://%s:%d", scheme, config.Host, config.Port)
+	dialer := &net.Dialer{Timeout: 10 * time.Second}
 
-    conn, err := ldap.DialURL(url, ldap.DialWithDialer(dialer))
-    if err != nil {
-        return nil, err
-    }
+	conn, err := ldap.DialURL(url, ldap.DialWithDialer(dialer))
+	if err != nil {
+		return nil, err
+	}
 
-    if config.StartTLS && !config.UseTLS {
-        tlsConfig := &tls.Config{InsecureSkipVerify: config.InsecureSkipVerify}
-        if err := conn.StartTLS(tlsConfig); err != nil {
-            conn.Close()
-            return nil, err
-        }
-    }
+	if config.StartTLS && !config.UseTLS {
+		tlsConfig := &tls.Config{InsecureSkipVerify: config.InsecureSkipVerify}
+		if err := conn.StartTLS(tlsConfig); err != nil {
+			conn.Close()
+			return nil, err
+		}
+	}
 
-    return conn, nil
+	return conn, nil
 }
 
 // searchUser searches for a single user in LDAP
@@ -607,11 +607,11 @@ func (s *LDAPService) mapLDAPUser(entry *ldap.Entry, config *LDAPConfig) *LDAPUs
 // mapLDAPGroup maps an LDAP entry to an LDAPGroup
 func (s *LDAPService) mapLDAPGroup(entry *ldap.Entry, config *LDAPConfig) *LDAPGroup {
 	group := &LDAPGroup{
-		DN:   entry.DN,
-		Name: s.getAttributeValue(entry, "cn"),
+		DN:          entry.DN,
+		Name:        s.getAttributeValue(entry, "cn"),
 		Description: s.getAttributeValue(entry, "description"),
-		ObjectGUID: s.getAttributeValue(entry, config.AttributeMap.ObjectGUID),
-		ObjectSID: s.getAttributeValue(entry, config.AttributeMap.ObjectSID),
+		ObjectGUID:  s.getAttributeValue(entry, config.AttributeMap.ObjectGUID),
+		ObjectSID:   s.getAttributeValue(entry, config.AttributeMap.ObjectSID),
 	}
 
 	// Parse members

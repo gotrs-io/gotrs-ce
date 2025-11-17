@@ -26,7 +26,7 @@ func NewDateGenerator(db *sql.DB, config DateConfig) *DateGenerator {
 	if config.CounterDigits == 0 {
 		config.CounterDigits = 6
 	}
-	
+
 	return &DateGenerator{
 		db:     db,
 		config: config,
@@ -36,44 +36,44 @@ func NewDateGenerator(db *sql.DB, config DateConfig) *DateGenerator {
 // Generate creates a new ticket number
 func (g *DateGenerator) Generate() (string, error) {
 	now := time.Now()
-	
+
 	// Build date prefix
 	var datePrefix string
 	if g.config.IncludeHour {
-		datePrefix = fmt.Sprintf("%04d%02d%02d%02d", 
+		datePrefix = fmt.Sprintf("%04d%02d%02d%02d",
 			now.Year(), now.Month(), now.Day(), now.Hour())
 	} else {
-		datePrefix = fmt.Sprintf("%04d%02d%02d", 
+		datePrefix = fmt.Sprintf("%04d%02d%02d",
 			now.Year(), now.Month(), now.Day())
 	}
-	
+
 	// Get counter UID (includes date for daily reset)
 	counterUID := g.getCounterUID(now)
-	
+
 	// Get next counter value
 	counter, err := getNextCounter(g.db, counterUID)
 	if err != nil {
 		return "", fmt.Errorf("failed to get next counter: %w", err)
 	}
-	
+
 	// Format counter with padding
 	counterFormat := fmt.Sprintf("%%0%dd", g.config.CounterDigits)
 	counterStr := fmt.Sprintf(counterFormat, counter)
-	
+
 	// Combine date and counter
 	ticketNumber := datePrefix + counterStr
-	
+
 	return ticketNumber, nil
 }
 
 // Reset resets the counter (happens automatically with daily counter UIDs)
 func (g *DateGenerator) Reset() error {
-	// For date-based generators with daily reset, 
+	// For date-based generators with daily reset,
 	// we use a new counter_uid each day, so no explicit reset needed
 	if g.config.ResetDaily {
 		return nil
 	}
-	
+
 	// For non-daily reset, reset the main counter
 	counterUID := g.getCounterUID(time.Now())
 	return resetCounter(g.db, counterUID, 0)

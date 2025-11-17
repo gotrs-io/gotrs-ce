@@ -1,17 +1,17 @@
 package main
 
 import (
-    "database/sql"
-    "fmt"
-    "os"
-    "path/filepath"
+	"database/sql"
+	"fmt"
+	"os"
+	"path/filepath"
 
-    "github.com/gotrs-io/gotrs-ce/internal/config"
-    "github.com/spf13/cobra"
-    "golang.org/x/crypto/bcrypt"
-    _ "github.com/lib/pq"
-    _ "github.com/go-sql-driver/mysql"
-    "github.com/gotrs-io/gotrs-ce/internal/database"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/gotrs-io/gotrs-ce/internal/config"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
+	_ "github.com/lib/pq"
+	"github.com/spf13/cobra"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -45,7 +45,7 @@ of default values that could be security risks.`,
 var (
 	rotateSecretsFlag bool
 	outputPathFlag    string
-	forceFlag        bool
+	forceFlag         bool
 	testDataOnlyFlag  bool
 )
 
@@ -54,7 +54,7 @@ func init() {
 	synthesizeCmd.Flags().StringVar(&outputPathFlag, "output", ".env", "Output path for the generated .env file")
 	synthesizeCmd.Flags().BoolVar(&forceFlag, "force", false, "Overwrite existing .env without prompting")
 	synthesizeCmd.Flags().BoolVar(&testDataOnlyFlag, "test-data-only", false, "Generate only test data SQL and CSV files")
-	
+
 	rootCmd.AddCommand(synthesizeCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(resetUserCmd)
@@ -94,13 +94,13 @@ func init() {
 
 func runSynthesize(cmd *cobra.Command, args []string) error {
 	synth := config.NewSynthesizer(".env")
-	
+
 	// If only generating test data
 	if testDataOnlyFlag {
 		fmt.Fprintln(os.Stderr, "🔬 Generating test data...")
 		return synth.SynthesizeTestData()
 	}
-	
+
 	outputPath := outputPathFlag
 	if !filepath.IsAbs(outputPath) {
 		cwd, err := os.Getwd()
@@ -109,36 +109,36 @@ func runSynthesize(cmd *cobra.Command, args []string) error {
 		}
 		outputPath = filepath.Join(cwd, outputPath)
 	}
-	
+
 	if _, err := os.Stat(outputPath); err == nil && !forceFlag && !rotateSecretsFlag {
 		fmt.Printf("⚠️  File %s already exists. Use --force to overwrite or --rotate-secrets to update secrets only.\n", outputPathFlag)
 		return nil
 	}
-	
+
 	fmt.Println("🔬 Synthesizing secure configuration...")
-	
+
 	synth = config.NewSynthesizer(outputPath)
-	
+
 	if err := synth.SynthesizeEnv(rotateSecretsFlag); err != nil {
 		return fmt.Errorf("failed to synthesize environment: %w", err)
 	}
-	
+
 	generatedCount := synth.GetGeneratedCount()
-	
+
 	if rotateSecretsFlag {
 		fmt.Printf("🔄 Rotated %d secret values\n", generatedCount)
 		fmt.Printf("📝 Backup saved to %s.backup.*\n", outputPathFlag)
 	} else {
 		fmt.Printf("✅ Generated %d secure secrets\n", generatedCount)
 		fmt.Printf("📝 Created %s with secure configuration\n", outputPathFlag)
-		
+
 		// Also generate test data when creating new .env
 		fmt.Println("\n🔬 Generating test data...")
 		if err := synth.SynthesizeTestData(); err != nil {
 			return fmt.Errorf("failed to generate test data: %w", err)
 		}
 	}
-	
+
 	if !rotateSecretsFlag {
 		// Check if we're running in a container (no .git directory accessible)
 		if _, err := os.Stat(".git"); os.IsNotExist(err) {
@@ -154,9 +154,9 @@ func runSynthesize(cmd *cobra.Command, args []string) error {
 			}
 		}
 	}
-	
+
 	fmt.Println("\n🚀 Ready! Run 'make up' to start services")
-	
+
 	return nil
 }
 
@@ -165,14 +165,14 @@ func installGitHooks() error {
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
 		return fmt.Errorf("not in a git repository")
 	}
-	
+
 	hooksDir := filepath.Join(gitDir, "hooks")
 	if err := os.MkdirAll(hooksDir, 0755); err != nil {
 		return fmt.Errorf("failed to create hooks directory: %w", err)
 	}
-	
+
 	preCommitPath := filepath.Join(hooksDir, "pre-commit")
-	
+
 	preCommitContent := `#!/bin/bash
 # GOTRS Pre-commit hook - Scan for secrets before committing
 
@@ -206,40 +206,40 @@ fi
 echo "✅ No secrets detected"
 exit 0
 `
-	
+
 	if err := os.WriteFile(preCommitPath, []byte(preCommitContent), 0755); err != nil {
 		return fmt.Errorf("failed to write pre-commit hook: %w", err)
 	}
-	
+
 	return nil
 }
 
 func runResetUser(cmd *cobra.Command, args []string) error {
 	// Get database connection parameters from environment
-    dbDriver := os.Getenv("DB_DRIVER")
-    if dbDriver == "" {
-        // Default to postgres if not specified, but most of our docker-compose uses mariadb
-        dbDriver = os.Getenv("DB_ENGINE")
-        if dbDriver == "" {
-            dbDriver = "mariadb"
-        }
-    }
+	dbDriver := os.Getenv("DB_DRIVER")
+	if dbDriver == "" {
+		// Default to postgres if not specified, but most of our docker-compose uses mariadb
+		dbDriver = os.Getenv("DB_ENGINE")
+		if dbDriver == "" {
+			dbDriver = "mariadb"
+		}
+	}
 	dbHost := os.Getenv("DB_HOST")
 	if dbHost == "" {
-        // Prefer service names inside compose network
-        if dbDriver == "postgres" || dbDriver == "postgresql" {
-            dbHost = "postgres"
-        } else {
-            dbHost = "mariadb"
-        }
+		// Prefer service names inside compose network
+		if dbDriver == "postgres" || dbDriver == "postgresql" {
+			dbHost = "postgres"
+		} else {
+			dbHost = "mariadb"
+		}
 	}
 	dbPort := os.Getenv("DB_PORT")
 	if dbPort == "" {
-        if dbDriver == "postgres" || dbDriver == "postgresql" {
-            dbPort = "5432"
-        } else {
-            dbPort = "3306"
-        }
+		if dbDriver == "postgres" || dbDriver == "postgresql" {
+			dbPort = "5432"
+		} else {
+			dbPort = "3306"
+		}
 	}
 	dbName := os.Getenv("DB_NAME")
 	if dbName == "" {
@@ -247,73 +247,73 @@ func runResetUser(cmd *cobra.Command, args []string) error {
 	}
 	dbUser := os.Getenv("DB_USER")
 	if dbUser == "" {
-        if dbDriver == "postgres" || dbDriver == "postgresql" {
-            dbUser = "gotrs_user"
-        } else {
-            dbUser = "otrs"
-        }
+		if dbDriver == "postgres" || dbDriver == "postgresql" {
+			dbUser = "gotrs_user"
+		} else {
+			dbUser = "otrs"
+		}
 	}
-    dbPassword := os.Getenv("DB_PASSWORD")
-    if dbPassword == "" {
-        dbPassword = os.Getenv("PGPASSWORD")
-    }
+	dbPassword := os.Getenv("DB_PASSWORD")
 	if dbPassword == "" {
-        return fmt.Errorf("database password environment variable is required (DB_PASSWORD or PGPASSWORD)")
+		dbPassword = os.Getenv("PGPASSWORD")
+	}
+	if dbPassword == "" {
+		return fmt.Errorf("database password environment variable is required (DB_PASSWORD or PGPASSWORD)")
 	}
 
 	// Connect to database
-    var (
-        driverName string
-        dsn        string
-    )
-    switch dbDriver {
-    case "postgres", "postgresql":
-        driverName = "postgres"
-        dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-            dbHost, dbPort, dbUser, dbPassword, dbName)
-    case "mysql", "mariadb":
-        driverName = "mysql"
-        // Use MySQL DSN format
-        dsn = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&charset=utf8mb4,utf8&loc=Local",
-            dbUser, dbPassword, dbHost, dbPort, dbName)
-    default:
-        // Fallback: try postgres style first
-        driverName = "postgres"
-        dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-            dbHost, dbPort, dbUser, dbPassword, dbName)
-    }
+	var (
+		driverName string
+		dsn        string
+	)
+	switch dbDriver {
+	case "postgres", "postgresql":
+		driverName = "postgres"
+		dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			dbHost, dbPort, dbUser, dbPassword, dbName)
+	case "mysql", "mariadb":
+		driverName = "mysql"
+		// Use MySQL DSN format
+		dsn = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&charset=utf8mb4,utf8&loc=Local",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
+	default:
+		// Fallback: try postgres style first
+		driverName = "postgres"
+		dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			dbHost, dbPort, dbUser, dbPassword, dbName)
+	}
 
-    fmt.Printf("🔗 Connecting to database (%s) %s@%s:%s/%s...\n", driverName, dbUser, dbHost, dbPort, dbName)
-    db, err := sql.Open(driverName, dsn)
+	fmt.Printf("🔗 Connecting to database (%s) %s@%s:%s/%s...\n", driverName, dbUser, dbHost, dbPort, dbName)
+	db, err := sql.Open(driverName, dsn)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	defer db.Close()
 
-    // Test connection
+	// Test connection
 	if err := db.Ping(); err != nil {
 		return fmt.Errorf("failed to ping database: %w", err)
 	}
 
-    // Ensure minimal users table exists for convenience on empty DBs
-    if err := ensureUsersTable(db, driverName); err != nil {
-        return fmt.Errorf("failed to ensure users table: %w", err)
-    }
+	// Ensure minimal users table exists for convenience on empty DBs
+	if err := ensureUsersTable(db, driverName); err != nil {
+		return fmt.Errorf("failed to ensure users table: %w", err)
+	}
 
-    // Ensure user row exists (create minimally if missing)
-    var existing int
-    sel := database.ConvertPlaceholders("SELECT 1 FROM users WHERE login = $1")
-    if err := db.QueryRow(sel, usernameFlag).Scan(&existing); err != nil {
-        // Create minimal user row
-        fmt.Println("👤 Creating minimal user row...")
-        ins := database.ConvertPlaceholders(`
+	// Ensure user row exists (create minimally if missing)
+	var existing int
+	sel := database.ConvertPlaceholders("SELECT 1 FROM users WHERE login = $1")
+	if err := db.QueryRow(sel, usernameFlag).Scan(&existing); err != nil {
+		// Create minimal user row
+		fmt.Println("👤 Creating minimal user row...")
+		ins := database.ConvertPlaceholders(`
             INSERT INTO users (login, pw, first_name, last_name, valid_id, create_by, change_by)
             VALUES ($1, '', '', '', 1, 1, 1)`)
-        if _, ie := db.Exec(ins, usernameFlag); ie != nil {
-            // continue; update might still succeed if column set differs
-            fmt.Printf("⚠️  Warning: failed to insert minimal user row: %v\n", ie)
-        }
-    }
+		if _, ie := db.Exec(ins, usernameFlag); ie != nil {
+			// continue; update might still succeed if column set differs
+			fmt.Printf("⚠️  Warning: failed to insert minimal user row: %v\n", ie)
+		}
+	}
 
 	// Generate bcrypt hash for the password
 	fmt.Printf("🔒 Generating password hash...\n")
@@ -325,9 +325,9 @@ func runResetUser(cmd *cobra.Command, args []string) error {
 	// Prepare SQL update
 	var sqlQuery string
 	var sqlArgs []any
-	
+
 	if enableFlag {
-        sqlQuery = database.ConvertPlaceholders(`UPDATE users SET 
+		sqlQuery = database.ConvertPlaceholders(`UPDATE users SET 
             pw = $1,
             valid_id = 1,
             change_time = NOW(),
@@ -335,7 +335,7 @@ func runResetUser(cmd *cobra.Command, args []string) error {
         WHERE login = $2`)
 		sqlArgs = []any{string(hash), usernameFlag}
 	} else {
-        sqlQuery = database.ConvertPlaceholders(`UPDATE users SET 
+		sqlQuery = database.ConvertPlaceholders(`UPDATE users SET 
             pw = $1,
             change_time = NOW(),
             change_by = 1
@@ -363,12 +363,12 @@ func runResetUser(cmd *cobra.Command, args []string) error {
 	var login string
 	var validID int
 	var passwordStatus string
-	
-    err = db.QueryRow(database.ConvertPlaceholders(`SELECT login,
+
+	err = db.QueryRow(database.ConvertPlaceholders(`SELECT login,
 		CASE WHEN pw IS NOT NULL THEN 'SET' ELSE 'NULL' END as password_status,
 		valid_id
 		FROM users WHERE login = $1`), usernameFlag).Scan(&login, &passwordStatus, &validID)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to verify update: %w", err)
 	}
@@ -387,16 +387,16 @@ func runResetUser(cmd *cobra.Command, args []string) error {
 
 // ensureUsersTable creates a minimal users table if absent (portable across postgres/mysql)
 func ensureUsersTable(db *sql.DB, driverName string) error {
-    // Check existence
-    checkSQL := "SELECT 1 FROM users LIMIT 1"
-    if _, err := db.Exec(checkSQL); err == nil {
-        return nil
-    }
-    fmt.Println("🧰 'users' table missing; creating minimal schema for password reset...")
-    var createSQL string
-    switch driverName {
-    case "postgres":
-        createSQL = `
+	// Check existence
+	checkSQL := "SELECT 1 FROM users LIMIT 1"
+	if _, err := db.Exec(checkSQL); err == nil {
+		return nil
+	}
+	fmt.Println("🧰 'users' table missing; creating minimal schema for password reset...")
+	var createSQL string
+	switch driverName {
+	case "postgres":
+		createSQL = `
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     login VARCHAR(200) NOT NULL UNIQUE,
@@ -410,8 +410,8 @@ CREATE TABLE IF NOT EXISTS users (
     change_time TIMESTAMP NOT NULL DEFAULT NOW(),
     change_by INTEGER NOT NULL DEFAULT 1
 );`
-    default: // mysql/mariadb
-        createSQL = `
+	default: // mysql/mariadb
+		createSQL = `
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     login VARCHAR(200) NOT NULL UNIQUE,
@@ -425,9 +425,9 @@ CREATE TABLE IF NOT EXISTS users (
     change_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     change_by INT NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`
-    }
-    _, err := db.Exec(createSQL)
-    return err
+	}
+	_, err := db.Exec(createSQL)
+	return err
 }
 
 func main() {

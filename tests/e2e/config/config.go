@@ -14,13 +14,13 @@ import (
 
 // TestConfig holds all configuration for E2E tests
 type TestConfig struct {
-	BaseURL      string
-	Timeout      time.Duration
-	Headless     bool
-	SlowMo       int
-	Screenshots  bool
-	Videos       bool
-	AdminEmail   string
+	BaseURL       string
+	Timeout       time.Duration
+	Headless      bool
+	SlowMo        int
+	Screenshots   bool
+	Videos        bool
+	AdminEmail    string
 	AdminPassword string
 }
 
@@ -44,10 +44,12 @@ func loadDotEnv() {
 			if i := strings.Index(line, "="); i > 0 {
 				key := strings.TrimSpace(line[:i])
 				val := strings.TrimSpace(line[i+1:])
-				if val == "" || key == "" { continue }
+				if val == "" || key == "" {
+					continue
+				}
 				// Strip optional surrounding quotes
 				if (strings.HasPrefix(val, "\"") && strings.HasSuffix(val, "\"")) || (strings.HasPrefix(val, "'") && strings.HasSuffix(val, "'")) {
-					val = val[1:len(val)-1]
+					val = val[1 : len(val)-1]
 				}
 				if os.Getenv(key) == "" { // don't override existing
 					_ = os.Setenv(key, val)
@@ -65,12 +67,14 @@ func GetConfig() *TestConfig {
 	if forced := os.Getenv("RAW_BASE_URL"); forced != "" { // explicit injection hook for tests
 		baseURL = forced
 	}
-	if baseURL == "" { baseURL = "http://localhost:8080" }
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	}
 	if os.Getenv("E2E_BASEURL_AUTODETECT") != "false" {
 		baseURL = detectReachableBaseURLVerbose(baseURL)
 		baseURL = fallbackBackendHost(baseURL)
 	}
-    log.Printf("[e2e-config] Resolved BaseURL=%s (RAW_BASE_URL=%s)", baseURL, os.Getenv("RAW_BASE_URL"))
+	log.Printf("[e2e-config] Resolved BaseURL=%s (RAW_BASE_URL=%s)", baseURL, os.Getenv("RAW_BASE_URL"))
 
 	headless := os.Getenv("HEADLESS") != "false"
 	slowMo := 0
@@ -80,13 +84,13 @@ func GetConfig() *TestConfig {
 	}
 
 	return &TestConfig{
-		BaseURL:      baseURL,
-		Timeout:      30 * time.Second,
-		Headless:     headless,
-		SlowMo:       slowMo,
-		Screenshots:  os.Getenv("SCREENSHOTS") != "false",
-		Videos:       os.Getenv("VIDEOS") == "true",
-		AdminEmail:   os.Getenv("DEMO_ADMIN_EMAIL"),
+		BaseURL:       baseURL,
+		Timeout:       30 * time.Second,
+		Headless:      headless,
+		SlowMo:        slowMo,
+		Screenshots:   os.Getenv("SCREENSHOTS") != "false",
+		Videos:        os.Getenv("VIDEOS") == "true",
+		AdminEmail:    os.Getenv("DEMO_ADMIN_EMAIL"),
 		AdminPassword: os.Getenv("DEMO_ADMIN_PASSWORD"),
 	}
 }
@@ -108,17 +112,25 @@ func detectReachableBaseURLVerbose(initial string) string {
 	if err == nil {
 		host := u.Hostname()
 		port := u.Port()
-		if port == "" { port = "8080" }
+		if port == "" {
+			port = "8080"
+		}
 		// If host contains underscores (compose service) also try localhost / 127.0.0.1 with same port first.
 		basePorts := []string{port, "8080", "18080", "8081"}
 		// Preserve order but de-dupe later.
 		if host != "localhost" && host != "127.0.0.1" {
-			for _, p := range basePorts { candidates = append(candidates, "http://localhost:"+p) }
-			for _, p := range basePorts { candidates = append(candidates, "http://127.0.0.1:"+p) }
+			for _, p := range basePorts {
+				candidates = append(candidates, "http://localhost:"+p)
+			}
+			for _, p := range basePorts {
+				candidates = append(candidates, "http://127.0.0.1:"+p)
+			}
 		}
 		// If original host looked like backend service include its canonical variants.
 		if strings.Contains(host, "backend") {
-			for _, p := range []string{"8080","18080","8081"} { candidates = append(candidates, "http://backend:"+p) }
+			for _, p := range []string{"8080", "18080", "8081"} {
+				candidates = append(candidates, "http://backend:"+p)
+			}
 		}
 	}
 	// Always ensure plain localhost:8080 present.
@@ -128,7 +140,9 @@ func detectReachableBaseURLVerbose(initial string) string {
 	seen := map[string]struct{}{initial: {}}
 	uniq := []string{}
 	for _, c := range candidates {
-		if _, ok := seen[c]; ok { continue }
+		if _, ok := seen[c]; ok {
+			continue
+		}
 		seen[c] = struct{}{}
 		uniq = append(uniq, c)
 	}
@@ -147,14 +161,20 @@ func detectReachableBaseURLVerbose(initial string) string {
 func reachable(base string) bool {
 	// TCP probe
 	u, err := url.Parse(base)
-	if err != nil { return false }
+	if err != nil {
+		return false
+	}
 	host := u.Host
-	if !strings.Contains(host, ":") { host += ":80" }
-	d := net.Dialer{ Timeout: 250 * time.Millisecond }
+	if !strings.Contains(host, ":") {
+		host += ":80"
+	}
+	d := net.Dialer{Timeout: 250 * time.Millisecond}
 	conn, err := d.Dial("tcp", host)
-	if err != nil { return false }
+	if err != nil {
+		return false
+	}
 	_ = conn.Close()
-	client := &http.Client{ Timeout: 800 * time.Millisecond }
+	client := &http.Client{Timeout: 800 * time.Millisecond}
 	// Prefer /healthz quick check
 	for _, path := range []string{"/healthz", "/login"} {
 		req, _ := http.NewRequest("GET", base+path, nil)
@@ -170,14 +190,24 @@ func reachable(base string) bool {
 // fallbackBackendHost converts host 'backend' to 'localhost' if 'backend' is not reachable but localhost alternative is.
 func fallbackBackendHost(current string) string {
 	u, err := url.Parse(current)
-	if err != nil { return current }
-	if u.Hostname() != "backend" { return current }
+	if err != nil {
+		return current
+	}
+	if u.Hostname() != "backend" {
+		return current
+	}
 	// Try backend first
-	if reachable(current) { return current }
+	if reachable(current) {
+		return current
+	}
 	// Replace with localhost: same port
 	port := u.Port()
-	if port == "" { port = "8080" }
+	if port == "" {
+		port = "8080"
+	}
 	candidate := u.Scheme + "://localhost:" + port
-	if reachable(candidate) { return candidate }
+	if reachable(candidate) {
+		return candidate
+	}
 	return current
 }

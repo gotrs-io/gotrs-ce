@@ -114,3 +114,92 @@ func TestTicketService_CreateRecordsHistory(t *testing.T) {
 	require.Equal(t, "202510050002", result.TicketNumber)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestTicketService_CreatePersistsCustomerFields(t *testing.T) {
+	t.Setenv("TEST_DB_DRIVER", "postgres")
+	t.Setenv("DB_DRIVER", "postgres")
+	database.ResetAdapterForTest()
+
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repository.SetTicketNumberGenerator(stubGen{n: "202510050010"}, stubStore{})
+	repo := repository.NewTicketRepository(db)
+	svc := NewTicketService(repo)
+
+	now := time.Now()
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM queue")).
+		WithArgs(1).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, name, type_id, valid_id,")).
+		WithArgs(1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
+			AddRow(1, "new", 1, 1, now, 1, now, 1))
+
+	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO ticket (")).
+		WithArgs(
+			"202510050010",
+			"Customer bound",
+			1,
+			1,
+			nil,
+			nil,
+			nil,
+			1,
+			1,
+			"cust-123",
+			"user-789",
+			1,
+			3,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			sqlmock.AnyArg(),
+			1,
+			sqlmock.AnyArg(),
+			1,
+		).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(91))
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id FROM ticket_history_type")).
+		WithArgs("NewTicket").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(30))
+
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO ticket_history (")).
+		WithArgs(
+			"Ticket created (202510050010)",
+			30,
+			91,
+			nil,
+			1,
+			1,
+			1,
+			3,
+			1,
+			sqlmock.AnyArg(),
+			1,
+			sqlmock.AnyArg(),
+			1,
+		).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	result, err := svc.Create(context.Background(), CreateTicketInput{
+		Title:          "Customer bound",
+		QueueID:        1,
+		UserID:         1,
+		CustomerID:     "  cust-123  ",
+		CustomerUserID: "user-789\n",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, "cust-123", *result.CustomerID)
+	require.Equal(t, "user-789", *result.CustomerUserID)
+	require.NoError(t, mock.ExpectationsWereMet())
+}

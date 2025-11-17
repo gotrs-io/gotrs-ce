@@ -18,7 +18,7 @@ func TestTranslationKeys(t *testing.T) {
 	browser := helpers.NewBrowserHelper(t)
 	// Skip if admin credentials not provided (these pages require auth)
 	if browser.Config.AdminEmail == "" || browser.Config.AdminPassword == "" {
-		 t.Skip("Admin credentials not configured; set DEMO_ADMIN_EMAIL and DEMO_ADMIN_PASSWORD to run translation key checks")
+		t.Skip("Admin credentials not configured; set DEMO_ADMIN_EMAIL and DEMO_ADMIN_PASSWORD to run translation key checks")
 	}
 	err := browser.Setup()
 	require.NoError(t, err, "Failed to setup browser")
@@ -82,7 +82,7 @@ func TestTranslationKeys(t *testing.T) {
 				HasText: "Add Group",
 			},
 		)
-		
+
 		// Check if button text itself is a translation key
 		buttonText, _ := addButton.InnerText()
 		if strings.Contains(buttonText, "admin.") || strings.Contains(buttonText, "app.") {
@@ -109,7 +109,7 @@ func TestTranslationKeys(t *testing.T) {
 func findTranslationKeys(text string) []string {
 	var keys []string
 	lines := strings.Split(text, "\n")
-	
+
 	for _, line := range lines {
 		// Look for translation key patterns
 		words := strings.Fields(line)
@@ -120,7 +120,7 @@ func findTranslationKeys(text string) []string {
 			}
 		}
 	}
-	
+
 	return unique(keys)
 }
 
@@ -133,7 +133,7 @@ func isTranslationKey(s string) bool {
 	s = strings.TrimSuffix(s, ";")
 	s = strings.TrimSuffix(s, "!")
 	s = strings.TrimSuffix(s, "?")
-	
+
 	// Common translation key prefixes
 	prefixes := []string{
 		"admin.",
@@ -151,7 +151,7 @@ func isTranslationKey(s string) bool {
 		"status.",
 		"priority.",
 	}
-	
+
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(s, prefix) {
 			// Make sure it's not a URL or file path
@@ -160,7 +160,7 @@ func isTranslationKey(s string) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 

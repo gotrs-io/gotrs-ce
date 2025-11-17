@@ -1,11 +1,11 @@
 package schema
 
 import (
-    "database/sql"
-    "fmt"
-    "strings"
-    
-    "github.com/gotrs-io/gotrs-ce/internal/database"
+	"database/sql"
+	"fmt"
+	"strings"
+
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 )
 
 // Discovery handles database schema discovery
@@ -47,8 +47,8 @@ type ForeignKeyInfo struct {
 
 // IndexInfo contains index information
 type IndexInfo struct {
-	Name    string
-	Columns []string
+	Name     string
+	Columns  []string
 	IsUnique bool
 }
 
@@ -102,12 +102,12 @@ type Features struct {
 
 // Filter represents a module filter
 type Filter struct {
-	Field       string   `yaml:"field"`
-	Type        string   `yaml:"type"`
-	Label       string   `yaml:"label"`
-	Source      string   `yaml:"source,omitempty"`
-	Query       string   `yaml:"query,omitempty"`
-	Options     []Option `yaml:"options,omitempty"`
+	Field   string   `yaml:"field"`
+	Type    string   `yaml:"type"`
+	Label   string   `yaml:"label"`
+	Source  string   `yaml:"source,omitempty"`
+	Query   string   `yaml:"query,omitempty"`
+	Options []Option `yaml:"options,omitempty"`
 }
 
 // Option represents a filter option
@@ -126,20 +126,20 @@ func NewDiscovery(db *sql.DB, verbose bool) *Discovery {
 
 // GetTables returns all user tables in the database
 func (d *Discovery) GetTables() ([]string, error) {
-    query := `
+	query := `
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = $1 
         AND table_type = 'BASE TABLE'
         ORDER BY table_name
     `
-	
-    rows, err := d.db.Query(database.ConvertPlaceholders(query), "public")
+
+	rows, err := d.db.Query(database.ConvertPlaceholders(query), "public")
 	if err != nil {
 		return nil, fmt.Errorf("failed to query tables: %v", err)
 	}
 	defer rows.Close()
-	
+
 	var tables []string
 	for rows.Next() {
 		var table string
@@ -148,7 +148,7 @@ func (d *Discovery) GetTables() ([]string, error) {
 		}
 		tables = append(tables, table)
 	}
-	
+
 	return tables, nil
 }
 
@@ -157,14 +157,14 @@ func (d *Discovery) GetTableInfo(tableName string) (*TableInfo, error) {
 	info := &TableInfo{
 		Name: tableName,
 	}
-	
+
 	// Get columns
 	columns, err := d.getColumns(tableName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get columns: %v", err)
 	}
 	info.Columns = columns
-	
+
 	// Check for special columns
 	for _, col := range columns {
 		if col.IsPrimaryKey {
@@ -177,21 +177,21 @@ func (d *Discovery) GetTableInfo(tableName string) (*TableInfo, error) {
 			info.HasDeleted = true
 		}
 	}
-	
+
 	// Get foreign keys
 	foreignKeys, err := d.getForeignKeys(tableName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get foreign keys: %v", err)
 	}
 	info.ForeignKeys = foreignKeys
-	
+
 	// Get indexes
 	indexes, err := d.getIndexes(tableName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get indexes: %v", err)
 	}
 	info.Indexes = indexes
-	
+
 	return info, nil
 }
 
@@ -237,18 +237,18 @@ func (d *Discovery) getColumns(tableName string) ([]ColumnInfo, error) {
 		WHERE c.table_name = $1
 		ORDER BY c.ordinal_position
 	`
-	
-    rows, err := d.db.Query(database.ConvertPlaceholders(query), tableName)
+
+	rows, err := d.db.Query(database.ConvertPlaceholders(query), tableName)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var columns []ColumnInfo
 	for rows.Next() {
 		var col ColumnInfo
 		var isNullable string
-		
+
 		err := rows.Scan(
 			&col.Name,
 			&col.DataType,
@@ -263,11 +263,11 @@ func (d *Discovery) getColumns(tableName string) ([]ColumnInfo, error) {
 		if err != nil {
 			return nil, err
 		}
-		
+
 		col.IsNullable = (isNullable == "YES")
 		columns = append(columns, col)
 	}
-	
+
 	return columns, nil
 }
 
@@ -286,13 +286,13 @@ func (d *Discovery) getForeignKeys(tableName string) ([]ForeignKeyInfo, error) {
 		WHERE tc.table_name = $1
 		AND tc.constraint_type = 'FOREIGN KEY'
 	`
-	
-    rows, err := d.db.Query(database.ConvertPlaceholders(query), tableName)
+
+	rows, err := d.db.Query(database.ConvertPlaceholders(query), tableName)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var foreignKeys []ForeignKeyInfo
 	for rows.Next() {
 		var fk ForeignKeyInfo
@@ -301,7 +301,7 @@ func (d *Discovery) getForeignKeys(tableName string) ([]ForeignKeyInfo, error) {
 		}
 		foreignKeys = append(foreignKeys, fk)
 	}
-	
+
 	return foreignKeys, nil
 }
 
@@ -316,13 +316,13 @@ func (d *Discovery) getIndexes(tableName string) ([]IndexInfo, error) {
 		WHERE tablename = $1
 		AND indexname NOT LIKE '%_pkey'
 	`
-	
-    rows, err := d.db.Query(database.ConvertPlaceholders(query), tableName)
+
+	rows, err := d.db.Query(database.ConvertPlaceholders(query), tableName)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var indexes []IndexInfo
 	for rows.Next() {
 		var idx IndexInfo
@@ -334,7 +334,7 @@ func (d *Discovery) getIndexes(tableName string) ([]IndexInfo, error) {
 		// This is simplified - real implementation would parse more carefully
 		indexes = append(indexes, idx)
 	}
-	
+
 	return indexes, nil
 }
 
@@ -345,20 +345,20 @@ func (d *Discovery) GenerateModule(tableName string) (*ModuleConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Create module config
 	module := &ModuleConfig{}
 	module.Module.Name = tableName
 	module.Module.Table = tableName
 	module.Module.DisplayName = formatDisplayName(tableName)
 	module.Module.Description = fmt.Sprintf("Manage %s records", formatDisplayName(tableName))
-	
+
 	// Generate fields
 	module.Fields = d.generateFields(tableInfo)
-	
+
 	// Generate computed fields
 	module.ComputedFields = d.generateComputedFields(tableInfo)
-	
+
 	// Set features
 	module.Features = Features{
 		Search:      true,
@@ -367,17 +367,17 @@ func (d *Discovery) GenerateModule(tableName string) (*ModuleConfig, error) {
 		SoftDelete:  tableInfo.HasValidID,
 		BulkActions: true,
 	}
-	
+
 	// Generate filters
 	module.Filters = d.generateFilters(tableInfo)
-	
+
 	return module, nil
 }
 
 // generateFields generates field configurations from table info
 func (d *Discovery) generateFields(info *TableInfo) []Field {
 	var fields []Field
-	
+
 	for _, col := range info.Columns {
 		field := Field{
 			Name:     col.Name,
@@ -385,7 +385,7 @@ func (d *Discovery) generateFields(info *TableInfo) []Field {
 			Label:    formatLabel(col.Name),
 			Required: !col.IsNullable && col.Name != "id",
 		}
-		
+
 		// Set primary key
 		if col.IsPrimaryKey {
 			field.PrimaryKey = true
@@ -396,12 +396,12 @@ func (d *Discovery) generateFields(info *TableInfo) []Field {
 			field.ShowInList = shouldShowInList(col.Name, col.DataType)
 			field.ShowInForm = shouldShowInForm(col.Name)
 		}
-		
+
 		// Set searchable for text fields
 		if isTextType(col.DataType) && field.ShowInList {
 			field.Searchable = true
 		}
-		
+
 		// Handle foreign keys
 		if col.IsForeignKey {
 			fk := findForeignKey(info.ForeignKeys, col.Name)
@@ -412,29 +412,29 @@ func (d *Discovery) generateFields(info *TableInfo) []Field {
 				field.LookupDisplay = guessDisplayColumn(fk.ReferencedTable)
 			}
 		}
-		
+
 		// Set max length for string fields
 		if col.MaxLength.Valid && col.MaxLength.Int64 > 0 {
 			field.MaxLength = int(col.MaxLength.Int64)
 		}
-		
+
 		// Set format for datetime fields
 		if col.DataType == "timestamp" || col.DataType == "timestamp without time zone" {
 			if strings.Contains(col.Name, "create") || strings.Contains(col.Name, "change") {
 				field.Format = "relative"
 			}
 		}
-		
+
 		fields = append(fields, field)
 	}
-	
+
 	return fields
 }
 
 // generateComputedFields generates computed fields with lambda functions
 func (d *Discovery) generateComputedFields(info *TableInfo) []ComputedField {
 	var computed []ComputedField
-	
+
 	// Check for name fields to combine
 	hasFirstName := false
 	hasLastName := false
@@ -446,7 +446,7 @@ func (d *Discovery) generateComputedFields(info *TableInfo) []ComputedField {
 			hasLastName = true
 		}
 	}
-	
+
 	if hasFirstName && hasLastName {
 		computed = append(computed, ComputedField{
 			Name:       "full_name",
@@ -459,7 +459,7 @@ func (d *Discovery) generateComputedFields(info *TableInfo) []ComputedField {
 			`,
 		})
 	}
-	
+
 	// Add status badge for valid_id
 	if info.HasValidID {
 		computed = append(computed, ComputedField{
@@ -477,14 +477,14 @@ func (d *Discovery) generateComputedFields(info *TableInfo) []ComputedField {
 			`,
 		})
 	}
-	
+
 	return computed
 }
 
 // generateFilters generates filter configurations
 func (d *Discovery) generateFilters(info *TableInfo) []Filter {
 	var filters []Filter
-	
+
 	// Add valid_id filter if present
 	if info.HasValidID {
 		filters = append(filters, Filter{
@@ -498,14 +498,14 @@ func (d *Discovery) generateFilters(info *TableInfo) []Filter {
 			},
 		})
 	}
-	
+
 	// Add filters for foreign keys
 	for _, fk := range info.ForeignKeys {
 		// Skip certain foreign keys
 		if strings.HasSuffix(fk.Column, "_by") || strings.HasSuffix(fk.Column, "_id") && strings.Contains(fk.Column, "create") {
 			continue
 		}
-		
+
 		filters = append(filters, Filter{
 			Field:  fk.Column,
 			Type:   "select",
@@ -514,7 +514,7 @@ func (d *Discovery) generateFilters(info *TableInfo) []Filter {
 			Query:  fmt.Sprintf("SELECT %s, name FROM %s ORDER BY name", fk.ReferencedColumn, fk.ReferencedTable),
 		})
 	}
-	
+
 	// Add date range filters for timestamp columns
 	for _, col := range info.Columns {
 		if strings.Contains(col.DataType, "timestamp") {
@@ -527,7 +527,7 @@ func (d *Discovery) generateFilters(info *TableInfo) []Filter {
 			}
 		}
 	}
-	
+
 	return filters
 }
 
@@ -536,24 +536,24 @@ func (d *Discovery) generateFilters(info *TableInfo) []Filter {
 func ShouldSkipTable(tableName string) bool {
 	skipPrefixes := []string{"pg_", "sql_", "information_", "tmp_", "temp_"}
 	skipSuffixes := []string{"_log", "_backup", "_old", "_temp"}
-	
+
 	for _, prefix := range skipPrefixes {
 		if strings.HasPrefix(tableName, prefix) {
 			return true
 		}
 	}
-	
+
 	for _, suffix := range skipSuffixes {
 		if strings.HasSuffix(tableName, suffix) {
 			return true
 		}
 	}
-	
+
 	// Skip migration tracking table
 	if tableName == "schema_migrations" {
 		return true
 	}
-	
+
 	return false
 }
 
@@ -599,23 +599,23 @@ func formatLabel(columnName string) string {
 	name = strings.TrimSuffix(name, "_by")
 	name = strings.TrimSuffix(name, "_time")
 	name = strings.TrimSuffix(name, "_date")
-	
+
 	// Convert snake_case to Title Case
 	words := strings.Split(name, "_")
 	for i, word := range words {
 		if len(word) > 0 {
 			// Handle common abbreviations
 			switch strings.ToLower(word) {
-				case "id":
-					words[i] = "ID"
-				case "url":
-					words[i] = "URL"
-				case "api":
-					words[i] = "API"
-				case "sla":
-					words[i] = "SLA"
-				default:
-					words[i] = strings.ToUpper(word[:1]) + word[1:]
+			case "id":
+				words[i] = "ID"
+			case "url":
+				words[i] = "URL"
+			case "api":
+				words[i] = "API"
+			case "sla":
+				words[i] = "SLA"
+			default:
+				words[i] = strings.ToUpper(word[:1]) + word[1:]
 			}
 		}
 	}
@@ -630,12 +630,12 @@ func shouldShowInList(columnName, dataType string) bool {
 			return false
 		}
 	}
-	
+
 	// Hide large text fields
 	if dataType == "text" {
 		return false
 	}
-	
+
 	// Show most other fields
 	return true
 }
@@ -673,7 +673,7 @@ func findForeignKey(foreignKeys []ForeignKeyInfo, columnName string) *ForeignKey
 func guessDisplayColumn(tableName string) string {
 	// Common display column names in order of preference
 	_ = []string{"name", "title", "login", "email", "code", "id"} // displayColumns - for future use
-	
+
 	// For now, return "name" as default
 	// In a real implementation, we'd query the table to see which columns exist
 	return "name"

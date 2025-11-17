@@ -135,7 +135,6 @@ services:
   runner:
     image: localhost/gotrs-backend:latest
     container_name: gotrs-runner
-    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     command: ["./goats", "-mode", "runner"]
     environment:
       DB_DRIVER: ${DB_DRIVER:-mariadb}
@@ -146,8 +145,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DATABASE_URL: ${DATABASE_URL}
       # Email configuration for queue processing
-      GOTRS_EMAIL_SMTP_HOST: ${SMTP_HOST:-mailhog}
-      GOTRS_EMAIL_SMTP_PORT: ${SMTP_PORT:-1025}
+      GOTRS_EMAIL_SMTP_HOST: ${SMTP_HOST:-smtp4dev}
+      GOTRS_EMAIL_SMTP_PORT: ${SMTP_PORT:-25}
       GOTRS_EMAIL_SMTP_USER: ${SMTP_USER}
       GOTRS_EMAIL_SMTP_PASSWORD: ${SMTP_PASSWORD}
       GOTRS_EMAIL_SMTP_TLS: ${SMTP_TLS:-false}
@@ -157,6 +156,8 @@ services:
     depends_on:
       mariadb:
         condition: service_healthy
+      smtp4dev:
+        condition: service_started
     networks:
       - gotrs-network
     restart: unless-stopped
@@ -182,13 +183,21 @@ services:
   #   networks:
   #     - gotrs-network
 
-  # Mailhog for Email Testing
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: gotrs-mailhog
+  # smtp4dev - Full email sandbox (SMTP/IMAP/POP3 + Web UI)
+  smtp4dev:
+    image: docker.io/rnwood/smtp4dev:latest
+    container_name: gotrs-smtp4dev
+    environment:
+      # Persist mail data on restarts
+      ServerOptions__HostName: ${SMTP4DEV_HOSTNAME:-gotrs.local}
+      ServerOptions__TlsOptions__EnableStartTls: "true"
     ports:
-      - "${MAILHOG_SMTP_PORT:-1025}:1025" # SMTP
-      - "${MAILHOG_UI_PORT:-8025}:8025" # Web UI
+      - "${SMTP4DEV_SMTP_PORT:-1025}:25"   # SMTP
+      - "${SMTP4DEV_IMAP_PORT:-1143}:143"  # IMAP
+      - "${SMTP4DEV_POP3_PORT:-1110}:110"  # POP3
+      - "${SMTP4DEV_UI_PORT:-8025}:80"     # Web UI
+    volumes:
+      - smtp4dev_data:/smtp4dev
     networks:
       - gotrs-network
 
@@ -266,6 +275,8 @@ services:
     depends_on:
       mariadb-test:
         condition: service_healthy
+      smtp4dev:
+        condition: service_started
       valkey-test:
         condition: service_healthy
     networks:
@@ -287,8 +298,8 @@ services:
       DB_USER: ${TEST_DB_MYSQL_USER:-otrs}
       DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD:-LetClaude.1n}
       # Email configuration for queue processing
-      GOTRS_EMAIL_SMTP_HOST: ${SMTP_HOST:-mailhog}
-      GOTRS_EMAIL_SMTP_PORT: ${SMTP_PORT:-1025}
+      GOTRS_EMAIL_SMTP_HOST: ${SMTP_HOST:-smtp4dev}
+      GOTRS_EMAIL_SMTP_PORT: ${SMTP_PORT:-25}
       GOTRS_EMAIL_SMTP_USER: ${SMTP_USER}
       GOTRS_EMAIL_SMTP_PASSWORD: ${SMTP_PASSWORD}
       GOTRS_EMAIL_SMTP_TLS: ${SMTP_TLS:-false}
@@ -496,6 +507,7 @@ volumes:
   gotrs_node_modules:
   gotrs_cache:
   gotrs_runtime:
+  smtp4dev_data:
   # zinc_data:         # Commented out - zinc service disabled
   # temporal_data:     # Commented out - temporal service disabled
   # ldap_data:         # Commented out - openldap service disabled

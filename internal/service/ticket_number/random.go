@@ -28,7 +28,7 @@ func NewRandomGenerator(config RandomConfig) *RandomGenerator {
 	if config.Charset == "" {
 		config.Charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	}
-	
+
 	return &RandomGenerator{
 		config: config,
 	}
@@ -41,10 +41,10 @@ func (g *RandomGenerator) Generate() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Combine prefix and random string
 	ticketNumber := g.config.Prefix + randomStr
-	
+
 	return ticketNumber, nil
 }
 
@@ -58,16 +58,16 @@ func (g *RandomGenerator) Reset() error {
 func generateRandomString(length int, charset string) (string, error) {
 	result := make([]byte, length)
 	charsetLen := big.NewInt(int64(len(charset)))
-	
+
 	for i := 0; i < length; i++ {
 		// Get random index
 		idx, err := rand.Int(rand.Reader, charsetLen)
 		if err != nil {
 			return "", err
 		}
-		
+
 		result[i] = charset[idx.Int64()]
 	}
-	
+
 	return string(result), nil
 }

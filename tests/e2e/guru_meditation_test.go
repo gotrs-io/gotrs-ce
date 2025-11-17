@@ -44,11 +44,11 @@ func TestGuruMeditationErrorHandling(t *testing.T) {
 
 				// Check for Guru Meditation component
 				guruElement := browser.Page.Locator("#guru-meditation")
-				
+
 				// It should exist but be hidden initially
 				elementCount, _ := guruElement.Count()
 				assert.Equal(t, 1, elementCount, "%s should have Guru Meditation component", page.name)
-				
+
 				// Check that it has the required elements
 				guruCode := browser.Page.Locator("#guru-code")
 				codeExists, _ := guruCode.Count()
@@ -188,22 +188,22 @@ func TestGuruMeditationErrorHandling(t *testing.T) {
 		// Check if Guru Meditation appeared (in case of 500 error)
 		guruElement := browser.Page.Locator("#guru-meditation")
 		guruVisible, _ := guruElement.IsVisible()
-		
+
 		if guruVisible {
 			// If Guru Meditation is visible, capture the error details
 			guruCode := browser.Page.Locator("#guru-code")
 			codeText, _ := guruCode.InnerText()
-			
+
 			guruMessage := browser.Page.Locator("#guru-message")
 			msgText, _ := guruMessage.InnerText()
-			
+
 			t.Logf("Guru Meditation triggered with code: %s, message: %s", codeText, msgText)
-			
+
 			// Dismiss it
 			dismissButton := browser.Page.Locator("button:has-text('Left Mouse Button')")
 			dismissButton.Click()
 			time.Sleep(500 * time.Millisecond)
-			
+
 			// Close modal if still open
 			closeButton := browser.Page.Locator("button:has-text('Cancel')")
 			if visible, _ := closeButton.IsVisible(); visible {
@@ -213,19 +213,19 @@ func TestGuruMeditationErrorHandling(t *testing.T) {
 			// Check if group was created successfully
 			modal := browser.Page.Locator("#groupModal")
 			modalVisible, _ := modal.IsVisible()
-			
+
 			if !modalVisible {
 				// Modal closed, check if group appears in list
 				groupRow := browser.Page.Locator(fmt.Sprintf("tr:has-text('%s')", testGroupName))
 				rowVisible, _ := groupRow.IsVisible()
 				assert.True(t, rowVisible, "Inactive group should be created and visible in list")
-				
+
 				// Clean up - delete the test group
 				deleteButton := groupRow.Locator("button[title='Delete']")
 				if delVisible, _ := deleteButton.IsVisible(); delVisible {
 					deleteButton.Click()
 					time.Sleep(500 * time.Millisecond)
-					
+
 					// Confirm deletion
 					browser.Page.OnDialog(func(dialog playwright.Dialog) {
 						dialog.Accept()
@@ -286,7 +286,7 @@ func TestGuruMeditationStyling(t *testing.T) {
 				backgroundColor: styles.backgroundColor
 			};
 		}`)
-		
+
 		if styleMap, ok := style.(map[string]interface{}); ok {
 			// Should have red border (part of the animation)
 			t.Logf("Guru Meditation styling: %+v", styleMap)

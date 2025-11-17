@@ -40,7 +40,7 @@ func NewLookupService(repo *data.LookupsRepository) *LookupService {
 // GetTicketStates returns all available ticket states with translations
 func (s *LookupService) GetTicketStates(ctx context.Context, lang string) ([]LookupOption, error) {
 	cacheKey := fmt.Sprintf("ticket_states_%s", lang)
-	
+
 	// Check cache
 	s.mu.RLock()
 	if cached, ok := s.cache[cacheKey]; ok {
@@ -87,7 +87,7 @@ func (s *LookupService) GetTicketStates(ctx context.Context, lang string) ([]Loo
 // GetTicketPriorities returns all available ticket priorities with translations
 func (s *LookupService) GetTicketPriorities(ctx context.Context, lang string) ([]LookupOption, error) {
 	cacheKey := fmt.Sprintf("ticket_priorities_%s", lang)
-	
+
 	// Check cache
 	s.mu.RLock()
 	if cached, ok := s.cache[cacheKey]; ok {
@@ -134,7 +134,7 @@ func (s *LookupService) GetTicketPriorities(ctx context.Context, lang string) ([
 // GetQueues returns all available queues with optional translations
 func (s *LookupService) GetQueues(ctx context.Context, lang string) ([]LookupOption, error) {
 	cacheKey := fmt.Sprintf("queues_%s", lang)
-	
+
 	// Check cache
 	s.mu.RLock()
 	if cached, ok := s.cache[cacheKey]; ok {
@@ -157,7 +157,7 @@ func (s *LookupService) GetQueues(ctx context.Context, lang string) ([]LookupOpt
 		if displayText == queue.Name {
 			displayText = queue.Name
 		}
-		
+
 		options[i] = LookupOption{
 			ID:          queue.ID,
 			Value:       queue.Name,
@@ -187,7 +187,7 @@ func (s *LookupService) GetQueues(ctx context.Context, lang string) ([]LookupOpt
 // GetTicketTypes returns all available ticket types with translations
 func (s *LookupService) GetTicketTypes(ctx context.Context, lang string) ([]LookupOption, error) {
 	cacheKey := fmt.Sprintf("ticket_types_%s", lang)
-	
+
 	// Check cache
 	s.mu.RLock()
 	if cached, ok := s.cache[cacheKey]; ok {
@@ -276,9 +276,9 @@ func (s *LookupService) AddCustomTranslation(ctx context.Context, tableName, fie
 	if err != nil {
 		return fmt.Errorf("failed to add custom translation: %w", err)
 	}
-	
+
 	// Clear cache to reflect changes
 	s.ClearCache()
-	
+
 	return nil
 }

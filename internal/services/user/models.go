@@ -25,7 +25,7 @@ type User struct {
 	CreatedAt      time.Time              `json:"created_at" db:"created_at"`
 	UpdatedAt      time.Time              `json:"updated_at" db:"updated_at"`
 	DeletedAt      *time.Time             `json:"deleted_at,omitempty" db:"deleted_at"`
-	
+
 	// Relationships
 	Groups      []Group      `json:"groups,omitempty"`
 	Permissions []Permission `json:"permissions,omitempty"`
@@ -68,22 +68,22 @@ type Session struct {
 
 // ListFilter represents user list filtering options
 type ListFilter struct {
-	Role       string    `json:"role,omitempty"`
-	Department string    `json:"department,omitempty"`
-	IsActive   *bool     `json:"is_active,omitempty"`
-	GroupID    string    `json:"group_id,omitempty"`
+	Role        string    `json:"role,omitempty"`
+	Department  string    `json:"department,omitempty"`
+	IsActive    *bool     `json:"is_active,omitempty"`
+	GroupID     string    `json:"group_id,omitempty"`
 	CreatedFrom time.Time `json:"created_from,omitempty"`
 	CreatedTo   time.Time `json:"created_to,omitempty"`
-	SortBy     string    `json:"sort_by,omitempty"`
-	SortOrder  string    `json:"sort_order,omitempty"`
-	Limit      int       `json:"limit,omitempty"`
-	Offset     int       `json:"offset,omitempty"`
+	SortBy      string    `json:"sort_by,omitempty"`
+	SortOrder   string    `json:"sort_order,omitempty"`
+	Limit       int       `json:"limit,omitempty"`
+	Offset      int       `json:"offset,omitempty"`
 }
 
 // Clone creates a deep copy of the user
 func (u *User) Clone() *User {
 	clone := *u
-	
+
 	// Clone maps
 	if u.Preferences != nil {
 		clone.Preferences = make(map[string]interface{})
@@ -91,23 +91,23 @@ func (u *User) Clone() *User {
 			clone.Preferences[k] = v
 		}
 	}
-	
+
 	// Clone relationships
 	if u.Groups != nil {
 		clone.Groups = make([]Group, len(u.Groups))
 		copy(clone.Groups, u.Groups)
 	}
-	
+
 	if u.Permissions != nil {
 		clone.Permissions = make([]Permission, len(u.Permissions))
 		copy(clone.Permissions, u.Permissions)
 	}
-	
+
 	if u.Sessions != nil {
 		clone.Sessions = make([]Session, len(u.Sessions))
 		copy(clone.Sessions, u.Sessions)
 	}
-	
+
 	return &clone
 }
 
@@ -128,15 +128,15 @@ func (u *User) ToProto() *UserProto {
 		CreatedAt:     u.CreatedAt.Unix(),
 		UpdatedAt:     u.UpdatedAt.Unix(),
 	}
-	
+
 	if u.LastLoginAt != nil {
 		proto.LastLoginAt = u.LastLoginAt.Unix()
 	}
-	
+
 	if u.LastActivityAt != nil {
 		proto.LastActivityAt = u.LastActivityAt.Unix()
 	}
-	
+
 	return proto
 }
 
@@ -192,11 +192,11 @@ type UserProto struct {
 // Request/Response types for gRPC
 
 type CreateUserRequest struct {
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Role      string `json:"role"`
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	FirstName  string `json:"first_name"`
+	LastName   string `json:"last_name"`
+	Role       string `json:"role"`
 	Department string `json:"department"`
 }
 

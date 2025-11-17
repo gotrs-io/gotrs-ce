@@ -37,25 +37,25 @@ func (suite *LDAPIntegrationTestSuite) SetupSuite() {
 
 	// Setup test configuration
 	suite.config = &LDAPConfig{
-		Host:                getEnvOrDefault("LDAP_HOST", "localhost"),
-		Port:                389,
-		BaseDN:              "dc=gotrs,dc=local",
-		BindDN:              "cn=readonly,dc=gotrs,dc=local",
-		BindPassword:        getEnvOrDefault("LDAP_READONLY_PASSWORD", "readonly123"),
-		UserSearchBase:      "ou=Users,dc=gotrs,dc=local",
-		UserFilter:          "(&(objectClass=inetOrgPerson)(uid={username}))",
-		GroupSearchBase:     "ou=Groups,dc=gotrs,dc=local",
-		GroupFilter:         "(objectClass=groupOfNames)",
-		UseTLS:              false,
-		StartTLS:            false,
-		InsecureSkipVerify:  true,
-		AutoCreateUsers:     true,
-		AutoUpdateUsers:     true,
-		AutoCreateGroups:    true,
-		SyncInterval:        1 * time.Hour,
-		DefaultRole:         "user",
-		AdminGroups:         []string{"Domain Admins", "IT Team"},
-		UserGroups:          []string{"Users"},
+		Host:                 getEnvOrDefault("LDAP_HOST", "localhost"),
+		Port:                 389,
+		BaseDN:               "dc=gotrs,dc=local",
+		BindDN:               "cn=readonly,dc=gotrs,dc=local",
+		BindPassword:         getEnvOrDefault("LDAP_READONLY_PASSWORD", "readonly123"),
+		UserSearchBase:       "ou=Users,dc=gotrs,dc=local",
+		UserFilter:           "(&(objectClass=inetOrgPerson)(uid={username}))",
+		GroupSearchBase:      "ou=Groups,dc=gotrs,dc=local",
+		GroupFilter:          "(objectClass=groupOfNames)",
+		UseTLS:               false,
+		StartTLS:             false,
+		InsecureSkipVerify:   true,
+		AutoCreateUsers:      true,
+		AutoUpdateUsers:      true,
+		AutoCreateGroups:     true,
+		SyncInterval:         1 * time.Hour,
+		DefaultRole:          "user",
+		AdminGroups:          []string{"Domain Admins", "IT Team"},
+		UserGroups:           []string{"Users"},
 		GroupMemberAttribute: "member",
 		AttributeMap: LDAPAttributeMap{
 			Username:    "uid",
@@ -242,7 +242,7 @@ func (suite *LDAPIntegrationTestSuite) TestGroupLookup() {
 	}
 
 	for _, expectedGroup := range expectedGroups {
-		assert.Contains(suite.T(), groupNames, expectedGroup, 
+		assert.Contains(suite.T(), groupNames, expectedGroup,
 			fmt.Sprintf("Should contain group: %s", expectedGroup))
 	}
 
@@ -335,7 +335,7 @@ func (suite *LDAPIntegrationTestSuite) TestUserGroupMembership() {
 						break
 					}
 				}
-				assert.True(suite.T(), found, 
+				assert.True(suite.T(), found,
 					fmt.Sprintf("User %s should be member of group %s", tc.username, expectedGroup))
 			}
 		})
@@ -353,18 +353,18 @@ func (suite *LDAPIntegrationTestSuite) TestLDAPPerformance() {
 	// Test authentication performance
 	suite.Run("AuthenticationPerformance", func() {
 		startTime := time.Now()
-		
+
 		for _, username := range usernames {
 			_, err := suite.ldapService.AuthenticateUser(username, "password123")
 			assert.NoError(suite.T(), err)
 		}
-		
+
 		duration := time.Since(startTime)
 		avgTime := duration / time.Duration(len(usernames))
-		
-		suite.T().Logf("Authentication performance: %d users in %v (avg: %v per user)", 
+
+		suite.T().Logf("Authentication performance: %d users in %v (avg: %v per user)",
 			len(usernames), duration, avgTime)
-		
+
 		// Should complete within reasonable time
 		assert.Less(suite.T(), avgTime, 2*time.Second, "Authentication should be fast")
 	})
@@ -372,18 +372,18 @@ func (suite *LDAPIntegrationTestSuite) TestLDAPPerformance() {
 	// Test user lookup performance
 	suite.Run("LookupPerformance", func() {
 		startTime := time.Now()
-		
+
 		for _, username := range usernames {
 			_, err := suite.ldapService.GetUser(username)
 			assert.NoError(suite.T(), err)
 		}
-		
+
 		duration := time.Since(startTime)
 		avgTime := duration / time.Duration(len(usernames))
-		
-		suite.T().Logf("Lookup performance: %d users in %v (avg: %v per user)", 
+
+		suite.T().Logf("Lookup performance: %d users in %v (avg: %v per user)",
 			len(usernames), duration, avgTime)
-		
+
 		// Should complete within reasonable time
 		assert.Less(suite.T(), avgTime, 1*time.Second, "User lookup should be fast")
 	})
@@ -424,11 +424,11 @@ func (suite *LDAPIntegrationTestSuite) waitForLDAPServer() {
 			suite.T().Log("LDAP server is ready")
 			return
 		}
-		
+
 		suite.T().Logf("Waiting for LDAP server... attempt %d/%d: %v", i+1, maxAttempts, err)
 		time.Sleep(2 * time.Second)
 	}
-	
+
 	suite.T().Fatal("LDAP server did not become ready in time")
 }
 
@@ -442,9 +442,9 @@ func getEnvOrDefault(key, defaultValue string) string {
 
 // contains checks if a string contains a substring (case-insensitive)
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || 
+	return len(s) >= len(substr) && (s == substr ||
 		len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
-		strings.Contains(strings.ToLower(s), strings.ToLower(substr))))
+			strings.Contains(strings.ToLower(s), strings.ToLower(substr))))
 }
 
 // TestLDAPIntegrationSuite runs the integration test suite
@@ -452,7 +452,7 @@ func TestLDAPIntegrationSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping LDAP integration tests in short mode")
 	}
-	
+
 	suite.Run(t, new(LDAPIntegrationTestSuite))
 }
 
@@ -469,13 +469,13 @@ func BenchmarkLDAPOperations(b *testing.B) {
 	ldapService := NewLDAPService(userRepo, roleRepo, groupRepo)
 
 	config := &LDAPConfig{
-		Host:                "localhost",
-		Port:                389,
-		BaseDN:              "dc=gotrs,dc=local",
-		BindDN:              "cn=readonly,dc=gotrs,dc=local",
-		BindPassword:        getEnvOrDefault("LDAP_READONLY_PASSWORD", "readonly123"),
-		UserSearchBase:      "ou=Users,dc=gotrs,dc=local",
-		UserFilter:          "(&(objectClass=inetOrgPerson)(uid={username}))",
+		Host:           "localhost",
+		Port:           389,
+		BaseDN:         "dc=gotrs,dc=local",
+		BindDN:         "cn=readonly,dc=gotrs,dc=local",
+		BindPassword:   getEnvOrDefault("LDAP_READONLY_PASSWORD", "readonly123"),
+		UserSearchBase: "ou=Users,dc=gotrs,dc=local",
+		UserFilter:     "(&(objectClass=inetOrgPerson)(uid={username}))",
 		AttributeMap: LDAPAttributeMap{
 			Username: "uid",
 			Email:    "mail",

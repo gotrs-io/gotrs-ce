@@ -18,6 +18,7 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/history"
 	"github.com/gotrs-io/gotrs-ce/internal/mailqueue"
+	"github.com/gotrs-io/gotrs-ce/internal/notifications"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	"github.com/gotrs-io/gotrs-ce/internal/utils"
 )
@@ -1104,24 +1105,27 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 
 					// Queue the email for processing by EmailQueueTask
 					queueRepo := mailqueue.NewMailQueueRepository(db)
-					senderEmail := "GOTRS Support Team"
+					var emailCfg *config.EmailConfig
 					if cfg := config.Get(); cfg != nil {
-						senderEmail = cfg.Email.From
+						emailCfg = &cfg.Email
 					}
-
-					// Extract domain from sender email for Message-ID generation
-					domain := "gotrs.local" // default
-					if strings.Contains(senderEmail, "@") {
-						parts := strings.Split(senderEmail, "@")
-						if len(parts) == 2 {
-							domain = parts[1]
-						}
+					branding, brandErr := notifications.PrepareQueueEmail(
+						context.Background(),
+						db,
+						ticket.QueueID,
+						emailBody,
+						utils.IsHTML(emailBody),
+						emailCfg,
+					)
+					if brandErr != nil {
+						log.Printf("Queue identity lookup failed for ticket %d: %v", ticket.ID, brandErr)
 					}
+					senderEmail := branding.EnvelopeFrom
 
 					queueItem := &mailqueue.MailQueueItem{
 						Sender:     &senderEmail,
 						Recipient:  customerEmail,
-						RawMessage: mailqueue.BuildEmailMessageWithThreading(senderEmail, customerEmail, emailSubject, emailBody, domain, inReplyTo, references),
+						RawMessage: mailqueue.BuildEmailMessageWithThreading(branding.HeaderFrom, customerEmail, emailSubject, branding.Body, branding.Domain, inReplyTo, references),
 						Attempts:   0,
 						CreateTime: time.Now(),
 					}

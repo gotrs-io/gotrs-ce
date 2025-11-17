@@ -84,6 +84,9 @@ endif
 export CONTAINER_CMD
 export COMPOSE_CMD
 
+# Convenience macro to route Go commands through toolbox container
+TOOLBOX_GO := $(MAKE) toolbox-exec ARGS=
+
 # Ensure Go caches exist for toolbox runs
 define ensure_caches
 @mkdir -p .cache .cache/go-build .cache/go-mod >/dev/null 2>&1 || true
@@ -1368,6 +1371,24 @@ db-reset-test:
 	@$(MAKE) clean-storage
 	@printf "✅ Test database reset with fresh test data\n"
 
+ .PHONY: toolbox-exec
+toolbox-exec:
+	@if [ -z "$(ARGS)" ]; then \
+		echo "Usage: make toolbox-exec ARGS=\"<command>\""; \
+		exit 2; \
+	fi
+	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
+		echo "ERROR: $(COMPOSE_CMD)"; \
+		echo "Please install the required compose tool and try again."; \
+		exit 1; \
+	fi
+	@printf "\n🔧 toolbox -> %s\n" "$(ARGS)"
+	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm -T toolbox bash -lc "$(ARGS)"; \
+	else \
+		$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox bash -lc "$(ARGS)"; \
+	fi
+
 toolbox-exec-test:
 	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \
 		echo "ERROR: $(COMPOSE_CMD)"; \
@@ -2461,7 +2482,40 @@ test-containerized:
 include task-coordination.mk
 
 # CSS Build Commands
-.PHONY: npm-updates css-deps css-build css-watch
+.PHONY: npm-updates css-deps css-build css-watch browserslist-update browserslist-update-one
+
+BROWSERSLIST_DIRS ?= . web sdk/typescript
+BROWSERSLIST_LOCKFILES ?= package-lock.json yarn.lock pnpm-lock.yaml
+
+browserslist-update-one:
+	@if [ -z "$(DIR)" ]; then \
+		echo "DIR is required"; \
+		exit 1; \
+	fi
+	@if ! [ -f "$(DIR)/package-lock.json" ] && ! [ -f "$(DIR)/yarn.lock" ] && ! [ -f "$(DIR)/pnpm-lock.yaml" ]; then \
+		printf "ℹ️  Skipping %s (no lockfile)\n" "$(DIR)"; \
+	else \
+		printf "🌐 Updating Browserslist data (%s)…\n" "$(DIR)"; \
+		if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
+			COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm toolbox sh -c 'cd /workspace/$(DIR) && export NPM_CONFIG_CACHE=/tmp/npm-cache && mkdir -p $$NPM_CONFIG_CACHE && npx -y update-browserslist-db@latest'; \
+		else \
+			$(COMPOSE_CMD) --profile toolbox run --rm toolbox sh -c 'cd /workspace/$(DIR) && export NPM_CONFIG_CACHE=/tmp/npm-cache && mkdir -p $$NPM_CONFIG_CACHE && npx -y update-browserslist-db@latest'; \
+		fi; \
+		printf "✅ Browserslist data refreshed (%s)\n" "$(DIR)"; \
+	fi
+
+browserslist-update:
+	@if [ -n "$(DIR)" ]; then \
+		$(MAKE) browserslist-update-one DIR=$(DIR); \
+	else \
+		for dir in $(BROWSERSLIST_DIRS); do \
+			if [ -d "$$dir" ] && [ -f "$$dir/package.json" ]; then \
+				$(MAKE) browserslist-update-one DIR=$$dir; \
+			else \
+				printf "ℹ️  Skipping %s (no package.json)\n" "$$dir"; \
+			fi; \
+		done; \
+	fi
 
 npm-updates:
 	@printf "📦 Updating NPM dependencies...\n"

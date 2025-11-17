@@ -9,40 +9,40 @@ import (
 type SearchBackend interface {
 	// Search performs a search across specified entities
 	Search(ctx context.Context, query SearchQuery) (*SearchResults, error)
-	
+
 	// Index adds or updates a document in the search index
 	Index(ctx context.Context, doc Document) error
-	
+
 	// Delete removes a document from the search index
 	Delete(ctx context.Context, docType string, id string) error
-	
+
 	// BulkIndex indexes multiple documents at once
 	BulkIndex(ctx context.Context, docs []Document) error
-	
+
 	// HealthCheck verifies the search backend is operational
 	HealthCheck(ctx context.Context) error
-	
+
 	// GetBackendName returns the name of the search backend
 	GetBackendName() string
 }
 
 // SearchQuery represents a search request
 type SearchQuery struct {
-	Query      string            `json:"query"`       // The search query string
-	Types      []string          `json:"types"`       // Entity types to search (ticket, article, customer)
-	Filters    map[string]string `json:"filters"`     // Additional filters
-	Offset     int               `json:"offset"`      // Pagination offset
-	Limit      int               `json:"limit"`       // Results per page
-	SortBy     string            `json:"sort_by"`     // Sort field
-	SortOrder  string            `json:"sort_order"`  // asc or desc
-	Highlight  bool              `json:"highlight"`   // Enable result highlighting
-	Facets     []string          `json:"facets"`      // Fields to generate facets for
+	Query     string            `json:"query"`      // The search query string
+	Types     []string          `json:"types"`      // Entity types to search (ticket, article, customer)
+	Filters   map[string]string `json:"filters"`    // Additional filters
+	Offset    int               `json:"offset"`     // Pagination offset
+	Limit     int               `json:"limit"`      // Results per page
+	SortBy    string            `json:"sort_by"`    // Sort field
+	SortOrder string            `json:"sort_order"` // asc or desc
+	Highlight bool              `json:"highlight"`  // Enable result highlighting
+	Facets    []string          `json:"facets"`     // Fields to generate facets for
 }
 
 // Document represents a searchable document
 type Document struct {
 	ID         string                 `json:"id"`
-	Type       string                 `json:"type"`       // ticket, article, customer, etc.
+	Type       string                 `json:"type"` // ticket, article, customer, etc.
 	Title      string                 `json:"title"`
 	Content    string                 `json:"content"`
 	Metadata   map[string]interface{} `json:"metadata"`
@@ -52,12 +52,12 @@ type Document struct {
 
 // SearchResults contains search results
 type SearchResults struct {
-	Query       string         `json:"query"`
-	TotalHits   int            `json:"total_hits"`
-	Took        int64          `json:"took_ms"`     // Time taken in milliseconds
-	Hits        []SearchHit    `json:"hits"`
+	Query       string             `json:"query"`
+	TotalHits   int                `json:"total_hits"`
+	Took        int64              `json:"took_ms"` // Time taken in milliseconds
+	Hits        []SearchHit        `json:"hits"`
 	Facets      map[string][]Facet `json:"facets,omitempty"`
-	Suggestions []string       `json:"suggestions,omitempty"`
+	Suggestions []string           `json:"suggestions,omitempty"`
 }
 
 // SearchHit represents a single search result

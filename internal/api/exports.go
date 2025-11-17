@@ -41,6 +41,7 @@ var (
 	HandleGroupPermissions        = handleGroupPermissions
 	HandleSaveGroupPermissions    = handleSaveGroupPermissions
 	HandleAdminQueues             = handleAdminQueues
+	HandleAdminEmailIdentities    = handleAdminEmailIdentities
 	HandleAdminPriorities         = handleAdminPriorities
 	HandleAdminPermissions        = handleAdminPermissions // Renamed from roles
 	HandleGetUserPermissionMatrix = handleGetUserPermissionMatrix
@@ -98,7 +99,7 @@ var (
 	HandleAdminNewCustomerCompany = func(c *gin.Context) {
 		dbService, err := adapter.GetDatabase()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			handleAdminNewCustomerCompany(nil)(c)
 			return
 		}
 		handleAdminNewCustomerCompany(dbService.GetDB())(c)

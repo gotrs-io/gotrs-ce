@@ -1,11 +1,11 @@
 package dynamic
 
 import (
-    "database/sql"
-    "fmt"
-    "strings"
-    "golang.org/x/text/cases"
-    "golang.org/x/text/language"
+	"database/sql"
+	"fmt"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+	"strings"
 )
 
 // TableInfo represents database table information
@@ -56,13 +56,13 @@ func (sd *SchemaDiscovery) GetTables() ([]TableInfo, error) {
 		AND table_type = 'BASE TABLE'
 		ORDER BY table_name
 	`
-	
+
 	rows, err := sd.db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query tables: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var tables []TableInfo
 	for rows.Next() {
 		var table TableInfo
@@ -71,7 +71,7 @@ func (sd *SchemaDiscovery) GetTables() ([]TableInfo, error) {
 		}
 		tables = append(tables, table)
 	}
-	
+
 	return tables, nil
 }
 
@@ -91,20 +91,20 @@ func (sd *SchemaDiscovery) GetTableColumns(tableName string) ([]ColumnInfo, erro
 		AND table_schema = 'public'
 		ORDER BY ordinal_position
 	`
-	
+
 	rows, err := sd.db.Query(query, tableName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query columns: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var columns []ColumnInfo
 	for rows.Next() {
 		var col ColumnInfo
 		var isNullable string
 		var maxLength sql.NullInt64
 		var defaultValue sql.NullString
-		
+
 		err := rows.Scan(
 			&col.Name,
 			&col.DataType,
@@ -116,7 +116,7 @@ func (sd *SchemaDiscovery) GetTableColumns(tableName string) ([]ColumnInfo, erro
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan column row: %w", err)
 		}
-		
+
 		col.IsNullable = isNullable == "YES"
 		if maxLength.Valid {
 			col.MaxLength = int(maxLength.Int64)
@@ -124,15 +124,15 @@ func (sd *SchemaDiscovery) GetTableColumns(tableName string) ([]ColumnInfo, erro
 		if defaultValue.Valid {
 			col.DefaultValue = &defaultValue.String
 		}
-		
+
 		// Check if primary key (simple check based on name and default)
 		if col.Name == "id" && col.DefaultValue != nil && strings.Contains(*col.DefaultValue, "nextval") {
 			col.IsPrimaryKey = true
 		}
-		
+
 		columns = append(columns, col)
 	}
-	
+
 	// Get constraints to properly identify primary keys, unique, foreign keys
 	constraints, err := sd.GetTableConstraints(tableName)
 	if err == nil {
@@ -151,7 +151,7 @@ func (sd *SchemaDiscovery) GetTableColumns(tableName string) ([]ColumnInfo, erro
 			}
 		}
 	}
-	
+
 	return columns, nil
 }
 
@@ -170,13 +170,13 @@ func (sd *SchemaDiscovery) GetTableConstraints(tableName string) ([]ConstraintIn
 		AND tc.table_schema = 'public'
 		ORDER BY tc.constraint_type, kcu.ordinal_position
 	`
-	
+
 	rows, err := sd.db.Query(query, tableName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query constraints: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var constraints []ConstraintInfo
 	for rows.Next() {
 		var c ConstraintInfo
@@ -185,7 +185,7 @@ func (sd *SchemaDiscovery) GetTableConstraints(tableName string) ([]ConstraintIn
 		}
 		constraints = append(constraints, c)
 	}
-	
+
 	return constraints, nil
 }
 
@@ -195,14 +195,14 @@ func (sd *SchemaDiscovery) GenerateModuleConfig(tableName string) (*ModuleConfig
 	if err != nil {
 		return nil, fmt.Errorf("failed to get columns: %w", err)
 	}
-	
+
 	constraints, err := sd.GetTableConstraints(tableName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get constraints: %w", err)
 	}
-	
+
 	config := &ModuleConfig{}
-	
+
 	// Set module metadata
 	config.Module.Name = tableName
 	config.Module.Table = tableName
@@ -210,7 +210,7 @@ func (sd *SchemaDiscovery) GenerateModuleConfig(tableName string) (*ModuleConfig
 	config.Module.Plural = sd.toPlural(tableName)
 	config.Module.Description = fmt.Sprintf("Manage %s", config.Module.Plural)
 	config.Module.RoutePrefix = fmt.Sprintf("/admin/dynamic/%s", tableName)
-	
+
 	// Generate fields from columns
 	for _, col := range columns {
 		field := Field{
@@ -220,43 +220,43 @@ func (sd *SchemaDiscovery) GenerateModuleConfig(tableName string) (*ModuleConfig
 			Type:     sd.InferFieldType(col.Name, col.DataType),
 			Required: !col.IsNullable && col.DefaultValue == nil,
 		}
-		
+
 		// Configure display settings
 		field.ShowInList = sd.shouldShowInList(col)
 		field.ShowInForm = sd.shouldShowInForm(col)
 		field.Searchable = sd.isSearchable(col)
 		field.Sortable = sd.isSortable(col)
-		
+
 		// Add help text from comment
 		if col.Comment != "" {
 			field.Help = col.Comment
 		}
-		
+
 		// Handle special cases
 		if col.IsPrimaryKey {
 			field.ShowInForm = false
 			field.Required = false
 		}
-		
+
 		if col.MaxLength > 0 && field.Type == "string" {
 			// Could add validation pattern based on length
 		}
-		
+
 		config.Fields = append(config.Fields, field)
 	}
-	
+
 	// Set features based on table structure
 	config.Features.Search = true
 	config.Features.SoftDelete = sd.hasColumn(columns, "valid_id")
 	config.Features.ExportCSV = true
-	
+
 	// Set validation rules
 	for _, constraint := range constraints {
 		if constraint.Type == "UNIQUE" {
 			config.Validation.UniqueFields = append(config.Validation.UniqueFields, constraint.ColumnName)
 		}
 	}
-	
+
 	return config, nil
 }
 
@@ -264,7 +264,7 @@ func (sd *SchemaDiscovery) GenerateModuleConfig(tableName string) (*ModuleConfig
 func (sd *SchemaDiscovery) InferFieldType(columnName, dataType string) string {
 	columnLower := strings.ToLower(columnName)
 	dataTypeLower := strings.ToLower(dataType)
-	
+
 	// Check column name patterns first
 	switch {
 	case strings.Contains(columnLower, "password") || columnLower == "pw":
@@ -282,7 +282,7 @@ func (sd *SchemaDiscovery) InferFieldType(columnName, dataType string) string {
 			return "textarea"
 		}
 	}
-	
+
 	// Check data type
 	switch {
 	case strings.Contains(dataTypeLower, "int"):
@@ -318,7 +318,7 @@ func (sd *SchemaDiscovery) toSingular(tableName string) string {
 	} else if strings.HasSuffix(tableName, "s") {
 		singular = strings.TrimSuffix(tableName, "s")
 	}
-    return cases.Title(language.English).String(singular)
+	return cases.Title(language.English).String(singular)
 }
 
 func (sd *SchemaDiscovery) toPlural(tableName string) string {
@@ -329,16 +329,16 @@ func (sd *SchemaDiscovery) toPlural(tableName string) string {
 	} else if !strings.HasSuffix(tableName, "s") {
 		plural = tableName + "s"
 	}
-    return cases.Title(language.English).String(plural)
+	return cases.Title(language.English).String(plural)
 }
 
 func (sd *SchemaDiscovery) toLabel(columnName string) string {
 	// Convert snake_case to Title Case
 	parts := strings.Split(columnName, "_")
-    title := cases.Title(language.English)
-    for i, part := range parts {
-        parts[i] = title.String(part)
-    }
+	title := cases.Title(language.English)
+	for i, part := range parts {
+		parts[i] = title.String(part)
+	}
 	return strings.Join(parts, " ")
 }
 

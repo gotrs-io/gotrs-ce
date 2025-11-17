@@ -61,13 +61,13 @@ type WorkflowHandler func(ctx *WorkflowContext, action Action) error
 
 // WorkflowContext provides context for workflow execution
 type WorkflowContext struct {
-	Workflow   *Workflow
-	Module     string
-	Record     map[string]interface{}
-	OldRecord  map[string]interface{} // For update triggers
-	Variables  map[string]interface{}
-	StartTime  time.Time
-	Logs       []string
+	Workflow  *Workflow
+	Module    string
+	Record    map[string]interface{}
+	OldRecord map[string]interface{} // For update triggers
+	Variables map[string]interface{}
+	StartTime time.Time
+	Logs      []string
 }
 
 // NewWorkflowEngine creates a new workflow engine
@@ -88,7 +88,7 @@ func (we *WorkflowEngine) RegisterHandler(actionType string, handler WorkflowHan
 // RegisterWorkflow registers a new workflow
 func (we *WorkflowEngine) RegisterWorkflow(workflow *Workflow) error {
 	we.workflows[workflow.ID] = workflow
-	
+
 	// Setup scheduled triggers
 	for _, trigger := range workflow.Triggers {
 		if trigger.Type == "schedule" && trigger.Schedule != "" {
@@ -100,7 +100,7 @@ func (we *WorkflowEngine) RegisterWorkflow(workflow *Workflow) error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -110,11 +110,11 @@ func (we *WorkflowEngine) ExecuteWorkflow(workflowID string, record map[string]i
 	if !exists {
 		return fmt.Errorf("workflow %s not found", workflowID)
 	}
-	
+
 	if !workflow.Enabled {
 		return fmt.Errorf("workflow %s is disabled", workflowID)
 	}
-	
+
 	ctx := &WorkflowContext{
 		Workflow:  workflow,
 		Module:    workflow.Module,
@@ -123,13 +123,13 @@ func (we *WorkflowEngine) ExecuteWorkflow(workflowID string, record map[string]i
 		StartTime: time.Now(),
 		Logs:      []string{},
 	}
-	
+
 	// Check conditions
 	if !we.checkConditions(ctx, workflow.Conditions) {
 		ctx.Log("Conditions not met, skipping workflow execution")
 		return nil
 	}
-	
+
 	// Execute actions in order
 	for _, action := range workflow.Actions {
 		if handler, exists := we.handlers[action.Type]; exists {
@@ -142,7 +142,7 @@ func (we *WorkflowEngine) ExecuteWorkflow(workflowID string, record map[string]i
 			ctx.Log(fmt.Sprintf("No handler for action type: %s", action.Type))
 		}
 	}
-	
+
 	ctx.Log(fmt.Sprintf("Workflow completed in %v", time.Since(ctx.StartTime)))
 	return nil
 }
@@ -179,12 +179,12 @@ func (we *WorkflowEngine) evaluateFieldCondition(ctx *WorkflowContext, condition
 	if ctx.Record == nil {
 		return false
 	}
-	
+
 	fieldValue, exists := ctx.Record[condition.Field]
 	if !exists {
 		return false
 	}
-	
+
 	switch condition.Operator {
 	case "equals":
 		return fmt.Sprintf("%v", fieldValue) == fmt.Sprintf("%v", condition.Value)
@@ -206,10 +206,10 @@ func (we *WorkflowEngine) evaluateFieldChangeCondition(ctx *WorkflowContext, con
 	if ctx.Record == nil || ctx.OldRecord == nil {
 		return false
 	}
-	
+
 	newValue := ctx.Record[condition.Field]
 	oldValue := ctx.OldRecord[condition.Field]
-	
+
 	return fmt.Sprintf("%v", newValue) != fmt.Sprintf("%v", oldValue)
 }
 
@@ -232,7 +232,7 @@ func compareValues(a, b interface{}) int {
 	// Simplified numeric comparison
 	aStr := fmt.Sprintf("%v", a)
 	bStr := fmt.Sprintf("%v", b)
-	
+
 	if aStr == bStr {
 		return 0
 	} else if aStr > bStr {
@@ -266,12 +266,12 @@ func (we *WorkflowEngine) Stop() {
 func UpdateFieldHandler(ctx *WorkflowContext, action Action) error {
 	field, _ := action.Config["field"].(string)
 	value := action.Config["value"]
-	
+
 	if ctx.Record != nil {
 		ctx.Record[field] = value
 		ctx.Log(fmt.Sprintf("Updated field %s to %v", field, value))
 	}
-	
+
 	// TODO: Persist to database
 	return nil
 }
@@ -280,14 +280,14 @@ func UpdateFieldHandler(ctx *WorkflowContext, action Action) error {
 func SendEmailHandler(ctx *WorkflowContext, action Action) error {
 	to, _ := action.Config["to"].(string)
 	subject, _ := action.Config["subject"].(string)
-    body, _ := action.Config["body"].(string)
-	
+	body, _ := action.Config["body"].(string)
+
 	// Replace variables in email template
-    body = replaceVariables(body, ctx.Variables)
-    _ = body // avoid unused until send implemented
-	
+	body = replaceVariables(body, ctx.Variables)
+	_ = body // avoid unused until send implemented
+
 	ctx.Log(fmt.Sprintf("Sending email to %s: %s", to, subject))
-	
+
 	// TODO: Implement actual email sending
 	return nil
 }
@@ -296,24 +296,24 @@ func SendEmailHandler(ctx *WorkflowContext, action Action) error {
 func CallWebhookHandler(ctx *WorkflowContext, action Action) error {
 	url, _ := action.Config["url"].(string)
 	method, _ := action.Config["method"].(string)
-	
+
 	if method == "" {
 		method = "POST"
 	}
-	
+
 	ctx.Log(fmt.Sprintf("Calling webhook: %s %s", method, url))
-	
-    // TODO: Implement actual HTTP request
-    return nil
+
+	// TODO: Implement actual HTTP request
+	return nil
 }
 
 // CreateRecordHandler creates a new record
 func CreateRecordHandler(ctx *WorkflowContext, action Action) error {
 	module, _ := action.Config["module"].(string)
 	_, _ = action.Config["fields"].(map[string]interface{})
-	
+
 	ctx.Log(fmt.Sprintf("Creating new record in module %s", module))
-	
+
 	// TODO: Implement record creation
 	return nil
 }
@@ -321,9 +321,9 @@ func CreateRecordHandler(ctx *WorkflowContext, action Action) error {
 // DeleteRecordHandler soft deletes a record
 func DeleteRecordHandler(ctx *WorkflowContext, action Action) error {
 	recordID, _ := action.Config["record_id"].(string)
-	
+
 	ctx.Log(fmt.Sprintf("Soft deleting record %s", recordID))
-	
+
 	// TODO: Implement soft delete (set valid_id = 2)
 	return nil
 }
@@ -346,7 +346,7 @@ func (we *WorkflowEngine) HandleWorkflowList(c *gin.Context) {
 	for _, w := range we.workflows {
 		workflows = append(workflows, w)
 	}
-	
+
 	c.JSON(200, gin.H{
 		"success":   true,
 		"workflows": workflows,
@@ -361,14 +361,14 @@ func (we *WorkflowEngine) HandleWorkflowCreate(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	workflow.ID = fmt.Sprintf("wf_%d", time.Now().Unix())
-	
+
 	if err := we.RegisterWorkflow(&workflow); err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(201, gin.H{
 		"success":  true,
 		"workflow": workflow,
@@ -378,15 +378,15 @@ func (we *WorkflowEngine) HandleWorkflowCreate(c *gin.Context) {
 // HandleWorkflowExecute manually executes a workflow
 func (we *WorkflowEngine) HandleWorkflowExecute(c *gin.Context) {
 	workflowID := c.Param("id")
-	
+
 	var record map[string]interface{}
 	c.ShouldBindJSON(&record)
-	
+
 	if err := we.ExecuteWorkflow(workflowID, record); err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(200, gin.H{
 		"success": true,
 		"message": "Workflow executed successfully",
@@ -396,15 +396,15 @@ func (we *WorkflowEngine) HandleWorkflowExecute(c *gin.Context) {
 // HandleWorkflowToggle enables/disables a workflow
 func (we *WorkflowEngine) HandleWorkflowToggle(c *gin.Context) {
 	workflowID := c.Param("id")
-	
+
 	workflow, exists := we.workflows[workflowID]
 	if !exists {
 		c.JSON(404, gin.H{"error": "Workflow not found"})
 		return
 	}
-	
+
 	workflow.Enabled = !workflow.Enabled
-	
+
 	c.JSON(200, gin.H{
 		"success": true,
 		"enabled": workflow.Enabled,
@@ -414,14 +414,14 @@ func (we *WorkflowEngine) HandleWorkflowToggle(c *gin.Context) {
 // HandleWorkflowDelete deletes a workflow
 func (we *WorkflowEngine) HandleWorkflowDelete(c *gin.Context) {
 	workflowID := c.Param("id")
-	
+
 	if _, exists := we.workflows[workflowID]; !exists {
 		c.JSON(404, gin.H{"error": "Workflow not found"})
 		return
 	}
-	
+
 	delete(we.workflows, workflowID)
-	
+
 	c.JSON(200, gin.H{
 		"success": true,
 		"message": "Workflow deleted successfully",

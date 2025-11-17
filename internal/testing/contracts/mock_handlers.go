@@ -15,7 +15,7 @@ func (m *MockHandlers) HandleLogin(c *gin.Context) {
 		Login    string `json:"login"`
 		Password string `json:"password"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&loginRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -23,7 +23,7 @@ func (m *MockHandlers) HandleLogin(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	if loginRequest.Login == "" || loginRequest.Password == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -31,7 +31,7 @@ func (m *MockHandlers) HandleLogin(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Check credentials
 	if loginRequest.Login == "testuser" && loginRequest.Password == "testpass123" {
 		c.JSON(http.StatusOK, gin.H{
@@ -51,7 +51,7 @@ func (m *MockHandlers) HandleLogin(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusUnauthorized, gin.H{
 		"success": false,
 		"error":   "Invalid credentials",
@@ -62,7 +62,7 @@ func (m *MockHandlers) HandleRefresh(c *gin.Context) {
 	var refreshRequest struct {
 		RefreshToken string `json:"refresh_token"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&refreshRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -70,7 +70,7 @@ func (m *MockHandlers) HandleRefresh(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	if refreshRequest.RefreshToken == "valid_refresh_token_here" {
 		c.JSON(http.StatusOK, gin.H{
 			"success":      true,
@@ -80,7 +80,7 @@ func (m *MockHandlers) HandleRefresh(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusUnauthorized, gin.H{
 		"success": false,
 		"error":   "Invalid refresh token",
@@ -104,7 +104,7 @@ func (m *MockHandlers) HandleListTickets(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
@@ -134,7 +134,7 @@ func (m *MockHandlers) HandleGetTicket(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	id := c.Param("id")
 	if id == "99999" {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -143,7 +143,7 @@ func (m *MockHandlers) HandleGetTicket(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	ticketID, _ := strconv.Atoi(id)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -169,13 +169,13 @@ func (m *MockHandlers) HandleCreateTicket(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	var createRequest struct {
 		Title      string `json:"title"`
 		QueueID    int    `json:"queue_id"`
 		PriorityID int    `json:"priority_id"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&createRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -183,7 +183,7 @@ func (m *MockHandlers) HandleCreateTicket(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	if createRequest.Title == "" || createRequest.QueueID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -191,7 +191,7 @@ func (m *MockHandlers) HandleCreateTicket(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"data": gin.H{
@@ -210,7 +210,7 @@ func (m *MockHandlers) HandleUpdateTicket(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 	})
@@ -225,19 +225,19 @@ func (m *MockHandlers) HandleDeleteTicket(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
 // Ticket action handlers
 func (m *MockHandlers) HandleCloseTicket(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var closeRequest struct {
 		Resolution string `json:"resolution"`
 		Comment    string `json:"comment"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&closeRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -245,7 +245,7 @@ func (m *MockHandlers) HandleCloseTicket(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	if id == "2" {
 		// Simulate already closed ticket
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -254,13 +254,13 @@ func (m *MockHandlers) HandleCloseTicket(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	ticketID, _ := strconv.Atoi(id)
 	stateID := 3 // closed unsuccessful by default
 	if closeRequest.Resolution == "resolved" {
 		stateID = 2 // closed successful
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":    true,
 		"id":         ticketID,
@@ -273,11 +273,11 @@ func (m *MockHandlers) HandleCloseTicket(c *gin.Context) {
 
 func (m *MockHandlers) HandleReopenTicket(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var reopenRequest struct {
 		Reason string `json:"reason"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&reopenRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -285,7 +285,7 @@ func (m *MockHandlers) HandleReopenTicket(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	if id == "3" {
 		// Simulate already open ticket
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -294,7 +294,7 @@ func (m *MockHandlers) HandleReopenTicket(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	ticketID, _ := strconv.Atoi(id)
 	c.JSON(http.StatusOK, gin.H{
 		"success":     true,
@@ -308,12 +308,12 @@ func (m *MockHandlers) HandleReopenTicket(c *gin.Context) {
 
 func (m *MockHandlers) HandleAssignTicket(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var assignRequest struct {
 		AssignedTo int    `json:"assigned_to"`
 		Comment    string `json:"comment"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&assignRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -321,7 +321,7 @@ func (m *MockHandlers) HandleAssignTicket(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	if assignRequest.AssignedTo == 99999 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -329,7 +329,7 @@ func (m *MockHandlers) HandleAssignTicket(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	ticketID, _ := strconv.Atoi(id)
 	c.JSON(http.StatusOK, gin.H{
 		"success":     true,
@@ -350,14 +350,14 @@ func (m *MockHandlers) HandleListUsers(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Parse pagination
 	page := 1
 	perPage := 20
 	if p := c.Query("page"); p != "" {
 		// Just acknowledge the param
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": []gin.H{
@@ -402,7 +402,7 @@ func (m *MockHandlers) HandleGetUser(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	id := c.Param("id")
 	if id == "99999" {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -411,7 +411,7 @@ func (m *MockHandlers) HandleGetUser(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	userID, _ := strconv.Atoi(id)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -438,13 +438,13 @@ func (m *MockHandlers) HandleCreateUser(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	var createRequest struct {
 		Login    string `json:"login"`
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&createRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -452,7 +452,7 @@ func (m *MockHandlers) HandleCreateUser(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Check for duplicate
 	if createRequest.Login == "admin" {
 		c.JSON(http.StatusConflict, gin.H{
@@ -461,7 +461,7 @@ func (m *MockHandlers) HandleCreateUser(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"message": "User created successfully",
@@ -482,7 +482,7 @@ func (m *MockHandlers) HandleUpdateUser(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "User updated successfully",
@@ -498,7 +498,7 @@ func (m *MockHandlers) HandleDeleteUser(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	id := c.Param("id")
 	if id == "1" {
 		c.JSON(http.StatusForbidden, gin.H{
@@ -507,7 +507,7 @@ func (m *MockHandlers) HandleDeleteUser(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -520,20 +520,20 @@ func (m *MockHandlers) HandleGetUserGroups(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": []gin.H{
 			{
-				"id":              1,
-				"name":            "users",
-				"permission_key":  "rw",
+				"id":               1,
+				"name":             "users",
+				"permission_key":   "rw",
 				"permission_value": 1,
 			},
 			{
-				"id":              2,
-				"name":            "admin",
-				"permission_key":  "rw",
+				"id":               2,
+				"name":             "admin",
+				"permission_key":   "rw",
 				"permission_value": 1,
 			},
 		},
@@ -549,7 +549,7 @@ func (m *MockHandlers) HandleAddUserToGroup(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "User added to group successfully",
@@ -565,6 +565,6 @@ func (m *MockHandlers) HandleRemoveUserFromGroup(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }

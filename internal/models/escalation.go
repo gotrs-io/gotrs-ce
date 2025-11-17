@@ -19,16 +19,16 @@ const (
 type EscalationTrigger string
 
 const (
-	EscalationTriggerSLAWarning    EscalationTrigger = "sla_warning"
-	EscalationTriggerSLABreach     EscalationTrigger = "sla_breach"
-	EscalationTriggerTimeElapsed   EscalationTrigger = "time_elapsed"
-	EscalationTriggerPriority      EscalationTrigger = "priority"
-	EscalationTriggerCustomerVIP   EscalationTrigger = "customer_vip"
-	EscalationTriggerKeyword       EscalationTrigger = "keyword"
-	EscalationTriggerManual        EscalationTrigger = "manual"
-	EscalationTriggerNoResponse    EscalationTrigger = "no_response"
-	EscalationTriggerReopenCount   EscalationTrigger = "reopen_count"
-	EscalationTriggerSentiment     EscalationTrigger = "sentiment"
+	EscalationTriggerSLAWarning  EscalationTrigger = "sla_warning"
+	EscalationTriggerSLABreach   EscalationTrigger = "sla_breach"
+	EscalationTriggerTimeElapsed EscalationTrigger = "time_elapsed"
+	EscalationTriggerPriority    EscalationTrigger = "priority"
+	EscalationTriggerCustomerVIP EscalationTrigger = "customer_vip"
+	EscalationTriggerKeyword     EscalationTrigger = "keyword"
+	EscalationTriggerManual      EscalationTrigger = "manual"
+	EscalationTriggerNoResponse  EscalationTrigger = "no_response"
+	EscalationTriggerReopenCount EscalationTrigger = "reopen_count"
+	EscalationTriggerSentiment   EscalationTrigger = "sentiment"
 )
 
 // EscalationPolicy defines an escalation policy
@@ -49,17 +49,17 @@ type EscalationPolicy struct {
 
 // EscalationRule defines a single escalation rule
 type EscalationRule struct {
-	ID              int                      `json:"id"`
-	PolicyID        int                      `json:"policy_id"`
-	Level           EscalationLevel          `json:"level"`
-	Trigger         EscalationTrigger        `json:"trigger"`
-	Conditions      []EscalationCondition    `json:"conditions"`
-	Actions         []EscalationAction       `json:"actions"`
-	TimeThreshold   int                      `json:"time_threshold_minutes"` // For time-based triggers
-	BusinessHours   bool                     `json:"business_hours_only"`
-	AutoEscalate    bool                     `json:"auto_escalate"`         // Automatically escalate without confirmation
-	SkipIfAssigned  bool                     `json:"skip_if_assigned"`       // Skip if ticket already assigned
-	Order           int                      `json:"order"`                  // Execution order within policy
+	ID             int                   `json:"id"`
+	PolicyID       int                   `json:"policy_id"`
+	Level          EscalationLevel       `json:"level"`
+	Trigger        EscalationTrigger     `json:"trigger"`
+	Conditions     []EscalationCondition `json:"conditions"`
+	Actions        []EscalationAction    `json:"actions"`
+	TimeThreshold  int                   `json:"time_threshold_minutes"` // For time-based triggers
+	BusinessHours  bool                  `json:"business_hours_only"`
+	AutoEscalate   bool                  `json:"auto_escalate"`    // Automatically escalate without confirmation
+	SkipIfAssigned bool                  `json:"skip_if_assigned"` // Skip if ticket already assigned
+	Order          int                   `json:"order"`            // Execution order within policy
 }
 
 // EscalationCondition defines conditions for escalation
@@ -77,26 +77,26 @@ type EscalationAction struct {
 
 // EscalationNotification defines notification settings
 type EscalationNotification struct {
-	NotifyCustomer     bool     `json:"notify_customer"`
-	NotifyAssignee     bool     `json:"notify_assignee"`
-	NotifyManager      bool     `json:"notify_manager"`
-	NotifyCustomList   []string `json:"notify_custom_list"` // Email addresses
-	CustomerTemplate   int      `json:"customer_template_id"`
-	InternalTemplate   int      `json:"internal_template_id"`
-	IncludeTicketInfo  bool     `json:"include_ticket_info"`
-	IncludeHistory     bool     `json:"include_history"`
+	NotifyCustomer    bool     `json:"notify_customer"`
+	NotifyAssignee    bool     `json:"notify_assignee"`
+	NotifyManager     bool     `json:"notify_manager"`
+	NotifyCustomList  []string `json:"notify_custom_list"` // Email addresses
+	CustomerTemplate  int      `json:"customer_template_id"`
+	InternalTemplate  int      `json:"internal_template_id"`
+	IncludeTicketInfo bool     `json:"include_ticket_info"`
+	IncludeHistory    bool     `json:"include_history"`
 }
 
 // EscalationPath represents the escalation hierarchy
 type EscalationPath struct {
-	ID          int                     `json:"id"`
-	Name        string                  `json:"name"`
-	Description string                  `json:"description"`
-	QueueID     int                     `json:"queue_id"`
-	Levels      []EscalationPathLevel   `json:"levels"`
-	IsDefault   bool                    `json:"is_default"`
-	CreatedAt   time.Time               `json:"created_at"`
-	UpdatedAt   time.Time               `json:"updated_at"`
+	ID          int                   `json:"id"`
+	Name        string                `json:"name"`
+	Description string                `json:"description"`
+	QueueID     int                   `json:"queue_id"`
+	Levels      []EscalationPathLevel `json:"levels"`
+	IsDefault   bool                  `json:"is_default"`
+	CreatedAt   time.Time             `json:"created_at"`
+	UpdatedAt   time.Time             `json:"updated_at"`
 }
 
 // EscalationPathLevel defines a level in the escalation path
@@ -132,28 +132,28 @@ type EscalationHistory struct {
 
 // EscalationMetrics tracks escalation performance
 type EscalationMetrics struct {
-	TicketID              int           `json:"ticket_id"`
-	TotalEscalations      int           `json:"total_escalations"`
-	CurrentLevel          EscalationLevel `json:"current_level"`
-	TimeAtLevel1          time.Duration `json:"time_at_level1"`
-	TimeAtLevel2          time.Duration `json:"time_at_level2"`
-	TimeAtLevel3          time.Duration `json:"time_at_level3"`
-	TimeAtLevel4          time.Duration `json:"time_at_level4"`
-	TimeAtLevel5          time.Duration `json:"time_at_level5"`
-	FirstEscalationTime   time.Duration `json:"first_escalation_time"`
-	ResolutionAfterEsc    time.Duration `json:"resolution_after_escalation"`
-	EscalationEffective   bool          `json:"escalation_effective"` // Was escalation helpful
+	TicketID            int             `json:"ticket_id"`
+	TotalEscalations    int             `json:"total_escalations"`
+	CurrentLevel        EscalationLevel `json:"current_level"`
+	TimeAtLevel1        time.Duration   `json:"time_at_level1"`
+	TimeAtLevel2        time.Duration   `json:"time_at_level2"`
+	TimeAtLevel3        time.Duration   `json:"time_at_level3"`
+	TimeAtLevel4        time.Duration   `json:"time_at_level4"`
+	TimeAtLevel5        time.Duration   `json:"time_at_level5"`
+	FirstEscalationTime time.Duration   `json:"first_escalation_time"`
+	ResolutionAfterEsc  time.Duration   `json:"resolution_after_escalation"`
+	EscalationEffective bool            `json:"escalation_effective"` // Was escalation helpful
 }
 
 // EscalationMatrix defines escalation relationships between teams
 type EscalationMatrix struct {
-	ID            int                       `json:"id"`
-	Name          string                    `json:"name"`
-	Description   string                    `json:"description"`
-	Mappings      []EscalationMatrixMapping `json:"mappings"`
-	IsActive      bool                      `json:"is_active"`
-	CreatedAt     time.Time                 `json:"created_at"`
-	UpdatedAt     time.Time                 `json:"updated_at"`
+	ID          int                       `json:"id"`
+	Name        string                    `json:"name"`
+	Description string                    `json:"description"`
+	Mappings    []EscalationMatrixMapping `json:"mappings"`
+	IsActive    bool                      `json:"is_active"`
+	CreatedAt   time.Time                 `json:"created_at"`
+	UpdatedAt   time.Time                 `json:"updated_at"`
 }
 
 // EscalationMatrixMapping defines team escalation relationships
@@ -167,20 +167,20 @@ type EscalationMatrixMapping struct {
 
 // EscalationRequest represents a request for escalation (for approval workflows)
 type EscalationRequest struct {
-	ID              int               `json:"id"`
-	TicketID        int               `json:"ticket_id"`
-	RequestedBy     int               `json:"requested_by"`
-	RequestedAt     time.Time         `json:"requested_at"`
-	TargetLevel     EscalationLevel   `json:"target_level"`
-	TargetTeamID    *int              `json:"target_team_id,omitempty"`
-	TargetUserID    *int              `json:"target_user_id,omitempty"`
-	Reason          string            `json:"reason"`
-	Priority        string            `json:"priority"`
-	Status          string            `json:"status"` // pending, approved, rejected, cancelled
-	ApprovedBy      *int              `json:"approved_by,omitempty"`
-	ApprovedAt      *time.Time        `json:"approved_at,omitempty"`
-	ApprovalNotes   string            `json:"approval_notes"`
-	ExpiresAt       time.Time         `json:"expires_at"`
+	ID            int             `json:"id"`
+	TicketID      int             `json:"ticket_id"`
+	RequestedBy   int             `json:"requested_by"`
+	RequestedAt   time.Time       `json:"requested_at"`
+	TargetLevel   EscalationLevel `json:"target_level"`
+	TargetTeamID  *int            `json:"target_team_id,omitempty"`
+	TargetUserID  *int            `json:"target_user_id,omitempty"`
+	Reason        string          `json:"reason"`
+	Priority      string          `json:"priority"`
+	Status        string          `json:"status"` // pending, approved, rejected, cancelled
+	ApprovedBy    *int            `json:"approved_by,omitempty"`
+	ApprovedAt    *time.Time      `json:"approved_at,omitempty"`
+	ApprovalNotes string          `json:"approval_notes"`
+	ExpiresAt     time.Time       `json:"expires_at"`
 }
 
 // Helper methods
@@ -231,7 +231,7 @@ func evaluateCondition(condition EscalationCondition, context map[string]interfa
 	if !exists {
 		return false
 	}
-	
+
 	// Evaluate based on operator
 	switch condition.Operator {
 	case "equals":

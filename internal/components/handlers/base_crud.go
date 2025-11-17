@@ -18,10 +18,10 @@ type CRUDConfig struct {
 	TableName        string // Database table name
 	RoutePrefix      string // e.g., "/admin/priorities"
 	TemplatePath     string // Path to the template
-	
+
 	// Field definitions
 	Fields []FieldConfig
-	
+
 	// Features
 	SoftDelete   bool // Use valid_id instead of DELETE
 	Searchable   bool
@@ -81,12 +81,12 @@ func (h *BaseCRUDHandler) RegisterRoutes(router *gin.RouterGroup) {
 		group.POST("", h.Create)
 		group.PUT("/:id", h.Update)
 		group.DELETE("/:id", h.Delete)
-		
+
 		if h.Config.ImportExport {
 			group.POST("/import", h.Import)
 			group.GET("/export", h.Export)
 		}
-		
+
 		if h.Config.Searchable {
 			group.GET("/search", h.Search)
 		}
@@ -102,9 +102,9 @@ func (h *BaseCRUDHandler) List(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-	
+
 	entities := h.scanEntities(rows)
-	
+
 	if h.isAPIRequest(c) {
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
@@ -113,13 +113,13 @@ func (h *BaseCRUDHandler) List(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Render template
 	h.Renderer.HTML(c, http.StatusOK, h.Config.TemplatePath, pongo2.Context{
-		"entities":    entities,
-		"entityName":  h.Config.EntityName,
+		"entities":     entities,
+		"entityName":   h.Config.EntityName,
 		"entityPlural": h.Config.EntityNamePlural,
-		"fields":      h.Config.Fields,
+		"fields":       h.Config.Fields,
 		"features": map[string]bool{
 			"softDelete":   h.Config.SoftDelete,
 			"searchable":   h.Config.Searchable,
@@ -132,10 +132,10 @@ func (h *BaseCRUDHandler) List(c *gin.Context) {
 // Get handles GET requests for a single entity
 func (h *BaseCRUDHandler) Get(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	query := h.buildGetQuery()
 	row := h.DB.QueryRow(query, id)
-	
+
 	entity := h.scanEntity(row)
 	if entity == nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -144,7 +144,7 @@ func (h *BaseCRUDHandler) Get(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    entity,
@@ -154,7 +154,7 @@ func (h *BaseCRUDHandler) Get(c *gin.Context) {
 // Create handles POST requests to create a new entity
 func (h *BaseCRUDHandler) Create(c *gin.Context) {
 	data := h.parseFormData(c)
-	
+
 	if err := h.validateData(data); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -162,18 +162,18 @@ func (h *BaseCRUDHandler) Create(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	query := h.buildInsertQuery()
 	args := h.buildInsertArgs(data)
-	
+
 	result, err := h.DB.Exec(query, args...)
 	if err != nil {
 		h.handleError(c, err)
 		return
 	}
-	
+
 	id, _ := result.LastInsertId()
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"id":      id,
@@ -185,7 +185,7 @@ func (h *BaseCRUDHandler) Create(c *gin.Context) {
 func (h *BaseCRUDHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	data := h.parseFormData(c)
-	
+
 	if err := h.validateData(data); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -193,16 +193,16 @@ func (h *BaseCRUDHandler) Update(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	query := h.buildUpdateQuery()
 	args := h.buildUpdateArgs(data, id)
-	
+
 	_, err := h.DB.Exec(query, args...)
 	if err != nil {
 		h.handleError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": fmt.Sprintf("%s updated successfully", h.Config.EntityName),
@@ -212,25 +212,25 @@ func (h *BaseCRUDHandler) Update(c *gin.Context) {
 // Delete handles DELETE requests (soft delete if configured)
 func (h *BaseCRUDHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var query string
 	if h.Config.SoftDelete {
 		query = fmt.Sprintf("UPDATE %s SET valid_id = 2 WHERE id = $1", h.Config.TableName)
 	} else {
 		query = fmt.Sprintf("DELETE FROM %s WHERE id = $1", h.Config.TableName)
 	}
-	
+
 	_, err := h.DB.Exec(query, id)
 	if err != nil {
 		h.handleError(c, err)
 		return
 	}
-	
+
 	action := "deleted"
 	if h.Config.SoftDelete {
 		action = "deactivated"
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": fmt.Sprintf("%s %s successfully", h.Config.EntityName, action),
@@ -262,7 +262,7 @@ func (h *BaseCRUDHandler) Search(c *gin.Context) {
 		h.List(c)
 		return
 	}
-	
+
 	query := h.buildSearchQuery(searchTerm)
 	rows, err := h.DB.Query(query, "%"+searchTerm+"%")
 	if err != nil {
@@ -270,9 +270,9 @@ func (h *BaseCRUDHandler) Search(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-	
+
 	entities := h.scanEntities(rows)
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    entities,
@@ -285,11 +285,11 @@ func (h *BaseCRUDHandler) Search(c *gin.Context) {
 func (h *BaseCRUDHandler) buildListQuery() string {
 	columns := h.getSelectColumns()
 	query := fmt.Sprintf("SELECT %s FROM %s", columns, h.Config.TableName)
-	
+
 	if h.Config.SoftDelete {
 		query += " WHERE valid_id = 1"
 	}
-	
+
 	query += " ORDER BY id"
 	return query
 }
@@ -303,19 +303,19 @@ func (h *BaseCRUDHandler) buildInsertQuery() string {
 	// Build based on field configuration
 	columns := []string{}
 	placeholders := []string{}
-	
+
 	for i, field := range h.Config.Fields {
 		if field.DBColumn != "id" {
 			columns = append(columns, field.DBColumn)
 			placeholders = append(placeholders, fmt.Sprintf("$%d", i+1))
 		}
 	}
-	
+
 	if h.Config.SoftDelete {
 		columns = append(columns, "valid_id")
 		placeholders = append(placeholders, "1")
 	}
-	
+
 	return fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
 		h.Config.TableName,
 		joinStrings(columns, ", "),
@@ -329,7 +329,7 @@ func (h *BaseCRUDHandler) buildUpdateQuery() string {
 			sets = append(sets, fmt.Sprintf("%s = $%d", field.DBColumn, i+1))
 		}
 	}
-	
+
 	return fmt.Sprintf("UPDATE %s SET %s WHERE id = $%d",
 		h.Config.TableName,
 		joinStrings(sets, ", "),
@@ -340,21 +340,21 @@ func (h *BaseCRUDHandler) buildSearchQuery(searchTerm string) string {
 	searchableFields := []string{}
 	for _, field := range h.Config.Fields {
 		if field.Searchable {
-			searchableFields = append(searchableFields, 
+			searchableFields = append(searchableFields,
 				fmt.Sprintf("%s ILIKE $1", field.DBColumn))
 		}
 	}
-	
+
 	columns := h.getSelectColumns()
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE %s",
 		columns,
 		h.Config.TableName,
 		joinStrings(searchableFields, " OR "))
-	
+
 	if h.Config.SoftDelete {
 		query += " AND valid_id = 1"
 	}
-	
+
 	return query
 }
 
@@ -368,7 +368,7 @@ func (h *BaseCRUDHandler) getSelectColumns() string {
 
 func (h *BaseCRUDHandler) parseFormData(c *gin.Context) map[string]interface{} {
 	data := make(map[string]interface{})
-	
+
 	if c.ContentType() == "application/json" {
 		c.ShouldBindJSON(&data)
 	} else {
@@ -380,7 +380,7 @@ func (h *BaseCRUDHandler) parseFormData(c *gin.Context) map[string]interface{} {
 			}
 		}
 	}
-	
+
 	return data
 }
 
@@ -432,14 +432,14 @@ func (h *BaseCRUDHandler) buildUpdateArgs(data map[string]interface{}, id string
 
 func (h *BaseCRUDHandler) scanEntities(rows *sql.Rows) []map[string]interface{} {
 	entities := []map[string]interface{}{}
-	
+
 	for rows.Next() {
 		entity := h.createEntityScanners()
 		if err := rows.Scan(entity...); err == nil {
 			entities = append(entities, h.scannersToMap(entity))
 		}
 	}
-	
+
 	return entities
 }
 

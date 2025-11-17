@@ -230,11 +230,11 @@ func BuildEmailMessageWithHeaders(from, to, subject, body string, headers map[st
 // BuildEmailMessageWithThreading builds an email message with threading headers
 func BuildEmailMessageWithThreading(from, to, subject, body, domain string, inReplyTo, references string) []byte {
 	headers := make(map[string]string)
-	
+
 	// Generate Message-ID
 	messageID := GenerateMessageID(domain)
 	headers["Message-ID"] = messageID
-	
+
 	// Add threading headers if provided
 	if inReplyTo != "" {
 		headers["In-Reply-To"] = inReplyTo
@@ -242,7 +242,7 @@ func BuildEmailMessageWithThreading(from, to, subject, body, domain string, inRe
 	if references != "" {
 		headers["References"] = references
 	}
-	
+
 	return BuildEmailMessageWithHeaders(from, to, subject, body, headers)
 }
 
@@ -314,7 +314,7 @@ func GenerateMessageID(domain string) string {
 func ExtractMessageIDFromRawMessage(rawMessage []byte) string {
 	message := string(rawMessage)
 	lines := strings.Split(message, "\n")
-	
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(strings.ToLower(line), "message-id:") {
@@ -332,6 +332,6 @@ func ExtractMessageIDFromRawMessage(rawMessage []byte) string {
 			break
 		}
 	}
-	
+
 	return ""
 }

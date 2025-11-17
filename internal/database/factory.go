@@ -19,7 +19,7 @@ func (f *DatabaseFactory) Create(config DatabaseConfig) (IDatabase, error) {
 	if err := f.ValidateConfig(config); err != nil {
 		return nil, fmt.Errorf("invalid database configuration: %w", err)
 	}
-	
+
 	switch config.Type {
 	case PostgreSQL:
 		return NewPostgreSQLDatabase(config), nil
@@ -44,23 +44,23 @@ func (f *DatabaseFactory) ValidateConfig(config DatabaseConfig) error {
 	if config.Type == "" {
 		return fmt.Errorf("database type is required")
 	}
-	
+
 	if config.Host == "" {
 		return fmt.Errorf("database host is required")
 	}
-	
+
 	if config.Port == "" {
 		return fmt.Errorf("database port is required")
 	}
-	
+
 	if config.Database == "" {
 		return fmt.Errorf("database name is required")
 	}
-	
+
 	if config.Username == "" {
 		return fmt.Errorf("database username is required")
 	}
-	
+
 	// Validate database type is supported
 	supportedTypes := f.GetSupportedTypes()
 	found := false
@@ -70,25 +70,25 @@ func (f *DatabaseFactory) ValidateConfig(config DatabaseConfig) error {
 			break
 		}
 	}
-	
+
 	if !found {
-		return fmt.Errorf("unsupported database type: %s, supported types: %s", 
+		return fmt.Errorf("unsupported database type: %s, supported types: %s",
 			config.Type, strings.Join(typeStrings(supportedTypes), ", "))
 	}
-	
+
 	// Validate connection pool settings
 	if config.MaxOpenConns < 0 {
 		return fmt.Errorf("max_open_conns cannot be negative")
 	}
-	
+
 	if config.MaxIdleConns < 0 {
 		return fmt.Errorf("max_idle_conns cannot be negative")
 	}
-	
+
 	if config.MaxIdleConns > config.MaxOpenConns && config.MaxOpenConns > 0 {
 		return fmt.Errorf("max_idle_conns cannot be greater than max_open_conns")
 	}
-	
+
 	return nil
 }
 
@@ -163,21 +163,21 @@ func LoadConfigFromEnv() DatabaseConfig {
 		Username: getEnvWithDefault("DB_USER", "gotrs"),
 		Password: getEnvWithDefault("DB_PASSWORD", "gotrs_password"),
 		SSLMode:  getEnvWithDefault("DB_SSLMODE", "disable"),
-		
+
 		// Connection pool defaults
 		MaxOpenConns:    25,
 		MaxIdleConns:    5,
 		ConnMaxLifetime: 0,
 		ConnMaxIdleTime: 0,
-		
+
 		Options: make(map[string]string),
 	}
-	
+
 	// Override database type if specified
 	if dbType := getEnvWithDefault("DB_TYPE", ""); dbType != "" {
 		config.Type = DatabaseType(dbType)
 	}
-	
+
 	return config
 }
 

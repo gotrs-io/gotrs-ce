@@ -1,9 +1,9 @@
 package main
 
 import (
-    "log"
-    "os"
-    "github.com/gotrs-io/gotrs-ce/internal/api"
+	"github.com/gotrs-io/gotrs-ce/internal/api"
+	"log"
+	"os"
 )
 
 func main() {

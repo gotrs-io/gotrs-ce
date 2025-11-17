@@ -58,7 +58,7 @@
 
     <!-- General Tab -->
     <div id="content-general" class="tab-content p-6">
-      <form method="post" action="{% if IsNew %}/admin/customer/companies/new{% else %}/admin/customer/companies/{{ Company.customer_id }}/edit{% endif %}">
+      <form method="post" action="{% if IsNew %}/admin/customer/companies{% else %}/admin/customer/companies/{{ Company.customer_id|default:'' }}/edit{% endif %}">
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <div>
             <label for="customer_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Customer ID *</label>
@@ -129,7 +129,12 @@
 
     <!-- Portal Settings Tab -->
     <div id="content-portal" class="tab-content p-6 hidden">
-      <form method="post" action="/admin/customer/companies/{{ Company.customer_id }}/portal">
+      {% if IsNew %}
+      <div class="rounded-md border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/30 p-4 text-sm text-gray-600 dark:text-gray-300">
+        Save the company before configuring portal settings.
+      </div>
+      {% else %}
+      <form method="post" action="/admin/customer/companies/{{ Company.customer_id }}/portal-settings">
         <div class="space-y-6">
           <div>
             <h3 class="text-lg font-medium text-gray-900 dark:text-white">Branding</h3>
@@ -213,6 +218,7 @@
           </div>
         </div>
       </form>
+      {% endif %}
     </div>
 
     <!-- Services Tab -->
@@ -261,6 +267,16 @@ function switchTab(tabName) {
   }
 }
 
+{% if IsNew %}
+function loadServices() {
+  const container = document.getElementById('services-list');
+  container.innerHTML = '<p class="text-sm text-gray-600 dark:text-gray-300">Save the company to assign services.</p>';
+}
+
+function saveServices() {
+  alert('Save the company before assigning services.');
+}
+{% else %}
 function loadServices() {
   fetch(`/admin/customer/companies/{{ Company.customer_id }}/services`)
     .then(res => res.json())
@@ -302,6 +318,7 @@ function saveServices() {
     }
   });
 }
+{% endif %}
 
 // Set active tab based on URL parameter or default to general
 const urlParams = new URLSearchParams(window.location.search);

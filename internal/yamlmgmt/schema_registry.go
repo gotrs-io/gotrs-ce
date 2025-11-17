@@ -41,7 +41,7 @@ func (sr *SchemaRegistry) RegisterSchema(kind YAMLKind, schema *Schema) error {
 
 	// Create loader
 	loader := gojsonschema.NewBytesLoader(schemaJSON)
-	
+
 	sr.schemas[kind] = schema
 	sr.loaders[kind] = loader
 

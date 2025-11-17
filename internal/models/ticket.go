@@ -38,6 +38,7 @@ type Queue struct {
 	SalutationID    int       `json:"salutation_id,omitempty" db:"salutation_id"`
 	SignatureID     int       `json:"signature_id,omitempty" db:"signature_id"`
 	GroupID         uint      `json:"group_id" db:"group_id"`
+	GroupName       string    `json:"group_name,omitempty" db:"group_name"`
 	Comment         string    `json:"comment,omitempty" db:"comments"`
 	UnlockTimeout   int       `json:"unlock_timeout" db:"unlock_timeout"`
 	FollowUpID      int       `json:"follow_up_id" db:"follow_up_id"`
@@ -113,9 +114,9 @@ type Article struct {
 	Charset                string      `json:"charset" db:"charset"`
 	MimeType               string      `json:"mime_type" db:"mime_type"`
 	ContentPath            *string     `json:"content_path,omitempty" db:"content_path"`
-	MessageID              string      `json:"message_id" db:"message_id"`             // Email Message-ID header
-	InReplyTo              string      `json:"in_reply_to" db:"in_reply_to"`           // Email In-Reply-To header
-	References             string      `json:"references" db:"references"`             // Email References header
+	MessageID              string      `json:"message_id" db:"message_id"`   // Email Message-ID header
+	InReplyTo              string      `json:"in_reply_to" db:"in_reply_to"` // Email In-Reply-To header
+	References             string      `json:"references" db:"references"`   // Email References header
 	ValidID                int         `json:"valid_id" db:"valid_id"`
 	CreateTime             time.Time   `json:"create_time" db:"create_time"`
 	CreateBy               int         `json:"create_by" db:"create_by"`

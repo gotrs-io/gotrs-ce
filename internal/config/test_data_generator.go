@@ -181,7 +181,7 @@ func (g *TestDataGenerator) generateSQL() error {
 		}
 	}
 	fmt.Fprintf(file, "INSERT INTO users (login, pw, first_name, last_name, valid_id, create_time, create_by, change_time, change_by) VALUES\n")
-	
+
 	agents := []string{}
 	for _, cred := range g.credentials {
 		if cred.Type == "agent" {
@@ -204,7 +204,7 @@ func (g *TestDataGenerator) generateSQL() error {
 		}
 	}
 	fmt.Fprintf(file, "INSERT INTO customer_user (login, email, customer_id, pw, first_name, last_name, phone, valid_id, create_time, create_by, change_time, change_by) VALUES\n")
-	
+
 	customers := []string{}
 	companyMap := map[string]string{
 		"john@acme.com":      "COMP1",
@@ -212,7 +212,7 @@ func (g *TestDataGenerator) generateSQL() error {
 		"bob@global.com":     "COMP3",
 	}
 	phoneNum := 101
-	
+
 	for _, cred := range g.credentials {
 		if cred.Type == "customer" {
 			hash, err := g.hashPassword(cred.Password)

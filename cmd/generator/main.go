@@ -8,24 +8,24 @@ import (
 	"path/filepath"
 	"text/template"
 
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"gopkg.in/yaml.v3"
-    "golang.org/x/text/cases"
-    "golang.org/x/text/language"
 )
 
 // ModuleConfig represents the YAML configuration for a module
 type ModuleConfig struct {
 	Module struct {
-		Name         string `yaml:"name"`
-		Singular     string `yaml:"singular"`
-		Plural       string `yaml:"plural"`
-		Table        string `yaml:"table"`
-		Description  string `yaml:"description"`
-		RoutePrefix  string `yaml:"route_prefix"`
+		Name        string `yaml:"name"`
+		Singular    string `yaml:"singular"`
+		Plural      string `yaml:"plural"`
+		Table       string `yaml:"table"`
+		Description string `yaml:"description"`
+		RoutePrefix string `yaml:"route_prefix"`
 	} `yaml:"module"`
-	
+
 	Fields []Field `yaml:"fields"`
-	
+
 	Features struct {
 		SoftDelete   bool `yaml:"soft_delete"`
 		Search       bool `yaml:"search"`
@@ -34,9 +34,9 @@ type ModuleConfig struct {
 		StatusToggle bool `yaml:"status_toggle"`
 		ColorPicker  bool `yaml:"color_picker"`
 	} `yaml:"features"`
-	
+
 	Permissions []string `yaml:"permissions"`
-	
+
 	Validation struct {
 		UniqueFields []string `yaml:"unique_fields"`
 		Required     []string `yaml:"required_fields"`
@@ -45,19 +45,19 @@ type ModuleConfig struct {
 
 // Field represents a field in the module
 type Field struct {
-	Name        string      `yaml:"name"`
-	Type        string      `yaml:"type"`
-	DBColumn    string      `yaml:"db_column"`
-	Label       string      `yaml:"label"`
-	Required    bool        `yaml:"required"`
-	Searchable  bool        `yaml:"searchable"`
-	Sortable    bool        `yaml:"sortable"`
-	ShowInList  bool        `yaml:"show_in_list"`
-	ShowInForm  bool        `yaml:"show_in_form"`
-	Default     interface{} `yaml:"default"`
-	Options     []Option    `yaml:"options"`
-	Validation  string      `yaml:"validation"`
-	Help        string      `yaml:"help"`
+	Name       string      `yaml:"name"`
+	Type       string      `yaml:"type"`
+	DBColumn   string      `yaml:"db_column"`
+	Label      string      `yaml:"label"`
+	Required   bool        `yaml:"required"`
+	Searchable bool        `yaml:"searchable"`
+	Sortable   bool        `yaml:"sortable"`
+	ShowInList bool        `yaml:"show_in_list"`
+	ShowInForm bool        `yaml:"show_in_form"`
+	Default    interface{} `yaml:"default"`
+	Options    []Option    `yaml:"options"`
+	Validation string      `yaml:"validation"`
+	Help       string      `yaml:"help"`
 }
 
 // Option represents an option for select fields
@@ -73,42 +73,42 @@ func main() {
 		listOnly   = flag.Bool("list", false, "List available module templates")
 		example    = flag.Bool("example", false, "Generate an example YAML configuration")
 	)
-	
+
 	flag.Parse()
-	
+
 	if *listOnly {
 		listTemplates()
 		return
 	}
-	
+
 	if *example {
 		generateExampleConfig()
 		return
 	}
-	
+
 	if *configFile == "" {
 		log.Fatal("Please provide a configuration file with -config flag")
 	}
-	
+
 	// Read configuration file
-    data, err := os.ReadFile(*configFile)
+	data, err := os.ReadFile(*configFile)
 	if err != nil {
 		log.Fatalf("Error reading config file: %v", err)
 	}
-	
+
 	// Parse YAML
 	var config ModuleConfig
 	err = yaml.Unmarshal(data, &config)
 	if err != nil {
 		log.Fatalf("Error parsing YAML: %v", err)
 	}
-	
+
 	// Generate module files
 	err = generateModule(config, *outputDir)
 	if err != nil {
 		log.Fatalf("Error generating module: %v", err)
 	}
-	
+
 	fmt.Printf("✅ Module '%s' generated successfully!\n", config.Module.Name)
 	fmt.Println("\nGenerated files:")
 	fmt.Printf("  - Handler: internal/api/admin_%s_handler.go\n", config.Module.Name)
@@ -126,22 +126,22 @@ func generateModule(config ModuleConfig, outputDir string) error {
 	if err := generateHandler(config, outputDir); err != nil {
 		return fmt.Errorf("failed to generate handler: %w", err)
 	}
-	
+
 	// Generate template (using string building, not Go templates)
 	if err := generatePongoTemplate(config, outputDir); err != nil {
 		return fmt.Errorf("failed to generate template: %w", err)
 	}
-	
+
 	// Generate test
 	if err := generateTest(config, outputDir); err != nil {
 		return fmt.Errorf("failed to generate test: %w", err)
 	}
-	
+
 	// Generate migration if needed
 	if err := generateMigration(config, outputDir); err != nil {
 		return fmt.Errorf("failed to generate migration: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -380,8 +380,8 @@ func (h *Admin{{.Module.Singular}}Handler) Search(c *gin.Context) {
 {{end}}
 `
 
-    title := cases.Title(language.English)
-    tmpl, err := template.New("handler").Funcs(template.FuncMap{
+	title := cases.Title(language.English)
+	tmpl, err := template.New("handler").Funcs(template.FuncMap{
 		"goType": func(f Field) string {
 			switch f.Type {
 			case "string", "text", "color", "select":
@@ -398,24 +398,24 @@ func (h *Admin{{.Module.Singular}}Handler) Search(c *gin.Context) {
 				return "interface{}"
 			}
 		},
-        "capitalize": func(s string) string { return title.String(s) },
-		"inc": func(i int) int { return i + 1 },
+		"capitalize": func(s string) string { return title.String(s) },
+		"inc":        func(i int) int { return i + 1 },
 	}).Parse(handlerTemplate)
-	
+
 	if err != nil {
 		return err
 	}
-	
+
 	// Create output file
 	handlerPath := filepath.Join(outputDir, "internal", "api", fmt.Sprintf("admin_%s_handler.go", config.Module.Name))
 	os.MkdirAll(filepath.Dir(handlerPath), 0755)
-	
+
 	file, err := os.Create(handlerPath)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	
+
 	return tmpl.Execute(file, config)
 }
 
@@ -518,11 +518,11 @@ validation:
     - name
 `
 
-    err := os.WriteFile("example-module.yaml", []byte(example), 0644)
+	err := os.WriteFile("example-module.yaml", []byte(example), 0644)
 	if err != nil {
 		log.Fatalf("Error writing example config: %v", err)
 	}
-	
+
 	fmt.Println("✅ Generated example-module.yaml")
 	fmt.Println("\nEdit this file and run:")
 	fmt.Println("  generator -config example-module.yaml")

@@ -7,24 +7,24 @@ import (
 )
 
 type User struct {
-	ID               uint      `json:"id" db:"id"`
-	Login            string    `json:"login" db:"login"`
-	Email            string    `json:"email"` // Not in users table, use login as email
-	Password         string    `json:"-" db:"pw"` // Never expose in JSON
-	Title            string    `json:"title" db:"title"`
-	FirstName        string    `json:"first_name" db:"first_name"`
-	LastName         string    `json:"last_name" db:"last_name"`
-	ValidID          int       `json:"valid_id" db:"valid_id"` // OTRS valid field (1=valid, 2=invalid, 3=invalid-temporarily)
-	CreateTime       time.Time `json:"create_time" db:"create_time"`
-	CreateBy         int       `json:"create_by" db:"create_by"`
-	ChangeTime       time.Time `json:"change_time" db:"change_time"`
-	ChangeBy         int       `json:"change_by" db:"change_by"`
-	Role             string    `json:"role"` // Admin, Agent, Customer
-	TenantID         uint      `json:"tenant_id,omitempty"`
+	ID               uint       `json:"id" db:"id"`
+	Login            string     `json:"login" db:"login"`
+	Email            string     `json:"email"`     // Not in users table, use login as email
+	Password         string     `json:"-" db:"pw"` // Never expose in JSON
+	Title            string     `json:"title" db:"title"`
+	FirstName        string     `json:"first_name" db:"first_name"`
+	LastName         string     `json:"last_name" db:"last_name"`
+	ValidID          int        `json:"valid_id" db:"valid_id"` // OTRS valid field (1=valid, 2=invalid, 3=invalid-temporarily)
+	CreateTime       time.Time  `json:"create_time" db:"create_time"`
+	CreateBy         int        `json:"create_by" db:"create_by"`
+	ChangeTime       time.Time  `json:"change_time" db:"change_time"`
+	ChangeBy         int        `json:"change_by" db:"change_by"`
+	Role             string     `json:"role"` // Admin, Agent, Customer
+	TenantID         uint       `json:"tenant_id,omitempty"`
 	LastLogin        *time.Time `json:"last_login,omitempty"`
-	FailedLoginCount int       `json:"-"`
+	FailedLoginCount int        `json:"-"`
 	LockedUntil      *time.Time `json:"-"`
-	Groups           []string  `json:"groups,omitempty"` // Group names for the user
+	Groups           []string   `json:"groups,omitempty"` // Group names for the user
 }
 
 // IsActive returns true if the user is active (valid_id = 1 in OTRS)
@@ -36,7 +36,7 @@ type UserRole string
 
 const (
 	RoleAdmin    UserRole = "Admin"
-	RoleAgent    UserRole = "Agent" 
+	RoleAgent    UserRole = "Agent"
 	RoleCustomer UserRole = "Customer"
 )
 

@@ -39,27 +39,27 @@ type Metadata struct {
 
 // Version represents a version of any YAML configuration
 type Version struct {
-	ID          string            `json:"id"`
-	Number      string            `json:"number"`
-	Kind        YAMLKind          `json:"kind"`
-	Name        string            `json:"name"`
-	Hash        string            `json:"hash"`
-	ParentHash  string            `json:"parent_hash,omitempty"`
-	Timestamp   time.Time         `json:"timestamp"`
-	Author      string            `json:"author"`
-	Message     string            `json:"message"`
-	Document    *YAMLDocument     `json:"document"`
-	Changes     []Change          `json:"changes,omitempty"`
-	Stats       *VersionStats     `json:"stats,omitempty"`
+	ID         string        `json:"id"`
+	Number     string        `json:"number"`
+	Kind       YAMLKind      `json:"kind"`
+	Name       string        `json:"name"`
+	Hash       string        `json:"hash"`
+	ParentHash string        `json:"parent_hash,omitempty"`
+	Timestamp  time.Time     `json:"timestamp"`
+	Author     string        `json:"author"`
+	Message    string        `json:"message"`
+	Document   *YAMLDocument `json:"document"`
+	Changes    []Change      `json:"changes,omitempty"`
+	Stats      *VersionStats `json:"stats,omitempty"`
 }
 
 // Change represents a change between versions
 type Change struct {
-	Type        ChangeType `json:"type"`
-	Path        string     `json:"path"`
+	Type        ChangeType  `json:"type"`
+	Path        string      `json:"path"`
 	OldValue    interface{} `json:"old_value,omitempty"`
 	NewValue    interface{} `json:"new_value,omitempty"`
-	Description string     `json:"description,omitempty"`
+	Description string      `json:"description,omitempty"`
 }
 
 // ChangeType represents the type of change
@@ -73,17 +73,17 @@ const (
 
 // VersionStats contains statistics about a version
 type VersionStats struct {
-	TotalFields    int            `json:"total_fields"`
-	ChangedFields  int            `json:"changed_fields"`
-	AddedFields    int            `json:"added_fields"`
-	DeletedFields  int            `json:"deleted_fields"`
-	CustomStats    map[string]int `json:"custom_stats,omitempty"`
+	TotalFields   int            `json:"total_fields"`
+	ChangedFields int            `json:"changed_fields"`
+	AddedFields   int            `json:"added_fields"`
+	DeletedFields int            `json:"deleted_fields"`
+	CustomStats   map[string]int `json:"custom_stats,omitempty"`
 }
 
 // ValidationResult represents the result of validation
 type ValidationResult struct {
-	Valid    bool             `json:"valid"`
-	Errors   []ValidationError `json:"errors,omitempty"`
+	Valid    bool                `json:"valid"`
+	Errors   []ValidationError   `json:"errors,omitempty"`
 	Warnings []ValidationWarning `json:"warnings,omitempty"`
 }
 
@@ -115,12 +115,12 @@ type Schema struct {
 
 // ConfigEvent represents a configuration change event
 type ConfigEvent struct {
-	Type      EventType     `json:"type"`
-	Kind      YAMLKind      `json:"kind"`
-	Name      string        `json:"name"`
-	Version   *Version      `json:"version,omitempty"`
-	Timestamp time.Time     `json:"timestamp"`
-	Error     string        `json:"error,omitempty"`
+	Type      EventType `json:"type"`
+	Kind      YAMLKind  `json:"kind"`
+	Name      string    `json:"name"`
+	Version   *Version  `json:"version,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
+	Error     string    `json:"error,omitempty"`
 }
 
 // EventType represents the type of configuration event
@@ -145,13 +145,13 @@ type ConfigStore interface {
 	GetVersion(kind YAMLKind, name string, versionID string) (*Version, error)
 	ListVersions(kind YAMLKind, name string) ([]*Version, error)
 	Rollback(kind YAMLKind, name string, versionID string) error
-	
+
 	// Current configuration
 	GetCurrent(kind YAMLKind, name string) (*YAMLDocument, error)
 	SetCurrent(kind YAMLKind, name string, doc *YAMLDocument) error
 	List(kind YAMLKind) ([]*YAMLDocument, error)
 	Delete(kind YAMLKind, name string) error
-	
+
 	// Watching
 	Watch(kind YAMLKind) (<-chan ConfigEvent, error)
 	StopWatch(kind YAMLKind)

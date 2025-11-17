@@ -62,10 +62,10 @@ func TestAPIQueueManagement(t *testing.T) {
 		defer resp.Body.Close()
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Should get queues list")
-		
+
 		body, _ := io.ReadAll(resp.Body)
 		bodyStr := string(body)
-		
+
 		// Check if it's HTML (should contain queue-related content)
 		assert.Contains(t, bodyStr, "queue", "Should have queue content")
 		t.Log("Successfully retrieved queue list page")

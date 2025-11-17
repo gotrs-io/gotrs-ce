@@ -21,16 +21,16 @@ type AuthProvider interface {
 	// Authenticate attempts to authenticate a user with the given credentials
 	// Returns the authenticated user and nil error on success
 	Authenticate(ctx context.Context, username, password string) (*models.User, error)
-	
+
 	// GetUser retrieves user details by username/email
 	GetUser(ctx context.Context, identifier string) (*models.User, error)
-	
+
 	// ValidateToken validates an existing session/token
 	ValidateToken(ctx context.Context, token string) (*models.User, error)
-	
+
 	// Name returns the name of this auth provider
 	Name() string
-	
+
 	// Priority returns the priority of this provider (lower = higher priority)
 	Priority() int
 }
@@ -46,7 +46,7 @@ func NewAuthenticator(providers ...AuthProvider) *Authenticator {
 	auth := &Authenticator{
 		providers: providers,
 	}
-	
+
 	// Set the primary provider (lowest priority number)
 	if len(providers) > 0 {
 		auth.primary = providers[0]
@@ -56,7 +56,7 @@ func NewAuthenticator(providers ...AuthProvider) *Authenticator {
 			}
 		}
 	}
-	
+
 	return auth
 }
 
@@ -65,9 +65,9 @@ func (a *Authenticator) Authenticate(ctx context.Context, username, password str
 	if len(a.providers) == 0 {
 		return nil, ErrAuthBackendFailed
 	}
-	
+
 	var lastErr error
-	
+
 	// Try each provider in priority order
 	for _, provider := range a.providers {
 		user, err := provider.Authenticate(ctx, username, password)
@@ -75,18 +75,18 @@ func (a *Authenticator) Authenticate(ctx context.Context, username, password str
 			// Authentication successful
 			return user, nil
 		}
-		
+
 		// Keep track of the last error
 		if err != nil && err != ErrUserNotFound {
 			lastErr = err
 		}
 	}
-	
+
 	// No provider could authenticate the user
 	if lastErr != nil {
 		return nil, lastErr
 	}
-	
+
 	return nil, ErrInvalidCredentials
 }
 
@@ -95,7 +95,7 @@ func (a *Authenticator) GetUser(ctx context.Context, identifier string) (*models
 	if a.primary == nil {
 		return nil, ErrAuthBackendFailed
 	}
-	
+
 	return a.primary.GetUser(ctx, identifier)
 }
 
@@ -104,14 +104,14 @@ func (a *Authenticator) ValidateToken(ctx context.Context, token string) (*model
 	if a.primary == nil {
 		return nil, ErrAuthBackendFailed
 	}
-	
+
 	return a.primary.ValidateToken(ctx, token)
 }
 
 // AddProvider adds a new authentication provider
 func (a *Authenticator) AddProvider(provider AuthProvider) {
 	a.providers = append(a.providers, provider)
-	
+
 	// Update primary provider if needed
 	if a.primary == nil || provider.Priority() < a.primary.Priority() {
 		a.primary = provider

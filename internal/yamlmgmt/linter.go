@@ -37,7 +37,7 @@ func (ul *UniversalLinter) Lint(doc *YAMLDocument) ([]LintIssue, error) {
 			if !rule.Enabled {
 				continue
 			}
-			
+
 			ruleIssues := ul.applyRule(rule, doc)
 			issues = append(issues, ruleIssues...)
 		}

@@ -9,38 +9,38 @@ import (
 
 // XMLSchema represents the root schema definition (inspired by OTRS XML schema format)
 type XMLSchema struct {
-	XMLName xml.Name `xml:"database"`
-	Name    string   `xml:"Name,attr"`
-	Version string   `xml:"Version,attr"`
+	XMLName xml.Name   `xml:"database"`
+	Name    string     `xml:"Name,attr"`
+	Version string     `xml:"Version,attr"`
 	Tables  []XMLTable `xml:"Table"`
 }
 
 // XMLTable represents a database table in XML format
 type XMLTable struct {
-	XMLName xml.Name `xml:"Table"`
-	Name    string   `xml:"Name,attr"`
-	Columns []XMLColumn `xml:"Column"`
-	Indexes []XMLIndex  `xml:"Index,omitempty"`
+	XMLName     xml.Name        `xml:"Table"`
+	Name        string          `xml:"Name,attr"`
+	Columns     []XMLColumn     `xml:"Column"`
+	Indexes     []XMLIndex      `xml:"Index,omitempty"`
 	ForeignKeys []XMLForeignKey `xml:"ForeignKey,omitempty"`
 }
 
 // XMLColumn represents a table column in XML format
 type XMLColumn struct {
-	XMLName xml.Name `xml:"Column"`
-	Name    string   `xml:"Name,attr"`
-	Type    string   `xml:"Type,attr"`
-	Size    *int     `xml:"Size,attr,omitempty"`
-	Required bool    `xml:"Required,attr"`
-	PrimaryKey bool  `xml:"PrimaryKey,attr,omitempty"`
-	AutoIncrement bool `xml:"AutoIncrement,attr,omitempty"`
-	Default *string  `xml:"Default,attr,omitempty"`
+	XMLName       xml.Name `xml:"Column"`
+	Name          string   `xml:"Name,attr"`
+	Type          string   `xml:"Type,attr"`
+	Size          *int     `xml:"Size,attr,omitempty"`
+	Required      bool     `xml:"Required,attr"`
+	PrimaryKey    bool     `xml:"PrimaryKey,attr,omitempty"`
+	AutoIncrement bool     `xml:"AutoIncrement,attr,omitempty"`
+	Default       *string  `xml:"Default,attr,omitempty"`
 }
 
-// XMLIndex represents a table index in XML format  
+// XMLIndex represents a table index in XML format
 type XMLIndex struct {
-	XMLName xml.Name `xml:"Index"`
-	Name    string   `xml:"Name,attr"`
-	Unique  bool     `xml:"Unique,attr,omitempty"`
+	XMLName xml.Name         `xml:"Index"`
+	Name    string           `xml:"Name,attr"`
+	Unique  bool             `xml:"Unique,attr,omitempty"`
 	Columns []XMLIndexColumn `xml:"Column"`
 }
 
@@ -52,13 +52,13 @@ type XMLIndexColumn struct {
 
 // XMLForeignKey represents a foreign key constraint
 type XMLForeignKey struct {
-	XMLName xml.Name `xml:"ForeignKey"`
-	Name    string   `xml:"Name,attr"`
-	Local   string   `xml:"Local,attr"`
-	Foreign string   `xml:"Foreign,attr"`
-	ForeignTable string `xml:"ForeignTable,attr"`
-	OnDelete *string `xml:"OnDelete,attr,omitempty"`
-	OnUpdate *string `xml:"OnUpdate,attr,omitempty"`
+	XMLName      xml.Name `xml:"ForeignKey"`
+	Name         string   `xml:"Name,attr"`
+	Local        string   `xml:"Local,attr"`
+	Foreign      string   `xml:"Foreign,attr"`
+	ForeignTable string   `xml:"ForeignTable,attr"`
+	OnDelete     *string  `xml:"OnDelete,attr,omitempty"`
+	OnUpdate     *string  `xml:"OnUpdate,attr,omitempty"`
 }
 
 // SchemaConverter converts between different schema formats
@@ -77,13 +77,13 @@ func (c *SchemaConverter) ExportToXML(outputPath string) error {
 		Name:    "gotrs_otrs_schema",
 		Version: "1.0",
 	}
-	
+
 	// Get all tables from the database
 	tables, err := c.getTableList()
 	if err != nil {
 		return fmt.Errorf("failed to get table list: %w", err)
 	}
-	
+
 	// Convert each table to XML format
 	for _, tableName := range tables {
 		xmlTable, err := c.convertTableToXML(tableName)
@@ -92,16 +92,16 @@ func (c *SchemaConverter) ExportToXML(outputPath string) error {
 		}
 		schema.Tables = append(schema.Tables, xmlTable)
 	}
-	
+
 	// Marshal to XML
 	xmlData, err := xml.MarshalIndent(schema, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal XML: %w", err)
 	}
-	
+
 	// Add XML header
 	xmlContent := []byte(xml.Header + string(xmlData))
-	
+
 	// Write to file
 	return os.WriteFile(outputPath, xmlContent, 0644)
 }
@@ -113,13 +113,13 @@ func (c *SchemaConverter) ImportFromXML(xmlPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read XML file: %w", err)
 	}
-	
+
 	// Parse XML
 	var schema XMLSchema
 	if err := xml.Unmarshal(xmlData, &schema); err != nil {
 		return fmt.Errorf("failed to parse XML: %w", err)
 	}
-	
+
 	// Create tables from schema
 	for _, xmlTable := range schema.Tables {
 		tableDef := c.convertXMLToTableDefinition(xmlTable)
@@ -127,7 +127,7 @@ func (c *SchemaConverter) ImportFromXML(xmlPath string) error {
 			return fmt.Errorf("failed to create table %s: %w", tableDef.Name, err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -137,7 +137,7 @@ func (c *SchemaConverter) getTableList() ([]string, error) {
 	// for actual table names from information_schema
 	return []string{
 		"users", "groups", "group_user",
-		"customer_company", "customer_user", 
+		"customer_company", "customer_user",
 		"queue", "ticket_priority", "ticket_state", "ticket_type",
 		"ticket", "article", "article_data_mime",
 	}, nil
@@ -146,34 +146,34 @@ func (c *SchemaConverter) getTableList() ([]string, error) {
 // convertTableToXML converts a database table to XML format
 func (c *SchemaConverter) convertTableToXML(tableName string) (XMLTable, error) {
 	xmlTable := XMLTable{Name: tableName}
-	
+
 	// Get column information
 	columns, err := c.sourceDB.GetTableColumns(context.Background(), tableName)
 	if err != nil {
 		return xmlTable, err
 	}
-	
+
 	// Convert columns to XML format
 	for _, col := range columns {
 		xmlCol := XMLColumn{
-			Name:     col.Name,
-			Type:     c.convertDataType(col.DataType),
-			Required: !col.IsNullable,
-			PrimaryKey: col.IsPrimaryKey,
+			Name:          col.Name,
+			Type:          c.convertDataType(col.DataType),
+			Required:      !col.IsNullable,
+			PrimaryKey:    col.IsPrimaryKey,
 			AutoIncrement: col.IsAutoIncrement,
 		}
-		
+
 		if col.MaxLength != nil {
 			xmlCol.Size = col.MaxLength
 		}
-		
+
 		if col.DefaultValue != nil {
 			xmlCol.Default = col.DefaultValue
 		}
-		
+
 		xmlTable.Columns = append(xmlTable.Columns, xmlCol)
 	}
-	
+
 	return xmlTable, nil
 }
 
@@ -182,7 +182,7 @@ func (c *SchemaConverter) convertXMLToTableDefinition(xmlTable XMLTable) TableDe
 	tableDef := TableDefinition{
 		Name: xmlTable.Name,
 	}
-	
+
 	// Convert columns
 	for _, xmlCol := range xmlTable.Columns {
 		col := ColumnDefinition{
@@ -193,28 +193,28 @@ func (c *SchemaConverter) convertXMLToTableDefinition(xmlTable XMLTable) TableDe
 			AutoIncrement: xmlCol.AutoIncrement,
 			DefaultValue:  xmlCol.Default,
 		}
-		
+
 		if xmlCol.Size != nil {
 			col.Size = xmlCol.Size
 		}
-		
+
 		tableDef.Columns = append(tableDef.Columns, col)
 	}
-	
+
 	// Convert indexes
 	for _, xmlIndex := range xmlTable.Indexes {
 		index := IndexDefinition{
 			Name:   xmlIndex.Name,
 			Unique: xmlIndex.Unique,
 		}
-		
+
 		for _, xmlIndexCol := range xmlIndex.Columns {
 			index.Columns = append(index.Columns, xmlIndexCol.Name)
 		}
-		
+
 		tableDef.Indexes = append(tableDef.Indexes, index)
 	}
-	
+
 	// Convert foreign keys
 	for _, xmlFK := range xmlTable.ForeignKeys {
 		constraint := ConstraintDefinition{
@@ -226,10 +226,10 @@ func (c *SchemaConverter) convertXMLToTableDefinition(xmlTable XMLTable) TableDe
 			OnDelete:         xmlFK.OnDelete,
 			OnUpdate:         xmlFK.OnUpdate,
 		}
-		
+
 		tableDef.Constraints = append(tableDef.Constraints, constraint)
 	}
-	
+
 	return tableDef
 }
 
@@ -237,31 +237,31 @@ func (c *SchemaConverter) convertXMLToTableDefinition(xmlTable XMLTable) TableDe
 func (c *SchemaConverter) convertDataType(dbType string) string {
 	// Mapping of database-specific types to XML standard types
 	typeMap := map[string]string{
-		"integer":                    "INTEGER",
-		"bigint":                     "BIGINT",
-		"serial":                     "INTEGER",
-		"bigserial":                  "BIGINT",
-		"character varying":          "VARCHAR",
-		"varchar":                    "VARCHAR",
-		"character":                  "CHAR",
-		"char":                       "CHAR",
-		"text":                       "TEXT",
-		"smallint":                   "SMALLINT",
+		"integer":                     "INTEGER",
+		"bigint":                      "BIGINT",
+		"serial":                      "INTEGER",
+		"bigserial":                   "BIGINT",
+		"character varying":           "VARCHAR",
+		"varchar":                     "VARCHAR",
+		"character":                   "CHAR",
+		"char":                        "CHAR",
+		"text":                        "TEXT",
+		"smallint":                    "SMALLINT",
 		"timestamp without time zone": "TIMESTAMP",
-		"timestamp":                  "TIMESTAMP",
-		"date":                       "DATE",
-		"time":                       "TIME",
-		"boolean":                    "BOOLEAN",
-		"decimal":                    "DECIMAL",
-		"numeric":                    "DECIMAL",
-		"real":                       "REAL",
-		"double precision":           "DOUBLE",
+		"timestamp":                   "TIMESTAMP",
+		"date":                        "DATE",
+		"time":                        "TIME",
+		"boolean":                     "BOOLEAN",
+		"decimal":                     "DECIMAL",
+		"numeric":                     "DECIMAL",
+		"real":                        "REAL",
+		"double precision":            "DOUBLE",
 	}
-	
+
 	if standardType, exists := typeMap[dbType]; exists {
 		return standardType
 	}
-	
+
 	return dbType // Return as-is if no mapping found
 }
 
@@ -300,11 +300,11 @@ func (c *SchemaConverter) convertXMLToPostgreSQL(xmlType string) string {
 		"REAL":      "REAL",
 		"DOUBLE":    "DOUBLE PRECISION",
 	}
-	
+
 	if pgType, exists := typeMap[xmlType]; exists {
 		return pgType
 	}
-	
+
 	return xmlType
 }
 
@@ -325,11 +325,11 @@ func (c *SchemaConverter) convertXMLToMySQL(xmlType string) string {
 		"REAL":      "REAL",
 		"DOUBLE":    "DOUBLE",
 	}
-	
+
 	if mysqlType, exists := typeMap[xmlType]; exists {
 		return mysqlType
 	}
-	
+
 	return xmlType
 }
 
@@ -350,11 +350,11 @@ func (c *SchemaConverter) convertXMLToOracle(xmlType string) string {
 		"REAL":      "REAL",
 		"DOUBLE":    "BINARY_DOUBLE",
 	}
-	
+
 	if oracleType, exists := typeMap[xmlType]; exists {
 		return oracleType
 	}
-	
+
 	return xmlType
 }
 
@@ -375,10 +375,10 @@ func (c *SchemaConverter) convertXMLToSQLServer(xmlType string) string {
 		"REAL":      "REAL",
 		"DOUBLE":    "FLOAT",
 	}
-	
+
 	if sqlServerType, exists := typeMap[xmlType]; exists {
 		return sqlServerType
 	}
-	
+
 	return xmlType
 }

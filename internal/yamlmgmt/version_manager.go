@@ -19,7 +19,7 @@ type VersionManager struct {
 	mu          sync.RWMutex
 	storageDir  string
 	versions    map[string]map[string][]*Version // kind -> name -> versions
-	current     map[string]map[string]*Version    // kind -> name -> current version
+	current     map[string]map[string]*Version   // kind -> name -> current version
 	maxVersions int
 	schemas     map[YAMLKind]*Schema
 }
@@ -41,10 +41,10 @@ func NewVersionManager(storageDir string) *VersionManager {
 
 	// Ensure storage directories exist
 	vm.ensureDirectories()
-	
+
 	// Load existing versions
 	vm.loadAllVersions()
-	
+
 	globalVersionManager = vm
 	return vm
 }
@@ -64,7 +64,7 @@ func (vm *VersionManager) CreateVersion(kind YAMLKind, name string, doc *YAMLDoc
 
 	// Calculate hash
 	hash := vm.calculateHash(doc)
-	
+
 	// Check if this exact version already exists
 	if versions := vm.getVersionsForDocument(string(kind), name); versions != nil {
 		for _, v := range versions {
@@ -109,10 +109,10 @@ func (vm *VersionManager) CreateVersion(kind YAMLKind, name string, doc *YAMLDoc
 
 	// Add to memory
 	vm.addVersion(version)
-	
+
 	// Set as current
 	vm.setCurrentVersion(string(kind), name, version)
-	
+
 	// Cleanup old versions
 	vm.cleanupOldVersions(string(kind), name)
 
@@ -336,7 +336,7 @@ func (vm *VersionManager) countFields(v interface{}) int {
 
 func (vm *VersionManager) calculateChanges(oldDoc, newDoc *YAMLDocument) []Change {
 	changes := []Change{}
-	
+
 	// Compare metadata
 	if oldDoc.Metadata.Description != newDoc.Metadata.Description {
 		changes = append(changes, Change{
@@ -365,7 +365,7 @@ func (vm *VersionManager) saveVersion(version *Version) error {
 	kindDir := filepath.Join(vm.storageDir, ".versions", string(version.Kind))
 	os.MkdirAll(kindDir, 0755)
 
-	filename := filepath.Join(kindDir, fmt.Sprintf("%s_%s_%s.json", 
+	filename := filepath.Join(kindDir, fmt.Sprintf("%s_%s_%s.json",
 		version.Name, version.Number, version.Hash[:8]))
 
 	data, err := json.MarshalIndent(version, "", "  ")
@@ -384,18 +384,18 @@ func (vm *VersionManager) applyVersion(version *Version) error {
 
 	switch version.Kind {
 	case KindRoute:
-		targetPath = filepath.Join(vm.storageDir, "routes", 
+		targetPath = filepath.Join(vm.storageDir, "routes",
 			version.Document.Metadata.Namespace, version.Name+".yaml")
 		data, err = yaml.Marshal(version.Document)
-		
+
 	case KindConfig:
 		targetPath = filepath.Join(vm.storageDir, "config", version.Name+".yaml")
 		data, err = yaml.Marshal(version.Document)
-		
+
 	case KindDashboard:
 		targetPath = filepath.Join(vm.storageDir, "dashboards", version.Name+".yaml")
 		data, err = yaml.Marshal(version.Document)
-		
+
 	default:
 		return fmt.Errorf("unsupported kind: %s", version.Kind)
 	}
@@ -488,7 +488,7 @@ func (vm *VersionManager) cleanupOldVersions(kind, name string) {
 
 func (vm *VersionManager) loadAllVersions() {
 	versionsDir := filepath.Join(vm.storageDir, ".versions")
-	
+
 	// Walk through all version directories
 	filepath.Walk(versionsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || filepath.Ext(path) != ".json" {

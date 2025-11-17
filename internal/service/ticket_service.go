@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gotrs-io/gotrs-ce/internal/history"
@@ -23,14 +24,16 @@ func NewTicketService(repo *repository.TicketRepository) TicketService {
 }
 
 type CreateTicketInput struct {
-	Title        string
-	QueueID      int
-	PriorityID   int
-	StateID      int
-	UserID       int
-	Body         string // reserved for future article create
-	PendingUntil int    // unix seconds when pending should elapse; 0 = none
-	TypeID       int    // optional ticket type to set on create (0 = none)
+	Title          string
+	QueueID        int
+	PriorityID     int
+	StateID        int
+	UserID         int
+	Body           string // reserved for future article create
+	PendingUntil   int    // unix seconds when pending should elapse; 0 = none
+	TypeID         int    // optional ticket type to set on create (0 = none)
+	CustomerID     string
+	CustomerUserID string
 }
 
 func (s *ticketService) Create(ctx context.Context, in CreateTicketInput) (*models.Ticket, error) {
@@ -81,6 +84,14 @@ func (s *ticketService) Create(ctx context.Context, in CreateTicketInput) (*mode
 		ResponsibleUserID: &in.UserID,
 		CreateTime:        time.Now(),
 		ChangeTime:        time.Now(),
+	}
+	if trimmed := strings.TrimSpace(in.CustomerID); trimmed != "" {
+		cid := trimmed
+		ticket.CustomerID = &cid
+	}
+	if trimmed := strings.TrimSpace(in.CustomerUserID); trimmed != "" {
+		cuid := trimmed
+		ticket.CustomerUserID = &cuid
 	}
 	if in.TypeID > 0 {
 		tid := in.TypeID

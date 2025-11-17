@@ -15,7 +15,7 @@ import (
 
 // Runner manages and executes scheduled background tasks
 type Runner struct {
-	cron    *cron.Cron
+	cron     *cron.Cron
 	registry *TaskRegistry
 	logger   *log.Logger
 	wg       sync.WaitGroup

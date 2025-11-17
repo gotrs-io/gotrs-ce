@@ -148,7 +148,7 @@ func (pb *PostgresBackend) searchTickets(ctx context.Context, query SearchQuery)
 
 		hit.Type = "ticket"
 		hit.Score = score
-		
+
 		// Build metadata
 		metadata := map[string]interface{}{
 			"ticket_number": hit.Metadata,
@@ -282,7 +282,7 @@ func (pb *PostgresBackend) searchCustomers(ctx context.Context, query SearchQuer
 		hit.Type = "customer"
 		hit.Score = 1.0 // PostgreSQL doesn't provide relevance for this query
 		hit.Content = fmt.Sprintf("Email: %s", email)
-		
+
 		metadata := map[string]interface{}{
 			"login":      hit.Metadata,
 			"email":      email,

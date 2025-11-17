@@ -1,8 +1,10 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -152,18 +154,33 @@ func loadYAMLRouteGroups(dir string) ([]topRouteDoc, error) {
 			log.Printf("route loader read error %s: %v", p, err)
 			continue
 		}
-		var doc topRouteDoc
-		if err := yaml.Unmarshal(b, &doc); err != nil {
-			log.Printf("route yaml parse error %s: %v", p, err)
-			continue
+		dec := yaml.NewDecoder(bytes.NewReader(b))
+		docIndex := 0
+		for {
+			var doc topRouteDoc
+			if err := dec.Decode(&doc); err != nil {
+				if err == io.EOF {
+					break
+				}
+				log.Printf("route yaml parse error %s doc %d: %v", p, docIndex, err)
+				break
+			}
+			// Skip entirely empty documents
+			if doc.APIVersion == "" && doc.Kind == "" && doc.Metadata.Name == "" && len(doc.Spec.Routes) == 0 {
+				docIndex++
+				continue
+			}
+			if !doc.Metadata.Enabled {
+				docIndex++
+				continue
+			}
+			if doc.Kind != "RouteGroup" {
+				docIndex++
+				continue
+			}
+			docs = append(docs, doc)
+			docIndex++
 		}
-		if !doc.Metadata.Enabled {
-			continue
-		}
-		if doc.Kind != "RouteGroup" {
-			continue
-		}
-		docs = append(docs, doc)
 	}
 	return docs, nil
 }

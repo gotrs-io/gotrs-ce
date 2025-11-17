@@ -6,29 +6,29 @@ type Permission string
 
 const (
 	// Ticket permissions
-	PermissionTicketCreate  Permission = "ticket:create"
-	PermissionTicketRead    Permission = "ticket:read"
-	PermissionTicketUpdate  Permission = "ticket:update"
-	PermissionTicketDelete  Permission = "ticket:delete"
-	PermissionTicketAssign  Permission = "ticket:assign"
-	PermissionTicketClose   Permission = "ticket:close"
-	
+	PermissionTicketCreate Permission = "ticket:create"
+	PermissionTicketRead   Permission = "ticket:read"
+	PermissionTicketUpdate Permission = "ticket:update"
+	PermissionTicketDelete Permission = "ticket:delete"
+	PermissionTicketAssign Permission = "ticket:assign"
+	PermissionTicketClose  Permission = "ticket:close"
+
 	// User permissions
-	PermissionUserCreate    Permission = "user:create"
-	PermissionUserRead      Permission = "user:read"
-	PermissionUserUpdate    Permission = "user:update"
-	PermissionUserDelete    Permission = "user:delete"
-	
+	PermissionUserCreate Permission = "user:create"
+	PermissionUserRead   Permission = "user:read"
+	PermissionUserUpdate Permission = "user:update"
+	PermissionUserDelete Permission = "user:delete"
+
 	// Admin permissions
-	PermissionAdminAccess   Permission = "admin:access"
-	PermissionSystemConfig  Permission = "system:config"
-	
+	PermissionAdminAccess  Permission = "admin:access"
+	PermissionSystemConfig Permission = "system:config"
+
 	// Report permissions
-	PermissionReportView    Permission = "report:view"
-	PermissionReportCreate  Permission = "report:create"
-	
+	PermissionReportView   Permission = "report:view"
+	PermissionReportCreate Permission = "report:create"
+
 	// Customer permissions
-	PermissionOwnTicketRead Permission = "own:ticket:read"
+	PermissionOwnTicketRead   Permission = "own:ticket:read"
 	PermissionOwnTicketCreate Permission = "own:ticket:create"
 )
 
@@ -54,7 +54,7 @@ func (r *RBAC) initializePermissions() {
 		PermissionReportView, PermissionReportCreate,
 		PermissionOwnTicketRead, PermissionOwnTicketCreate,
 	}
-	
+
 	// Agent has ticket and limited user permissions
 	r.rolePermissions[models.RoleAgent] = []Permission{
 		PermissionTicketCreate, PermissionTicketRead, PermissionTicketUpdate,
@@ -63,7 +63,7 @@ func (r *RBAC) initializePermissions() {
 		PermissionReportView,
 		PermissionOwnTicketRead, PermissionOwnTicketCreate,
 	}
-	
+
 	// Customer can only manage their own tickets
 	r.rolePermissions[models.RoleCustomer] = []Permission{
 		PermissionOwnTicketRead, PermissionOwnTicketCreate,
@@ -76,13 +76,13 @@ func (r *RBAC) HasPermission(role string, permission Permission) bool {
 	if !exists {
 		return false
 	}
-	
+
 	for _, p := range permissions {
 		if p == permission {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -96,12 +96,12 @@ func (r *RBAC) CanAccessTicket(role string, ticketOwnerID, userID uint) bool {
 	if role == string(models.RoleAdmin) || role == string(models.RoleAgent) {
 		return true
 	}
-	
+
 	// Customers can only access their own tickets
 	if role == string(models.RoleCustomer) {
 		return ticketOwnerID == userID
 	}
-	
+
 	return false
 }
 
@@ -110,7 +110,7 @@ func (r *RBAC) CanModifyUser(actorRole string, targetUserRole string) bool {
 	if actorRole != string(models.RoleAdmin) {
 		return false
 	}
-	
+
 	// Admins can modify anyone
 	return true
 }

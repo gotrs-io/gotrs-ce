@@ -8,7 +8,7 @@ import (
 // TableSchema represents a table definition from YAML
 type TableSchema struct {
 	Name       string                 `yaml:"name"`
-	PK         string                 `yaml:"pk"`         // Primary key field name (default: "id")
+	PK         string                 `yaml:"pk"` // Primary key field name (default: "id")
 	Columns    map[string]ColumnDef   `yaml:"columns"`
 	Indexes    []string               `yaml:"indexes"`
 	Unique     []string               `yaml:"unique"`
@@ -46,29 +46,29 @@ type DatabaseDriver interface {
 	Connect(ctx context.Context, dsn string) error
 	Close() error
 	Ping(ctx context.Context) error
-	
+
 	// Schema operations
 	CreateTable(schema TableSchema) (Query, error)
 	DropTable(tableName string) (Query, error)
 	TableExists(tableName string) (bool, error)
-	
+
 	// CRUD operations
 	Insert(table string, data map[string]interface{}) (Query, error)
 	Update(table string, data map[string]interface{}, where string, whereArgs ...interface{}) (Query, error)
 	Delete(table string, where string, whereArgs ...interface{}) (Query, error)
 	Select(table string, columns []string, where string, whereArgs ...interface{}) (Query, error)
-	
+
 	// Type mapping
 	MapType(schemaType string) string // e.g., "serial" -> "AUTO_INCREMENT" or "SERIAL"
-	
+
 	// Feature detection
 	SupportsReturning() bool
 	SupportsLastInsertId() bool
 	SupportsArrays() bool
-	
+
 	// Transaction support
 	BeginTx(ctx context.Context) (Transaction, error)
-	
+
 	// Raw execution (for complex queries)
 	Exec(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
 	Query(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
@@ -80,16 +80,16 @@ type DumpDriver interface {
 	// Parse and iterate through a dump file
 	Open(filename string) error
 	Close() error
-	
+
 	// Read next statement from dump
 	NextStatement() (string, error)
-	
+
 	// Get table schemas from dump
 	GetSchemas() ([]TableSchema, error)
-	
+
 	// Stream data for a specific table
 	StreamTable(tableName string, callback func(row map[string]interface{}) error) error
-	
+
 	// Write operations (for export)
 	WriteSchema(schema TableSchema) error
 	WriteData(table string, rows []map[string]interface{}) error

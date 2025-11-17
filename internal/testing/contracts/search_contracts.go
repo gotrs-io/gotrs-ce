@@ -20,15 +20,15 @@ var SearchContracts = []Contract{
 			"types": []string{"ticket", "article", "customer"},
 			"limit": 10,
 		},
-        Expected: Response{
-            Status: http.StatusOK,
-            BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
-                "query":      StringSchema{},
-                "total_hits": NumberSchema{},
-                "took_ms":    NumberSchema{},
-                "hits":       ArraySchema{},
-            }},
-        },
+		Expected: Response{
+			Status: http.StatusOK,
+			BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
+				"query":      StringSchema{},
+				"total_hits": NumberSchema{},
+				"took_ms":    NumberSchema{},
+				"hits":       ArraySchema{},
+			}},
+		},
 	},
 	{
 		Name:        "SearchTickets",
@@ -49,12 +49,12 @@ var SearchContracts = []Contract{
 			"limit":  20,
 			"offset": 0,
 		},
-        Expected: Response{
-            Status: http.StatusOK,
-            BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
-                "hits": ArraySchema{},
-            }},
-        },
+		Expected: Response{
+			Status: http.StatusOK,
+			BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
+				"hits": ArraySchema{},
+			}},
+		},
 	},
 	{
 		Name:        "SearchWithHighlighting",
@@ -71,12 +71,12 @@ var SearchContracts = []Contract{
 			"highlight": true,
 			"limit":     5,
 		},
-        Expected: Response{
-            Status: http.StatusOK,
-            BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
-                "hits": ArraySchema{},
-            }},
-        },
+		Expected: Response{
+			Status: http.StatusOK,
+			BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
+				"hits": ArraySchema{},
+			}},
+		},
 	},
 	{
 		Name:        "SearchWithPagination",
@@ -93,12 +93,12 @@ var SearchContracts = []Contract{
 			"offset": 10,
 			"limit":  10,
 		},
-        Expected: Response{
-            Status: http.StatusOK,
-            BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
-                "hits": ArraySchema{},
-            }},
-        },
+		Expected: Response{
+			Status: http.StatusOK,
+			BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
+				"hits": ArraySchema{},
+			}},
+		},
 	},
 	{
 		Name:        "SearchSuggestions",
@@ -108,14 +108,14 @@ var SearchContracts = []Contract{
 		Headers: map[string]string{
 			"Authorization": "Bearer {{token}}",
 		},
-        Expected: Response{
-            Status: http.StatusOK,
-            BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
-                "query":       StringSchema{},
-                "type":        StringSchema{},
-                "suggestions": ArraySchema{},
-            }},
-        },
+		Expected: Response{
+			Status: http.StatusOK,
+			BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
+				"query":       StringSchema{},
+				"type":        StringSchema{},
+				"suggestions": ArraySchema{},
+			}},
+		},
 	},
 	{
 		Name:        "SearchHealth",
@@ -125,13 +125,13 @@ var SearchContracts = []Contract{
 		Headers: map[string]string{
 			"Authorization": "Bearer {{token}}",
 		},
-        Expected: Response{
-            Status: http.StatusOK,
-            BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
-                "status":  StringSchema{},
-                "backend": StringSchema{},
-            }},
-        },
+		Expected: Response{
+			Status: http.StatusOK,
+			BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
+				"status":  StringSchema{},
+				"backend": StringSchema{},
+			}},
+		},
 	},
 	{
 		Name:        "Reindex",
@@ -146,13 +146,13 @@ var SearchContracts = []Contract{
 			"types": []string{"ticket", "article"},
 			"force": false,
 		},
-        Expected: Response{
-            Status: http.StatusOK,
-            BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
-                "message": StringSchema{},
-                "backend": StringSchema{},
-            }},
-        },
+		Expected: Response{
+			Status: http.StatusOK,
+			BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
+				"message": StringSchema{},
+				"backend": StringSchema{},
+			}},
+		},
 	},
 	{
 		Name:        "EmptySearchQuery",
@@ -167,16 +167,16 @@ var SearchContracts = []Contract{
 			"query": "",
 			"types": []string{"ticket"},
 		},
-        Expected: Response{
-            Status: http.StatusBadRequest,
-            BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
-                "error": StringSchema{},
-            }},
-        },
+		Expected: Response{
+			Status: http.StatusBadRequest,
+			BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
+				"error": StringSchema{},
+			}},
+		},
 	},
 }
 
 // RegisterSearchContracts registers search contracts for testing
 func RegisterSearchContracts() {
-    // No-op registrar kept for backward compatibility
+	// No-op registrar kept for backward compatibility
 }

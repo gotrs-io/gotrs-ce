@@ -10,61 +10,61 @@ import (
 // Core Types
 
 type User struct {
-	ID           string                `json:"id"`
-	Email        string                `json:"email"`
-	Name         string                `json:"name"`
-	Role         *Role                 `json:"role"`
-	Groups       []*Group              `json:"groups"`
-	Organization *Organization         `json:"organization"`
-	Avatar       string                `json:"avatar,omitempty"`
-	Locale       string                `json:"locale"`
-	Timezone     string                `json:"timezone"`
-	IsActive     bool                  `json:"is_active"`
-	LastLogin    *time.Time            `json:"last_login,omitempty"`
-	CreatedAt    time.Time             `json:"created_at"`
-	UpdatedAt    time.Time             `json:"updated_at"`
-	Preferences  *UserPreferences      `json:"preferences"`
+	ID           string           `json:"id"`
+	Email        string           `json:"email"`
+	Name         string           `json:"name"`
+	Role         *Role            `json:"role"`
+	Groups       []*Group         `json:"groups"`
+	Organization *Organization    `json:"organization"`
+	Avatar       string           `json:"avatar,omitempty"`
+	Locale       string           `json:"locale"`
+	Timezone     string           `json:"timezone"`
+	IsActive     bool             `json:"is_active"`
+	LastLogin    *time.Time       `json:"last_login,omitempty"`
+	CreatedAt    time.Time        `json:"created_at"`
+	UpdatedAt    time.Time        `json:"updated_at"`
+	Preferences  *UserPreferences `json:"preferences"`
 }
 
 type Ticket struct {
-	ID              string           `json:"id"`
-	Number          string           `json:"number"`
-	Subject         string           `json:"subject"`
-	Description     string           `json:"description"`
-	Status          TicketStatus     `json:"status"`
-	Priority        TicketPriority   `json:"priority"`
-	Queue           *Queue           `json:"queue"`
-	Assignee        *User            `json:"assignee"`
-	Customer        *User            `json:"customer"`
-	Organization    *Organization    `json:"organization"`
-	Tags            []string         `json:"tags"`
-	Watchers        []*User          `json:"watchers"`
-	SLA             *SLAStatus       `json:"sla"`
-	EscalationLevel int              `json:"escalation_level"`
-	MergedInto      *Ticket          `json:"merged_into"`
-	SplitFrom       *Ticket          `json:"split_from"`
-	RelatedTickets  []*Ticket        `json:"related_tickets"`
-	CreatedAt       time.Time        `json:"created_at"`
-	UpdatedAt       time.Time        `json:"updated_at"`
-	ClosedAt        *time.Time       `json:"closed_at,omitempty"`
-	ResponseTime    *time.Duration   `json:"response_time,omitempty"`
-	ResolutionTime  *time.Duration   `json:"resolution_time,omitempty"`
+	ID              string         `json:"id"`
+	Number          string         `json:"number"`
+	Subject         string         `json:"subject"`
+	Description     string         `json:"description"`
+	Status          TicketStatus   `json:"status"`
+	Priority        TicketPriority `json:"priority"`
+	Queue           *Queue         `json:"queue"`
+	Assignee        *User          `json:"assignee"`
+	Customer        *User          `json:"customer"`
+	Organization    *Organization  `json:"organization"`
+	Tags            []string       `json:"tags"`
+	Watchers        []*User        `json:"watchers"`
+	SLA             *SLAStatus     `json:"sla"`
+	EscalationLevel int            `json:"escalation_level"`
+	MergedInto      *Ticket        `json:"merged_into"`
+	SplitFrom       *Ticket        `json:"split_from"`
+	RelatedTickets  []*Ticket      `json:"related_tickets"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	ClosedAt        *time.Time     `json:"closed_at,omitempty"`
+	ResponseTime    *time.Duration `json:"response_time,omitempty"`
+	ResolutionTime  *time.Duration `json:"resolution_time,omitempty"`
 }
 
 type Queue struct {
-	ID             string           `json:"id"`
-	Name           string           `json:"name"`
-	Description    string           `json:"description,omitempty"`
-	Email          string           `json:"email,omitempty"`
-	IsActive       bool             `json:"is_active"`
-	Agents         []*User          `json:"agents"`
-	SLAPolicy      *SLAPolicy       `json:"sla_policy"`
-	BusinessHours  *BusinessHours   `json:"business_hours"`
-	AutoAssignment bool             `json:"auto_assignment"`
-	AutoResponse   *CannedResponse  `json:"auto_response"`
-	CreatedAt      time.Time        `json:"created_at"`
-	UpdatedAt      time.Time        `json:"updated_at"`
-	Stats          *QueueStats      `json:"stats"`
+	ID             string          `json:"id"`
+	Name           string          `json:"name"`
+	Description    string          `json:"description,omitempty"`
+	Email          string          `json:"email,omitempty"`
+	IsActive       bool            `json:"is_active"`
+	Agents         []*User         `json:"agents"`
+	SLAPolicy      *SLAPolicy      `json:"sla_policy"`
+	BusinessHours  *BusinessHours  `json:"business_hours"`
+	AutoAssignment bool            `json:"auto_assignment"`
+	AutoResponse   *CannedResponse `json:"auto_response"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
+	Stats          *QueueStats     `json:"stats"`
 }
 
 type Organization struct {
@@ -80,34 +80,34 @@ type Organization struct {
 }
 
 type Workflow struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description,omitempty"`
-	Status      WorkflowStatus    `json:"status"`
-	Triggers    []*Trigger        `json:"triggers"`
-	Conditions  []*Condition      `json:"conditions"`
-	Actions     []*Action         `json:"actions"`
-	Priority    int               `json:"priority"`
-	IsSystem    bool              `json:"is_system"`
-	CreatedBy   *User             `json:"created_by"`
-	LastRunAt   *time.Time        `json:"last_run_at,omitempty"`
-	RunCount    int               `json:"run_count"`
-	ErrorCount  int               `json:"error_count"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
+	ID          string             `json:"id"`
+	Name        string             `json:"name"`
+	Description string             `json:"description,omitempty"`
+	Status      WorkflowStatus     `json:"status"`
+	Triggers    []*Trigger         `json:"triggers"`
+	Conditions  []*Condition       `json:"conditions"`
+	Actions     []*Action          `json:"actions"`
+	Priority    int                `json:"priority"`
+	IsSystem    bool               `json:"is_system"`
+	CreatedBy   *User              `json:"created_by"`
+	LastRunAt   *time.Time         `json:"last_run_at,omitempty"`
+	RunCount    int                `json:"run_count"`
+	ErrorCount  int                `json:"error_count"`
+	CreatedAt   time.Time          `json:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at"`
 	Analytics   *WorkflowAnalytics `json:"analytics"`
 }
 
 type Message struct {
-	ID          string         `json:"id"`
-	Ticket      *Ticket        `json:"ticket"`
-	Author      *User          `json:"author"`
-	Content     string         `json:"content"`
-	ContentType ContentType    `json:"content_type"`
-	IsInternal  bool           `json:"is_internal"`
-	Attachments []*Attachment  `json:"attachments"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
+	ID          string        `json:"id"`
+	Ticket      *Ticket       `json:"ticket"`
+	Author      *User         `json:"author"`
+	Content     string        `json:"content"`
+	ContentType ContentType   `json:"content_type"`
+	IsInternal  bool          `json:"is_internal"`
+	Attachments []*Attachment `json:"attachments"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   time.Time     `json:"updated_at"`
 }
 
 type Note struct {
@@ -181,19 +181,19 @@ type Permission struct {
 }
 
 type SLAStatus struct {
-	Level           string         `json:"level"`
-	TimeRemaining   time.Duration  `json:"time_remaining"`
-	IsBreached      bool           `json:"is_breached"`
-	ResponseTarget  time.Time      `json:"response_target"`
+	Level            string        `json:"level"`
+	TimeRemaining    time.Duration `json:"time_remaining"`
+	IsBreached       bool          `json:"is_breached"`
+	ResponseTarget   time.Time     `json:"response_target"`
 	ResolutionTarget time.Time     `json:"resolution_target"`
 }
 
 type SLAPolicy struct {
-	ID              string        `json:"id"`
-	Name            string        `json:"name"`
-	ResponseTime    time.Duration `json:"response_time"`
-	ResolutionTime  time.Duration `json:"resolution_time"`
-	BusinessHours   bool          `json:"business_hours"`
+	ID             string        `json:"id"`
+	Name           string        `json:"name"`
+	ResponseTime   time.Duration `json:"response_time"`
+	ResolutionTime time.Duration `json:"resolution_time"`
+	BusinessHours  bool          `json:"business_hours"`
 }
 
 type BusinessHours struct {
@@ -220,17 +220,17 @@ type CustomField struct {
 }
 
 type UserPreferences struct {
-	Theme               string `json:"theme"`
-	Language            string `json:"language"`
-	NotificationsEmail  bool   `json:"notifications_email"`
-	NotificationsPush   bool   `json:"notifications_push"`
+	Theme                string `json:"theme"`
+	Language             string `json:"language"`
+	NotificationsEmail   bool   `json:"notifications_email"`
+	NotificationsPush    bool   `json:"notifications_push"`
 	EmailDigestFrequency string `json:"email_digest_frequency"`
 }
 
 type QueueStats struct {
-	OpenTickets      int           `json:"open_tickets"`
-	PendingTickets   int           `json:"pending_tickets"`
-	AverageWaitTime  time.Duration `json:"average_wait_time"`
+	OpenTickets       int           `json:"open_tickets"`
+	PendingTickets    int           `json:"pending_tickets"`
+	AverageWaitTime   time.Duration `json:"average_wait_time"`
 	AverageHandleTime time.Duration `json:"average_handle_time"`
 }
 
@@ -246,22 +246,22 @@ type Notification struct {
 // Analytics Types
 
 type WorkflowAnalytics struct {
-	TotalWorkflows      int                  `json:"total_workflows"`
-	ActiveWorkflows     int                  `json:"active_workflows"`
-	TotalExecutions     int                  `json:"total_executions"`
-	SuccessRate         float64              `json:"success_rate"`
-	AverageExecutionTime time.Duration       `json:"average_execution_time"`
-	TopWorkflows        []*WorkflowSummary   `json:"top_workflows"`
-	ExecutionTrends     []*ExecutionTrend    `json:"execution_trends"`
-	ErrorAnalysis       *ErrorAnalysis       `json:"error_analysis"`
-	ROIMetrics          *ROIMetrics          `json:"roi_metrics"`
+	TotalWorkflows       int                `json:"total_workflows"`
+	ActiveWorkflows      int                `json:"active_workflows"`
+	TotalExecutions      int                `json:"total_executions"`
+	SuccessRate          float64            `json:"success_rate"`
+	AverageExecutionTime time.Duration      `json:"average_execution_time"`
+	TopWorkflows         []*WorkflowSummary `json:"top_workflows"`
+	ExecutionTrends      []*ExecutionTrend  `json:"execution_trends"`
+	ErrorAnalysis        *ErrorAnalysis     `json:"error_analysis"`
+	ROIMetrics           *ROIMetrics        `json:"roi_metrics"`
 }
 
 type WorkflowSummary struct {
-	ID           string  `json:"id"`
-	Name         string  `json:"name"`
-	Executions   int     `json:"executions"`
-	SuccessRate  float64 `json:"success_rate"`
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Executions  int     `json:"executions"`
+	SuccessRate float64 `json:"success_rate"`
 }
 
 type ExecutionTrend struct {
@@ -284,15 +284,15 @@ type ROIMetrics struct {
 }
 
 type DashboardStats struct {
-	OpenTickets         int               `json:"open_tickets"`
-	PendingTickets      int               `json:"pending_tickets"`
-	OverdueTickets      int               `json:"overdue_tickets"`
-	TodayCreated        int               `json:"today_created"`
-	TodayClosed         int               `json:"today_closed"`
-	AverageResponseTime time.Duration     `json:"average_response_time"`
-	SLACompliance       float64           `json:"sla_compliance"`
-	AgentActivity       []*AgentActivity  `json:"agent_activity"`
-	RecentTickets       []*Ticket         `json:"recent_tickets"`
+	OpenTickets         int              `json:"open_tickets"`
+	PendingTickets      int              `json:"pending_tickets"`
+	OverdueTickets      int              `json:"overdue_tickets"`
+	TodayCreated        int              `json:"today_created"`
+	TodayClosed         int              `json:"today_closed"`
+	AverageResponseTime time.Duration    `json:"average_response_time"`
+	SLACompliance       float64          `json:"sla_compliance"`
+	AgentActivity       []*AgentActivity `json:"agent_activity"`
+	RecentTickets       []*Ticket        `json:"recent_tickets"`
 }
 
 type AgentActivity struct {
@@ -401,13 +401,13 @@ type PageInfo struct {
 // Input Types
 
 type CreateTicketInput struct {
-	Subject     string    `json:"subject"`
-	Description string    `json:"description"`
+	Subject     string          `json:"subject"`
+	Description string          `json:"description"`
 	Priority    *TicketPriority `json:"priority,omitempty"`
-	QueueID     string    `json:"queue_id"`
-	CustomerID  string    `json:"customer_id,omitempty"`
-	Tags        []string  `json:"tags,omitempty"`
-	Attachments []Upload  `json:"attachments,omitempty"`
+	QueueID     string          `json:"queue_id"`
+	CustomerID  string          `json:"customer_id,omitempty"`
+	Tags        []string        `json:"tags,omitempty"`
+	Attachments []Upload        `json:"attachments,omitempty"`
 }
 
 type UpdateTicketInput struct {
@@ -439,12 +439,12 @@ type UpdateUserInput struct {
 }
 
 type CreateWorkflowInput struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description,omitempty"`
-	Triggers    []TriggerInput  `json:"triggers"`
+	Name        string           `json:"name"`
+	Description string           `json:"description,omitempty"`
+	Triggers    []TriggerInput   `json:"triggers"`
 	Conditions  []ConditionInput `json:"conditions,omitempty"`
-	Actions     []ActionInput   `json:"actions"`
-	Priority    int             `json:"priority,omitempty"`
+	Actions     []ActionInput    `json:"actions"`
+	Priority    int              `json:"priority,omitempty"`
 }
 
 type UpdateWorkflowInput struct {
@@ -568,10 +568,10 @@ type WorkflowFilter struct {
 }
 
 type Pagination struct {
-	Page      int        `json:"page"`
-	Limit     int        `json:"limit"`
-	SortBy    string     `json:"sort_by,omitempty"`
-	SortOrder SortOrder  `json:"sort_order,omitempty"`
+	Page      int       `json:"page"`
+	Limit     int       `json:"limit"`
+	SortBy    string    `json:"sort_by,omitempty"`
+	SortOrder SortOrder `json:"sort_order,omitempty"`
 }
 
 // Payload Types
@@ -583,18 +583,18 @@ type AuthPayload struct {
 }
 
 type WorkflowExecution struct {
-	ID           string              `json:"id"`
-	Workflow     *Workflow           `json:"workflow"`
-	Ticket       *Ticket             `json:"ticket,omitempty"`
-	TriggerType  TriggerType         `json:"trigger_type"`
-	Status       ExecutionStatus     `json:"status"`
-	StartedAt    time.Time           `json:"started_at"`
-	CompletedAt  *time.Time          `json:"completed_at,omitempty"`
-	Duration     *time.Duration      `json:"duration,omitempty"`
-	ActionsRun   int                 `json:"actions_run"`
-	ActionsFailed int                `json:"actions_failed"`
-	ErrorMessage string              `json:"error_message,omitempty"`
-	ExecutionLog []*ExecutionLogEntry `json:"execution_log"`
+	ID            string               `json:"id"`
+	Workflow      *Workflow            `json:"workflow"`
+	Ticket        *Ticket              `json:"ticket,omitempty"`
+	TriggerType   TriggerType          `json:"trigger_type"`
+	Status        ExecutionStatus      `json:"status"`
+	StartedAt     time.Time            `json:"started_at"`
+	CompletedAt   *time.Time           `json:"completed_at,omitempty"`
+	Duration      *time.Duration       `json:"duration,omitempty"`
+	ActionsRun    int                  `json:"actions_run"`
+	ActionsFailed int                  `json:"actions_failed"`
+	ErrorMessage  string               `json:"error_message,omitempty"`
+	ExecutionLog  []*ExecutionLogEntry `json:"execution_log"`
 }
 
 type ExecutionLogEntry struct {
@@ -632,17 +632,17 @@ type IntegrationTestResult struct {
 }
 
 type Integration struct {
-	ID          string           `json:"id"`
-	Type        IntegrationType  `json:"type"`
-	Name        string           `json:"name"`
-	Description string           `json:"description,omitempty"`
+	ID          string            `json:"id"`
+	Type        IntegrationType   `json:"type"`
+	Name        string            `json:"name"`
+	Description string            `json:"description,omitempty"`
 	Status      IntegrationStatus `json:"status"`
-	Enabled     bool             `json:"enabled"`
-	Config      json.RawMessage  `json:"config"`
-	LastSync    *time.Time       `json:"last_sync,omitempty"`
-	Error       string           `json:"error,omitempty"`
-	CreatedAt   time.Time        `json:"created_at"`
-	UpdatedAt   time.Time        `json:"updated_at"`
+	Enabled     bool              `json:"enabled"`
+	Config      json.RawMessage   `json:"config"`
+	LastSync    *time.Time        `json:"last_sync,omitempty"`
+	Error       string            `json:"error,omitempty"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
 }
 
 type Webhook struct {
@@ -671,13 +671,13 @@ type WebhookLog struct {
 }
 
 type SystemStatus struct {
-	Healthy       bool              `json:"healthy"`
-	Version       string            `json:"version"`
-	Uptime        time.Duration     `json:"uptime"`
-	Services      map[string]bool   `json:"services"`
-	DatabaseStatus string           `json:"database_status"`
-	CacheStatus   string            `json:"cache_status"`
-	SearchStatus  string            `json:"search_status"`
+	Healthy        bool            `json:"healthy"`
+	Version        string          `json:"version"`
+	Uptime         time.Duration   `json:"uptime"`
+	Services       map[string]bool `json:"services"`
+	DatabaseStatus string          `json:"database_status"`
+	CacheStatus    string          `json:"cache_status"`
+	SearchStatus   string          `json:"search_status"`
 }
 
 type SystemAlert struct {
@@ -696,15 +696,15 @@ type WorkflowEvent struct {
 }
 
 type TicketMetrics struct {
-	TotalTickets           int              `json:"total_tickets"`
-	OpenTickets            int              `json:"open_tickets"`
-	ClosedTickets          int              `json:"closed_tickets"`
-	AverageResponseTime    time.Duration    `json:"average_response_time"`
-	AverageResolutionTime  time.Duration    `json:"average_resolution_time"`
-	SatisfactionScore      float64          `json:"satisfaction_score"`
-	TicketsByPriority      []*PriorityCount `json:"tickets_by_priority"`
-	TicketsByStatus        []*StatusCount   `json:"tickets_by_status"`
-	TrendsOverTime         []*TicketTrend   `json:"trends_over_time"`
+	TotalTickets          int              `json:"total_tickets"`
+	OpenTickets           int              `json:"open_tickets"`
+	ClosedTickets         int              `json:"closed_tickets"`
+	AverageResponseTime   time.Duration    `json:"average_response_time"`
+	AverageResolutionTime time.Duration    `json:"average_resolution_time"`
+	SatisfactionScore     float64          `json:"satisfaction_score"`
+	TicketsByPriority     []*PriorityCount `json:"tickets_by_priority"`
+	TicketsByStatus       []*StatusCount   `json:"tickets_by_status"`
+	TrendsOverTime        []*TicketTrend   `json:"trends_over_time"`
 }
 
 type PriorityCount struct {
@@ -762,16 +762,16 @@ type TeamsConfigInput struct {
 }
 
 type LDAPConfigInput struct {
-	Host           string            `json:"host"`
-	Port           int               `json:"port"`
-	BaseDN         string            `json:"base_dn"`
-	BindDN         string            `json:"bind_dn"`
-	BindPassword   string            `json:"bind_password"`
-	UserFilter     string            `json:"user_filter"`
-	GroupFilter    string            `json:"group_filter,omitempty"`
-	UseTLS         bool              `json:"use_tls"`
-	StartTLS       bool              `json:"start_tls"`
-	AttributeMap   map[string]string `json:"attribute_map,omitempty"`
+	Host         string            `json:"host"`
+	Port         int               `json:"port"`
+	BaseDN       string            `json:"base_dn"`
+	BindDN       string            `json:"bind_dn"`
+	BindPassword string            `json:"bind_password"`
+	UserFilter   string            `json:"user_filter"`
+	GroupFilter  string            `json:"group_filter,omitempty"`
+	UseTLS       bool              `json:"use_tls"`
+	StartTLS     bool              `json:"start_tls"`
+	AttributeMap map[string]string `json:"attribute_map,omitempty"`
 }
 
 // Enums
@@ -823,16 +823,16 @@ const (
 type ActionType string
 
 const (
-	ActionTypeAssignTicket      ActionType = "ASSIGN_TICKET"
-	ActionTypeChangeStatus      ActionType = "CHANGE_STATUS"
-	ActionTypeChangePriority    ActionType = "CHANGE_PRIORITY"
-	ActionTypeSendEmail         ActionType = "SEND_EMAIL"
-	ActionTypeSendNotification  ActionType = "SEND_NOTIFICATION"
-	ActionTypeAddTag            ActionType = "ADD_TAG"
-	ActionTypeRemoveTag         ActionType = "REMOVE_TAG"
-	ActionTypeAddNote           ActionType = "ADD_NOTE"
-	ActionTypeEscalate          ActionType = "ESCALATE"
-	ActionTypeWebhookCall       ActionType = "WEBHOOK_CALL"
+	ActionTypeAssignTicket     ActionType = "ASSIGN_TICKET"
+	ActionTypeChangeStatus     ActionType = "CHANGE_STATUS"
+	ActionTypeChangePriority   ActionType = "CHANGE_PRIORITY"
+	ActionTypeSendEmail        ActionType = "SEND_EMAIL"
+	ActionTypeSendNotification ActionType = "SEND_NOTIFICATION"
+	ActionTypeAddTag           ActionType = "ADD_TAG"
+	ActionTypeRemoveTag        ActionType = "REMOVE_TAG"
+	ActionTypeAddNote          ActionType = "ADD_NOTE"
+	ActionTypeEscalate         ActionType = "ESCALATE"
+	ActionTypeWebhookCall      ActionType = "WEBHOOK_CALL"
 )
 
 type IntegrationType string
@@ -860,10 +860,10 @@ const (
 type ExecutionStatus string
 
 const (
-	ExecutionStatusPending  ExecutionStatus = "PENDING"
-	ExecutionStatusRunning  ExecutionStatus = "RUNNING"
-	ExecutionStatusSuccess  ExecutionStatus = "SUCCESS"
-	ExecutionStatusFailed   ExecutionStatus = "FAILED"
+	ExecutionStatusPending   ExecutionStatus = "PENDING"
+	ExecutionStatusRunning   ExecutionStatus = "RUNNING"
+	ExecutionStatusSuccess   ExecutionStatus = "SUCCESS"
+	ExecutionStatusFailed    ExecutionStatus = "FAILED"
 	ExecutionStatusCancelled ExecutionStatus = "CANCELLED"
 )
 

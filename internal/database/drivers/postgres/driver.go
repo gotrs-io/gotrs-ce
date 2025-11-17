@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	_ "github.com/lib/pq"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	_ "github.com/lib/pq"
 )
 
 // PostgreSQLDriver implements the DatabaseDriver interface for PostgreSQL
@@ -26,12 +26,12 @@ func (d *PostgreSQLDriver) Connect(ctx context.Context, dsn string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
 		return err
 	}
-	
+
 	d.db = db
 	return nil
 }
@@ -55,29 +55,29 @@ func (d *PostgreSQLDriver) Ping(ctx context.Context) error {
 // CreateTable generates and returns a CREATE TABLE query for PostgreSQL
 func (d *PostgreSQLDriver) CreateTable(schema database.TableSchema) (database.Query, error) {
 	var parts []string
-	
+
 	// Determine primary key field
 	pkField := schema.PK
 	if pkField == "" {
 		pkField = "id"
 	}
-	
+
 	// Build column definitions
 	for colName, colDef := range schema.Columns {
 		colSQL := fmt.Sprintf("%s %s", colName, d.MapType(colDef.Type))
-		
+
 		if colName == pkField {
 			colSQL += " PRIMARY KEY"
 		}
-		
+
 		if colDef.Required {
 			colSQL += " NOT NULL"
 		}
-		
+
 		if colDef.Unique && colName != pkField {
 			colSQL += " UNIQUE"
 		}
-		
+
 		if colDef.Default != nil {
 			switch v := colDef.Default.(type) {
 			case string:
@@ -96,10 +96,10 @@ func (d *PostgreSQLDriver) CreateTable(schema database.TableSchema) (database.Qu
 				}
 			}
 		}
-		
+
 		parts = append(parts, colSQL)
 	}
-	
+
 	// Add timestamps if requested
 	if schema.Timestamps {
 		if _, ok := schema.Columns["create_time"]; !ok {
@@ -115,10 +115,10 @@ func (d *PostgreSQLDriver) CreateTable(schema database.TableSchema) (database.Qu
 			parts = append(parts, "change_by INTEGER NOT NULL")
 		}
 	}
-	
-	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n    %s\n)", 
+
+	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n    %s\n)",
 		schema.Name, strings.Join(parts, ",\n    "))
-	
+
 	return database.Query{SQL: sql, Args: nil}, nil
 }
 
@@ -138,7 +138,7 @@ func (d *PostgreSQLDriver) TableExists(tableName string) (bool, error) {
 			WHERE table_schema = 'public' 
 			AND table_name = $1
 		)`
-	
+
 	var exists bool
 	err := d.db.QueryRow(query, tableName).Scan(&exists)
 	return exists, err
@@ -149,7 +149,7 @@ func (d *PostgreSQLDriver) Insert(table string, data map[string]interface{}) (da
 	columns := make([]string, 0, len(data))
 	placeholders := make([]string, 0, len(data))
 	values := make([]interface{}, 0, len(data))
-	
+
 	i := 1
 	for col, val := range data {
 		columns = append(columns, col)
@@ -157,12 +157,12 @@ func (d *PostgreSQLDriver) Insert(table string, data map[string]interface{}) (da
 		values = append(values, val)
 		i++
 	}
-	
+
 	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING *",
 		table,
 		strings.Join(columns, ", "),
 		strings.Join(placeholders, ", "))
-	
+
 	return database.Query{SQL: sql, Args: values}, nil
 }
 
@@ -170,14 +170,14 @@ func (d *PostgreSQLDriver) Insert(table string, data map[string]interface{}) (da
 func (d *PostgreSQLDriver) Update(table string, data map[string]interface{}, where string, whereArgs ...interface{}) (database.Query, error) {
 	setClauses := make([]string, 0, len(data))
 	values := make([]interface{}, 0, len(data)+len(whereArgs))
-	
+
 	i := 1
 	for col, val := range data {
 		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", col, i))
 		values = append(values, val)
 		i++
 	}
-	
+
 	// Adjust where clause placeholders
 	adjustedWhere := where
 	for j := range whereArgs {
@@ -187,12 +187,12 @@ func (d *PostgreSQLDriver) Update(table string, data map[string]interface{}, whe
 		values = append(values, whereArgs[j])
 		i++
 	}
-	
+
 	sql := fmt.Sprintf("UPDATE %s SET %s WHERE %s RETURNING *",
 		table,
 		strings.Join(setClauses, ", "),
 		adjustedWhere)
-	
+
 	return database.Query{SQL: sql, Args: values}, nil
 }
 
@@ -208,12 +208,12 @@ func (d *PostgreSQLDriver) Select(table string, columns []string, where string, 
 	if len(columns) > 0 {
 		cols = strings.Join(columns, ", ")
 	}
-	
+
 	sql := fmt.Sprintf("SELECT %s FROM %s", cols, table)
 	if where != "" {
 		sql += " WHERE " + where
 	}
-	
+
 	return database.Query{SQL: sql, Args: whereArgs}, nil
 }
 
@@ -223,7 +223,7 @@ func (d *PostgreSQLDriver) MapType(schemaType string) string {
 	if strings.HasPrefix(schemaType, "varchar") {
 		return strings.ToUpper(schemaType)
 	}
-	
+
 	switch strings.ToLower(schemaType) {
 	case "serial":
 		return "SERIAL"
@@ -280,12 +280,12 @@ func (d *PostgreSQLDriver) BeginTx(ctx context.Context) (database.Transaction, e
 	if d.db == nil {
 		return nil, sql.ErrConnDone
 	}
-	
+
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &pgTransaction{tx: tx}, nil
 }
 

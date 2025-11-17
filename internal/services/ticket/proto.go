@@ -30,12 +30,12 @@ type TicketProto struct {
 // Request/Response types for gRPC
 
 type CreateTicketRequest struct {
-	Title       string            `json:"title"`
-	Description string            `json:"description"`
-	Priority    string            `json:"priority"`
-	QueueId     string            `json:"queue_id"`
-	CustomerId  string            `json:"customer_id"`
-	Tags        []string          `json:"tags"`
+	Title        string            `json:"title"`
+	Description  string            `json:"description"`
+	Priority     string            `json:"priority"`
+	QueueId      string            `json:"queue_id"`
+	CustomerId   string            `json:"customer_id"`
+	Tags         []string          `json:"tags"`
 	CustomFields map[string]string `json:"custom_fields"`
 }
 

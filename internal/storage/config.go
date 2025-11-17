@@ -11,17 +11,17 @@ import (
 type Config struct {
 	// Backend type: "DB" or "FS"
 	Backend string
-	
+
 	// Filesystem backend settings
 	FSBasePath string
-	
+
 	// Mixed mode settings
 	CheckAllBackends bool
-	
+
 	// Migration settings
 	MigrationBatchSize int
 	MigrationSleepMs   int
-	
+
 	// Database connection (for both backends)
 	DB *sql.DB
 }
@@ -36,12 +36,12 @@ func NewConfigFromEnv(db *sql.DB) *Config {
 		MigrationSleepMs:   getEnvInt("ARTICLE_STORAGE_MIGRATION_SLEEP_MS", 10),
 		DB:                 db,
 	}
-	
+
 	// Validate configuration
 	if err := config.Validate(); err != nil {
 		panic(fmt.Sprintf("Invalid storage configuration: %v", err))
 	}
-	
+
 	return config
 }
 
@@ -53,18 +53,18 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid backend type: %s (must be DB or FS)", c.Backend)
 	}
 	c.Backend = backend
-	
+
 	// Validate filesystem path if using FS backend
 	if c.Backend == "FS" || c.CheckAllBackends {
 		if c.FSBasePath == "" {
 			return fmt.Errorf("filesystem base path is required for FS backend")
 		}
-		
+
 		// Ensure path exists or can be created
 		if err := os.MkdirAll(c.FSBasePath, 0755); err != nil {
 			return fmt.Errorf("cannot create filesystem base path: %w", err)
 		}
-		
+
 		// Check write permissions
 		testFile := fmt.Sprintf("%s/.write_test", c.FSBasePath)
 		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
@@ -72,12 +72,12 @@ func (c *Config) Validate() error {
 		}
 		os.Remove(testFile)
 	}
-	
+
 	// Validate database connection
 	if c.DB == nil {
 		return fmt.Errorf("database connection is required")
 	}
-	
+
 	return nil
 }
 
@@ -86,7 +86,7 @@ func (c *Config) CreateBackend() (Backend, error) {
 	// Create primary backend
 	var primary Backend
 	var err error
-	
+
 	switch c.Backend {
 	case "DB":
 		primary = NewDatabaseBackend(c.DB)
@@ -98,11 +98,11 @@ func (c *Config) CreateBackend() (Backend, error) {
 	default:
 		return nil, fmt.Errorf("unknown backend type: %s", c.Backend)
 	}
-	
+
 	// If mixed mode is enabled, create fallback backends
 	if c.CheckAllBackends {
 		var fallbacks []Backend
-		
+
 		// Add the opposite backend as fallback
 		if c.Backend == "DB" {
 			fs, err := NewFilesystemBackend(c.FSBasePath, c.DB)
@@ -112,12 +112,12 @@ func (c *Config) CreateBackend() (Backend, error) {
 		} else {
 			fallbacks = append(fallbacks, NewDatabaseBackend(c.DB))
 		}
-		
+
 		if len(fallbacks) > 0 {
 			return NewMixedModeBackend(primary, fallbacks...), nil
 		}
 	}
-	
+
 	return primary, nil
 }
 
@@ -135,7 +135,7 @@ func getEnvBool(key string, defaultValue bool) bool {
 	if value == "" {
 		return defaultValue
 	}
-	
+
 	value = strings.ToLower(value)
 	return value == "true" || value == "1" || value == "yes" || value == "on"
 }
@@ -145,11 +145,11 @@ func getEnvInt(key string, defaultValue int) int {
 	if value == "" {
 		return defaultValue
 	}
-	
+
 	var intValue int
 	if _, err := fmt.Sscanf(value, "%d", &intValue); err == nil {
 		return intValue
 	}
-	
+
 	return defaultValue
 }

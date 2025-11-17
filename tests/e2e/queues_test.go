@@ -51,7 +51,7 @@ func TestQueueManagement(t *testing.T) {
 		newQueueBtn := browser.Page.Locator("a[href*='/queues/new'], button:has-text('New Queue'), button:has-text('Add Queue')")
 		count, _ := newQueueBtn.Count()
 		require.Greater(t, count, 0, "New queue button should exist")
-		
+
 		err = newQueueBtn.First().Click()
 		require.NoError(t, err, "Should be able to click new queue button")
 
@@ -63,7 +63,7 @@ func TestQueueManagement(t *testing.T) {
 
 		// Fill in queue details
 		testQueueName := fmt.Sprintf("TestQueue_%d", time.Now().Unix())
-		
+
 		nameInput := browser.Page.Locator("input[name='name'], input#name")
 		err = nameInput.Fill(testQueueName)
 		require.NoError(t, err, "Should fill queue name")
@@ -99,7 +99,7 @@ func TestQueueManagement(t *testing.T) {
 	t.Run("Edit queue", func(t *testing.T) {
 		err := browser.NavigateTo("/queues")
 		require.NoError(t, err)
-		
+
 		// Wait for queue list to load
 		err = browser.WaitForHTMX()
 		require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestQueueManagement(t *testing.T) {
 		// Find edit button for first queue
 		editBtn := browser.Page.Locator("a[href*='/edit'], button:has-text('Edit')").First()
 		count, _ := editBtn.Count()
-		
+
 		if count == 0 {
 			t.Skip("No queues available to edit")
 		}
@@ -158,7 +158,7 @@ func TestQueueManagement(t *testing.T) {
 	t.Run("Delete queue", func(t *testing.T) {
 		err := browser.NavigateTo("/queues")
 		require.NoError(t, err)
-		
+
 		// Wait for queue list
 		err = browser.WaitForHTMX()
 		require.NoError(t, err)
@@ -166,7 +166,7 @@ func TestQueueManagement(t *testing.T) {
 		// Find a test queue to delete
 		testQueue := browser.Page.Locator("*:has-text('TestQueue_')").First()
 		count, _ := testQueue.Count()
-		
+
 		if count == 0 {
 			t.Skip("No test queues available to delete")
 		}
@@ -177,7 +177,7 @@ func TestQueueManagement(t *testing.T) {
 		// Find delete button near the test queue
 		deleteBtn := browser.Page.Locator("button:has-text('Delete'), a[href*='/delete']").First()
 		count, _ = deleteBtn.Count()
-		
+
 		if count == 0 {
 			t.Skip("Delete functionality not available")
 		}
@@ -200,7 +200,7 @@ func TestQueueManagement(t *testing.T) {
 		browser.Page.WaitForTimeout(1000)
 		deletedQueue := browser.Page.Locator(fmt.Sprintf("*:has-text('%s')", queueText))
 		count, _ = deletedQueue.Count()
-		
+
 		// The queue might be soft-deleted and still visible but marked as inactive
 		// So we just log the result
 		t.Logf("Queue presence after delete: %d occurrences", count)
@@ -213,7 +213,7 @@ func TestQueueManagement(t *testing.T) {
 		// Look for search input
 		searchInput := browser.Page.Locator("input[type='search'], input[placeholder*='Search'], input[name='search']")
 		count, _ := searchInput.Count()
-		
+
 		if count == 0 {
 			t.Skip("Search functionality not available")
 		}

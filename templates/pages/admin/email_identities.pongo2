@@ -1,0 +1,926 @@
+{% extends "layouts/base.pongo2" %}
+
+{% block title %}Email Identities - GOTRS Admin{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <header class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Email Identities</h1>
+        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Manage outbound email identities, salutations, and signatures used by queues.
+        </p>
+    </header>
+
+    <div x-data="{ tab: '{{ CurrentTab|default:"system-addresses" }}' }">
+        <div class="border-b border-gray-200 dark:border-gray-700 mb-6 flex flex-wrap gap-2" role="tablist">
+            <button type="button" @click="tab = 'system-addresses'" :class="tab === 'system-addresses' ? 'border-gotrs-500 text-gotrs-600 dark:text-gotrs-300' : 'border-transparent text-gray-500 dark:text-gray-400'" class="px-4 py-2 text-sm font-medium border-b-2 focus:outline-none">
+                System Addresses
+            </button>
+            <button type="button" @click="tab = 'salutations'" :class="tab === 'salutations' ? 'border-gotrs-500 text-gotrs-600 dark:text-gotrs-300' : 'border-transparent text-gray-500 dark:text-gray-400'" class="px-4 py-2 text-sm font-medium border-b-2 focus:outline-none">
+                Salutations
+            </button>
+            <button type="button" @click="tab = 'signatures'" :class="tab === 'signatures' ? 'border-gotrs-500 text-gotrs-600 dark:text-gotrs-300' : 'border-transparent text-gray-500 dark:text-gray-400'" class="px-4 py-2 text-sm font-medium border-b-2 focus:outline-none">
+                Signatures
+            </button>
+        </div>
+
+        <section x-show="tab === 'system-addresses'" x-cloak>
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">System Addresses</h2>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Routing identities tied to queues.</p>
+                </div>
+                <button type="button" onclick="openSystemAddressModal()" class="inline-flex items-center rounded-md bg-gotrs-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gotrs-500">
+                    Add System Address
+                </button>
+            </div>
+            <div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Email</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Display Name</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Queue</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Status</th>
+                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                        {% for addr in SystemAddresses %}
+                        <tr>
+                            <td class="px-4 py-4 text-sm text-gray-900 dark:text-white font-medium">{{ addr.Email }}</td>
+                            <td class="px-4 py-4 text-sm text-gray-700 dark:text-gray-200">{{ addr.DisplayName }}</td>
+                            <td class="px-4 py-4 text-sm text-gray-700 dark:text-gray-200">{{ addr.QueueName|default:"Unassigned" }}</td>
+                            <td class="px-4 py-4 text-sm">
+                                {% if addr.ValidID == 1 %}
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">Active</span>
+                                {% else %}
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-300">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-4 text-sm text-right">
+                                <button type="button" onclick="openSystemAddressModal(this)" data-id="{{ addr.ID }}" data-email="{{ addr.Email|escape }}" data-display-name="{{ addr.DisplayName|escape }}" data-queue-id="{{ addr.QueueID }}" data-comments="{{ addr.Comments|default:''|escape }}" data-valid-id="{{ addr.ValidID }}" class="text-gotrs-600 hover:text-gotrs-800 dark:text-gotrs-300 dark:hover:text-gotrs-100">
+                                    Edit
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No system addresses configured.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section x-show="tab === 'salutations'" x-cloak>
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Salutations</h2>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Reusable greeting blocks rendered before responses.</p>
+                </div>
+                <button type="button" onclick="openSalutationModal()" class="inline-flex items-center rounded-md bg-gotrs-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gotrs-500">
+                    Add Salutation
+                </button>
+            </div>
+            <div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Name</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Content Type</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Status</th>
+                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                        {% for sal in Salutations %}
+                        <tr>
+                            <td class="px-4 py-4 text-sm text-gray-900 dark:text-white font-medium">{{ sal.Name }}</td>
+                            <td class="px-4 py-4 text-sm text-gray-700 dark:text-gray-200">{{ sal.ContentType|default:"text/plain" }}</td>
+                            <td class="px-4 py-4 text-sm">
+                                {% if sal.ValidID == 1 %}
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">Active</span>
+                                {% else %}
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-300">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-4 text-sm text-right">
+                                <button type="button" onclick="openSalutationModal(this)" data-id="{{ sal.ID }}" data-name="{{ sal.Name|escape }}" data-content-type="{{ sal.ContentType|default:'text/plain' }}" data-comments="{{ sal.Comments|default:''|escape }}" data-valid-id="{{ sal.ValidID }}" data-text-id="salutation-text-{{ sal.ID }}" class="text-gotrs-600 hover:text-gotrs-800 dark:text-gotrs-300 dark:hover:text-gotrs-100">
+                                    Edit
+                                </button>
+                                {% if sal.ContentType == 'text/html' %}
+                                <textarea id="salutation-text-{{ sal.ID }}" class="hidden" data-content-type="text/html">{{ sal.Text|safe }}</textarea>
+                                {% else %}
+                                <textarea id="salutation-text-{{ sal.ID }}" class="hidden" data-content-type="text/plain">{{ sal.Text|escape }}</textarea>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No salutations defined.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section x-show="tab === 'signatures'" x-cloak>
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Signatures</h2>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Footer blocks appended to outbound messages.</p>
+                </div>
+                <button type="button" onclick="openSignatureModal()" class="inline-flex items-center rounded-md bg-gotrs-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gotrs-500">
+                    Add Signature
+                </button>
+            </div>
+            <div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Name</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Content Type</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Status</th>
+                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                        {% for sig in Signatures %}
+                        <tr>
+                            <td class="px-4 py-4 text-sm text-gray-900 dark:text-white font-medium">{{ sig.Name }}</td>
+                            <td class="px-4 py-4 text-sm text-gray-700 dark:text-gray-200">{{ sig.ContentType|default:"text/plain" }}</td>
+                            <td class="px-4 py-4 text-sm">
+                                {% if sig.ValidID == 1 %}
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">Active</span>
+                                {% else %}
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-300">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-4 text-sm text-right">
+                                <button type="button" onclick="openSignatureModal(this)" data-id="{{ sig.ID }}" data-name="{{ sig.Name|escape }}" data-content-type="{{ sig.ContentType|default:'text/plain' }}" data-comments="{{ sig.Comments|default:''|escape }}" data-valid-id="{{ sig.ValidID }}" data-text-id="signature-text-{{ sig.ID }}" class="text-gotrs-600 hover:text-gotrs-800 dark:text-gotrs-300 dark:hover:text-gotrs-100">
+                                    Edit
+                                </button>
+                                {% if sig.ContentType == 'text/html' %}
+                                <textarea id="signature-text-{{ sig.ID }}" class="hidden" data-content-type="text/html">{{ sig.Text|safe }}</textarea>
+                                {% else %}
+                                <textarea id="signature-text-{{ sig.ID }}" class="hidden" data-content-type="text/plain">{{ sig.Text|escape }}</textarea>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No signatures defined.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+
+<!-- System Address Modal -->
+<div id="systemAddressModal" class="fixed inset-0 z-50 hidden overflow-y-auto" role="dialog" aria-modal="true">
+    <div class="relative flex min-h-full items-end justify-center px-4 pt-4 pb-20 text-center sm:items-center sm:p-0">
+        <div class="absolute inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <div class="relative inline-block w-full sm:w-3/4 max-w-3xl transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all dark:bg-gray-800">
+            <form onsubmit="submitSystemAddress(event)">
+                <input type="hidden" name="id">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4" id="system-address-modal-title">Add System Address</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email *</label>
+                            <input type="email" name="email" required class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Display Name *</label>
+                            <input type="text" name="display_name" required class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Queue *</label>
+                            <select name="queue_id" required class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500">
+                                <option value="">Select queue</option>
+                                {% for queue in Queues %}
+                                <option value="{{ queue.ID }}">{{ queue.Name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Comments</label>
+                            <textarea name="comments" rows="2" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                            <select name="valid_id" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500">
+                                <option value="1">Active</option>
+                                <option value="2">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gotrs-600 text-base font-medium text-white hover:bg-gotrs-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500 sm:ml-3 sm:w-auto sm:text-sm">Save</button>
+                    <button type="button" onclick="closeSystemAddressModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Shared Rich Text Modal -->
+<div id="templateBlockModal" class="fixed inset-0 z-50 hidden overflow-y-auto" role="dialog" aria-modal="true">
+    <div class="relative flex min-h-full items-end justify-center px-4 pt-4 pb-20 text-center sm:items-center sm:p-0">
+        <div class="absolute inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <div class="relative inline-block w-full sm:w-3/4 max-w-4xl transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all dark:bg-gray-800">
+            <form onsubmit="submitTemplateBlock(event)" data-block-type="signature">
+                <input type="hidden" name="id">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4" id="template-block-modal-title">Add Signature</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name *</label>
+                            <input type="text" name="name" required class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Content Type</label>
+                            <select name="content_type" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500">
+                                <option value="text/plain">text/plain</option>
+                                <option value="text/html">text/html</option>
+                            </select>
+                        </div>
+                        <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Body *</label>
+                                <textarea name="text" rows="5" required id="template-block-text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500"></textarea>
+                                <div id="template-block-editor" class="mt-3 hidden"></div>
+                                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Rich text editor supports formatting, links, tables, and images.</p>
+                            </div>
+                            <aside id="template-variable-panel" class="mt-6 lg:mt-0 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 p-4 space-y-3" aria-labelledby="template-variable-panel-heading">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p id="template-variable-panel-heading" class="text-sm font-semibold text-gray-900 dark:text-white">Template Variables</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">Click a placeholder to insert it into the body.</p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="template-variable-search" class="sr-only">Search template variables</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-3 flex items-center text-gray-400">
+                                            <i class="fas fa-search text-xs" aria-hidden="true"></i>
+                                        </span>
+                                        <input id="template-variable-search" type="search" autocomplete="off" placeholder="Search tokens" class="w-full rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 pl-9 pr-3 py-1.5 text-sm text-gray-900 dark:text-white focus:border-gotrs-500 focus:ring-gotrs-500" />
+                                    </div>
+                                </div>
+                                <div id="template-variable-categories" class="flex flex-wrap gap-2"></div>
+                                <div id="template-variable-list" class="space-y-2 max-h-72 overflow-y-auto pr-1 text-sm"></div>
+                                <p class="text-[11px] text-gray-500 dark:text-gray-400">Tokens follow Znuny smart-tag rules. Unsupported tags render as dashes.</p>
+                            </aside>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Comments</label>
+                            <textarea name="comments" rows="2" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                            <select name="valid_id" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500">
+                                <option value="1">Active</option>
+                                <option value="2">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gotrs-600 text-base font-medium text-white hover:bg-gotrs-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500 sm:ml-3 sm:w-auto sm:text-sm">Save</button>
+                    <button type="button" onclick="closeTemplateBlockModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="/static/js/tiptap.min.js"></script>
+<script src="/static/js/tiptap-editor.js"></script>
+<script>
+const templateBlockConfigs = {
+    signature: {
+        titleAdd: 'Add Signature',
+        titleEdit: 'Edit Signature',
+        apiBase: '/api/v1/signatures',
+        redirect: '/admin/email-identities?tab=signatures',
+        defaultContentType: 'text/html'
+    },
+    salutation: {
+        titleAdd: 'Add Salutation',
+        titleEdit: 'Edit Salutation',
+        apiBase: '/api/v1/salutations',
+        redirect: '/admin/email-identities?tab=salutations',
+        defaultContentType: 'text/plain'
+    }
+}
+
+let activeBlockType = 'signature'
+let blockEditorInitialized = false
+let blockEditorInstance = null
+let blockEditorContentType = templateBlockConfigs.signature.defaultContentType
+const blockHtmlPattern = /<(p|div|br|ul|ol|li|table|thead|tbody|tr|td|th|blockquote|h[1-6]|pre|code|span)/i
+
+const templateVariableCatalog = [
+    {
+        id: 'ticket',
+        label: 'Ticket Meta',
+        description: 'Identifiers, queues, and states',
+        tokens: [
+            { label: 'Ticket Number', snippet: '<OTRS_TICKET_TicketNumber>', hint: 'Complete ticket number with hook.' },
+            { label: 'Ticket ID', snippet: '<OTRS_TICKET_TicketID>', hint: 'Numerical database ID.' },
+            { label: 'Queue Name', snippet: '<OTRS_TICKET_Queue>', hint: 'Queue owning the ticket.' },
+            { label: 'Service', snippet: '<OTRS_TICKET_Service>', hint: 'Assigned service if present.' },
+            { label: 'State', snippet: '<OTRS_TICKET_State>', hint: 'Current workflow state.' },
+            { label: 'Last Article ID', snippet: '<OTRS_TICKET_LAST_ARTICLE_ID>', hint: 'Database ID for the newest article.' }
+        ]
+    },
+    {
+        id: 'customer-article',
+        label: 'Customer Article',
+        description: 'Latest customer message details',
+        tokens: [
+            { label: 'Subject', snippet: '<OTRS_CUSTOMER_SUBJECT>', hint: 'Full subject of the latest customer article.' },
+            { label: 'Subject (20 chars)', snippet: '<OTRS_CUSTOMER_SUBJECT[20]>', hint: 'First 20 characters of the subject.' },
+            { label: 'Body (5 lines)', snippet: '<OTRS_CUSTOMER_BODY[5]>', hint: 'First five lines of the body.' },
+            { label: 'Email Snippet', snippet: '<OTRS_CUSTOMER_EMAIL[6]>', hint: 'First six lines of the quoted email.' },
+            { label: 'Real Name', snippet: '<OTRS_CUSTOMER_REALNAME>', hint: 'Resolved customer full name.' }
+        ]
+    },
+    {
+        id: 'agent-article',
+        label: 'Agent Article',
+        description: 'Latest agent response metadata',
+        tokens: [
+            { label: 'Agent Subject (20)', snippet: '<OTRS_AGENT_SUBJECT[20]>', hint: 'First 20 characters from the agent subject.' },
+            { label: 'Agent Body (5)', snippet: '<OTRS_AGENT_BODY[5]>', hint: 'First five lines from the agent body.' },
+            { label: 'Agent From', snippet: '<OTRS_AGENT_From>', hint: 'From header of the agent article.' },
+            { label: 'Agent To', snippet: '<OTRS_AGENT_To>', hint: 'Recipient line of the agent article.' }
+        ]
+    },
+    {
+        id: 'customer-data',
+        label: 'Customer Data',
+        description: 'Profile values for the ticket requester',
+        tokens: [
+            { label: 'First Name', snippet: '<OTRS_CUSTOMER_DATA_UserFirstname>', hint: 'Customer first name.' },
+            { label: 'Last Name', snippet: '<OTRS_CUSTOMER_DATA_UserLastname>', hint: 'Customer last name.' },
+            { label: 'Email', snippet: '<OTRS_CUSTOMER_DATA_UserEmail>', hint: 'Primary email address.' },
+            { label: 'Company', snippet: '<OTRS_CUSTOMER_DATA_Company>', hint: 'Customer company/organization.' }
+        ]
+    },
+    {
+        id: 'owners',
+        label: 'Owners & Recipients',
+        description: 'Responsible agents and notification targets',
+        tokens: [
+            { label: 'Owner Name', snippet: '<OTRS_OWNER_UserFirstname>', hint: 'Ticket owner first name.' },
+            { label: 'Responsible Email', snippet: '<OTRS_RESPONSIBLE_UserEmail>', hint: 'Email of the responsible agent.' },
+            { label: 'Notification Recipient', snippet: '<OTRS_NOTIFICATION_RECIPIENT_UserFullname>', hint: 'Name of the current notification target.' },
+            { label: 'Current User', snippet: '<OTRS_CURRENT_UserFirstname>', hint: 'Actor running the action.' }
+        ]
+    },
+    {
+        id: 'dynamic-fields',
+        label: 'Dynamic Fields',
+        description: 'Custom ticket metadata',
+        tokens: [
+            { label: 'Dynamic Value', snippet: '<OTRS_TICKET_DynamicField_TestField>', hint: 'Internal value for dynamic field “TestField”.' },
+            { label: 'Dynamic Label', snippet: '<OTRS_TICKET_DynamicField_TestField_Value>', hint: 'Display label for dropdown/multiselect answers.' },
+            { label: 'Free Text 1', snippet: '<OTRS_TICKET_DynamicField_TicketFreeText1>', hint: 'Legacy free-text dynamic field.' }
+        ]
+    },
+    {
+        id: 'comments-dates',
+        label: 'Comments & Dates',
+        description: 'Quoted history and date stamps',
+        tokens: [
+            { label: 'Comment Snippet', snippet: '<OTRS_COMMENT[3]>', hint: 'First three lines from the existing comment.' },
+            { label: 'Email Date', snippet: '<OTRS_EMAIL_DATE>', hint: 'Received date in system timezone.' },
+            { label: 'Email Date (TZ)', snippet: '<OTRS_EMAIL_DATE[Europe/Berlin]>', hint: 'Received date rendered in the supplied timezone.' }
+        ]
+    },
+    {
+        id: 'config',
+        label: 'System Config',
+        description: 'Hostnames, hooks, and script aliases',
+        tokens: [
+            { label: 'Ticket Hook', snippet: '<OTRS_CONFIG_Ticket::Hook>', hint: 'Ticket hook prefix.' },
+            { label: 'Hook Divider', snippet: '<OTRS_CONFIG_Ticket::HookDivider>', hint: 'Divider between hook and number.' },
+            { label: 'HTTP Type', snippet: '<OTRS_CONFIG_HttpType>', hint: 'http or https based on system config.' },
+            { label: 'FQDN', snippet: '<OTRS_CONFIG_FQDN>', hint: 'Fully qualified domain name.' },
+            { label: 'Script Alias', snippet: '<OTRS_CONFIG_ScriptAlias>', hint: 'Relative script alias path.' }
+        ]
+    },
+    {
+        id: 'calendar',
+        label: 'Calendar',
+        description: 'Appointment reminders',
+        tokens: [
+            { label: 'Appointment Title', snippet: '<OTRS_APPOINTMENT_TITLE>', hint: 'Calendar appointment title.' },
+            { label: 'Appointment Link ID', snippet: '<OTRS_APPOINTMENT_APPOINTMENTID>', hint: 'ID for building appointment links.' }
+        ]
+    }
+]
+
+const templateVariableState = {
+    category: 'all',
+    search: ''
+}
+
+function canonicalContentType(value) {
+    if (!value) return 'text/html'
+    return value.split(';')[0].trim().toLowerCase()
+}
+
+function convertNewlinesToBreaks(value) {
+    if (!value) return ''
+    if (value.indexOf('\n') === -1 && value.indexOf('\r') === -1) return value
+    if (blockHtmlPattern.test(value)) return value
+    return value.replace(/(\r\n|\n|\r)/g, '<br>')
+}
+
+function prepareBlockEditorContent(value, contentType) {
+    if (!value) return ''
+    const normalizedType = canonicalContentType(contentType)
+    if (normalizedType === 'text/html' || normalizedType === 'text/plain') {
+        return convertNewlinesToBreaks(value)
+    }
+    return value
+}
+
+function htmlToPlainValue(html) {
+    if (!html) return ''
+    return html
+        .replace(/\r\n/g, '\n')
+        .replace(/<br\s*\/?>(\s*)/gi, '\n')
+        .replace(/<\/p>\s*<p>/gi, '\n')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<p[^>]*>/gi, '')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&amp;/gi, '&')
+        .trim()
+}
+
+function renderTemplateVariableCategories() {
+    const container = document.getElementById('template-variable-categories')
+    if (!container) return
+    container.innerHTML = ''
+    const categories = [{ id: 'all', label: 'All' }, ...templateVariableCatalog.map(c => ({ id: c.id, label: c.label }))]
+    categories.forEach((category) => {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.dataset.category = category.id
+        const isActive = templateVariableState.category === category.id
+        button.className = `text-xs px-3 py-1 rounded-full border ${isActive ? 'bg-gotrs-600 text-white border-gotrs-600' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-gotrs-400 hover:text-gotrs-600 dark:hover:text-gotrs-200'}`
+        button.textContent = category.label
+        button.addEventListener('click', () => {
+            templateVariableState.category = category.id
+            renderTemplateVariableCategories()
+            renderTemplateVariableList()
+        })
+        container.appendChild(button)
+    })
+}
+
+function getFilteredTemplateVariables() {
+    const results = []
+    const searchTerm = templateVariableState.search.trim().toLowerCase()
+    templateVariableCatalog.forEach((group) => {
+        if (templateVariableState.category !== 'all' && templateVariableState.category !== group.id) {
+            return
+        }
+        group.tokens.forEach((token) => {
+            if (!searchTerm) {
+                results.push({ group, token })
+                return
+            }
+            const haystack = `${token.label} ${token.snippet} ${token.hint}`.toLowerCase()
+            if (haystack.includes(searchTerm)) {
+                results.push({ group, token })
+            }
+        })
+    })
+    return results
+}
+
+function renderTemplateVariableList() {
+    const list = document.getElementById('template-variable-list')
+    if (!list) return
+    list.innerHTML = ''
+    const fragments = document.createDocumentFragment()
+    const matches = getFilteredTemplateVariables()
+
+    if (!matches.length) {
+        const emptyState = document.createElement('p')
+        emptyState.className = 'text-xs text-gray-500 dark:text-gray-400'
+        emptyState.textContent = 'No placeholders match the current filters.'
+        fragments.appendChild(emptyState)
+    } else {
+        matches.forEach(({ group, token }) => {
+            const button = document.createElement('button')
+            button.type = 'button'
+            button.dataset.templateSnippet = token.snippet
+            button.className = 'w-full text-left rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 p-3 hover:border-gotrs-400 focus:outline-none focus:ring-2 focus:ring-gotrs-500'
+
+            const titleRow = document.createElement('div')
+            titleRow.className = 'flex items-center justify-between gap-2'
+            const title = document.createElement('span')
+            title.className = 'text-sm font-semibold text-gray-900 dark:text-white'
+            title.textContent = token.label
+            const badge = document.createElement('span')
+            badge.className = 'text-[11px] font-medium text-gray-500 dark:text-gray-400'
+            badge.textContent = group.label
+            titleRow.appendChild(title)
+            titleRow.appendChild(badge)
+
+            const code = document.createElement('code')
+            code.className = 'mt-1 block font-mono text-xs text-gotrs-600 dark:text-gotrs-300 break-words'
+            code.textContent = token.snippet
+
+            const hint = document.createElement('p')
+            hint.className = 'mt-1 text-xs text-gray-500 dark:text-gray-400'
+            hint.textContent = token.hint
+
+            const cta = document.createElement('span')
+            cta.className = 'mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-gotrs-600 dark:text-gotrs-300'
+            cta.innerHTML = '<i class="fas fa-plus text-[10px]"></i> Insert'
+
+            button.appendChild(titleRow)
+            button.appendChild(code)
+            button.appendChild(hint)
+            button.appendChild(cta)
+            fragments.appendChild(button)
+        })
+    }
+
+    list.appendChild(fragments)
+}
+
+function initTemplateVariableHelper() {
+    const panel = document.getElementById('template-variable-panel')
+    if (!panel) return
+    const searchInput = document.getElementById('template-variable-search')
+    if (searchInput && !searchInput.dataset.helperBound) {
+        searchInput.addEventListener('input', (event) => {
+            templateVariableState.search = event.target.value
+            renderTemplateVariableList()
+        })
+        searchInput.dataset.helperBound = 'true'
+    }
+
+    const list = document.getElementById('template-variable-list')
+    if (list && !list.dataset.helperBound) {
+        list.addEventListener('click', (event) => {
+            const button = event.target.closest('button[data-template-snippet]')
+            if (!button) return
+            insertTemplateVariableSnippet(button.dataset.templateSnippet)
+        })
+        list.dataset.helperBound = 'true'
+    }
+
+    renderTemplateVariableCategories()
+    renderTemplateVariableList()
+}
+
+function insertTemplateVariableSnippet(snippet) {
+    if (!snippet) return
+    const targetId = 'template-block-editor'
+    const literal = snippet
+    const inserted = window.TiptapEditor && typeof window.TiptapEditor.insertLiteral === 'function'
+        ? window.TiptapEditor.insertLiteral(targetId, literal)
+        : false
+
+    if (inserted) return
+
+    const textField = document.getElementById('template-block-text')
+    if (!textField) return
+    const type = canonicalContentType(blockEditorContentType)
+    const payload = type === 'text/plain'
+        ? literal
+        : literal.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    insertTemplateVariableAtCursor(textField, payload)
+}
+
+function insertTemplateVariableAtCursor(target, snippet) {
+    if (!target) return
+    const start = target.selectionStart ?? target.value.length
+    const end = target.selectionEnd ?? target.value.length
+    const before = target.value.slice(0, start)
+    const after = target.value.slice(end)
+    target.value = `${before}${snippet}${after}`
+    const next = start + snippet.length
+    if (typeof target.setSelectionRange === 'function') {
+        target.setSelectionRange(next, next)
+    }
+    target.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
+function modalToggle(elementId, show) {
+    const el = document.getElementById(elementId)
+    if (!el) return
+    if (show) {
+        el.classList.remove('hidden')
+    } else {
+        el.classList.add('hidden')
+    }
+}
+
+function fillForm(form, values) {
+    Object.entries(values).forEach(([key, value]) => {
+        const field = form.querySelector(`[name="${key}"]`)
+        if (!field) return
+        if (field.tagName === 'SELECT') {
+            field.value = value ?? ''
+        } else if (field.type === 'checkbox') {
+            field.checked = Boolean(value)
+        } else {
+            field.value = value ?? ''
+        }
+    })
+}
+
+function openSystemAddressModal(trigger) {
+    const modal = document.getElementById('systemAddressModal')
+    const form = modal.querySelector('form')
+    const heading = document.getElementById('system-address-modal-title')
+    form.reset()
+    form.querySelector('[name="id"]').value = ''
+    heading.textContent = 'Add System Address'
+
+    if (trigger && trigger.dataset.id) {
+        heading.textContent = 'Edit System Address'
+        fillForm(form, {
+            id: trigger.dataset.id,
+            email: trigger.dataset.email,
+            display_name: trigger.dataset.displayName,
+            queue_id: trigger.dataset.queueId,
+            comments: trigger.dataset.comments,
+            valid_id: trigger.dataset.validId || '1'
+        })
+    }
+
+    modalToggle('systemAddressModal', true)
+}
+
+function closeSystemAddressModal() {
+    modalToggle('systemAddressModal', false)
+}
+
+async function submitSystemAddress(event) {
+    event.preventDefault()
+    const form = event.target
+    const id = form.querySelector('[name="id"]').value
+    const payload = {
+        email: form.email.value.trim(),
+        display_name: form.display_name.value.trim(),
+        queue_id: parseInt(form.queue_id.value, 10),
+        comments: form.comments.value.trim(),
+        valid_id: parseInt(form.valid_id.value, 10)
+    }
+
+    const url = id ? `/api/v1/system-addresses/${id}` : '/api/v1/system-addresses'
+    const method = id ? 'PUT' : 'POST'
+    const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+
+    if (response.ok) {
+        window.location.href = '/admin/email-identities?tab=system-addresses'
+        return
+    }
+
+    const data = await response.json().catch(() => ({}))
+    alert(data.error || 'Failed to save system address')
+}
+
+function getTemplateBlockConfig(type) {
+    return templateBlockConfigs[type] || templateBlockConfigs.signature
+}
+
+function ensureBlockContentTypeWatcher(form) {
+    const contentTypeField = form.querySelector('[name="content_type"]')
+    if (!contentTypeField || contentTypeField.dataset.blockWatcher) return
+    contentTypeField.addEventListener('change', (event) => {
+        blockEditorContentType = canonicalContentType(event.target.value)
+        const textField = document.getElementById('template-block-text')
+        ensureBlockEditor(textField ? textField.value : '')
+    })
+    contentTypeField.dataset.blockWatcher = 'true'
+}
+
+function openTemplateBlockModal(blockType, trigger) {
+    const config = getTemplateBlockConfig(blockType)
+    activeBlockType = blockType
+    const modal = document.getElementById('templateBlockModal')
+    if (!modal) return
+    const form = modal.querySelector('form')
+    const heading = document.getElementById('template-block-modal-title')
+    const textField = document.getElementById('template-block-text')
+    if (!form || !heading || !textField) return
+
+    form.reset()
+    form.dataset.blockType = blockType
+    form.querySelector('[name="id"]').value = ''
+    heading.textContent = config.titleAdd
+    let bodyContent = ''
+    blockEditorContentType = canonicalContentType(config.defaultContentType)
+
+    const contentTypeField = form.querySelector('[name="content_type"]')
+    if (contentTypeField) {
+        contentTypeField.value = config.defaultContentType
+    }
+
+    if (trigger && trigger.dataset.id) {
+        heading.textContent = config.titleEdit
+        const textAreaId = trigger.dataset.textId
+        const source = textAreaId ? document.getElementById(textAreaId) : null
+        bodyContent = source ? source.value : ''
+        const triggerContentType = source && source.dataset.contentType
+            ? source.dataset.contentType
+            : (trigger.dataset.contentType || config.defaultContentType)
+        blockEditorContentType = canonicalContentType(triggerContentType)
+        fillForm(form, {
+            id: trigger.dataset.id,
+            name: trigger.dataset.name,
+            content_type: blockEditorContentType,
+            comments: trigger.dataset.comments,
+            valid_id: trigger.dataset.validId || '1',
+            text: bodyContent
+        })
+        if (contentTypeField) {
+            contentTypeField.value = blockEditorContentType
+        }
+    } else {
+        textField.value = ''
+    }
+
+    ensureBlockContentTypeWatcher(form)
+    ensureBlockEditor(bodyContent)
+
+    modalToggle('templateBlockModal', true)
+}
+
+function ensureBlockEditor(content) {
+    const textField = document.getElementById('template-block-text')
+    const editorContainer = document.getElementById('template-block-editor')
+    if (!textField || !editorContainer) return
+
+    const nextContent = typeof content === 'string' ? content : textField.value || ''
+    const editorReadyContent = prepareBlockEditorContent(nextContent, blockEditorContentType)
+    const formattedForTextarea = canonicalContentType(blockEditorContentType) === 'text/plain'
+        ? nextContent
+        : (normalizeTextareaValue ? normalizeTextareaValue(editorReadyContent) : editorReadyContent)
+
+    if (!window.TiptapEditor) {
+        editorContainer.classList.add('hidden')
+        textField.classList.remove('sr-only')
+        textField.value = formattedForTextarea
+        return
+    }
+
+    if (!blockEditorInitialized) {
+        blockEditorInstance = TiptapEditor.init('template-block-editor', {
+            placeholder: 'Compose content…',
+            content: editorReadyContent,
+            editorMode: 'richtext',
+            onUpdate: (html) => {
+                const activeType = canonicalContentType(blockEditorContentType)
+                const serialized = activeType === 'text/plain'
+                    ? htmlToPlainValue(html)
+                    : (normalizeTextareaValue ? normalizeTextareaValue(html) : html)
+                textField.value = serialized
+            }
+        })
+        blockEditorInitialized = true
+        editorContainer.classList.remove('hidden')
+        textField.classList.add('sr-only')
+    } else if (blockEditorInstance && typeof blockEditorInstance.setContent === 'function') {
+        blockEditorInstance.setContent(editorReadyContent)
+    } else if (typeof TiptapEditor.setContent === 'function') {
+        TiptapEditor.setContent('template-block-editor', editorReadyContent)
+    } else {
+        textField.value = formattedForTextarea
+    }
+
+    textField.value = formattedForTextarea
+}
+
+function closeTemplateBlockModal() {
+    modalToggle('templateBlockModal', false)
+}
+
+async function submitTemplateBlock(event) {
+    event.preventDefault()
+    const form = event.target
+    const blockType = form.dataset.blockType || activeBlockType || 'signature'
+    const config = getTemplateBlockConfig(blockType)
+    const id = form.querySelector('[name="id"]').value
+    const payload = {
+        name: form.name.value.trim(),
+        content_type: form.content_type.value,
+        text: form.text.value,
+        comments: form.comments.value.trim(),
+        valid_id: parseInt(form.valid_id.value, 10)
+    }
+
+    const url = id ? `${config.apiBase}/${id}` : config.apiBase
+    const method = id ? 'PUT' : 'POST'
+    const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+
+    if (response.ok) {
+        window.location.href = config.redirect
+        return
+    }
+
+    const data = await response.json().catch(() => ({}))
+    alert(data.error || `Failed to save ${blockType}`)
+}
+
+function openSignatureModal(trigger) {
+    openTemplateBlockModal('signature', trigger)
+}
+
+function closeSignatureModal() {
+    closeTemplateBlockModal()
+}
+
+async function submitSignature(event) {
+    return submitTemplateBlock(event)
+}
+
+function openSalutationModal(trigger) {
+    openTemplateBlockModal('salutation', trigger)
+}
+
+function closeSalutationModal() {
+    closeTemplateBlockModal()
+}
+
+async function submitSalutation(event) {
+    return submitTemplateBlock(event)
+}
+
+function closeSignatureModal() {
+    closeTemplateBlockModal()
+}
+
+function openSignatureModal(trigger) {
+    openTemplateBlockModal('signature', trigger)
+}
+
+async function submitSignature(event) {
+    return submitTemplateBlock(event)
+}
+
+function closeSalutationModal() {
+    closeTemplateBlockModal()
+}
+
+function openSalutationModal(trigger) {
+    openTemplateBlockModal('salutation', trigger)
+}
+
+async function submitSalutation(event) {
+    return submitTemplateBlock(event)
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('templateBlockModal')
+    if (modal) {
+        const form = modal.querySelector('form')
+        if (form) {
+            form.dataset.blockType = 'signature'
+            const config = getTemplateBlockConfig('signature')
+            blockEditorContentType = canonicalContentType(config.defaultContentType)
+            const contentTypeField = form.querySelector('[name="content_type"]')
+            if (contentTypeField) {
+                contentTypeField.value = config.defaultContentType
+            }
+            ensureBlockContentTypeWatcher(form)
+        }
+    }
+
+    ensureBlockEditor('')
+    initTemplateVariableHelper()
+})
+</script>
+{% endblock %}

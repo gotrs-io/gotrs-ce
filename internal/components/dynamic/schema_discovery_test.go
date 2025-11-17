@@ -2,7 +2,7 @@ package dynamic
 
 import (
 	"testing"
-	
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,7 +46,7 @@ func TestSchemaDiscovery_GetTableColumns(t *testing.T) {
 
 	// Mock the query for getting columns
 	rows := sqlmock.NewRows([]string{
-		"column_name", "data_type", "is_nullable", 
+		"column_name", "data_type", "is_nullable",
 		"column_default", "character_maximum_length", "column_comment",
 	}).
 		AddRow("id", "integer", "NO", "nextval('users_id_seq')", nil, "Primary key").
@@ -66,18 +66,18 @@ func TestSchemaDiscovery_GetTableColumns(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Len(t, columns, 6)
-	
+
 	// Check first column
 	assert.Equal(t, "id", columns[0].Name)
 	assert.Equal(t, "integer", columns[0].DataType)
 	assert.False(t, columns[0].IsNullable)
 	assert.True(t, columns[0].IsPrimaryKey)
-	
+
 	// Check login column
 	assert.Equal(t, "login", columns[1].Name)
 	assert.Equal(t, "character varying", columns[1].DataType)
 	assert.Equal(t, 200, columns[1].MaxLength)
-	
+
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -122,7 +122,7 @@ func TestSchemaDiscovery_GenerateModuleConfig(t *testing.T) {
 
 	// Mock columns query
 	columnRows := sqlmock.NewRows([]string{
-		"column_name", "data_type", "is_nullable", 
+		"column_name", "data_type", "is_nullable",
 		"column_default", "character_maximum_length", "column_comment",
 	}).
 		AddRow("id", "integer", "NO", "nextval('ticket_id_seq')", nil, "").
@@ -147,7 +147,7 @@ func TestSchemaDiscovery_GenerateModuleConfig(t *testing.T) {
 	mock.ExpectQuery("SELECT (.+) FROM information_schema.table_constraints (.+)").
 		WithArgs("ticket").
 		WillReturnRows(constraintRows1)
-	
+
 	// Second constraints query (called from GenerateModuleConfig)
 	constraintRows2 := sqlmock.NewRows([]string{
 		"constraint_name", "constraint_type", "column_name",
@@ -169,35 +169,35 @@ func TestSchemaDiscovery_GenerateModuleConfig(t *testing.T) {
 	assert.Equal(t, "Ticket", config.Module.Singular)
 	assert.Equal(t, "Tickets", config.Module.Plural)
 	assert.Equal(t, "ticket", config.Module.Table)
-	
+
 	// Check fields
 	assert.Len(t, config.Fields, 6)
-	
+
 	// ID field should not show in form
 	idField := config.Fields[0]
 	assert.Equal(t, "id", idField.Name)
 	assert.False(t, idField.ShowInForm)
 	assert.True(t, idField.ShowInList)
-	
+
 	// Title field
 	titleField := findField(config.Fields, "title")
 	assert.NotNil(t, titleField)
 	assert.Equal(t, "string", titleField.Type)
 	assert.True(t, titleField.ShowInForm)
 	assert.True(t, titleField.ShowInList)
-	
+
 	// Timestamp field
 	createTimeField := findField(config.Fields, "create_time")
 	assert.NotNil(t, createTimeField)
 	assert.Equal(t, "datetime", createTimeField.Type)
 	assert.False(t, createTimeField.ShowInForm)
-	
+
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestSchemaDiscovery_InferFieldType(t *testing.T) {
 	discovery := &SchemaDiscovery{}
-	
+
 	tests := []struct {
 		columnName string
 		dataType   string
@@ -215,7 +215,7 @@ func TestSchemaDiscovery_InferFieldType(t *testing.T) {
 		{"notes", "text", "textarea"},
 		{"description", "text", "textarea"},
 		{"comments", "text", "textarea"},
-		
+
 		// By data type
 		{"anything", "integer", "integer"},
 		{"anything", "bigint", "integer"},
@@ -230,7 +230,7 @@ func TestSchemaDiscovery_InferFieldType(t *testing.T) {
 		{"anything", "varchar", "string"},
 		{"anything", "character varying", "string"},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.columnName+"_"+tt.dataType, func(t *testing.T) {
 			result := discovery.InferFieldType(tt.columnName, tt.dataType)

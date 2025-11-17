@@ -180,7 +180,7 @@ func (s *InternalNoteService) PinNote(ctx context.Context, noteID uint, userID u
 	if !note.IsPinned {
 		activityType = "unpinned"
 	}
-	
+
 	activity := &models.NoteActivity{
 		NoteID:       noteID,
 		TicketID:     note.TicketID,
@@ -356,7 +356,7 @@ func (s *InternalNoteService) validateNoteContent(content string) error {
 func (s *InternalNoteService) detectMentions(content string) []string {
 	re := regexp.MustCompile(`@(\w+)`)
 	matches := re.FindAllStringSubmatch(content, -1)
-	
+
 	mentionMap := make(map[string]bool)
 	for _, match := range matches {
 		if len(match) > 1 {
@@ -368,7 +368,7 @@ func (s *InternalNoteService) detectMentions(content string) []string {
 	for mention := range mentionMap {
 		mentions = append(mentions, mention)
 	}
-	
+
 	return mentions
 }
 
@@ -376,7 +376,7 @@ func (s *InternalNoteService) detectMentions(content string) []string {
 func (s *InternalNoteService) detectTicketReferences(content string) []uint {
 	re := regexp.MustCompile(`(?:TICKET-|#)(\d+)`)
 	matches := re.FindAllStringSubmatch(content, -1)
-	
+
 	ticketMap := make(map[uint]bool)
 	for _, match := range matches {
 		if len(match) > 1 {
@@ -392,7 +392,7 @@ func (s *InternalNoteService) detectTicketReferences(content string) []uint {
 	for ticketID := range ticketMap {
 		tickets = append(tickets, ticketID)
 	}
-	
+
 	return tickets
 }
 
@@ -409,7 +409,7 @@ func (s *InternalNoteService) substituteVariables(template string, variables map
 func (s *InternalNoteService) extractTemplateVariables(content string) []string {
 	re := regexp.MustCompile(`\{\{(\w+)\}\}`)
 	matches := re.FindAllStringSubmatch(content, -1)
-	
+
 	varMap := make(map[string]bool)
 	for _, match := range matches {
 		if len(match) > 0 {
@@ -421,6 +421,6 @@ func (s *InternalNoteService) extractTemplateVariables(content string) []string 
 	for variable := range varMap {
 		variables = append(variables, variable)
 	}
-	
+
 	return variables
 }

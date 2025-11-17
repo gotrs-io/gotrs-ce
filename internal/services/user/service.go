@@ -159,7 +159,7 @@ func (s *UserService) CreateUser(ctx context.Context, req *CreateUserRequest) (*
 
 	// Don't return password hash
 	user.PasswordHash = ""
-	
+
 	return &CreateUserResponse{
 		User: user.ToProto(),
 	}, nil
@@ -202,7 +202,7 @@ func (s *UserService) GetUser(ctx context.Context, req *GetUserRequest) (*GetUse
 	}
 
 	user.PasswordHash = "" // Never return password hash
-	
+
 	return &GetUserResponse{
 		User: user.ToProto(),
 	}, nil
@@ -282,7 +282,7 @@ func (s *UserService) UpdateUser(ctx context.Context, req *UpdateUserRequest) (*
 	})
 
 	existing.PasswordHash = "" // Never return password hash
-	
+
 	return &UpdateUserResponse{
 		User: existing.ToProto(),
 	}, nil
@@ -311,7 +311,7 @@ func (s *UserService) AuthenticateUser(ctx context.Context, req *AuthenticateUse
 	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 		s.metrics.IncrementCounter("user.authenticate.invalid_password", nil)
-		
+
 		// Publish failed login event
 		event := Event{
 			ID:        generateEventID(),
@@ -320,14 +320,14 @@ func (s *UserService) AuthenticateUser(ctx context.Context, req *AuthenticateUse
 			Source:    "user-service",
 			Version:   "1.0",
 			Data: map[string]interface{}{
-				"email":     req.Email,
-				"user_id":   user.ID,
-				"reason":    "invalid_password",
+				"email":      req.Email,
+				"user_id":    user.ID,
+				"reason":     "invalid_password",
 				"ip_address": req.IpAddress,
 			},
 		}
 		s.events.Publish(ctx, event)
-		
+
 		return nil, status.Error(codes.Unauthenticated, "Invalid credentials")
 	}
 
@@ -340,9 +340,9 @@ func (s *UserService) AuthenticateUser(ctx context.Context, req *AuthenticateUse
 	// Cache session
 	sessionKey := fmt.Sprintf("session:%s", token)
 	sessionData := map[string]interface{}{
-		"user_id":   user.ID,
-		"email":     user.Email,
-		"role":      user.Role,
+		"user_id":    user.ID,
+		"email":      user.Email,
+		"role":       user.Role,
 		"created_at": time.Now(),
 	}
 	if data, err := json.Marshal(sessionData); err == nil {
@@ -371,7 +371,7 @@ func (s *UserService) AuthenticateUser(ctx context.Context, req *AuthenticateUse
 	})
 
 	user.PasswordHash = "" // Never return password hash
-	
+
 	return &AuthenticateUserResponse{
 		User:  user.ToProto(),
 		Token: token,
@@ -387,10 +387,10 @@ func (s *UserService) ListUsers(ctx context.Context, req *ListUsersRequest) (*Li
 
 	// Build filter
 	filter := &ListFilter{
-		Role:      req.Role,
-		IsActive:  req.IsActive,
-		Limit:     int(req.Limit),
-		Offset:    int(req.Offset),
+		Role:     req.Role,
+		IsActive: req.IsActive,
+		Limit:    int(req.Limit),
+		Offset:   int(req.Offset),
 	}
 
 	// Get from repository
@@ -437,24 +437,24 @@ func (s *UserService) unaryInterceptor(
 	handler grpc.UnaryHandler,
 ) (interface{}, error) {
 	start := time.Now()
-	
+
 	// Call the handler
 	resp, err := handler(ctx, req)
-	
+
 	// Record metrics
 	duration := time.Since(start)
 	s.metrics.RecordDuration("grpc.request.duration", duration, map[string]string{
 		"method": info.FullMethod,
 		"status": grpcStatusCode(err),
 	})
-	
+
 	if err != nil {
 		log.Printf("gRPC error: %s: %v", info.FullMethod, err)
 		s.metrics.IncrementCounter("grpc.request.error", map[string]string{
 			"method": info.FullMethod,
 		})
 	}
-	
+
 	return resp, err
 }
 
@@ -484,7 +484,7 @@ func (s *UserService) validateCreateRequest(req *CreateUserRequest) error {
 
 func (s *UserService) detectChanges(old, new *User) map[string]interface{} {
 	changes := make(map[string]interface{})
-	
+
 	if old.FirstName != new.FirstName {
 		changes["first_name"] = map[string]string{"old": old.FirstName, "new": new.FirstName}
 	}
@@ -500,7 +500,7 @@ func (s *UserService) detectChanges(old, new *User) map[string]interface{} {
 	if old.IsActive != new.IsActive {
 		changes["is_active"] = map[string]bool{"old": old.IsActive, "new": new.IsActive}
 	}
-	
+
 	return changes
 }
 

@@ -86,28 +86,28 @@ func TestSimpleBrowser(t *testing.T) {
 
 	if url == baseURL+"/dashboard" {
 		t.Log("✅ Successfully logged in and redirected to dashboard")
-		
+
 		// Navigate to queues
 		_, err = page.Goto(baseURL + "/queues")
 		if err == nil {
 			t.Log("✅ Successfully navigated to queues page")
-			
+
 			// Try to find edit button
 			editButtons, _ := page.Locator("a[href*='edit'], button:has-text('Edit')").Count()
 			t.Logf("Found %d edit buttons on queues page", editButtons)
-			
+
 			if editButtons > 0 {
 				// Click first edit button
 				err = page.Locator("a[href*='edit'], button:has-text('Edit')").First().Click()
 				if err == nil {
 					time.Sleep(1 * time.Second)
-					
+
 					// Check for populated form fields
 					nameInput, _ := page.Locator("input[name='name'], input#name").First().InputValue()
 					if nameInput != "" {
 						t.Logf("✅ Edit form name field populated with: %s", nameInput)
 					}
-					
+
 					commentTextarea, _ := page.Locator("textarea[name='comment'], textarea#comment").First().InputValue()
 					if commentTextarea != "" {
 						t.Logf("✅ Edit form comment field populated with: %s", commentTextarea)

@@ -36,22 +36,22 @@ func main() {
 	// Set up Gin router
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	
+
 	// Register all handlers
 	registry := routing.NewHandlerRegistry()
 	if err := api.RegisterWithRouting(registry); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to register handlers: %v\n", err)
 		os.Exit(1)
 	}
-	
+
 	// Load routes from YAML
 	if err := routing.LoadYAMLRoutes(r, "./routes", registry); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to load routes: %v\n", err)
 		os.Exit(1)
 	}
-	
+
 	results := []ContractResult{}
-	
+
 	// Test Authentication Contracts
 	authContracts := []struct {
 		endpoint    string
@@ -85,16 +85,16 @@ func main() {
 			method:      "POST",
 			description: "Logout always succeeds",
 			body:        nil,
-			expectCode: 200,
+			expectCode:  200,
 		},
 	}
-	
+
 	for _, contract := range authContracts {
 		result := testContract(r, contract.method, contract.endpoint, contract.body, contract.expectCode)
 		result.Description = contract.description
 		results = append(results, result)
 	}
-	
+
 	// Test Ticket Contracts
 	ticketContracts := []struct {
 		endpoint    string
@@ -110,7 +110,7 @@ func main() {
 			description: "List tickets requires authentication",
 			body:        nil,
 			headers:     nil,
-			expectCode: 401,
+			expectCode:  401,
 		},
 		{
 			endpoint:    "/api/v1/tickets/1/close",
@@ -125,24 +125,24 @@ func main() {
 			expectCode: 200,
 		},
 	}
-	
+
 	for _, contract := range ticketContracts {
 		result := testContractWithHeaders(r, contract.method, contract.endpoint, contract.body, contract.headers, contract.expectCode)
 		result.Description = contract.description
 		results = append(results, result)
 	}
-	
+
 	// Generate report
 	report := generateReport(results)
-	
+
 	// Print results
 	printReport(report)
-	
+
 	// Save report to file
 	if err := saveReport(report); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to save report: %v\n", err)
 	}
-	
+
 	// Exit with error if any tests failed
 	if report.Failed > 0 {
 		os.Exit(1)
@@ -159,7 +159,7 @@ func testContractWithHeaders(r *gin.Engine, method, endpoint string, body interf
 		Method:   method,
 		Passed:   false,
 	}
-	
+
 	// Create request
 	var bodyBytes []byte
 	if body != nil {
@@ -170,13 +170,13 @@ func testContractWithHeaders(r *gin.Engine, method, endpoint string, body interf
 			return result
 		}
 	}
-	
+
 	req, err := http.NewRequest(method, endpoint, strings.NewReader(string(bodyBytes)))
 	if err != nil {
 		result.Error = fmt.Sprintf("Failed to create request: %v", err)
 		return result
 	}
-	
+
 	// Add headers
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -184,17 +184,17 @@ func testContractWithHeaders(r *gin.Engine, method, endpoint string, body interf
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
-	
+
 	// Execute request
 	w := &responseRecorder{}
 	r.ServeHTTP(w, req)
-	
+
 	// Check status code
 	if w.Code != expectCode {
 		result.Error = fmt.Sprintf("Expected status %d, got %d", expectCode, w.Code)
 		return result
 	}
-	
+
 	result.Passed = true
 	return result
 }
@@ -223,7 +223,7 @@ func generateReport(results []ContractResult) ContractReport {
 		TotalTests: len(results),
 		Results:    results,
 	}
-	
+
 	for _, result := range results {
 		if result.Passed {
 			report.Passed++
@@ -231,11 +231,11 @@ func generateReport(results []ContractResult) ContractReport {
 			report.Failed++
 		}
 	}
-	
+
 	if report.TotalTests > 0 {
 		report.SuccessRate = float64(report.Passed) / float64(report.TotalTests) * 100
 	}
-	
+
 	return report
 }
 
@@ -249,24 +249,24 @@ func printReport(report ContractReport) {
 	fmt.Printf("Failed: %d\n", report.Failed)
 	fmt.Printf("Success Rate: %.1f%%\n", report.SuccessRate)
 	fmt.Println(strings.Repeat("-", 60))
-	
+
 	for _, result := range report.Results {
 		status := "✅ PASS"
 		if !result.Passed {
 			status = "❌ FAIL"
 		}
-		
+
 		fmt.Printf("%s %s %s\n", status, result.Method, result.Endpoint)
 		fmt.Printf("   %s\n", result.Description)
-		
+
 		if result.Error != "" {
 			fmt.Printf("   Error: %s\n", result.Error)
 		}
 		fmt.Println()
 	}
-	
+
 	fmt.Println(strings.Repeat("=", 60))
-	
+
 	if report.Failed > 0 {
 		fmt.Printf("\n⚠️  %d contract(s) failed\n", report.Failed)
 	} else {
@@ -279,6 +279,6 @@ func saveReport(report ContractReport) error {
 	if err != nil {
 		return err
 	}
-	
+
 	return os.WriteFile("contract-test-report.json", data, 0644)
 }

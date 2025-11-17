@@ -124,11 +124,11 @@ func (s *TicketService) CreateTicket(ctx context.Context, req *CreateTicketReque
 		Source:    "ticket-service",
 		Version:   "1.0",
 		Data: map[string]interface{}{
-			"ticket_id":   ticket.ID,
+			"ticket_id":     ticket.ID,
 			"ticket_number": ticket.Number,
-			"queue_id":    ticket.QueueID,
-			"customer_id": ticket.CustomerID,
-			"priority":    ticket.Priority,
+			"queue_id":      ticket.QueueID,
+			"customer_id":   ticket.CustomerID,
+			"priority":      ticket.Priority,
 		},
 	}
 
@@ -348,24 +348,24 @@ func (s *TicketService) unaryInterceptor(
 	handler grpc.UnaryHandler,
 ) (interface{}, error) {
 	start := time.Now()
-	
+
 	// Call the handler
 	resp, err := handler(ctx, req)
-	
+
 	// Record metrics
 	duration := time.Since(start)
 	s.metrics.RecordDuration("grpc.request.duration", duration, map[string]string{
 		"method": info.FullMethod,
 		"status": grpcStatusCode(err),
 	})
-	
+
 	if err != nil {
 		log.Printf("gRPC error: %s: %v", info.FullMethod, err)
 		s.metrics.IncrementCounter("grpc.request.error", map[string]string{
 			"method": info.FullMethod,
 		})
 	}
-	
+
 	return resp, err
 }
 
@@ -386,7 +386,7 @@ func (s *TicketService) validateCreateRequest(req *CreateTicketRequest) error {
 
 func (s *TicketService) detectChanges(old, new *Ticket) map[string]interface{} {
 	changes := make(map[string]interface{})
-	
+
 	if old.Title != new.Title {
 		changes["title"] = map[string]string{"old": old.Title, "new": new.Title}
 	}
@@ -399,7 +399,7 @@ func (s *TicketService) detectChanges(old, new *Ticket) map[string]interface{} {
 	if old.Status != new.Status {
 		changes["status"] = map[string]string{"old": old.Status, "new": new.Status}
 	}
-	
+
 	return changes
 }
 
@@ -431,7 +431,6 @@ func grpcStatusCode(err error) string {
 func generateTicketID() string {
 	return fmt.Sprintf("TKT-%d", time.Now().UnixNano())
 }
-
 
 func generateEventID() string {
 	return fmt.Sprintf("EVT-%d", time.Now().UnixNano())

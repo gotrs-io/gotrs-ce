@@ -10,15 +10,17 @@
     "serve-docs": "echo 'Open docs/api/index.html in your browser'",
     "test:contract": "npm run generate-types && npm run validate-api && npm run generate-docs",
     "contracts:all": "npm run generate-types && npm run generate-docs && cd web && npm run test:contracts",
-    "build-css": "npx tailwindcss -i ./static/css/input.css -o ./static/css/output.css --minify",
-    "watch-css": "npx tailwindcss -i ./static/css/input.css -o ./static/css/output.css --watch",
+    "build-css": "BROWSERSLIST_IGNORE_OLD_DATA=1 npx --no-install tailwindcss -i ./static/css/input.css -o ./static/css/output.css --minify",
+    "watch-css": "BROWSERSLIST_IGNORE_OLD_DATA=1 npx --no-install tailwindcss -i ./static/css/input.css -o ./static/css/output.css --watch",
     "build-tiptap": "esbuild static/js/tiptap-bundle.js --bundle --minify --format=iife --global-name=TiptapBundle --outfile=static/js/tiptap.min.js",
     "build-js": "npm run build-tiptap",
     "build": "npm run build-css && npm run build-js"
   },
   "devDependencies": {
     "esbuild": "^0.25.10",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "browserslist": "^4.24.0",
+    "caniuse-lite": "^1.0.30001755"
   },
   "keywords": [
     "ticketing",

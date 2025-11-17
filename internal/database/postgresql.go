@@ -26,13 +26,13 @@ func NewPostgreSQLDatabase(config DatabaseConfig) *PostgreSQLDatabase {
 // Connect establishes connection to PostgreSQL database
 func (p *PostgreSQLDatabase) Connect() error {
 	dsn := p.buildDSN()
-	
+
 	var err error
 	p.db, err = sql.Open("postgres", dsn)
 	if err != nil {
 		return fmt.Errorf("failed to open PostgreSQL connection: %w", err)
 	}
-	
+
 	// Configure connection pool
 	if p.config.MaxOpenConns > 0 {
 		p.db.SetMaxOpenConns(p.config.MaxOpenConns)
@@ -46,7 +46,7 @@ func (p *PostgreSQLDatabase) Connect() error {
 	if p.config.ConnMaxIdleTime > 0 {
 		p.db.SetConnMaxIdleTime(p.config.ConnMaxIdleTime)
 	}
-	
+
 	return p.Ping()
 }
 
@@ -117,7 +117,7 @@ func (p *PostgreSQLDatabase) TableExists(ctx context.Context, tableName string) 
 			WHERE table_schema = 'public' 
 			AND table_name = $1
 		)`
-	
+
 	var exists bool
 	err := p.db.QueryRowContext(ctx, query, tableName).Scan(&exists)
 	return exists, err
@@ -147,19 +147,19 @@ func (p *PostgreSQLDatabase) GetTableColumns(ctx context.Context, tableName stri
 		) pk ON pk.column_name = c.column_name
 		WHERE c.table_schema = 'public' AND c.table_name = $1
 		ORDER BY c.ordinal_position`
-	
+
 	rows, err := p.db.QueryContext(ctx, query, tableName)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var columns []ColumnInfo
 	for rows.Next() {
 		var col ColumnInfo
 		var defaultValue sql.NullString
 		var maxLength sql.NullInt64
-		
+
 		err := rows.Scan(
 			&col.Name,
 			&col.DataType,
@@ -172,7 +172,7 @@ func (p *PostgreSQLDatabase) GetTableColumns(ctx context.Context, tableName stri
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if defaultValue.Valid {
 			col.DefaultValue = &defaultValue.String
 		}
@@ -180,10 +180,10 @@ func (p *PostgreSQLDatabase) GetTableColumns(ctx context.Context, tableName stri
 			length := int(maxLength.Int64)
 			col.MaxLength = &length
 		}
-		
+
 		columns = append(columns, col)
 	}
-	
+
 	return columns, rows.Err()
 }
 
@@ -207,18 +207,18 @@ func (p *PostgreSQLDatabase) CreateIndex(ctx context.Context, tableName, indexNa
 	if unique {
 		uniqueClause = "UNIQUE "
 	}
-	
+
 	quotedColumns := make([]string, len(columns))
 	for i, col := range columns {
 		quotedColumns[i] = p.Quote(col)
 	}
-	
+
 	query := fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)",
 		uniqueClause,
 		p.Quote(indexName),
 		p.Quote(tableName),
 		strings.Join(quotedColumns, ", "))
-	
+
 	_, err := p.db.ExecContext(ctx, query)
 	return err
 }
@@ -252,7 +252,7 @@ func (p *PostgreSQLDatabase) BuildInsert(tableName string, data map[string]inter
 	columns := make([]string, 0, len(data))
 	placeholders := make([]string, 0, len(data))
 	values := make([]interface{}, 0, len(data))
-	
+
 	i := 1
 	for col, val := range data {
 		columns = append(columns, p.Quote(col))
@@ -260,12 +260,12 @@ func (p *PostgreSQLDatabase) BuildInsert(tableName string, data map[string]inter
 		values = append(values, val)
 		i++
 	}
-	
+
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
 		p.Quote(tableName),
 		strings.Join(columns, ", "),
 		strings.Join(placeholders, ", "))
-	
+
 	return query, values
 }
 
@@ -273,22 +273,22 @@ func (p *PostgreSQLDatabase) BuildInsert(tableName string, data map[string]inter
 func (p *PostgreSQLDatabase) BuildUpdate(tableName string, data map[string]interface{}, where string, whereArgs []interface{}) (string, []interface{}) {
 	setParts := make([]string, 0, len(data))
 	values := make([]interface{}, 0, len(data)+len(whereArgs))
-	
+
 	i := 1
 	for col, val := range data {
 		setParts = append(setParts, fmt.Sprintf("%s = $%d", p.Quote(col), i))
 		values = append(values, val)
 		i++
 	}
-	
+
 	query := fmt.Sprintf("UPDATE %s SET %s WHERE %s",
 		p.Quote(tableName),
 		strings.Join(setParts, ", "),
 		where)
-	
+
 	// Append WHERE clause arguments
 	values = append(values, whereArgs...)
-	
+
 	return query, values
 }
 
@@ -298,23 +298,23 @@ func (p *PostgreSQLDatabase) BuildSelect(tableName string, columns []string, whe
 	for i, col := range columns {
 		quotedColumns[i] = p.Quote(col)
 	}
-	
+
 	query := fmt.Sprintf("SELECT %s FROM %s",
 		strings.Join(quotedColumns, ", "),
 		p.Quote(tableName))
-	
+
 	if where != "" {
 		query += " WHERE " + where
 	}
-	
+
 	if orderBy != "" {
 		query += " ORDER BY " + orderBy
 	}
-	
+
 	if limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d", limit)
 	}
-	
+
 	return query
 }
 
@@ -354,7 +354,7 @@ func (p *PostgreSQLDatabase) Stats() sql.DBStats {
 func (p *PostgreSQLDatabase) IsHealthy() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	return p.db.PingContext(ctx) == nil
 }
 
@@ -362,24 +362,24 @@ func (p *PostgreSQLDatabase) IsHealthy() bool {
 func (p *PostgreSQLDatabase) buildDSN() string {
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		p.config.Host, p.config.Port, p.config.Username, p.config.Password, p.config.Database, p.config.SSLMode)
-	
+
 	// Add additional options
 	for key, value := range p.config.Options {
 		dsn += fmt.Sprintf(" %s=%s", key, value)
 	}
-	
+
 	return dsn
 }
 
 // buildCreateTableSQL builds CREATE TABLE SQL for PostgreSQL
 func (p *PostgreSQLDatabase) buildCreateTableSQL(def *TableDefinition) string {
 	var parts []string
-	
+
 	// Columns
 	for _, col := range def.Columns {
 		parts = append(parts, p.buildColumnSQL(col))
 	}
-	
+
 	// Primary key constraints
 	var pkColumns []string
 	for _, col := range def.Columns {
@@ -390,21 +390,21 @@ func (p *PostgreSQLDatabase) buildCreateTableSQL(def *TableDefinition) string {
 	if len(pkColumns) > 0 {
 		parts = append(parts, fmt.Sprintf("PRIMARY KEY (%s)", strings.Join(pkColumns, ", ")))
 	}
-	
+
 	// Other constraints
 	for _, constraint := range def.Constraints {
 		parts = append(parts, p.buildConstraintSQL(constraint))
 	}
-	
+
 	return fmt.Sprintf("CREATE TABLE %s (\n  %s\n)", p.Quote(def.Name), strings.Join(parts, ",\n  "))
 }
 
 // buildColumnSQL builds column definition SQL
 func (p *PostgreSQLDatabase) buildColumnSQL(col ColumnDefinition) string {
 	var parts []string
-	
+
 	parts = append(parts, p.Quote(col.Name))
-	
+
 	// Data type
 	dataType := col.DataType
 	if col.Size != nil {
@@ -415,17 +415,17 @@ func (p *PostgreSQLDatabase) buildColumnSQL(col ColumnDefinition) string {
 		dataType += fmt.Sprintf("(%d)", *col.Precision)
 	}
 	parts = append(parts, dataType)
-	
+
 	// NOT NULL
 	if col.NotNull {
 		parts = append(parts, "NOT NULL")
 	}
-	
+
 	// DEFAULT
 	if col.DefaultValue != nil {
 		parts = append(parts, fmt.Sprintf("DEFAULT %s", *col.DefaultValue))
 	}
-	
+
 	return strings.Join(parts, " ")
 }
 
@@ -438,14 +438,14 @@ func (p *PostgreSQLDatabase) buildConstraintSQL(constraint ConstraintDefinition)
 			strings.Join(constraint.Columns, ", "),
 			*constraint.ReferenceTable,
 			strings.Join(constraint.ReferenceColumns, ", "))
-		
+
 		if constraint.OnDelete != nil {
 			fk += fmt.Sprintf(" ON DELETE %s", *constraint.OnDelete)
 		}
 		if constraint.OnUpdate != nil {
 			fk += fmt.Sprintf(" ON UPDATE %s", *constraint.OnUpdate)
 		}
-		
+
 		return fk
 	case "UNIQUE":
 		return fmt.Sprintf("CONSTRAINT %s UNIQUE (%s)",

@@ -9,28 +9,28 @@ import (
 
 // Ticket represents a support ticket
 type Ticket struct {
-	ID             string                 `json:"id" db:"id"`
-	Number         string                 `json:"number" db:"number"`
-	Title          string                 `json:"title" db:"title"`
-	Description    string                 `json:"description" db:"description"`
-	Priority       string                 `json:"priority" db:"priority"`
-	Status         string                 `json:"status" db:"status"`
-	QueueID        string                 `json:"queue_id" db:"queue_id"`
-	CustomerID     string                 `json:"customer_id" db:"customer_id"`
-	AssignedTo     *string                `json:"assigned_to,omitempty" db:"assigned_to"`
-	Tags           []string               `json:"tags" db:"tags"`
-	CustomFields   map[string]interface{} `json:"custom_fields" db:"custom_fields"`
-	CreatedAt      time.Time              `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time              `json:"updated_at" db:"updated_at"`
-	ResolvedAt     *time.Time             `json:"resolved_at,omitempty" db:"resolved_at"`
-	ClosedAt       *time.Time             `json:"closed_at,omitempty" db:"closed_at"`
-	DueAt          *time.Time             `json:"due_at,omitempty" db:"due_at"`
-	FirstResponseAt *time.Time            `json:"first_response_at,omitempty" db:"first_response_at"`
-	
+	ID              string                 `json:"id" db:"id"`
+	Number          string                 `json:"number" db:"number"`
+	Title           string                 `json:"title" db:"title"`
+	Description     string                 `json:"description" db:"description"`
+	Priority        string                 `json:"priority" db:"priority"`
+	Status          string                 `json:"status" db:"status"`
+	QueueID         string                 `json:"queue_id" db:"queue_id"`
+	CustomerID      string                 `json:"customer_id" db:"customer_id"`
+	AssignedTo      *string                `json:"assigned_to,omitempty" db:"assigned_to"`
+	Tags            []string               `json:"tags" db:"tags"`
+	CustomFields    map[string]interface{} `json:"custom_fields" db:"custom_fields"`
+	CreatedAt       time.Time              `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time              `json:"updated_at" db:"updated_at"`
+	ResolvedAt      *time.Time             `json:"resolved_at,omitempty" db:"resolved_at"`
+	ClosedAt        *time.Time             `json:"closed_at,omitempty" db:"closed_at"`
+	DueAt           *time.Time             `json:"due_at,omitempty" db:"due_at"`
+	FirstResponseAt *time.Time             `json:"first_response_at,omitempty" db:"first_response_at"`
+
 	// Relationships
-	Articles     []Article     `json:"articles,omitempty"`
-	Attachments  []Attachment  `json:"attachments,omitempty"`
-	History      []HistoryItem `json:"history,omitempty"`
+	Articles    []Article     `json:"articles,omitempty"`
+	Attachments []Attachment  `json:"attachments,omitempty"`
+	History     []HistoryItem `json:"history,omitempty"`
 }
 
 // Article represents a ticket article/message
@@ -65,16 +65,16 @@ type Attachment struct {
 
 // HistoryItem represents a ticket history entry
 type HistoryItem struct {
-	ID         string                 `json:"id" db:"id"`
-	TicketID   string                 `json:"ticket_id" db:"ticket_id"`
-	Action     string                 `json:"action" db:"action"`
-	Field      string                 `json:"field" db:"field"`
-	OldValue   *string                `json:"old_value,omitempty" db:"old_value"`
-	NewValue   *string                `json:"new_value,omitempty" db:"new_value"`
-	ChangedBy  string                 `json:"changed_by" db:"changed_by"`
-	ChangedAt  time.Time              `json:"changed_at" db:"changed_at"`
-	Comment    string                 `json:"comment,omitempty" db:"comment"`
-	Metadata   map[string]interface{} `json:"metadata" db:"metadata"`
+	ID        string                 `json:"id" db:"id"`
+	TicketID  string                 `json:"ticket_id" db:"ticket_id"`
+	Action    string                 `json:"action" db:"action"`
+	Field     string                 `json:"field" db:"field"`
+	OldValue  *string                `json:"old_value,omitempty" db:"old_value"`
+	NewValue  *string                `json:"new_value,omitempty" db:"new_value"`
+	ChangedBy string                 `json:"changed_by" db:"changed_by"`
+	ChangedAt time.Time              `json:"changed_at" db:"changed_at"`
+	Comment   string                 `json:"comment,omitempty" db:"comment"`
+	Metadata  map[string]interface{} `json:"metadata" db:"metadata"`
 }
 
 // ListFilter represents ticket list filtering options
@@ -98,13 +98,13 @@ type ListFilter struct {
 // Clone creates a deep copy of the ticket
 func (t *Ticket) Clone() *Ticket {
 	clone := *t
-	
+
 	// Clone slices
 	if t.Tags != nil {
 		clone.Tags = make([]string, len(t.Tags))
 		copy(clone.Tags, t.Tags)
 	}
-	
+
 	// Clone maps
 	if t.CustomFields != nil {
 		clone.CustomFields = make(map[string]interface{})
@@ -112,23 +112,23 @@ func (t *Ticket) Clone() *Ticket {
 			clone.CustomFields[k] = v
 		}
 	}
-	
+
 	// Clone relationships
 	if t.Articles != nil {
 		clone.Articles = make([]Article, len(t.Articles))
 		copy(clone.Articles, t.Articles)
 	}
-	
+
 	if t.Attachments != nil {
 		clone.Attachments = make([]Attachment, len(t.Attachments))
 		copy(clone.Attachments, t.Attachments)
 	}
-	
+
 	if t.History != nil {
 		clone.History = make([]HistoryItem, len(t.History))
 		copy(clone.History, t.History)
 	}
-	
+
 	return &clone
 }
 
@@ -146,31 +146,31 @@ func (t *Ticket) ToProto() *TicketProto {
 		CreatedAt:   t.CreatedAt.Unix(),
 		UpdatedAt:   t.UpdatedAt.Unix(),
 	}
-	
+
 	if t.AssignedTo != nil {
 		proto.AssignedTo = *t.AssignedTo
 	}
-	
+
 	if t.Tags != nil {
 		proto.Tags = t.Tags
 	}
-	
+
 	if t.ResolvedAt != nil {
 		proto.ResolvedAt = t.ResolvedAt.Unix()
 	}
-	
+
 	if t.ClosedAt != nil {
 		proto.ClosedAt = t.ClosedAt.Unix()
 	}
-	
+
 	if t.DueAt != nil {
 		proto.DueAt = t.DueAt.Unix()
 	}
-	
+
 	if t.FirstResponseAt != nil {
 		proto.FirstResponseAt = t.FirstResponseAt.Unix()
 	}
-	
+
 	return proto
 }
 
@@ -192,7 +192,7 @@ func (f *ListFilter) Hash() string {
 		f.Limit,
 		f.Offset,
 	)
-	
+
 	hash := sha256.Sum256([]byte(str))
 	return hex.EncodeToString(hash[:])
 }

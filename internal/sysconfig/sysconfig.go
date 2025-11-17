@@ -43,16 +43,16 @@ type Setting struct {
 	ChangeTime               time.Time `json:"change_time"`
 	CreateBy                 int       `json:"create_by"`
 	ChangeBy                 int       `json:"change_by"`
-	
+
 	// Parsed configuration data
-	Type        string                 `json:"type"`
-	Default     interface{}            `json:"default"`
-	Options     []Option               `json:"options,omitempty"`
-	Min         *int                   `json:"min,omitempty"`
-	Max         *int                   `json:"max,omitempty"`
-	Validation  string                 `json:"validation,omitempty"`
-	DependsOn   string                 `json:"depends_on,omitempty"`
-	DependsValue string                `json:"depends_value,omitempty"`
+	Type         string      `json:"type"`
+	Default      interface{} `json:"default"`
+	Options      []Option    `json:"options,omitempty"`
+	Min          *int        `json:"min,omitempty"`
+	Max          *int        `json:"max,omitempty"`
+	Validation   string      `json:"validation,omitempty"`
+	DependsOn    string      `json:"depends_on,omitempty"`
+	DependsValue string      `json:"depends_value,omitempty"`
 }
 
 // Option represents a select option
@@ -63,10 +63,10 @@ type Option struct {
 
 // DeployedConfig represents the deployed configuration file structure
 type DeployedConfig struct {
-	Version    string                 `yaml:"version"`
-	Timestamp  time.Time              `yaml:"timestamp"`
-	Settings   map[string]interface{} `yaml:"settings"`
-	Metadata   map[string]interface{} `yaml:"metadata"`
+	Version   string                 `yaml:"version"`
+	Timestamp time.Time              `yaml:"timestamp"`
+	Settings  map[string]interface{} `yaml:"settings"`
+	Metadata  map[string]interface{} `yaml:"metadata"`
 }
 
 // NewManager creates a new configuration manager
@@ -101,14 +101,14 @@ func (m *Manager) Load() error {
 	defer rows.Close()
 
 	settings := make(map[string]*Setting)
-	
+
 	for rows.Next() {
 		setting := &Setting{}
 		err := rows.Scan(
 			&setting.ID, &setting.Name, &setting.Description, &setting.Navigation,
 			&setting.IsInvisible, &setting.IsReadonly, &setting.IsRequired,
 			&setting.IsValid, &setting.HasConfigLevel, &setting.UserModificationPossible,
-			&setting.UserModificationActive, &setting.XMLContentRaw, 
+			&setting.UserModificationActive, &setting.XMLContentRaw,
 			&setting.XMLContentParsed, &setting.XMLFilename, &setting.EffectiveValue,
 			&setting.CreateTime, &setting.ChangeTime, &setting.CreateBy, &setting.ChangeBy,
 		)
@@ -268,7 +268,7 @@ func (m *Manager) GetArray(name string) []string {
 	if err != nil {
 		return nil
 	}
-	
+
 	if str, ok := val.(string); ok {
 		// Try to parse as JSON array
 		var arr []string
@@ -278,7 +278,7 @@ func (m *Manager) GetArray(name string) []string {
 		// Fall back to comma-separated
 		return strings.Split(str, ",")
 	}
-	
+
 	return nil
 }
 
@@ -312,7 +312,7 @@ func (m *Manager) getModifiedValue(name string) (interface{}, error) {
 		ORDER BY change_time DESC
 		LIMIT 1
 	`
-	
+
 	var value sql.NullString
 	err := m.db.QueryRow(query, name).Scan(&value)
 	if err != nil {
@@ -321,11 +321,11 @@ func (m *Manager) getModifiedValue(name string) (interface{}, error) {
 		}
 		return nil, err
 	}
-	
+
 	if !value.Valid {
 		return nil, nil
 	}
-	
+
 	return value.String, nil
 }
 
@@ -420,7 +420,7 @@ func (m *Manager) Deploy(outputPath string) error {
 		Timestamp: time.Now(),
 		Settings:  make(map[string]interface{}),
 		Metadata: map[string]interface{}{
-			"generated_by": "GoTRS SysConfig Manager",
+			"generated_by":   "GoTRS SysConfig Manager",
 			"total_settings": len(m.settings),
 		},
 	}
@@ -480,7 +480,7 @@ func (m *Manager) Reset(name string, userID int) error {
 		DELETE FROM sysconfig_modified 
 		WHERE name = $1
 	`
-	
+
 	_, err := m.db.Exec(query, name)
 	return err
 }

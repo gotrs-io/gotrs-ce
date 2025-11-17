@@ -275,7 +275,7 @@ func TestInternalNoteService(t *testing.T) {
 			wantErr bool
 		}{
 			{"Valid content", false},
-			{"", true}, // Empty
+			{"", true},                          // Empty
 			{string(make([]byte, 10001)), true}, // Too long (assuming 10k limit)
 			{"Normal note with @mention", false},
 		}

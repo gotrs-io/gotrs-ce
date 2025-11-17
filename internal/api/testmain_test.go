@@ -42,12 +42,25 @@ func init() {
 func ensureTestEnvironment() {
 	_ = os.Unsetenv("DATABASE_URL")
 	setDefaultEnv("APP_ENV", "test")
+	if os.Getenv("GOTRS_SKIP_TEST_DB") == "1" {
+		disableTestDBEnv()
+		return
+	}
 	setDefaultEnv("TEST_DB_DRIVER", "mysql")
 	setDefaultEnv("TEST_DB_HOST", "mariadb-test")
 	setDefaultEnv("TEST_DB_PORT", "3306")
 	setDefaultEnv("TEST_DB_NAME", "otrs_test")
 	setDefaultEnv("TEST_DB_USER", "otrs")
 	setDefaultEnv("TEST_DB_PASSWORD", "LetClaude.1n")
+}
+
+func disableTestDBEnv() {
+	_ = os.Unsetenv("TEST_DB_DRIVER")
+	_ = os.Unsetenv("TEST_DB_HOST")
+	_ = os.Unsetenv("TEST_DB_PORT")
+	_ = os.Unsetenv("TEST_DB_NAME")
+	_ = os.Unsetenv("TEST_DB_USER")
+	_ = os.Unsetenv("TEST_DB_PASSWORD")
 }
 
 func waitForTestDatabase(timeout time.Duration) error {

@@ -247,8 +247,11 @@
                         </div>
                         
                         <!-- Email Settings -->
-                        <div class="sm:col-span-2 mt-4">
+                        <div class="sm:col-span-2 mt-4 flex items-center justify-between">
                             <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Email Settings</h4>
+                            <a href="/admin/email-identities" class="text-xs font-medium text-gotrs-600 hover:text-gotrs-800 dark:text-gotrs-300 dark:hover:text-gotrs-100">
+                                Manage email identities
+                            </a>
                         </div>
                         
                         <div>
@@ -268,9 +271,16 @@
                                 class="mt-1 block w-full py-2 px-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-gotrs-500 focus:border-gotrs-500 sm:text-sm dark:text-white">
                                 <option value="">None</option>
                                 {% for salutation in Salutations %}
-                                <option value="{{ salutation.ID }}">{{ salutation.Name }}</option>
+                                <option value="{{ salutation.ID }}" data-text="{{ salutation.Text|escape }}" data-content-type="{{ salutation.ContentType|default:'text/plain' }}">{{ salutation.Name }}</option>
                                 {% endfor %}
                             </select>
+                        </div>
+
+                        <div class="sm:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Salutation Preview</label>
+                            <div id="salutationPreview" class="mt-1 rounded-md border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                                No salutation selected
+                            </div>
                         </div>
                         
                         <div>
@@ -279,9 +289,16 @@
                                 class="mt-1 block w-full py-2 px-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-gotrs-500 focus:border-gotrs-500 sm:text-sm dark:text-white">
                                 <option value="">None</option>
                                 {% for signature in Signatures %}
-                                <option value="{{ signature.ID }}">{{ signature.Name }}</option>
+                                <option value="{{ signature.ID }}" data-text="{{ signature.Text|escape }}" data-content-type="{{ signature.ContentType|default:'text/plain' }}">{{ signature.Name }}</option>
                                 {% endfor %}
                             </select>
+                        </div>
+
+                        <div class="sm:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Signature Preview</label>
+                            <div id="signaturePreview" class="mt-1 rounded-md border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                                No signature selected
+                            </div>
                         </div>
                         
                         <!-- Ticket Settings -->
@@ -415,7 +432,43 @@ let currentEditId = null;
 let deleteQueueId = null;
 let currentSort = { field: 'id', direction: 'asc' };
 
-// Restore filters from session storage
+function setPreview(previewId, text, contentType, emptyText) {
+    const preview = document.getElementById(previewId);
+    if (!preview) return;
+    if (text) {
+        preview.classList.remove('text-gray-500', 'dark:text-gray-400');
+        preview.classList.add('text-gray-900', 'dark:text-gray-100');
+        if (contentType === 'text/html') {
+            preview.innerHTML = text;
+        } else {
+            preview.textContent = text;
+        }
+    } else {
+        preview.classList.remove('text-gray-900', 'dark:text-gray-100');
+        preview.classList.add('text-gray-500', 'dark:text-gray-400');
+        preview.textContent = emptyText;
+    }
+}
+
+function updateSalutationPreview() {
+    const select = document.getElementById('queueSalutation');
+    if (!select) return;
+    const option = select.options[select.selectedIndex];
+    const text = option ? option.getAttribute('data-text') : '';
+    const contentType = option ? option.getAttribute('data-content-type') : '';
+    setPreview('salutationPreview', text, contentType, 'No salutation selected');
+}
+
+function updateSignaturePreview() {
+    const select = document.getElementById('queueSignature');
+    if (!select) return;
+    const option = select.options[select.selectedIndex];
+    const text = option ? option.getAttribute('data-text') : '';
+    const contentType = option ? option.getAttribute('data-content-type') : '';
+    setPreview('signaturePreview', text, contentType, 'No signature selected');
+}
+
+// Restore filters and bind preview listeners
 document.addEventListener('DOMContentLoaded', function() {
     const savedSearch = sessionStorage.getItem('queueSearch');
     const savedGroup = sessionStorage.getItem('queueGroup');
@@ -425,6 +478,17 @@ document.addEventListener('DOMContentLoaded', function() {
     if (savedGroup) document.getElementById('filterGroup').value = savedGroup;
     if (savedStatus) document.getElementById('filterStatus').value = savedStatus;
     
+    const salutationSelect = document.getElementById('queueSalutation');
+    if (salutationSelect) {
+        salutationSelect.addEventListener('change', updateSalutationPreview);
+    }
+    const signatureSelect = document.getElementById('queueSignature');
+    if (signatureSelect) {
+        signatureSelect.addEventListener('change', updateSignaturePreview);
+    }
+
+    updateSalutationPreview();
+    updateSignaturePreview();
     filterQueues();
 });
 
@@ -511,6 +575,8 @@ function openQueueModal() {
     document.getElementById('queue-modal-title').textContent = 'Add Queue';
     document.getElementById('queueForm').reset();
     document.getElementById('queueValidID').value = '1';
+    updateSalutationPreview();
+    updateSignaturePreview();
     document.getElementById('queueModal').classList.remove('hidden');
 }
 
@@ -542,6 +608,8 @@ async function editQueue(id) {
             document.getElementById('queueFollowUp').value = queue.follow_up_id || 1;
             document.getElementById('queueFollowUpLock').checked = queue.follow_up_lock === 1;
             document.getElementById('queueValidID').value = queue.valid_id || 1;
+            updateSalutationPreview();
+            updateSignaturePreview();
             
             document.getElementById('queueModal').classList.remove('hidden');
         } else {

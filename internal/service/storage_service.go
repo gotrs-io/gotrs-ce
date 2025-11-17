@@ -21,32 +21,32 @@ const (
 
 // FileMetadata contains metadata about a stored file
 type FileMetadata struct {
-	ID          string    `json:"id"`
-	OriginalName string   `json:"original_name"`
-	StoragePath string    `json:"storage_path"`
-	ContentType string    `json:"content_type"`
-	Size        int64     `json:"size"`
-	Checksum    string    `json:"checksum"`
-	UploadedAt  time.Time `json:"uploaded_at"`
+	ID           string    `json:"id"`
+	OriginalName string    `json:"original_name"`
+	StoragePath  string    `json:"storage_path"`
+	ContentType  string    `json:"content_type"`
+	Size         int64     `json:"size"`
+	Checksum     string    `json:"checksum"`
+	UploadedAt   time.Time `json:"uploaded_at"`
 }
 
 // StorageService defines the interface for file storage operations
 type StorageService interface {
 	// Store saves a file and returns its metadata
 	Store(ctx context.Context, file multipart.File, header *multipart.FileHeader, path string) (*FileMetadata, error)
-	
+
 	// Retrieve gets a file by its storage path
 	Retrieve(ctx context.Context, path string) (io.ReadCloser, error)
-	
+
 	// Delete removes a file from storage
 	Delete(ctx context.Context, path string) error
-	
+
 	// Exists checks if a file exists
 	Exists(ctx context.Context, path string) (bool, error)
-	
+
 	// GetURL returns a URL for accessing the file (for S3 pre-signed URLs)
 	GetURL(ctx context.Context, path string, expiry time.Duration) (string, error)
-	
+
 	// GetMetadata retrieves file metadata without downloading the file
 	GetMetadata(ctx context.Context, path string) (*FileMetadata, error)
 }
@@ -58,7 +58,7 @@ const (
 	// CtxKeyArticleID is the context key to pass the target article ID
 	CtxKeyArticleID ctxKey = "article_id"
 	// CtxKeyUserID is the context key to pass the acting user ID
-	CtxKeyUserID    ctxKey = "user_id"
+	CtxKeyUserID ctxKey = "user_id"
 )
 
 // WithArticleID attaches an article ID to context
@@ -69,8 +69,12 @@ func WithArticleID(ctx context.Context, articleID int) context.Context {
 // ArticleIDFromContext retrieves article ID from context
 func ArticleIDFromContext(ctx context.Context) (int, bool) {
 	v := ctx.Value(CtxKeyArticleID)
-	if v == nil { return 0, false }
-	if id, ok := v.(int); ok { return id, true }
+	if v == nil {
+		return 0, false
+	}
+	if id, ok := v.(int); ok {
+		return id, true
+	}
 	return 0, false
 }
 
@@ -82,8 +86,12 @@ func WithUserID(ctx context.Context, userID int) context.Context {
 // UserIDFromContext retrieves user ID from context
 func UserIDFromContext(ctx context.Context) (int, bool) {
 	v := ctx.Value(CtxKeyUserID)
-	if v == nil { return 0, false }
-	if id, ok := v.(int); ok { return id, true }
+	if v == nil {
+		return 0, false
+	}
+	if id, ok := v.(int); ok {
+		return id, true
+	}
 	return 0, false
 }
 
@@ -98,13 +106,13 @@ func NewLocalStorageService(basePath string) (*LocalStorageService, error) {
 	if err := os.MkdirAll(basePath, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create storage directory: %w", err)
 	}
-	
+
 	// Make absolute path
 	absPath, err := filepath.Abs(basePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path: %w", err)
 	}
-	
+
 	return &LocalStorageService{
 		basePath: absPath,
 	}, nil
@@ -115,37 +123,37 @@ func (s *LocalStorageService) Store(ctx context.Context, file multipart.File, he
 	// Sanitize the path to prevent directory traversal
 	cleanPath := sanitizePath(path)
 	fullPath := filepath.Join(s.basePath, cleanPath)
-	
+
 	// Ensure directory exists
 	dir := filepath.Dir(fullPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create directory: %w", err)
 	}
-	
+
 	// Create the file
 	dst, err := os.Create(fullPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create file: %w", err)
 	}
 	defer dst.Close()
-	
+
 	// Copy file content
 	size, err := io.Copy(dst, file)
 	if err != nil {
 		os.Remove(fullPath) // Clean up on error
 		return nil, fmt.Errorf("failed to write file: %w", err)
 	}
-	
+
 	// Generate metadata
 	metadata := &FileMetadata{
-		ID:          generateFileID(),
+		ID:           generateFileID(),
 		OriginalName: header.Filename,
-		StoragePath: cleanPath,
-		ContentType: header.Header.Get("Content-Type"),
-		Size:        size,
-		UploadedAt:  time.Now(),
+		StoragePath:  cleanPath,
+		ContentType:  header.Header.Get("Content-Type"),
+		Size:         size,
+		UploadedAt:   time.Now(),
 	}
-	
+
 	return metadata, nil
 }
 
@@ -153,18 +161,18 @@ func (s *LocalStorageService) Store(ctx context.Context, file multipart.File, he
 func (s *LocalStorageService) Retrieve(ctx context.Context, path string) (io.ReadCloser, error) {
 	cleanPath := sanitizePath(path)
 	fullPath := filepath.Join(s.basePath, cleanPath)
-	
+
 	// Check if file exists
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("file not found: %s", path)
 	}
-	
+
 	// Open file
 	file, err := os.Open(fullPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
-	
+
 	return file, nil
 }
 
@@ -172,21 +180,21 @@ func (s *LocalStorageService) Retrieve(ctx context.Context, path string) (io.Rea
 func (s *LocalStorageService) Delete(ctx context.Context, path string) error {
 	cleanPath := sanitizePath(path)
 	fullPath := filepath.Join(s.basePath, cleanPath)
-	
+
 	// Check if file exists
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 		return nil // File doesn't exist, consider it deleted
 	}
-	
+
 	// Delete file
 	if err := os.Remove(fullPath); err != nil {
 		return fmt.Errorf("failed to delete file: %w", err)
 	}
-	
+
 	// Try to remove empty directories (ignore errors)
 	dir := filepath.Dir(fullPath)
 	os.Remove(dir) // Will fail if not empty, which is fine
-	
+
 	return nil
 }
 
@@ -194,7 +202,7 @@ func (s *LocalStorageService) Delete(ctx context.Context, path string) error {
 func (s *LocalStorageService) Exists(ctx context.Context, path string) (bool, error) {
 	cleanPath := sanitizePath(path)
 	fullPath := filepath.Join(s.basePath, cleanPath)
-	
+
 	_, err := os.Stat(fullPath)
 	if os.IsNotExist(err) {
 		return false, nil
@@ -202,7 +210,7 @@ func (s *LocalStorageService) Exists(ctx context.Context, path string) (bool, er
 	if err != nil {
 		return false, fmt.Errorf("failed to check file existence: %w", err)
 	}
-	
+
 	return true, nil
 }
 
@@ -217,7 +225,7 @@ func (s *LocalStorageService) GetURL(ctx context.Context, path string, expiry ti
 func (s *LocalStorageService) GetMetadata(ctx context.Context, path string) (*FileMetadata, error) {
 	cleanPath := sanitizePath(path)
 	fullPath := filepath.Join(s.basePath, cleanPath)
-	
+
 	info, err := os.Stat(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -225,15 +233,15 @@ func (s *LocalStorageService) GetMetadata(ctx context.Context, path string) (*Fi
 		}
 		return nil, fmt.Errorf("failed to get file info: %w", err)
 	}
-	
+
 	metadata := &FileMetadata{
-		ID:          generateFileID(),
+		ID:           generateFileID(),
 		OriginalName: filepath.Base(path),
-		StoragePath: cleanPath,
-		Size:        info.Size(),
-		UploadedAt:  info.ModTime(),
+		StoragePath:  cleanPath,
+		Size:         info.Size(),
+		UploadedAt:   info.ModTime(),
 	}
-	
+
 	return metadata, nil
 }
 
@@ -243,14 +251,14 @@ func (s *LocalStorageService) GetMetadata(ctx context.Context, path string) (*Fi
 func sanitizePath(path string) string {
 	// Remove any .. or . components
 	path = filepath.Clean(path)
-	
+
 	// Remove leading slashes
 	path = strings.TrimPrefix(path, "/")
 	path = strings.TrimPrefix(path, "\\")
-	
+
 	// Replace any remaining .. with _
 	path = strings.ReplaceAll(path, "..", "_")
-	
+
 	return path
 }
 
@@ -295,7 +303,7 @@ func GenerateOTRSStoragePath(ticketID int, articleID int, filename string) strin
 func sanitizeFilename(filename string) string {
 	// Remove directory components
 	filename = filepath.Base(filename)
-	
+
 	// Replace problematic characters
 	replacer := strings.NewReplacer(
 		" ", "_",
@@ -318,19 +326,19 @@ func sanitizeFilename(filename string) string {
 		"\"", "_",
 		"'", "_",
 	)
-	
+
 	safe := replacer.Replace(filename)
-	
+
 	// Ensure it's not empty
 	if safe == "" {
 		safe = "unnamed_file"
 	}
-	
+
 	// Limit length
 	if len(safe) > 255 {
 		ext := filepath.Ext(safe)
 		safe = safe[:255-len(ext)] + ext
 	}
-	
+
 	return safe
 }

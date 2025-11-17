@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-11-13T15:19:05.178915562Z",
+  "generatedAt": "2025-11-17T17:10:14.26722843Z",
   "routes": [
     {
       "group": "admin",
@@ -236,6 +236,16 @@
       "method": "GET",
       "path": "/admin/queues",
       "handler": "handleAdminQueues",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "GET",
+      "path": "/admin/email-identities",
+      "handler": "handleAdminEmailIdentities",
       "middleware": [
         "auth",
         "admin"
@@ -546,6 +556,156 @@
       "method": "POST",
       "path": "/admin/customer/portal/logo/upload",
       "handler": "handleAdminUploadCustomerPortalLogo",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "GET",
+      "path": "/admin/customer-users",
+      "handler": "HandleAdminCustomerUsersList",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "GET",
+      "path": "/admin/customer-users/:id",
+      "handler": "HandleAdminCustomerUsersGet",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "POST",
+      "path": "/admin/customer-users",
+      "handler": "HandleAdminCustomerUsersCreate",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "PUT",
+      "path": "/admin/customer-users/:id",
+      "handler": "HandleAdminCustomerUsersUpdate",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "DELETE",
+      "path": "/admin/customer-users/:id",
+      "handler": "HandleAdminCustomerUsersDelete",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "GET",
+      "path": "/admin/customer-users/:id/tickets",
+      "handler": "HandleAdminCustomerUsersTickets",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "GET",
+      "path": "/admin/customer-users/import",
+      "handler": "HandleAdminCustomerUsersImportForm",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "POST",
+      "path": "/admin/customer-users/import",
+      "handler": "HandleAdminCustomerUsersImport",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "GET",
+      "path": "/admin/customer-users/export",
+      "handler": "HandleAdminCustomerUsersExport",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "POST",
+      "path": "/admin/customer-users/bulk-action",
+      "handler": "HandleAdminCustomerUsersBulkAction",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "GET",
+      "path": "/admin/settings",
+      "handler": "handleAdminSettings",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "GET",
+      "path": "/admin/templates",
+      "handler": "handleAdminTemplates",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "GET",
+      "path": "/admin/reports",
+      "handler": "handleAdminReports",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "GET",
+      "path": "/admin/logs",
+      "handler": "handleAdminLogs",
+      "middleware": [
+        "auth",
+        "admin"
+      ]
+    },
+    {
+      "group": "admin",
+      "method": "GET",
+      "path": "/admin/backup",
+      "handler": "handleAdminBackup",
       "middleware": [
         "auth",
         "admin"
@@ -907,6 +1067,276 @@
       "method": "POST",
       "path": "/api/v1/auth/login",
       "handler": "HandleLoginAPI"
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "GET",
+      "path": "/api/v1/tickets",
+      "handler": "HandleListTicketsAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "POST",
+      "path": "/api/v1/tickets",
+      "handler": "HandleCreateTicketAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "GET",
+      "path": "/api/v1/tickets/:id",
+      "handler": "HandleGetTicketAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "PUT",
+      "path": "/api/v1/tickets/:id",
+      "handler": "HandleUpdateTicketAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "DELETE",
+      "path": "/api/v1/tickets/:id",
+      "handler": "HandleDeleteTicketAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "POST",
+      "path": "/api/v1/tickets/:id/reopen",
+      "handler": "HandleReopenTicketAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "POST",
+      "path": "/api/v1/tickets/:id/time",
+      "handler": "handleAddTicketTime",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "GET",
+      "path": "/api/v1/tickets/:id/articles",
+      "handler": "HandleListArticlesAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "POST",
+      "path": "/api/v1/tickets/:id/articles",
+      "handler": "HandleCreateArticleAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "GET",
+      "path": "/api/v1/users",
+      "handler": "HandleListUsersAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "GET",
+      "path": "/api/v1/users/:id",
+      "handler": "HandleGetUserAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "GET",
+      "path": "/api/v1/groups",
+      "handler": "HandleListGroupsAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "POST",
+      "path": "/api/v1/search",
+      "handler": "HandleSearchAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "GET",
+      "path": "/api/v1/search/suggestions",
+      "handler": "HandleSearchSuggestionsAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "POST",
+      "path": "/api/v1/search/reindex",
+      "handler": "HandleReindexAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "GET",
+      "path": "/api/v1/search/health",
+      "handler": "HandleSearchHealthAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "POST",
+      "path": "/api/v1/users",
+      "handler": "HandleCreateUserAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "PUT",
+      "path": "/api/v1/users/:id",
+      "handler": "HandleUpdateUserAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "DELETE",
+      "path": "/api/v1/users/:id",
+      "handler": "HandleDeleteUserAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "PUT",
+      "path": "/api/v1/tickets/:id/articles/:article_id",
+      "handler": "HandleUpdateArticleAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "DELETE",
+      "path": "/api/v1/tickets/:id/articles/:article_id",
+      "handler": "HandleDeleteArticleAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "GET",
+      "path": "/api/v1/system-addresses",
+      "handler": "HandleListSystemAddressesAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "POST",
+      "path": "/api/v1/system-addresses",
+      "handler": "HandleCreateSystemAddressAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "PUT",
+      "path": "/api/v1/system-addresses/:id",
+      "handler": "HandleUpdateSystemAddressAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "GET",
+      "path": "/api/v1/salutations",
+      "handler": "HandleListSalutationsAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "POST",
+      "path": "/api/v1/salutations",
+      "handler": "HandleCreateSalutationAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "PUT",
+      "path": "/api/v1/salutations/:id",
+      "handler": "HandleUpdateSalutationAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "GET",
+      "path": "/api/v1/signatures",
+      "handler": "HandleListSignaturesAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "POST",
+      "path": "/api/v1/signatures",
+      "handler": "HandleCreateSignatureAPI",
+      "middleware": [
+        "auth"
+      ]
+    },
+    {
+      "group": "api-v1-protected",
+      "method": "PUT",
+      "path": "/api/v1/signatures/:id",
+      "handler": "HandleUpdateSignatureAPI",
+      "middleware": [
+        "auth"
+      ]
     },
     {
       "group": "auth",

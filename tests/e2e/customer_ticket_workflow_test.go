@@ -91,7 +91,7 @@ func TestCustomerTicketWorkflowComplete(t *testing.T) {
 	t.Run("Customer ticket creation validates required fields", func(t *testing.T) {
 		// This test would require a customer user to be set up
 		// For now, we'll test the validation logic by examining the form
-		
+
 		err := browser.NavigateTo("/customer/ticket/new")
 		require.NoError(t, err)
 
@@ -118,14 +118,14 @@ func TestCustomerTicketWorkflowComplete(t *testing.T) {
 	t.Run("Customer ticket creation generates proper ticket number format", func(t *testing.T) {
 		// This test verifies the ticket number generation logic
 		// The format should be: YYYYMMDDHHMMSS based on the handler code
-		
+
 		// For now, we'll verify the handler exists and is properly structured
 		// by checking that the route is registered
-		
+
 		// Navigate to a test page to ensure the server is responding
 		err := browser.NavigateTo("/health")
 		require.NoError(t, err)
-		
+
 		// The actual ticket number generation would be tested when we create a ticket
 		t.Log("Ticket number format should be: YYYYMMDDHHMMSS")
 	})
@@ -133,10 +133,10 @@ func TestCustomerTicketWorkflowComplete(t *testing.T) {
 	t.Run("Customer ticket creation creates associated article", func(t *testing.T) {
 		// This test verifies that when a ticket is created, an initial article is also created
 		// This is based on the handler code that creates both ticket and article
-		
+
 		// For now, we'll verify the handler logic exists
 		// The handler creates a ticket and then creates an article with the same content
-		
+
 		t.Log("Customer ticket creation should create both ticket and initial article")
 	})
 }

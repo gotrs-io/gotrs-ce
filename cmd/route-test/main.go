@@ -27,21 +27,21 @@ type RouteConfig struct {
 		Labels      map[string]string `yaml:"labels"`
 	} `yaml:"metadata"`
 	Spec struct {
-		Prefix  string   `yaml:"prefix"`
-		Routes  []Route  `yaml:"routes"`
+		Prefix string  `yaml:"prefix"`
+		Routes []Route `yaml:"routes"`
 	} `yaml:"spec"`
 }
 
 type Route struct {
-	Path        string                 `yaml:"path"`
-	Method      interface{}            `yaml:"method"` // Can be string or []string
-	Handler     string                 `yaml:"handler,omitempty"`
-	Handlers    map[string]string      `yaml:"handlers,omitempty"`
-	Name        string                 `yaml:"name"`
-	Description string                 `yaml:"description"`
-	TestCases   []TestCase             `yaml:"testCases,omitempty"`
-	Params      map[string]ParamSpec   `yaml:"params"`
-	Auth        *AuthSpec              `yaml:"auth,omitempty"`
+	Path        string               `yaml:"path"`
+	Method      interface{}          `yaml:"method"` // Can be string or []string
+	Handler     string               `yaml:"handler,omitempty"`
+	Handlers    map[string]string    `yaml:"handlers,omitempty"`
+	Name        string               `yaml:"name"`
+	Description string               `yaml:"description"`
+	TestCases   []TestCase           `yaml:"testCases,omitempty"`
+	Params      map[string]ParamSpec `yaml:"params"`
+	Auth        *AuthSpec            `yaml:"auth,omitempty"`
 }
 
 type TestCase struct {
@@ -73,12 +73,12 @@ type AuthSpec struct {
 
 // TestRunner executes tests against YAML-defined routes
 type TestRunner struct {
-	baseURL     string
-	client      *http.Client
-	routes      []RouteConfig
-	results     []TestResult
-	authToken   string
-	verbose     bool
+	baseURL   string
+	client    *http.Client
+	routes    []RouteConfig
+	results   []TestResult
+	authToken string
+	verbose   bool
 }
 
 type TestResult struct {
@@ -161,12 +161,12 @@ func main() {
 	duration := time.Since(start)
 
 	runner.PrintResults()
-	
+
 	// Print summary
 	passed := 0
 	failed := 0
 	skipped := 0
-	
+
 	for _, result := range runner.results {
 		if result.Skipped {
 			skipped++
@@ -227,7 +227,7 @@ func (tr *TestRunner) LoadRoutes(routesDir string) error {
 
 func (tr *TestRunner) RunTests() {
 	for _, routeGroup := range tr.routes {
-		fmt.Printf("🔍 Testing route group: %s (%s)\n", 
+		fmt.Printf("🔍 Testing route group: %s (%s)\n",
 			routeGroup.Metadata.Name, routeGroup.Metadata.Namespace)
 
 		for _, route := range routeGroup.Spec.Routes {
@@ -238,7 +238,7 @@ func (tr *TestRunner) RunTests() {
 
 func (tr *TestRunner) testRoute(routeGroup RouteConfig, route Route) {
 	fullPath := routeGroup.Spec.Prefix + route.Path
-	
+
 	// If no test cases defined, create basic tests
 	if len(route.TestCases) == 0 {
 		tr.createBasicTests(routeGroup, route, fullPath)
@@ -256,7 +256,7 @@ func (tr *TestRunner) testRoute(routeGroup RouteConfig, route Route) {
 				SkipReason: testCase.SkipReason,
 			})
 			if tr.verbose {
-				fmt.Printf("  ⏭️  %s: %s (skipped: %s)\n", 
+				fmt.Printf("  ⏭️  %s: %s (skipped: %s)\n",
 					route.Name, testCase.Name, testCase.SkipReason)
 			}
 			continue
@@ -307,12 +307,12 @@ func (tr *TestRunner) createBasicTests(routeGroup RouteConfig, route Route, full
 
 func (tr *TestRunner) runTestCase(routeGroup RouteConfig, route Route, testCase TestCase, fullPath, method string) {
 	start := time.Now()
-	
+
 	// Replace path parameters with test values
 	testURL := tr.baseURL + fullPath
 	testURL = strings.ReplaceAll(testURL, ":id", "1")
 	testURL = strings.ReplaceAll(testURL, ":username", "testuser")
-	
+
 	// Prepare request body
 	var body io.Reader
 	if len(testCase.Input) > 0 {
@@ -365,10 +365,10 @@ func (tr *TestRunner) runTestCase(routeGroup RouteConfig, route Route, testCase 
 	}
 
 	duration := time.Since(start)
-	
+
 	// Check result
 	passed := tr.checkResult(testCase, resp.StatusCode, string(responseBody))
-	
+
 	tr.recordResult(routeGroup, route, testCase, testURL, method, testCase.StatusCode, resp.StatusCode, duration, passed, "", string(responseBody))
 }
 
@@ -426,10 +426,10 @@ func (tr *TestRunner) recordResult(routeGroup RouteConfig, route Route, testCase
 		if !passed {
 			status = "❌"
 		}
-		
-		fmt.Printf("  %s %s %s %s -> %d (expected %d) [%s]\n", 
+
+		fmt.Printf("  %s %s %s %s -> %d (expected %d) [%s]\n",
 			status, method, route.Name, testCase.Name, actual, expected, duration.Round(time.Millisecond))
-			
+
 		if !passed && error != "" {
 			fmt.Printf("     Error: %s\n", error)
 		}
@@ -443,30 +443,30 @@ func (tr *TestRunner) PrintResults() {
 
 	fmt.Println("\n📋 Detailed Results:")
 	fmt.Println("=" + strings.Repeat("=", 80))
-	
+
 	for _, result := range tr.results {
 		if result.Skipped {
 			continue
 		}
-		
+
 		status := "✅ PASS"
 		if !result.Passed {
 			status = "❌ FAIL"
 		}
-		
+
 		fmt.Printf("%s | %s | %s %s\n", status, result.RouteGroup, result.Method, result.RouteName)
 		fmt.Printf("     URL: %s\n", result.URL)
-		fmt.Printf("     Expected: %d, Got: %d, Duration: %s\n", 
+		fmt.Printf("     Expected: %d, Got: %d, Duration: %s\n",
 			result.Expected, result.Actual, result.Duration.Round(time.Millisecond))
-		
+
 		if result.Error != "" {
 			fmt.Printf("     Error: %s\n", result.Error)
 		}
-		
+
 		if !result.Passed && len(result.ResponseBody) > 0 && len(result.ResponseBody) < 200 {
 			fmt.Printf("     Response: %s\n", strings.TrimSpace(result.ResponseBody))
 		}
-		
+
 		fmt.Println()
 	}
 }

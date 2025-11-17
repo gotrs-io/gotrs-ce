@@ -28,7 +28,7 @@ type SafeRow struct {
 	data map[string]interface{}
 }
 
-// SafeRows provides access to multiple query results  
+// SafeRows provides access to multiple query results
 type SafeRows struct {
 	rows []map[string]interface{}
 }
@@ -41,14 +41,14 @@ type Engine struct {
 
 // LambdaConfig holds configuration for lambda execution
 type LambdaConfig struct {
-	TimeoutMs    int64 `yaml:"timeout_ms" json:"timeout_ms"`
+	TimeoutMs     int64 `yaml:"timeout_ms" json:"timeout_ms"`
 	MemoryLimitMB int64 `yaml:"memory_limit_mb" json:"memory_limit_mb"`
 }
 
 // DefaultLambdaConfig returns safe default configuration
 func DefaultLambdaConfig() LambdaConfig {
 	return LambdaConfig{
-		TimeoutMs:    5000,  // 5 second timeout
+		TimeoutMs:     5000, // 5 second timeout
 		MemoryLimitMB: 32,   // 32MB memory limit
 	}
 }
@@ -72,7 +72,7 @@ func (e *Engine) Close() {
 func (e *Engine) ExecuteLambda(code string, execCtx ExecutionContext, config LambdaConfig) (string, error) {
 	// Create fresh runtime for each execution to ensure isolation
 	runtime := goja.New()
-	
+
 	// Set execution timeout
 	timeoutCtx, cancel := context.WithTimeout(e.ctx, time.Duration(config.TimeoutMs)*time.Millisecond)
 	defer cancel()
@@ -123,13 +123,13 @@ func (e *Engine) injectGlobals(runtime *goja.Runtime, execCtx ExecutionContext) 
 
 	// Create database interface object
 	dbObj := runtime.NewObject()
-	
+
 	// Add queryRow method
 	dbObj.Set("queryRow", func(call goja.FunctionCall) goja.Value {
 		return e.handleQueryRow(runtime, call, execCtx.DB)
 	})
 
-	// Add query method  
+	// Add query method
 	dbObj.Set("query", func(call goja.FunctionCall) goja.Value {
 		return e.handleQuery(runtime, call, execCtx.DB)
 	})
@@ -177,7 +177,7 @@ func (e *Engine) handleQueryRow(runtime *goja.Runtime, call goja.FunctionCall, d
 	}
 
 	query := call.Arguments[0].String()
-	
+
 	// Validate query is safe (read-only)
 	if !isReadOnlyQuery(query) {
 		return runtime.ToValue("Error: Only SELECT queries are allowed")
@@ -217,7 +217,7 @@ func (e *Engine) handleQuery(runtime *goja.Runtime, call goja.FunctionCall, db *
 	}
 
 	query := call.Arguments[0].String()
-	
+
 	// Validate query is safe (read-only)
 	if !isReadOnlyQuery(query) {
 		return runtime.ToValue("Error: Only SELECT queries are allowed")
@@ -246,14 +246,14 @@ func (db *SafeDBInterface) QueryRow(query string, args ...interface{}) (*SafeRow
 
 	ctx := context.Background()
 	row := db.db.QueryRow(ctx, query, args...)
-	
+
 	// We need to know the column names to build the result map
 	// This is a simplified implementation - in practice you'd want to
 	// use sql.Rows to get column information
 	result := &SafeRow{
 		data: make(map[string]interface{}),
 	}
-	
+
 	// For now, assume simple single-value queries
 	var value interface{}
 	if err := row.Scan(&value); err != nil {
@@ -262,7 +262,7 @@ func (db *SafeDBInterface) QueryRow(query string, args ...interface{}) (*SafeRow
 		}
 		return nil, err
 	}
-	
+
 	result.data["value"] = value
 	return result, nil
 }
@@ -324,17 +324,17 @@ func isReadOnlyQuery(query string) bool {
 	}
 
 	// Trim whitespace and get first word
-    q = " " + q + " " // Add spaces for boundary checking
-	
+	q = " " + q + " " // Add spaces for boundary checking
+
 	// Allow only SELECT statements
 	// Block INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, etc.
 	dangerous := []string{
-		" INSERT ", " UPDATE ", " DELETE ", " DROP ", " ALTER ", 
+		" INSERT ", " UPDATE ", " DELETE ", " DROP ", " ALTER ",
 		" CREATE ", " TRUNCATE ", " REPLACE ", " MERGE ", " CALL ",
 		" EXEC ", " EXECUTE ", " WITH ",
 	}
 
-    queryUpper := " " + strings.ToUpper(q) + " "
+	queryUpper := " " + strings.ToUpper(q) + " "
 	for _, danger := range dangerous {
 		if contains(queryUpper, danger) {
 			return false
@@ -352,16 +352,16 @@ func isReadOnlyQuery(query string) bool {
 	}
 
 	return (trimmed[0] == 'S' || trimmed[0] == 's') &&
-		   (trimmed[1] == 'E' || trimmed[1] == 'e') &&
-		   (trimmed[2] == 'L' || trimmed[2] == 'l') &&
-		   (trimmed[3] == 'E' || trimmed[3] == 'e') &&
-		   (trimmed[4] == 'C' || trimmed[4] == 'c') &&
-		   (trimmed[5] == 'T' || trimmed[5] == 't')
+		(trimmed[1] == 'E' || trimmed[1] == 'e') &&
+		(trimmed[2] == 'L' || trimmed[2] == 'l') &&
+		(trimmed[3] == 'E' || trimmed[3] == 'e') &&
+		(trimmed[4] == 'C' || trimmed[4] == 'c') &&
+		(trimmed[5] == 'T' || trimmed[5] == 't')
 }
 
 // contains checks if s contains substr (case insensitive)
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || 
+	return len(s) >= len(substr) && (s == substr ||
 		len(s) > len(substr) && (indexOf(s, substr) >= 0))
 }
 
@@ -370,12 +370,12 @@ func indexOf(s, substr string) int {
 	for i := 0; i <= len(s)-len(substr); i++ {
 		match := true
 		for j := 0; j < len(substr); j++ {
-			if (s[i+j] >= 'A' && s[i+j] <= 'Z') {
+			if s[i+j] >= 'A' && s[i+j] <= 'Z' {
 				if s[i+j]+32 != substr[j] && s[i+j] != substr[j] {
 					match = false
 					break
 				}
-			} else if (s[i+j] >= 'a' && s[i+j] <= 'z') {
+			} else if s[i+j] >= 'a' && s[i+j] <= 'z' {
 				if s[i+j] != substr[j] && s[i+j]-32 != substr[j] {
 					match = false
 					break

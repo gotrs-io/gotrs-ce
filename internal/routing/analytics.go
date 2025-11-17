@@ -12,13 +12,13 @@ import (
 
 // RouteMetrics tracks performance and usage metrics for routes
 type RouteMetrics struct {
-	mu               sync.RWMutex
-	routeStats       map[string]*RouteStats
-	totalRequests    int64
-	totalErrors      int64
-	uptimeStart      time.Time
-	recentRequests   []RequestLog
-	maxRecentLogs    int
+	mu             sync.RWMutex
+	routeStats     map[string]*RouteStats
+	totalRequests  int64
+	totalErrors    int64
+	uptimeStart    time.Time
+	recentRequests []RequestLog
+	maxRecentLogs  int
 }
 
 // RouteStats contains statistics for a specific route
@@ -38,13 +38,13 @@ type RouteStats struct {
 
 // RequestLog represents a single request log entry
 type RequestLog struct {
-	Timestamp  time.Time `json:"timestamp"`
-	Method     string    `json:"method"`
-	Path       string    `json:"path"`
-	StatusCode int       `json:"status_code"`
+	Timestamp  time.Time     `json:"timestamp"`
+	Method     string        `json:"method"`
+	Path       string        `json:"path"`
+	StatusCode int           `json:"status_code"`
 	Duration   time.Duration `json:"duration"`
-	UserAgent  string    `json:"user_agent"`
-	IP         string    `json:"ip"`
+	UserAgent  string        `json:"user_agent"`
+	IP         string        `json:"ip"`
 }
 
 // NewRouteMetrics creates a new route metrics tracker
@@ -61,22 +61,22 @@ func NewRouteMetrics() *RouteMetrics {
 func (rm *RouteMetrics) MiddlewareWithMetrics(routePath, handlerName string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		startTime := time.Now()
-		
+
 		// Process request
 		c.Next()
-		
+
 		// Record metrics
 		duration := time.Since(startTime)
 		statusCode := c.Writer.Status()
-		
+
 		rm.RecordRequest(RouteRequest{
-			Method:      c.Request.Method,
-			Path:        routePath,
-			Handler:     handlerName,
-			StatusCode:  statusCode,
-			Duration:    duration,
-			UserAgent:   c.Request.UserAgent(),
-			ClientIP:    c.ClientIP(),
+			Method:     c.Request.Method,
+			Path:       routePath,
+			Handler:    handlerName,
+			StatusCode: statusCode,
+			Duration:   duration,
+			UserAgent:  c.Request.UserAgent(),
+			ClientIP:   c.ClientIP(),
 		})
 	}
 }
@@ -96,9 +96,9 @@ type RouteRequest struct {
 func (rm *RouteMetrics) RecordRequest(req RouteRequest) {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
-	
+
 	key := fmt.Sprintf("%s %s", req.Method, req.Path)
-	
+
 	// Initialize route stats if not exists
 	if rm.routeStats[key] == nil {
 		rm.routeStats[key] = &RouteStats{
@@ -110,31 +110,31 @@ func (rm *RouteMetrics) RecordRequest(req RouteRequest) {
 			MaxDuration: req.Duration,
 		}
 	}
-	
+
 	stats := rm.routeStats[key]
 	stats.RequestCount++
 	stats.LastAccessed = time.Now()
 	stats.TotalDuration += req.Duration
 	stats.AverageDuration = stats.TotalDuration / time.Duration(stats.RequestCount)
-	
+
 	if req.Duration < stats.MinDuration {
 		stats.MinDuration = req.Duration
 	}
 	if req.Duration > stats.MaxDuration {
 		stats.MaxDuration = req.Duration
 	}
-	
+
 	// Track status codes
 	stats.StatusCodes[req.StatusCode]++
-	
+
 	// Track errors (4xx and 5xx)
 	if req.StatusCode >= 400 {
 		stats.ErrorCount++
 		rm.totalErrors++
 	}
-	
+
 	rm.totalRequests++
-	
+
 	// Add to recent requests log
 	rm.recentRequests = append(rm.recentRequests, RequestLog{
 		Timestamp:  time.Now(),
@@ -145,7 +145,7 @@ func (rm *RouteMetrics) RecordRequest(req RouteRequest) {
 		UserAgent:  req.UserAgent,
 		IP:         req.ClientIP,
 	})
-	
+
 	// Keep only recent requests
 	if len(rm.recentRequests) > rm.maxRecentLogs {
 		rm.recentRequests = rm.recentRequests[len(rm.recentRequests)-rm.maxRecentLogs:]
@@ -156,19 +156,19 @@ func (rm *RouteMetrics) RecordRequest(req RouteRequest) {
 func (rm *RouteMetrics) GetStats() *SystemStats {
 	rm.mu.RLock()
 	defer rm.mu.RUnlock()
-	
+
 	routes := make([]*RouteStats, 0, len(rm.routeStats))
 	for _, stats := range rm.routeStats {
 		// Create copy to avoid race conditions
 		statsCopy := *stats
 		routes = append(routes, &statsCopy)
 	}
-	
+
 	// Sort by request count (most popular first)
 	sort.Slice(routes, func(i, j int) bool {
 		return routes[i].RequestCount > routes[j].RequestCount
 	})
-	
+
 	return &SystemStats{
 		TotalRequests:  rm.totalRequests,
 		TotalErrors:    rm.totalErrors,
@@ -188,18 +188,18 @@ func (rm *RouteMetrics) getRecentRequests(limit int) []RequestLog {
 
 // SystemStats represents overall system statistics
 type SystemStats struct {
-	TotalRequests  int64        `json:"total_requests"`
-	TotalErrors    int64        `json:"total_errors"`
-	ErrorRate      float64      `json:"error_rate"`
+	TotalRequests  int64         `json:"total_requests"`
+	TotalErrors    int64         `json:"total_errors"`
+	ErrorRate      float64       `json:"error_rate"`
 	Uptime         time.Duration `json:"uptime"`
 	Routes         []*RouteStats `json:"routes"`
-	RecentRequests []RequestLog `json:"recent_requests"`
+	RecentRequests []RequestLog  `json:"recent_requests"`
 }
 
 // SetupMetricsEndpoints adds analytics endpoints to the router
 func (rm *RouteMetrics) SetupMetricsEndpoints(r *gin.Engine) {
 	metrics := r.Group("/metrics")
-	
+
 	// Real-time stats endpoint
 	metrics.GET("/stats", func(c *gin.Context) {
 		stats := rm.GetStats()
@@ -208,17 +208,17 @@ func (rm *RouteMetrics) SetupMetricsEndpoints(r *gin.Engine) {
 			"data":    stats,
 		})
 	})
-	
+
 	// Route-specific stats
 	metrics.GET("/routes/:method/:path", func(c *gin.Context) {
 		method := c.Param("method")
 		path := c.Param("path")
 		key := fmt.Sprintf("%s /%s", method, path)
-		
+
 		rm.mu.RLock()
 		stats, exists := rm.routeStats[key]
 		rm.mu.RUnlock()
-		
+
 		if !exists {
 			c.JSON(http.StatusNotFound, gin.H{
 				"success": false,
@@ -226,23 +226,23 @@ func (rm *RouteMetrics) SetupMetricsEndpoints(r *gin.Engine) {
 			})
 			return
 		}
-		
+
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"data":    stats,
 		})
 	})
-	
+
 	// Analytics dashboard
 	metrics.GET("/dashboard", func(c *gin.Context) {
 		c.Header("Content-Type", "text/html")
 		c.String(http.StatusOK, rm.generateDashboardHTML())
 	})
-	
+
 	// Health status based on metrics
 	metrics.GET("/health", func(c *gin.Context) {
 		stats := rm.GetStats()
-		
+
 		status := "healthy"
 		if stats.ErrorRate > 5.0 { // More than 5% error rate
 			status = "degraded"
@@ -250,19 +250,19 @@ func (rm *RouteMetrics) SetupMetricsEndpoints(r *gin.Engine) {
 		if stats.ErrorRate > 20.0 { // More than 20% error rate
 			status = "unhealthy"
 		}
-		
+
 		c.JSON(http.StatusOK, gin.H{
-			"status":      status,
-			"error_rate":  stats.ErrorRate,
-			"uptime":      stats.Uptime.String(),
-			"requests":    stats.TotalRequests,
+			"status":     status,
+			"error_rate": stats.ErrorRate,
+			"uptime":     stats.Uptime.String(),
+			"requests":   stats.TotalRequests,
 		})
 	})
 }
 
 func (rm *RouteMetrics) generateDashboardHTML() string {
 	stats := rm.GetStats()
-	
+
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -347,7 +347,7 @@ func (rm *RouteMetrics) generateRouteRows(routes []*RouteStats) string {
 	if len(routes) == 0 {
 		return "<tr><td colspan='5' style='text-align: center; color: #718096;'>No routes tracked yet</td></tr>"
 	}
-	
+
 	rows := ""
 	for _, route := range routes {
 		errorRate := float64(route.ErrorCount) / float64(route.RequestCount) * 100
@@ -355,7 +355,7 @@ func (rm *RouteMetrics) generateRouteRows(routes []*RouteStats) string {
 		if errorRate > 5 {
 			errorClass = "error-rate"
 		}
-		
+
 		rows += fmt.Sprintf(`
                 <tr>
                     <td>
@@ -376,7 +376,7 @@ func (rm *RouteMetrics) generateRouteRows(routes []*RouteStats) string {
 			errorRate,
 			route.LastAccessed.Format("15:04:05"))
 	}
-	
+
 	return rows
 }
 

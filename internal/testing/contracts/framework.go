@@ -36,9 +36,9 @@ type Validation func(body []byte) error
 
 // ContractTest runs a contract test against a handler
 type ContractTest struct {
-	t        *testing.T
+	t         *testing.T
 	contracts []Contract
-	router   *gin.Engine
+	router    *gin.Engine
 }
 
 // NewContractTest creates a new contract test runner

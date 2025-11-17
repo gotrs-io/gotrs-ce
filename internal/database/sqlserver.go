@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
 	// _ "github.com/denisenkom/go-mssqldb" // TODO: Add when implementing SQL Server support
 )
 
@@ -29,7 +28,7 @@ func (s *SQLServerDatabase) Connect() error {
 	// dsn := s.buildDSN()
 	// var err error
 	// s.db, err = sql.Open("sqlserver", dsn)
-    return fmt.Errorf("sql server driver not yet implemented - requires github.com/denisenkom/go-mssqldb")
+	return fmt.Errorf("sql server driver not yet implemented - requires github.com/denisenkom/go-mssqldb")
 }
 
 // Close closes the database connection
@@ -94,19 +93,19 @@ func (s *SQLServerDatabase) BeginTx(ctx context.Context, opts *sql.TxOptions) (I
 // TableExists checks if a table exists (stub implementation)
 func (s *SQLServerDatabase) TableExists(ctx context.Context, tableName string) (bool, error) {
 	// TODO: Implement SQL Server-specific table existence check
-    return false, fmt.Errorf("tableExists not yet implemented for sql server")
+	return false, fmt.Errorf("tableExists not yet implemented for sql server")
 }
 
 // GetTableColumns returns column information for a table (stub implementation)
 func (s *SQLServerDatabase) GetTableColumns(ctx context.Context, tableName string) ([]ColumnInfo, error) {
 	// TODO: Implement SQL Server-specific column introspection
-    return []ColumnInfo{}, fmt.Errorf("getTableColumns not yet implemented for sql server")
+	return []ColumnInfo{}, fmt.Errorf("getTableColumns not yet implemented for sql server")
 }
 
 // CreateTable creates a table from definition (stub implementation)
 func (s *SQLServerDatabase) CreateTable(ctx context.Context, definition *TableDefinition) error {
 	// TODO: Implement SQL Server-specific CREATE TABLE
-    return fmt.Errorf("createTable not yet implemented for sql server")
+	return fmt.Errorf("createTable not yet implemented for sql server")
 }
 
 // DropTable drops a table
@@ -119,7 +118,7 @@ func (s *SQLServerDatabase) DropTable(ctx context.Context, tableName string) err
 // CreateIndex creates an index (stub implementation)
 func (s *SQLServerDatabase) CreateIndex(ctx context.Context, tableName, indexName string, columns []string, unique bool) error {
 	// TODO: Implement SQL Server-specific CREATE INDEX
-    return fmt.Errorf("createIndex not yet implemented for sql server")
+	return fmt.Errorf("createIndex not yet implemented for sql server")
 }
 
 // DropIndex drops an index
@@ -164,19 +163,19 @@ func (s *SQLServerDatabase) BuildSelect(tableName string, columns []string, wher
 	for i, col := range columns {
 		quotedColumns[i] = s.Quote(col)
 	}
-	
+
 	query := fmt.Sprintf("SELECT %s FROM %s",
 		strings.Join(quotedColumns, ", "),
 		s.Quote(tableName))
-	
+
 	if where != "" {
 		query += " WHERE " + where
 	}
-	
+
 	if orderBy != "" {
 		query += " ORDER BY " + orderBy
 	}
-	
+
 	// SQL Server uses TOP for limiting
 	if limit > 0 {
 		// Need to restructure query to use TOP
@@ -184,7 +183,7 @@ func (s *SQLServerDatabase) BuildSelect(tableName string, columns []string, wher
 			limit,
 			strings.Join(quotedColumns, ", "),
 			s.Quote(tableName))
-		
+
 		if where != "" {
 			query += " WHERE " + where
 		}
@@ -192,7 +191,7 @@ func (s *SQLServerDatabase) BuildSelect(tableName string, columns []string, wher
 			query += " ORDER BY " + orderBy
 		}
 	}
-	
+
 	return query
 }
 
@@ -235,10 +234,10 @@ func (s *SQLServerDatabase) IsHealthy() bool {
 	if s.db == nil {
 		return false
 	}
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	return s.db.PingContext(ctx) == nil
 }
 

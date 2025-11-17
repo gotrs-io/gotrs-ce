@@ -110,7 +110,7 @@ func TestGroupsCRUDOperations(t *testing.T) {
 			// Find the edit button for our group
 			groupRow := browser.Page.Locator(fmt.Sprintf("tr:has-text('%s')", testGroupName))
 			editButton := groupRow.Locator("button[title='Edit']")
-			
+
 			err = editButton.Click()
 			require.NoError(t, err, "Should click edit button")
 			time.Sleep(1 * time.Second)
@@ -212,12 +212,12 @@ func TestGroupsCRUDOperations(t *testing.T) {
 			// Find the admin group row
 			adminRow := browser.Page.Locator("tr:has-text('admin')")
 			visible, _ := adminRow.IsVisible()
-			
+
 			if visible {
 				// Check that delete button is disabled or not present
 				deleteButton := adminRow.Locator("button[title='Delete']")
 				deleteVisible, _ := deleteButton.IsVisible()
-				
+
 				if deleteVisible {
 					// If visible, it should be disabled
 					disabled, _ := deleteButton.IsDisabled()
@@ -234,7 +234,7 @@ func TestGroupsCRUDOperations(t *testing.T) {
 			// Find our test group
 			groupRow := browser.Page.Locator(fmt.Sprintf("tr:has-text('%s')", testGroupName))
 			deleteButton := groupRow.Locator("button[title='Delete']")
-			
+
 			err = deleteButton.Click()
 			require.NoError(t, err, "Should click delete button")
 			time.Sleep(500 * time.Millisecond)
@@ -249,13 +249,13 @@ func TestGroupsCRUDOperations(t *testing.T) {
 			// If using custom modal, handle that instead
 			confirmModal := browser.Page.Locator("[role='dialog']:has-text('Confirm')")
 			modalVisible, _ := confirmModal.IsVisible()
-			
+
 			if modalVisible {
 				confirmButton := confirmModal.Locator("button:has-text('Delete')")
 				err = confirmButton.Click()
 				require.NoError(t, err, "Should confirm deletion")
 			}
-			
+
 			time.Sleep(2 * time.Second)
 
 			// Verify group is removed from table
@@ -324,10 +324,10 @@ func TestGroupsCRUDOperations(t *testing.T) {
 			// Should show error message
 			errorMsg := browser.Page.Locator(".text-red-500, .text-red-600, [role='alert']")
 			errorVisible, _ := errorMsg.IsVisible()
-			
+
 			if errorVisible {
 				errorText, _ := errorMsg.InnerText()
-				assert.True(t, strings.Contains(strings.ToLower(errorText), "exists") || 
+				assert.True(t, strings.Contains(strings.ToLower(errorText), "exists") ||
 					strings.Contains(strings.ToLower(errorText), "duplicate"),
 					"Should show duplicate error message")
 			}
@@ -428,9 +428,9 @@ func TestInactiveGroup(t *testing.T) {
 		if statusVisible {
 			statusText, _ := statusBadge.InnerText()
 			t.Logf("Inactive group status shown as: %s", statusText)
-			assert.True(t, 
-				strings.Contains(strings.ToLower(statusText), "invalid") || 
-				strings.Contains(strings.ToLower(statusText), "inactive"),
+			assert.True(t,
+				strings.Contains(strings.ToLower(statusText), "invalid") ||
+					strings.Contains(strings.ToLower(statusText), "inactive"),
 				"Should show invalid/inactive status")
 		}
 
@@ -490,7 +490,7 @@ func TestInactiveGroup(t *testing.T) {
 		// Find and edit the inactive group
 		groupRow := browser.Page.Locator(fmt.Sprintf("tr:has-text('%s')", inactiveGroupName))
 		editButton := groupRow.Locator("button[title='Edit']")
-		
+
 		err = editButton.Click()
 		require.NoError(t, err, "Should click edit button")
 		time.Sleep(1 * time.Second)
@@ -538,7 +538,7 @@ func TestInactiveGroup(t *testing.T) {
 		// Find and delete the test group
 		groupRow := browser.Page.Locator(fmt.Sprintf("tr:has-text('%s')", inactiveGroupName))
 		deleteButton := groupRow.Locator("button[title='Delete']")
-		
+
 		err = deleteButton.Click()
 		require.NoError(t, err, "Should click delete button")
 		time.Sleep(500 * time.Millisecond)
@@ -551,13 +551,13 @@ func TestInactiveGroup(t *testing.T) {
 		// Check for custom confirmation modal
 		confirmModal := browser.Page.Locator("[role='dialog']:has-text('Confirm')")
 		modalVisible, _ := confirmModal.IsVisible()
-		
+
 		if modalVisible {
 			confirmButton := confirmModal.Locator("button:has-text('Delete')")
 			err = confirmButton.Click()
 			require.NoError(t, err, "Should confirm deletion")
 		}
-		
+
 		time.Sleep(2 * time.Second)
 
 		// Verify group is deleted

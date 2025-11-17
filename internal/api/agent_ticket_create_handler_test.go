@@ -59,6 +59,22 @@ func (e equalsInt) Match(v driver.Value) bool {
 	return false
 }
 
+type equalsString struct{ want string }
+
+func (e equalsString) Match(v driver.Value) bool {
+	if e.want == "" {
+		return v == nil || v == ""
+	}
+	switch val := v.(type) {
+	case string:
+		return val == e.want
+	case []byte:
+		return string(val) == e.want
+	default:
+		return false
+	}
+}
+
 func articleColumnCheckQuery(column string) string {
 	if database.IsMySQL() {
 		return fmt.Sprintf("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'article' AND COLUMN_NAME = '%s'", column)
@@ -433,6 +449,157 @@ func TestHandleAgentCreateTicket_PendingStateSetsPendingUntil(t *testing.T) {
 	}
 	if err := writer.WriteField("pending_until", pendingUntil); err != nil {
 		t.Fatalf("write field: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("writer close: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/tickets", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("unexpected status: got %d want %d", rec.Code, http.StatusSeeOther)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+func TestHandleAgentCreateTicket_ResolvesCustomerUser(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock setup failed: %v", err)
+	}
+	t.Cleanup(func() {
+		database.ResetDB()
+		_ = mockDB.Close()
+	})
+
+	repository.SetTicketNumberGenerator(ticketNumberStub{value: "202510059999"}, noopCounterStore{})
+	t.Cleanup(func() { repository.SetTicketNumberGenerator(nil, nil) })
+	database.SetDB(mockDB)
+
+	stateRows := sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
+		AddRow(1, "new", 1, 1, time.Now(), 1, time.Now(), 1)
+	stateQuery := database.ConvertPlaceholders(`
+		SELECT id, name, type_id, valid_id,
+	       create_time, create_by, change_time, change_by
+	FROM ticket_state
+	WHERE id = $1`)
+	mock.ExpectQuery(regexp.QuoteMeta(stateQuery)).
+		WithArgs(1).
+		WillReturnRows(stateRows)
+
+	custQuery := database.ConvertPlaceholders(`
+		SELECT customer_id, email
+	FROM customer_user
+	WHERE login = $1 AND valid_id = 1`)
+	mock.ExpectQuery(regexp.QuoteMeta(custQuery)).
+		WithArgs("acme-user").
+		WillReturnRows(sqlmock.NewRows([]string{"customer_id", "email"}).AddRow("acme", "user@acme.test"))
+
+	ticketArgs := []driver.Value{
+		"202510059999",
+		"Customer selected",
+		1,
+		1,
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		equalsString{want: "acme"},
+		equalsString{want: "acme-user"},
+		equalsInt{want: 1},
+		3,
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		equalsInt{want: 7},
+		sqlmock.AnyArg(),
+		equalsInt{want: 7},
+	}
+	if database.IsMySQL() {
+		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO ticket (")).
+			WithArgs(ticketArgs...).
+			WillReturnResult(sqlmock.NewResult(456, 1))
+	} else {
+		mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO ticket (")).
+			WithArgs(ticketArgs...).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(456))
+	}
+
+	mock.ExpectBegin()
+
+	mock.ExpectQuery(regexp.QuoteMeta(articleColumnCheckQuery("article_type_id"))).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+	mock.ExpectQuery(regexp.QuoteMeta(articleColumnCheckQuery("communication_channel_id"))).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+	articleArgs := []driver.Value{
+		456,
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+		sqlmock.AnyArg(),
+	}
+	if database.IsMySQL() {
+		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO article (")).
+			WithArgs(articleArgs...).
+			WillReturnResult(sqlmock.NewResult(654, 1))
+	} else {
+		mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO article (")).
+			WithArgs(articleArgs...).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(654))
+	}
+
+	mock.ExpectExec("INSERT INTO article_data_mime").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	mock.ExpectExec("UPDATE ticket ").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	mock.ExpectCommit()
+
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set("user_id", uint(7))
+		c.Next()
+	})
+	router.POST("/tickets", HandleAgentCreateTicket(mockDB))
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	fields := map[string]string{
+		"subject":          "Customer selected",
+		"body":             "Body",
+		"queue_id":         "1",
+		"priority":         "3",
+		"type_id":          "1",
+		"interaction_type": "phone",
+		"next_state_id":    "1",
+		"customer_user_id": "acme-user",
+	}
+	for k, v := range fields {
+		if err := writer.WriteField(k, v); err != nil {
+			t.Fatalf("write field %s: %v", k, err)
+		}
 	}
 	if err := writer.Close(); err != nil {
 		t.Fatalf("writer close: %v", err)

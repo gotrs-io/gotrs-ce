@@ -9,17 +9,17 @@ import (
 // TemplateFuncs returns template functions for i18n
 func TemplateFuncs(lang string) template.FuncMap {
 	return template.FuncMap{
-		"t":     createTranslateFunc(lang),
-		"T":     createTranslateFunc(lang),
-		"trans": createTranslateFunc(lang),
-		"timeAgo": createTimeAgoFunc(lang),
-		"formatDate": createFormatDateFunc(lang),
-		"formatTime": createFormatTimeFunc(lang),
+		"t":              createTranslateFunc(lang),
+		"T":              createTranslateFunc(lang),
+		"trans":          createTranslateFunc(lang),
+		"timeAgo":        createTimeAgoFunc(lang),
+		"formatDate":     createFormatDateFunc(lang),
+		"formatTime":     createFormatTimeFunc(lang),
 		"formatDateTime": createFormatDateTimeFunc(lang),
-		"pluralize": createPluralizeFunc(lang),
-		"currency": createCurrencyFunc(lang),
-		"number": createNumberFunc(lang),
-		"percent": createPercentFunc(lang),
+		"pluralize":      createPluralizeFunc(lang),
+		"currency":       createCurrencyFunc(lang),
+		"number":         createNumberFunc(lang),
+		"percent":        createPercentFunc(lang),
 	}
 }
 
@@ -35,7 +35,7 @@ func createTimeAgoFunc(lang string) func(t time.Time) string {
 	return func(t time.Time) string {
 		now := time.Now()
 		diff := now.Sub(t)
-		
+
 		switch {
 		case diff < time.Minute:
 			return GetInstance().T(lang, "time.just_now")
@@ -125,7 +125,7 @@ func createFormatTimeFunc(lang string) func(t time.Time) string {
 func createFormatDateTimeFunc(lang string) func(t time.Time) string {
 	dateFunc := createFormatDateFunc(lang)
 	timeFunc := createFormatTimeFunc(lang)
-	
+
 	return func(t time.Time) string {
 		return dateFunc(t) + " " + timeFunc(t)
 	}
@@ -183,7 +183,7 @@ func createNumberFunc(lang string) func(n interface{}) string {
 		default:
 			return "0"
 		}
-		
+
 		return formatNumber(num, 0)
 	}
 }
@@ -204,7 +204,7 @@ func formatNumber(n float64, decimals int) string {
 	} else {
 		format += "f"
 	}
-	
+
 	// TODO: Add thousands separator based on locale
 	return sprintf(format, n)
 }

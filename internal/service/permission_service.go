@@ -57,7 +57,7 @@ func (s *PermissionService) GetUserPermissionMatrix(userID uint) (*PermissionMat
 
 	// Get permissions for each group
 	for _, group := range groups {
-		
+
 		// Convert group.ID to uint
 		var groupID uint
 		switch v := group.ID.(type) {
@@ -73,7 +73,7 @@ func (s *PermissionService) GetUserPermissionMatrix(userID uint) (*PermissionMat
 		default:
 			continue
 		}
-		
+
 		perms, err := s.permRepo.GetUserGroupMatrix(userID, groupID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get permissions for group %d: %w", groupID, err)
@@ -106,10 +106,10 @@ func (s *PermissionService) UpdateUserPermissions(userID uint, permissions map[u
 
 		// Debug: log permissions before applying rules
 		fmt.Printf("DEBUG: Before rules for group %d: %+v\n", groupID, perms)
-		
+
 		// Apply permission rules
 		perms = s.applyPermissionRules(perms)
-		
+
 		// Debug: log permissions after applying rules
 		fmt.Printf("DEBUG: After rules for group %d: %+v\n", groupID, perms)
 
@@ -250,7 +250,7 @@ func (s *PermissionService) RemoveAllUserPermissions(userID uint) error {
 		default:
 			continue
 		}
-		
+
 		for _, permKey := range []string{"ro", "move_into", "create", "note", "owner", "priority", "rw"} {
 			err = s.permRepo.RemoveUserGroupPermission(userID, groupID, permKey)
 			if err != nil {

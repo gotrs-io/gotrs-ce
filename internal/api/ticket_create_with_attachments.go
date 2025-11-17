@@ -18,8 +18,10 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/history"
 	"github.com/gotrs-io/gotrs-ce/internal/mailqueue"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
+	"github.com/gotrs-io/gotrs-ce/internal/notifications"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	"github.com/gotrs-io/gotrs-ce/internal/service"
+	"github.com/gotrs-io/gotrs-ce/internal/utils"
 )
 
 // handleCreateTicketWithAttachments is an enhanced version that properly handles file attachments
@@ -474,16 +476,28 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 
 		// Queue the email for processing by EmailQueueTask
 		queueRepo := mailqueue.NewMailQueueRepository(db)
-		senderEmail := "GOTRS Support Team"
+		var emailCfg *config.EmailConfig
 		if cfg := config.Get(); cfg != nil {
-			senderEmail = cfg.Email.From
+			emailCfg = &cfg.Email
 		}
+		branding, brandErr := notifications.PrepareQueueEmail(
+			context.Background(),
+			db,
+			ticket.QueueID,
+			body,
+			utils.IsHTML(body),
+			emailCfg,
+		)
+		if brandErr != nil {
+			log.Printf("Queue identity lookup failed for ticket %d: %v", ticket.ID, brandErr)
+		}
+		senderEmail := branding.EnvelopeFrom
 		articleID64 := int64(article.ID)
 		queueItem := &mailqueue.MailQueueItem{
 			ArticleID:  &articleID64,
 			Sender:     &senderEmail,
 			Recipient:  customerEmail,
-			RawMessage: mailqueue.BuildEmailMessage(senderEmail, customerEmail, subject, body),
+			RawMessage: mailqueue.BuildEmailMessage(branding.HeaderFrom, customerEmail, subject, branding.Body),
 			Attempts:   0,
 			CreateTime: time.Now(),
 		}

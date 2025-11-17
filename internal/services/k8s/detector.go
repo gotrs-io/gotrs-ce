@@ -34,11 +34,11 @@ func NewDetector() *Detector {
 		namespace:   os.Getenv("POD_NAMESPACE"),
 		cluster:     os.Getenv("CLUSTER_NAME"),
 	}
-	
+
 	if d.namespace == "" {
 		d.namespace = "default"
 	}
-	
+
 	return d
 }
 
@@ -48,22 +48,22 @@ func detectEnvironment() EnvironmentType {
 	if os.Getenv("K_SERVICE") != "" {
 		return EnvKnative
 	}
-	
+
 	// Check for OpenShift
 	if _, err := os.Stat("/var/run/secrets/openshift.io"); err == nil {
 		return EnvOpenShift
 	}
-	
+
 	// Check for Kubernetes
 	if _, err := os.Stat("/var/run/secrets/kubernetes.io"); err == nil {
 		return EnvKubernetes
 	}
-	
+
 	// Check for Docker
 	if _, err := os.Stat("/.dockerenv"); err == nil {
 		return EnvDocker
 	}
-	
+
 	// Default to local
 	return EnvLocal
 }
@@ -75,9 +75,9 @@ func (d *Detector) Environment() EnvironmentType {
 
 // IsKubernetes returns true if running in any Kubernetes environment
 func (d *Detector) IsKubernetes() bool {
-	return d.environment == EnvKubernetes || 
-	       d.environment == EnvKnative || 
-	       d.environment == EnvOpenShift
+	return d.environment == EnvKubernetes ||
+		d.environment == EnvKnative ||
+		d.environment == EnvOpenShift
 }
 
 // AdaptServiceConfig adapts service configuration based on environment
@@ -85,33 +85,33 @@ func (d *Detector) AdaptServiceConfig(config *registry.ServiceConfig) *registry.
 	if !d.IsKubernetes() {
 		return config
 	}
-	
+
 	// In Kubernetes, adapt service discovery
 	adapted := *config
-	
+
 	// Convert service names to Kubernetes DNS names
 	if config.Host != "" && !strings.Contains(config.Host, ".") {
 		// Assume it's a service name, convert to FQDN
 		adapted.Host = fmt.Sprintf("%s.%s.svc.cluster.local", config.Host, d.namespace)
 	}
-	
+
 	// Add Kubernetes-specific labels
 	if adapted.Labels == nil {
 		adapted.Labels = make(map[string]string)
 	}
 	adapted.Labels["kubernetes.io/namespace"] = d.namespace
 	adapted.Labels["kubernetes.io/environment"] = string(d.environment)
-	
+
 	// Use Kubernetes secrets for credentials if available
 	if d.environment == EnvKubernetes || d.environment == EnvOpenShift {
 		d.loadFromSecrets(&adapted)
 	}
-	
+
 	// For Knative, adapt for serverless
 	if d.environment == EnvKnative {
 		d.adaptForKnative(&adapted)
 	}
-	
+
 	return &adapted
 }
 
@@ -119,17 +119,17 @@ func (d *Detector) AdaptServiceConfig(config *registry.ServiceConfig) *registry.
 func (d *Detector) loadFromSecrets(config *registry.ServiceConfig) {
 	// Check for mounted secrets
 	secretPath := fmt.Sprintf("/var/run/secrets/%s", config.ID)
-	
+
 	// Try to load username from secret
 	if data, err := os.ReadFile(fmt.Sprintf("%s/username", secretPath)); err == nil {
 		config.Username = strings.TrimSpace(string(data))
 	}
-	
+
 	// Try to load password from secret
 	if data, err := os.ReadFile(fmt.Sprintf("%s/password", secretPath)); err == nil {
 		config.Password = strings.TrimSpace(string(data))
 	}
-	
+
 	// Try to load additional config from ConfigMap
 	configMapPath := fmt.Sprintf("/etc/config/%s", config.ID)
 	if data, err := os.ReadFile(fmt.Sprintf("%s/host", configMapPath)); err == nil {
@@ -143,10 +143,10 @@ func (d *Detector) adaptForKnative(config *registry.ServiceConfig) {
 	if config.Options == nil {
 		config.Options = make(map[string]interface{})
 	}
-	
+
 	// Use Knative service discovery
 	config.Options["service_discovery"] = "knative"
-	
+
 	// Adapt connection pools for serverless
 	if config.MaxConns > 5 {
 		config.MaxConns = 5 // Lower max connections for serverless
@@ -154,7 +154,7 @@ func (d *Detector) adaptForKnative(config *registry.ServiceConfig) {
 	if config.MinConns > 1 {
 		config.MinConns = 1 // Minimal idle connections
 	}
-	
+
 	// Add Knative annotations
 	if config.Annotations == nil {
 		config.Annotations = make(map[string]string)
@@ -168,21 +168,21 @@ func (d *Detector) DiscoverServices(ctx context.Context, serviceType registry.Se
 	if !d.IsKubernetes() {
 		return nil, fmt.Errorf("service discovery only available in Kubernetes")
 	}
-	
+
 	// This would use the Kubernetes client-go library to discover services
 	// For now, return a simple implementation
 	var services []*registry.ServiceConfig
-	
+
 	// Check for well-known service environment variables (Kubernetes service discovery)
 	// Format: <SERVICE>_SERVICE_HOST and <SERVICE>_SERVICE_PORT
-	
+
 	// Example: Check for PostgreSQL service
 	if host := os.Getenv("POSTGRES_SERVICE_HOST"); host != "" {
 		port := os.Getenv("POSTGRES_SERVICE_PORT")
 		if port == "" {
 			port = "5432"
 		}
-		
+
 		services = append(services, &registry.ServiceConfig{
 			ID:       "discovered-postgres",
 			Name:     "PostgreSQL (Discovered)",
@@ -196,14 +196,14 @@ func (d *Detector) DiscoverServices(ctx context.Context, serviceType registry.Se
 			},
 		})
 	}
-	
+
 	// Check for Redis/Valkey service
 	if host := os.Getenv("VALKEY_SERVICE_HOST"); host != "" {
 		port := os.Getenv("VALKEY_SERVICE_PORT")
 		if port == "" {
 			port = "6379"
 		}
-		
+
 		services = append(services, &registry.ServiceConfig{
 			ID:       "discovered-valkey",
 			Name:     "Valkey Cache (Discovered)",
@@ -217,7 +217,7 @@ func (d *Detector) DiscoverServices(ctx context.Context, serviceType registry.Se
 			},
 		})
 	}
-	
+
 	return services, nil
 }
 
@@ -226,7 +226,7 @@ func (d *Detector) WatchServices(ctx context.Context, callback func(*registry.Se
 	if !d.IsKubernetes() {
 		return fmt.Errorf("service watching only available in Kubernetes")
 	}
-	
+
 	// This would use the Kubernetes client-go library to watch for service changes
 	// For now, return not implemented
 	return fmt.Errorf("service watching not yet implemented")

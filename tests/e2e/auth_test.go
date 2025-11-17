@@ -48,7 +48,7 @@ func TestAuthenticationFlow(t *testing.T) {
 		// Verify we're on dashboard
 		url := browser.Page.URL()
 		assert.Contains(t, url, "/dashboard", "Should redirect to dashboard after login")
-		
+
 		// Verify user is logged in
 		assert.True(t, auth.IsLoggedIn(), "User should be logged in")
 	})
@@ -67,7 +67,7 @@ func TestAuthenticationFlow(t *testing.T) {
 		// Verify we're back at login
 		url := browser.Page.URL()
 		assert.Contains(t, url, "/login", "Should redirect to login after logout")
-		
+
 		// Verify user is logged out
 		assert.False(t, auth.IsLoggedIn(), "User should be logged out")
 	})

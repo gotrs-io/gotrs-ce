@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	globalMu           sync.RWMutex
-	globalHub          Hub = NewMemoryHub()
+	globalMu            sync.RWMutex
+	globalHub           Hub = NewMemoryHub()
 	globalEmailProvider EmailProvider
 )
 

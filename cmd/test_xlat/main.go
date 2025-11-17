@@ -25,7 +25,7 @@ func main() {
 	fmt.Printf("DE - Queue Singular: %s\n", i18nInstance.T("de", "admin.modules.queue.singular"))
 	fmt.Printf("EN - Queue Name Label: %s\n", i18nInstance.T("en", "admin.modules.queue.fields.name.label"))
 	fmt.Printf("DE - Queue Name Label: %s\n", i18nInstance.T("de", "admin.modules.queue.fields.name.label"))
-	
+
 	// Test translation key resolution
 	fmt.Println("\n=== Translation Key Resolution ===")
 	testKeys := []string{
@@ -35,7 +35,7 @@ func main() {
 		"@common.status",
 		"@admin.statuses.valid",
 	}
-	
+
 	for _, key := range testKeys {
 		if strings.HasPrefix(key, "@") {
 			cleanKey := strings.TrimPrefix(key, "@")

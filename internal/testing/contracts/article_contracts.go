@@ -14,21 +14,21 @@ var ArticleContracts = []Contract{
 		Headers: map[string]string{
 			"Authorization": "Bearer {{token}}",
 		},
-        Expected: Response{
-            Status: http.StatusOK,
-            BodySchema: ObjectSchema{
-                Required: true,
-                Properties: map[string]Schema{
-                    "articles": ArraySchema{ItemsSchema: ObjectSchema{Properties: map[string]Schema{
-                        "id":        NumberSchema{Required: true},
-                        "ticket_id": NumberSchema{Required: true},
-                        "subject":   StringSchema{},
-                        "body":      StringSchema{},
-                    }}},
-                    "total": NumberSchema{},
-                },
-            },
-        },
+		Expected: Response{
+			Status: http.StatusOK,
+			BodySchema: ObjectSchema{
+				Required: true,
+				Properties: map[string]Schema{
+					"articles": ArraySchema{ItemsSchema: ObjectSchema{Properties: map[string]Schema{
+						"id":        NumberSchema{Required: true},
+						"ticket_id": NumberSchema{Required: true},
+						"subject":   StringSchema{},
+						"body":      StringSchema{},
+					}}},
+					"total": NumberSchema{},
+				},
+			},
+		},
 	},
 	{
 		Name:        "GetArticle",
@@ -38,15 +38,15 @@ var ArticleContracts = []Contract{
 		Headers: map[string]string{
 			"Authorization": "Bearer {{token}}",
 		},
-        Expected: Response{
-            Status: http.StatusOK,
-            BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
-                "id":        NumberSchema{Required: true},
-                "ticket_id": NumberSchema{Required: true},
-                "subject":   StringSchema{},
-                "body":      StringSchema{},
-            }},
-        },
+		Expected: Response{
+			Status: http.StatusOK,
+			BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
+				"id":        NumberSchema{Required: true},
+				"ticket_id": NumberSchema{Required: true},
+				"subject":   StringSchema{},
+				"body":      StringSchema{},
+			}},
+		},
 	},
 	{
 		Name:        "GetArticleWithAttachments",
@@ -56,21 +56,21 @@ var ArticleContracts = []Contract{
 		Headers: map[string]string{
 			"Authorization": "Bearer {{token}}",
 		},
-        Expected: Response{
-            Status: http.StatusOK,
-            BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
-                "id":        NumberSchema{Required: true},
-                "ticket_id": NumberSchema{Required: true},
-                "subject":   StringSchema{},
-                "body":      StringSchema{},
-                "attachments": ArraySchema{ItemsSchema: ObjectSchema{Properties: map[string]Schema{
-                    "id":           NumberSchema{Required: true},
-                    "filename":     StringSchema{Required: true},
-                    "content_type": StringSchema{},
-                    "size":         NumberSchema{},
-                }}}},
-            },
-        },
+		Expected: Response{
+			Status: http.StatusOK,
+			BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
+				"id":        NumberSchema{Required: true},
+				"ticket_id": NumberSchema{Required: true},
+				"subject":   StringSchema{},
+				"body":      StringSchema{},
+				"attachments": ArraySchema{ItemsSchema: ObjectSchema{Properties: map[string]Schema{
+					"id":           NumberSchema{Required: true},
+					"filename":     StringSchema{Required: true},
+					"content_type": StringSchema{},
+					"size":         NumberSchema{},
+				}}}},
+			},
+		},
 	},
 	{
 		Name:        "CreateArticle",
@@ -90,15 +90,15 @@ var ArticleContracts = []Contract{
 			"sender_type":  "agent",
 			"is_visible":   true,
 		},
-        Expected: Response{
-            Status: http.StatusCreated,
-            BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
-                "id":        NumberSchema{Required: true},
-                "ticket_id": NumberSchema{Required: true},
-                "subject":   StringSchema{},
-                "body":      StringSchema{},
-            }},
-        },
+		Expected: Response{
+			Status: http.StatusCreated,
+			BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
+				"id":        NumberSchema{Required: true},
+				"ticket_id": NumberSchema{Required: true},
+				"subject":   StringSchema{},
+				"body":      StringSchema{},
+			}},
+		},
 	},
 	{
 		Name:        "UpdateArticle",
@@ -113,15 +113,15 @@ var ArticleContracts = []Contract{
 			"subject": "Updated Article Subject",
 			"body":    "Updated article body content",
 		},
-        Expected: Response{
-            Status: http.StatusOK,
-            BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
-                "id":        NumberSchema{Required: true},
-                "ticket_id": NumberSchema{Required: true},
-                "subject":   StringSchema{},
-                "body":      StringSchema{},
-            }},
-        },
+		Expected: Response{
+			Status: http.StatusOK,
+			BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
+				"id":        NumberSchema{Required: true},
+				"ticket_id": NumberSchema{Required: true},
+				"subject":   StringSchema{},
+				"body":      StringSchema{},
+			}},
+		},
 	},
 	{
 		Name:        "DeleteArticle",
@@ -131,17 +131,17 @@ var ArticleContracts = []Contract{
 		Headers: map[string]string{
 			"Authorization": "Bearer {{token}}",
 		},
-        Expected: Response{
-            Status: http.StatusOK,
-            BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
-                "message": StringSchema{},
-                "id":      NumberSchema{},
-            }},
-        },
+		Expected: Response{
+			Status: http.StatusOK,
+			BodySchema: ObjectSchema{Required: true, Properties: map[string]Schema{
+				"message": StringSchema{},
+				"id":      NumberSchema{},
+			}},
+		},
 	},
 }
 
 // RegisterArticleContracts registers article contracts for testing
 func RegisterArticleContracts() {
-    // No-op registrar kept for backward compatibility
+	// No-op registrar kept for backward compatibility
 }

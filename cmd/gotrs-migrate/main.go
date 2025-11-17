@@ -17,12 +17,12 @@ import (
 
 func main() {
 	var (
-		command  = flag.String("cmd", "", "Command: analyze, import, validate")
-		sqlFile  = flag.String("sql", "", "Path to OTRS SQL dump file")
-		dbURL    = flag.String("db", "", "PostgreSQL connection URL")
-		verbose  = flag.Bool("v", false, "Verbose output")
-		dryRun   = flag.Bool("dry-run", false, "Show what would be imported without executing")
-		force    = flag.Bool("force", false, "Force import by clearing existing data (DESTRUCTIVE!)")
+		command = flag.String("cmd", "", "Command: analyze, import, validate")
+		sqlFile = flag.String("sql", "", "Path to OTRS SQL dump file")
+		dbURL   = flag.String("db", "", "PostgreSQL connection URL")
+		verbose = flag.Bool("v", false, "Verbose output")
+		dryRun  = flag.Bool("dry-run", false, "Show what would be imported without executing")
+		force   = flag.Bool("force", false, "Force import by clearing existing data (DESTRUCTIVE!)")
 	)
 
 	flag.Usage = func() {
@@ -110,7 +110,7 @@ func analyzeSQLDump(sqlFile string, verbose bool) error {
 	// Increase buffer size to handle very long SQL lines
 	buf := make([]byte, 0, 1024*1024) // 1MB buffer
 	scanner.Buffer(buf, 10*1024*1024) // 10MB max token size
-	
+
 	tables := make(map[string]*TableInfo)
 	totalLines := 0
 	insertCount := 0
@@ -159,7 +159,7 @@ func analyzeSQLDump(sqlFile string, verbose bool) error {
 			}
 
 			tables[tableName].HasData = true
-			
+
 			// Count the number of value sets (rows) in this INSERT
 			// Look for pattern: VALUES (row1),(row2),(row3)...
 			valuesIdx := strings.Index(line, "VALUES ")
@@ -170,7 +170,7 @@ func analyzeSQLDump(sqlFile string, verbose bool) error {
 				rowCount := 0
 				inQuote := false
 				escaped := false
-				
+
 				for _, r := range valuesStr {
 					if escaped {
 						escaped = false
@@ -195,9 +195,9 @@ func analyzeSQLDump(sqlFile string, verbose bool) error {
 						}
 					}
 				}
-				
+
 				tables[tableName].RowCount += rowCount
-				
+
 				// Extract sample data from first value set
 				if len(tables[tableName].SampleData) == 0 {
 					if valuesMatch := valuesPattern.FindStringSubmatch(line); valuesMatch != nil {
@@ -277,6 +277,7 @@ func countTablesWithData(tables map[string]*TableInfo) int {
 }
 
 // importSQLDump is retained for compatibility; prefer importSQLDumpFixed. Unused in current flow.
+//
 //nolint:unused
 func importSQLDump(sqlFile, dbURL string, verbose, dryRun bool) error {
 	if dryRun {
@@ -314,7 +315,7 @@ func importSQLDump(sqlFile, dbURL string, verbose, dryRun bool) error {
 	// Increase buffer size to handle very long SQL lines
 	buf := make([]byte, 0, 1024*1024) // 1MB buffer
 	scanner.Buffer(buf, 10*1024*1024) // 10MB max token size
-	
+
 	processedStatements := 0
 	skippedStatements := 0
 
@@ -325,10 +326,10 @@ func importSQLDump(sqlFile, dbURL string, verbose, dryRun bool) error {
 		line := strings.TrimSpace(scanner.Text())
 
 		// Skip comments and empty lines
-		if strings.HasPrefix(line, "--") || strings.HasPrefix(line, "/*") || 
-		   strings.HasPrefix(line, "SET") || strings.HasPrefix(line, "DROP") ||
-		   strings.HasPrefix(line, "CREATE DATABASE") || strings.HasPrefix(line, "USE") ||
-		   line == "" {
+		if strings.HasPrefix(line, "--") || strings.HasPrefix(line, "/*") ||
+			strings.HasPrefix(line, "SET") || strings.HasPrefix(line, "DROP") ||
+			strings.HasPrefix(line, "CREATE DATABASE") || strings.HasPrefix(line, "USE") ||
+			line == "" {
 			skippedStatements++
 			continue
 		}
@@ -362,13 +363,13 @@ func importSQLDump(sqlFile, dbURL string, verbose, dryRun bool) error {
 				// Handle multiple statements separated by semicolons
 				statements := strings.Split(convertedSQL, ";\n")
 				successCount := 0
-				
+
 				for _, stmt := range statements {
 					stmt = strings.TrimSpace(stmt)
 					if stmt == "" {
 						continue
 					}
-					
+
 					_, err := db.ExecContext(context.Background(), stmt)
 					if err != nil {
 						if verbose {
@@ -380,7 +381,7 @@ func importSQLDump(sqlFile, dbURL string, verbose, dryRun bool) error {
 						successCount++
 					}
 				}
-				
+
 				// Update count based on successful statements
 				if successCount > 0 {
 					importedTables[tableName] += successCount - 1 // Adjust for double counting
@@ -413,6 +414,7 @@ func importSQLDump(sqlFile, dbURL string, verbose, dryRun bool) error {
 }
 
 // convertMySQLToPostgreSQL converts an INSERT for PostgreSQL; kept for reference.
+//
 //nolint:unused
 func convertMySQLToPostgreSQL(mysqlSQL string) (string, string, error) {
 	// Extract table name
@@ -421,7 +423,7 @@ func convertMySQLToPostgreSQL(mysqlSQL string) (string, string, error) {
 	if match == nil {
 		return "", "", fmt.Errorf("could not extract table name")
 	}
-	
+
 	tableName := match[1]
 
 	// Skip tables that don't exist in GOTRS schema or cause conflicts
@@ -438,27 +440,27 @@ func convertMySQLToPostgreSQL(mysqlSQL string) (string, string, error) {
 
 	// Convert MySQL backticks to PostgreSQL double quotes for identifiers
 	converted := strings.ReplaceAll(mysqlSQL, "`", "\"")
-	
+
 	// Handle MySQL-specific escape sequences
 	converted = strings.ReplaceAll(converted, `\'`, `''`) // Single quote escaping
 	converted = strings.ReplaceAll(converted, `\"`, `"`)  // Double quote handling
-	
+
 	// Fix the main issue: OTRS includes explicit IDs but we use auto-generated IDs
 	// Convert "INSERT INTO table VALUES (id,..." to "INSERT INTO table (columns...) VALUES (..."
 	if strings.Contains(strings.ToUpper(converted), "INSERT INTO") && strings.Contains(converted, "VALUES (") {
 		converted = convertInsertStatement(converted, tableName)
 	}
-	
+
 	// Convert MySQL LOCK TABLES statements (skip them)
 	if strings.Contains(strings.ToUpper(converted), "LOCK TABLES") {
 		return "", tableName, nil
 	}
-	
-	// Convert MySQL UNLOCK TABLES statements (skip them) 
+
+	// Convert MySQL UNLOCK TABLES statements (skip them)
 	if strings.Contains(strings.ToUpper(converted), "UNLOCK TABLES") {
 		return "", tableName, nil
 	}
-	
+
 	// Handle ON DUPLICATE KEY UPDATE (PostgreSQL uses ON CONFLICT)
 	if strings.Contains(strings.ToUpper(converted), "ON DUPLICATE KEY UPDATE") {
 		// For now, skip these complex statements
@@ -486,7 +488,7 @@ func convertMySQLToPostgreSQL(mysqlSQL string) (string, string, error) {
 		"link_type":             true,
 		"link_object":           true,
 	}
-	
+
 	if conflictTables[tableName] {
 		// Add ON CONFLICT clause to handle existing data
 		if !strings.Contains(strings.ToUpper(converted), "ON CONFLICT") {
@@ -494,20 +496,21 @@ func convertMySQLToPostgreSQL(mysqlSQL string) (string, string, error) {
 			converted += " ON CONFLICT DO NOTHING;"
 		}
 	}
-	
+
 	return converted, tableName, nil
 }
 
 // convertInsertStatement maps implicit column INSERTs to explicit form. Reference only.
+//
 //nolint:unused
 func convertInsertStatement(sql, tableName string) string {
 	// For tables with auto-increment IDs, we need to remove the ID and add explicit column names
 	tablesNeedingColumnMapping := map[string][]string{
 		"ticket": {
-			"tn", "title", "queue_id", "ticket_lock_id", "type_id", "service_id", "sla_id", 
-			"user_id", "responsible_user_id", "ticket_priority_id", "ticket_state_id", 
-			"customer_id", "customer_user_id", "timeout", "until_time", "escalation_time", 
-			"escalation_update_time", "escalation_response_time", "escalation_solution_time", 
+			"tn", "title", "queue_id", "ticket_lock_id", "type_id", "service_id", "sla_id",
+			"user_id", "responsible_user_id", "ticket_priority_id", "ticket_state_id",
+			"customer_id", "customer_user_id", "timeout", "until_time", "escalation_time",
+			"escalation_update_time", "escalation_response_time", "escalation_solution_time",
 			"archive_flag", "create_time", "create_by", "change_time", "change_by",
 		},
 		"article_data_mime_plain": {
@@ -583,37 +586,37 @@ func convertInsertStatement(sql, tableName string) string {
 			"value0", "value1", "comments", "valid_id", "create_time", "create_by", "change_time", "change_by",
 		},
 	}
-	
+
 	columns, exists := tablesNeedingColumnMapping[tableName]
 	if !exists {
 		return sql // No special handling needed
 	}
-	
+
 	// For complex multi-value INSERT statements, split them into individual statements
 	// This handles: INSERT INTO table VALUES (1,'a',...),(2,'b',...),(3,'c',...)
-	
+
 	valuesIndex := strings.Index(strings.ToUpper(sql), "VALUES")
 	if valuesIndex == -1 {
 		return sql
 	}
-	
+
 	valuesSection := sql[valuesIndex+6:] // Skip "VALUES"
 	valuesSection = strings.TrimSpace(valuesSection)
-	
+
 	// For simplicity, split the complex statement into individual INSERTs
 	// This is a basic approach - for production we'd want more robust parsing
 	columnList := strings.Join(columns, ",")
-	
+
 	// Find all value tuples by looking for patterns like (value,value,...)
 	result := ""
 	depth := 0
 	tupleStart := -1
-	
+
 	for i, char := range valuesSection {
 		if char == '(' && depth == 0 {
 			tupleStart = i
 		}
-		
+
 		if char == '(' {
 			depth++
 		} else if char == ')' {
@@ -621,14 +624,14 @@ func convertInsertStatement(sql, tableName string) string {
 			if depth == 0 && tupleStart != -1 {
 				// Extract this tuple
 				tupleContent := valuesSection[tupleStart+1 : i]
-				
+
 				// Split by comma and skip the first value (ID)
 				values := strings.Split(tupleContent, ",")
 				if len(values) >= len(columns)+1 {
 					// Remove the ID value (first one)
-					adjustedValues := values[1:len(columns)+1]
+					adjustedValues := values[1 : len(columns)+1]
 					valuesList := strings.Join(adjustedValues, ",")
-					
+
 					if result != "" {
 						result += ";\n"
 					}
@@ -638,11 +641,11 @@ func convertInsertStatement(sql, tableName string) string {
 			}
 		}
 	}
-	
+
 	if result != "" {
 		return result
 	}
-	
+
 	return sql // Fallback to original
 }
 
@@ -663,7 +666,7 @@ func validateImportedData(dbURL string, verbose bool) error {
 
 	// Check core tables exist and have data
 	coreTables := []string{
-		"users", "groups", "queue", "ticket", "article", 
+		"users", "groups", "queue", "ticket", "article",
 		"customer_user", "customer_company",
 	}
 
@@ -674,7 +677,7 @@ func validateImportedData(dbURL string, verbose bool) error {
 	for _, table := range coreTables {
 		var count int
 		query := fmt.Sprintf("SELECT COUNT(*) FROM %s", table)
-		
+
 		err := db.QueryRowContext(ctx, query).Scan(&count)
 		if err != nil {
 			fmt.Printf("  %-20s ❌ Error: %v\n", table, err)

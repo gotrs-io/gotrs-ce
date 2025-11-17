@@ -27,12 +27,12 @@ func LoadFromEnvironment() (*Config, error) {
 	if !enabled {
 		return nil, nil // LDAP is disabled
 	}
-	
+
 	host := os.Getenv("LDAP_HOST")
 	if host == "" {
 		return nil, fmt.Errorf("LDAP_HOST is required when LDAP is enabled")
 	}
-	
+
 	portStr := os.Getenv("LDAP_PORT")
 	port := 389 // Default LDAP port
 	if portStr != "" {
@@ -40,29 +40,29 @@ func LoadFromEnvironment() (*Config, error) {
 			port = p
 		}
 	}
-	
+
 	config := &Config{
-		Host:     host,
-		Port:     port,
-		UseSSL:   strings.ToLower(os.Getenv("LDAP_USE_SSL")) == "true",
-		UseTLS:   strings.ToLower(os.Getenv("LDAP_USE_TLS")) == "true",
-		SkipTLS:  strings.ToLower(os.Getenv("LDAP_SKIP_TLS_VERIFY")) == "true",
-		BindDN:   os.Getenv("LDAP_BIND_DN"),
-		BindPassword: os.Getenv("LDAP_BIND_PASSWORD"),
-		BaseDN:   os.Getenv("LDAP_BASE_DN"),
-		UserFilter: os.Getenv("LDAP_USER_FILTER"),
-		UserBaseDN: os.Getenv("LDAP_USER_BASE_DN"),
-		EmailAttribute: os.Getenv("LDAP_EMAIL_ATTRIBUTE"),
-		FirstNameAttribute: os.Getenv("LDAP_FIRST_NAME_ATTRIBUTE"),
-		LastNameAttribute: os.Getenv("LDAP_LAST_NAME_ATTRIBUTE"),
+		Host:                 host,
+		Port:                 port,
+		UseSSL:               strings.ToLower(os.Getenv("LDAP_USE_SSL")) == "true",
+		UseTLS:               strings.ToLower(os.Getenv("LDAP_USE_TLS")) == "true",
+		SkipTLS:              strings.ToLower(os.Getenv("LDAP_SKIP_TLS_VERIFY")) == "true",
+		BindDN:               os.Getenv("LDAP_BIND_DN"),
+		BindPassword:         os.Getenv("LDAP_BIND_PASSWORD"),
+		BaseDN:               os.Getenv("LDAP_BASE_DN"),
+		UserFilter:           os.Getenv("LDAP_USER_FILTER"),
+		UserBaseDN:           os.Getenv("LDAP_USER_BASE_DN"),
+		EmailAttribute:       os.Getenv("LDAP_EMAIL_ATTRIBUTE"),
+		FirstNameAttribute:   os.Getenv("LDAP_FIRST_NAME_ATTRIBUTE"),
+		LastNameAttribute:    os.Getenv("LDAP_LAST_NAME_ATTRIBUTE"),
 		DisplayNameAttribute: os.Getenv("LDAP_DISPLAY_NAME_ATTRIBUTE"),
-		GroupBaseDN: os.Getenv("LDAP_GROUP_BASE_DN"),
-		GroupFilter: os.Getenv("LDAP_GROUP_FILTER"),
-		GroupAttribute: os.Getenv("LDAP_GROUP_ATTRIBUTE"),
-		IsActiveDirectory: strings.ToLower(os.Getenv("LDAP_IS_ACTIVE_DIRECTORY")) == "true",
-		Domain: os.Getenv("LDAP_DOMAIN"),
+		GroupBaseDN:          os.Getenv("LDAP_GROUP_BASE_DN"),
+		GroupFilter:          os.Getenv("LDAP_GROUP_FILTER"),
+		GroupAttribute:       os.Getenv("LDAP_GROUP_ATTRIBUTE"),
+		IsActiveDirectory:    strings.ToLower(os.Getenv("LDAP_IS_ACTIVE_DIRECTORY")) == "true",
+		Domain:               os.Getenv("LDAP_DOMAIN"),
 	}
-	
+
 	// Set timeout
 	if timeoutStr := os.Getenv("LDAP_TIMEOUT"); timeoutStr != "" {
 		if timeout, err := strconv.Atoi(timeoutStr); err == nil {
@@ -73,7 +73,7 @@ func LoadFromEnvironment() (*Config, error) {
 	} else {
 		config.Timeout = 30
 	}
-	
+
 	// Parse admin groups
 	if adminGroups := os.Getenv("LDAP_ADMIN_GROUPS"); adminGroups != "" {
 		config.AdminGroups = strings.Split(adminGroups, ",")
@@ -81,7 +81,7 @@ func LoadFromEnvironment() (*Config, error) {
 			config.AdminGroups[i] = strings.TrimSpace(group)
 		}
 	}
-	
+
 	// Parse agent groups
 	if agentGroups := os.Getenv("LDAP_AGENT_GROUPS"); agentGroups != "" {
 		config.AgentGroups = strings.Split(agentGroups, ",")
@@ -89,7 +89,7 @@ func LoadFromEnvironment() (*Config, error) {
 			config.AgentGroups[i] = strings.TrimSpace(group)
 		}
 	}
-	
+
 	// Apply defaults based on LDAP type
 	ldapType := strings.ToLower(os.Getenv("LDAP_TYPE"))
 	if template, exists := DefaultConfigs[ldapType]; exists {
@@ -115,7 +115,7 @@ func LoadFromEnvironment() (*Config, error) {
 			config.GroupAttribute = template.GroupAttribute
 		}
 	}
-	
+
 	// Validate required fields
 	if config.BaseDN == "" {
 		return nil, fmt.Errorf("LDAP_BASE_DN is required")
@@ -126,7 +126,7 @@ func LoadFromEnvironment() (*Config, error) {
 	if config.EmailAttribute == "" {
 		return nil, fmt.Errorf("LDAP_EMAIL_ATTRIBUTE is required")
 	}
-	
+
 	return config, nil
 }
 
@@ -136,7 +136,7 @@ func (cm *ConfigManager) SaveToFile(config *Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
-	
+
 	return os.WriteFile(cm.configPath, data, 0600)
 }
 
@@ -149,35 +149,35 @@ func (cm *ConfigManager) LoadFromFile() (*Config, error) {
 		}
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
-	
+
 	var config Config
 	if err := json.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-	
+
 	return &config, nil
 }
 
 // GetEnvironmentTemplate returns environment variables template for LDAP configuration
 func GetEnvironmentTemplate(ldapType string) map[string]string {
 	template := map[string]string{
-		"LDAP_ENABLED":                "true",
-		"LDAP_TYPE":                   ldapType,
-		"LDAP_HOST":                   "ldap.example.com",
-		"LDAP_PORT":                   "389",
-		"LDAP_USE_SSL":                "false",
-		"LDAP_USE_TLS":                "true",
-		"LDAP_SKIP_TLS_VERIFY":        "false",
-		"LDAP_TIMEOUT":                "30",
-		"LDAP_BIND_DN":                "cn=binduser,dc=example,dc=com",
-		"LDAP_BIND_PASSWORD":          "bindpassword",
-		"LDAP_BASE_DN":                "dc=example,dc=com",
-		"LDAP_USER_BASE_DN":           "", // Optional, uses BASE_DN if empty
-		"LDAP_GROUP_BASE_DN":          "ou=groups,dc=example,dc=com",
-		"LDAP_ADMIN_GROUPS":           "Domain Admins,GOTRS Admins",
-		"LDAP_AGENT_GROUPS":           "Support Team,Helpdesk",
+		"LDAP_ENABLED":         "true",
+		"LDAP_TYPE":            ldapType,
+		"LDAP_HOST":            "ldap.example.com",
+		"LDAP_PORT":            "389",
+		"LDAP_USE_SSL":         "false",
+		"LDAP_USE_TLS":         "true",
+		"LDAP_SKIP_TLS_VERIFY": "false",
+		"LDAP_TIMEOUT":         "30",
+		"LDAP_BIND_DN":         "cn=binduser,dc=example,dc=com",
+		"LDAP_BIND_PASSWORD":   "bindpassword",
+		"LDAP_BASE_DN":         "dc=example,dc=com",
+		"LDAP_USER_BASE_DN":    "", // Optional, uses BASE_DN if empty
+		"LDAP_GROUP_BASE_DN":   "ou=groups,dc=example,dc=com",
+		"LDAP_ADMIN_GROUPS":    "Domain Admins,GOTRS Admins",
+		"LDAP_AGENT_GROUPS":    "Support Team,Helpdesk",
 	}
-	
+
 	// Add type-specific defaults
 	if config, exists := DefaultConfigs[ldapType]; exists {
 		template["LDAP_USER_FILTER"] = config.UserFilter
@@ -187,7 +187,7 @@ func GetEnvironmentTemplate(ldapType string) map[string]string {
 		template["LDAP_DISPLAY_NAME_ATTRIBUTE"] = config.DisplayNameAttribute
 		template["LDAP_GROUP_FILTER"] = config.GroupFilter
 		template["LDAP_GROUP_ATTRIBUTE"] = config.GroupAttribute
-		
+
 		if config.IsActiveDirectory {
 			template["LDAP_IS_ACTIVE_DIRECTORY"] = "true"
 			template["LDAP_DOMAIN"] = "example.com"
@@ -196,7 +196,7 @@ func GetEnvironmentTemplate(ldapType string) map[string]string {
 			template["LDAP_DOMAIN"] = ""
 		}
 	}
-	
+
 	return template
 }
 

@@ -2,12 +2,12 @@ package schema
 
 import (
 	"fmt"
-    "os"
+	"os"
 	"path/filepath"
 	"strings"
 
-	"gopkg.in/yaml.v3"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"gopkg.in/yaml.v3"
 )
 
 // YAMLSchema represents the structure of a YAML schema file
@@ -50,43 +50,43 @@ func NewSchemaLoader(schemaDir string) *SchemaLoader {
 
 // LoadAll loads all YAML schema files from the schema directory
 func (l *SchemaLoader) LoadAll() error {
-    files, err := os.ReadDir(l.schemaDir)
+	files, err := os.ReadDir(l.schemaDir)
 	if err != nil {
 		return fmt.Errorf("failed to read schema directory: %w", err)
 	}
-	
+
 	for _, file := range files {
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".yaml") {
 			continue
 		}
-		
+
 		if err := l.LoadFile(file.Name()); err != nil {
 			return fmt.Errorf("failed to load %s: %w", file.Name(), err)
 		}
 	}
-	
+
 	return nil
 }
 
 // LoadFile loads a single YAML schema file
 func (l *SchemaLoader) LoadFile(filename string) error {
 	path := filepath.Join(l.schemaDir, filename)
-    data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
-	
+
 	var yamlSchema YAMLSchema
 	if err := yaml.Unmarshal(data, &yamlSchema); err != nil {
 		return fmt.Errorf("failed to parse YAML: %w", err)
 	}
-	
+
 	// Convert YAML schema to database.TableSchema
 	for tableName, table := range yamlSchema.Tables {
 		schema := l.convertToTableSchema(tableName, table)
 		l.schemas[tableName] = schema
 	}
-	
+
 	return nil
 }
 
@@ -96,44 +96,44 @@ func (l *SchemaLoader) LoadFromString(yamlContent string) error {
 	if err := yaml.Unmarshal([]byte(yamlContent), &yamlSchema); err != nil {
 		return fmt.Errorf("failed to parse YAML: %w", err)
 	}
-	
+
 	// Convert YAML schema to database.TableSchema
 	for tableName, table := range yamlSchema {
 		schema := l.convertToTableSchema(tableName, table)
 		l.schemas[tableName] = schema
 	}
-	
+
 	return nil
 }
 
 // convertToTableSchema converts a YAML table definition to database.TableSchema
 func (l *SchemaLoader) convertToTableSchema(name string, table YAMLTable) database.TableSchema {
 	columns := make(map[string]database.ColumnDef)
-	
+
 	for colName, col := range table.Columns {
 		// Parse column type with modifiers
 		colType := col.Type
 		required := col.Required
 		unique := col.Unique
-		
+
 		// Handle shorthand syntax: "varchar(200)!" means required
 		if strings.HasSuffix(colType, "!") {
 			colType = strings.TrimSuffix(colType, "!")
 			required = true
 		}
-		
+
 		// Handle shorthand syntax: "varchar(200)?" means nullable
 		if strings.HasSuffix(colType, "?") {
 			colType = strings.TrimSuffix(colType, "?")
 			required = false
 		}
-		
+
 		// Check for unique modifier in type
 		if strings.Contains(colType, " unique") {
 			colType = strings.Replace(colType, " unique", "", 1)
 			unique = true
 		}
-		
+
 		// Parse default value
 		var defaultVal interface{}
 		if col.Default != nil {
@@ -145,7 +145,7 @@ func (l *SchemaLoader) convertToTableSchema(name string, table YAMLTable) databa
 			if end > start {
 				defaultStr := colType[start+9 : end]
 				colType = colType[:start] + colType[end+1:]
-				
+
 				// Parse default value
 				if defaultStr == "1" || defaultStr == "true" {
 					defaultVal = true
@@ -158,7 +158,7 @@ func (l *SchemaLoader) convertToTableSchema(name string, table YAMLTable) databa
 				}
 			}
 		}
-		
+
 		columns[colName] = database.ColumnDef{
 			Type:     strings.TrimSpace(colType),
 			Required: required,
@@ -167,7 +167,7 @@ func (l *SchemaLoader) convertToTableSchema(name string, table YAMLTable) databa
 			Index:    col.Index,
 		}
 	}
-	
+
 	return database.TableSchema{
 		Name:       name,
 		PK:         table.PK,
@@ -193,7 +193,7 @@ func (l *SchemaLoader) GetAllSchemas() map[string]database.TableSchema {
 // GenerateSQL generates SQL for all schemas using the specified driver
 func (l *SchemaLoader) GenerateSQL(driver database.DatabaseDriver) ([]string, error) {
 	var queries []string
-	
+
 	// Sort tables by dependencies (simple approach - you might need topological sort for complex schemas)
 	for _, schema := range l.schemas {
 		query, err := driver.CreateTable(schema)
@@ -202,6 +202,6 @@ func (l *SchemaLoader) GenerateSQL(driver database.DatabaseDriver) ([]string, er
 		}
 		queries = append(queries, query.SQL)
 	}
-	
+
 	return queries, nil
 }

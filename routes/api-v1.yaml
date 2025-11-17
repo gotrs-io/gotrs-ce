@@ -118,6 +118,12 @@ spec:
     method: GET
     handler: HandleUserMeAPI
     description: "Get current user"
+
+  # Group endpoints
+  - path: /groups
+    method: GET
+    handler: HandleListGroupsAPI
+    description: "List groups"
     
   # Queue endpoints
   - path: /queues
@@ -235,4 +241,50 @@ spec:
     method: DELETE
     handler: HandleRemoveQueueGroupAPI
     description: "Remove group from queue"
+
+  # Email identity endpoints
+  - path: /system-addresses
+    method: GET
+    handler: HandleListSystemAddressesAPI
+    description: "List system addresses"
+
+  - path: /system-addresses
+    method: POST
+    handler: HandleCreateSystemAddressAPI
+    description: "Create system address"
+
+  - path: /system-addresses/:id
+    method: PUT
+    handler: HandleUpdateSystemAddressAPI
+    description: "Update system address"
+
+  - path: /salutations
+    method: GET
+    handler: HandleListSalutationsAPI
+    description: "List salutations"
+
+  - path: /salutations
+    method: POST
+    handler: HandleCreateSalutationAPI
+    description: "Create salutation"
+
+  - path: /salutations/:id
+    method: PUT
+    handler: HandleUpdateSalutationAPI
+    description: "Update salutation"
+
+  - path: /signatures
+    method: GET
+    handler: HandleListSignaturesAPI
+    description: "List signatures"
+
+  - path: /signatures
+    method: POST
+    handler: HandleCreateSignatureAPI
+    description: "Create signature"
+
+  - path: /signatures/:id
+    method: PUT
+    handler: HandleUpdateSignatureAPI
+    description: "Update signature"
 

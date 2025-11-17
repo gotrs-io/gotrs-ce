@@ -30,7 +30,7 @@ func NewAutoIncrementGenerator(db *sql.DB, config AutoIncrementConfig) *AutoIncr
 	if config.StartFrom == 0 {
 		config.StartFrom = 1
 	}
-	
+
 	return &AutoIncrementGenerator{
 		db:         db,
 		config:     config,
@@ -45,11 +45,11 @@ func (g *AutoIncrementGenerator) Generate() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get next counter: %w", err)
 	}
-	
+
 	// Format with prefix and padding
 	format := fmt.Sprintf("%%s%%0%dd", g.config.MinDigits)
 	ticketNumber := fmt.Sprintf(format, g.config.Prefix, counter)
-	
+
 	return ticketNumber, nil
 }
 
@@ -71,7 +71,9 @@ func (g *AutoIncrementGenerator) getNextCounterWithStart() (int64, error) {
 	if err == sql.ErrNoRows {
 		// Initialize starting point so next increment yields StartFrom
 		start := g.config.StartFrom
-		if start <= 0 { start = 1 }
+		if start <= 0 {
+			start = 1
+		}
 		if err := resetCounter(g.db, g.counterUID, start-1); err != nil {
 			return 0, err
 		}

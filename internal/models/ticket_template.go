@@ -22,19 +22,19 @@ type TicketTemplate struct {
 	UpdatedBy   int       `json:"updated_by"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
-	
+
 	// Template variables that can be replaced
-	Variables   []TemplateVariable `json:"variables"`
-	
+	Variables []TemplateVariable `json:"variables"`
+
 	// Attachments that should be included
 	AttachmentURLs []string `json:"attachment_urls,omitempty"`
 }
 
 // TemplateVariable represents a placeholder in the template
 type TemplateVariable struct {
-	Name        string `json:"name"`        // e.g., "{{customer_name}}"
-	Description string `json:"description"` // Help text for the variable
-	Required    bool   `json:"required"`
+	Name         string `json:"name"`        // e.g., "{{customer_name}}"
+	Description  string `json:"description"` // Help text for the variable
+	Required     bool   `json:"required"`
 	DefaultValue string `json:"default_value,omitempty"`
 }
 
@@ -50,9 +50,9 @@ type TemplateCategory struct {
 
 // ApplyTemplate creates a new ticket from a template with variable substitution
 type TemplateApplication struct {
-	TemplateID   uint              `json:"template_id" binding:"required"`
-	Variables    map[string]string `json:"variables"`
-	CustomerEmail string           `json:"customer_email" binding:"required,email"`
-	CustomerName  string           `json:"customer_name"`
-	AdditionalNotes string         `json:"additional_notes,omitempty"`
+	TemplateID      uint              `json:"template_id" binding:"required"`
+	Variables       map[string]string `json:"variables"`
+	CustomerEmail   string            `json:"customer_email" binding:"required,email"`
+	CustomerName    string            `json:"customer_name"`
+	AdditionalNotes string            `json:"additional_notes,omitempty"`
 }

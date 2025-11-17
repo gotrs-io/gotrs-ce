@@ -170,7 +170,7 @@ func printAbout() {
 
 func handleList(versionMgr *yamlmgmt.VersionManager) {
 	var kind yamlmgmt.YAMLKind
-	
+
 	if len(os.Args) > 2 {
 		kind = parseKind(os.Args[2])
 	}
@@ -202,22 +202,22 @@ func handleList(versionMgr *yamlmgmt.VersionManager) {
 
 		if len(documents) > 0 {
 			fmt.Printf("📁 %s (%d):\n", k, len(documents))
-			
+
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 			fmt.Fprintln(w, "  NAME\tVERSION\tMODIFIED\tDESCRIPTION")
 			fmt.Fprintln(w, "  ----\t-------\t--------\t-----------")
-			
+
 			for _, doc := range documents {
 				modified := "unknown"
 				if !doc.Metadata.Modified.IsZero() {
 					modified = doc.Metadata.Modified.Format("2006-01-02")
 				}
-				
+
 				description := doc.Metadata.Description
 				if len(description) > 40 {
 					description = description[:37] + "..."
 				}
-				
+
 				fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n",
 					doc.Metadata.Name,
 					doc.Metadata.Version,
@@ -226,7 +226,7 @@ func handleList(versionMgr *yamlmgmt.VersionManager) {
 			}
 			w.Flush()
 			fmt.Println()
-			
+
 			totalCount += len(documents)
 		}
 	}
@@ -268,7 +268,7 @@ func handleValidate(schemaRegistry *yamlmgmt.SchemaRegistry, linter *yamlmgmt.Un
 	}
 
 	filename := os.Args[2]
-	
+
 	// Load file
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -442,10 +442,10 @@ func handleVersion(versionMgr *yamlmgmt.VersionManager) {
 			fmt.Println("Usage: gk version list <kind> <name>")
 			os.Exit(1)
 		}
-		
+
 		kind := parseKind(os.Args[3])
 		name := os.Args[4]
-		
+
 		versions, err := versionMgr.ListVersions(kind, name)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
@@ -454,20 +454,20 @@ func handleVersion(versionMgr *yamlmgmt.VersionManager) {
 
 		fmt.Printf("📚 Version History: %s/%s\n", kind, name)
 		fmt.Println(strings.Repeat("=", 50))
-		
+
 		if len(versions) == 0 {
 			fmt.Println("No versions found")
 		} else {
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 			fmt.Fprintln(w, "VERSION\tHASH\tAUTHOR\tDATE\tMESSAGE")
 			fmt.Fprintln(w, "-------\t----\t------\t----\t-------")
-			
+
 			for _, v := range versions {
 				message := v.Message
 				if len(message) > 30 {
 					message = message[:27] + "..."
 				}
-				
+
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 					v.Number,
 					v.Hash[:8],
@@ -484,11 +484,11 @@ func handleVersion(versionMgr *yamlmgmt.VersionManager) {
 			fmt.Println("Usage: gk version show <kind> <name> <version>")
 			os.Exit(1)
 		}
-		
+
 		kind := parseKind(os.Args[3])
 		name := os.Args[4]
 		versionID := os.Args[5]
-		
+
 		version, err := versionMgr.GetVersion(kind, name, versionID)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
@@ -503,11 +503,11 @@ func handleVersion(versionMgr *yamlmgmt.VersionManager) {
 		fmt.Printf("Author:     %s\n", version.Author)
 		fmt.Printf("Timestamp:  %s\n", version.Timestamp.Format("2006-01-02 15:04:05"))
 		fmt.Printf("Message:    %s\n", version.Message)
-		
+
 		if version.ParentHash != "" {
 			fmt.Printf("Parent:     %s\n", version.ParentHash[:8])
 		}
-		
+
 		if version.Stats != nil {
 			fmt.Printf("\nStatistics:\n")
 			fmt.Printf("  Total fields: %d\n", version.Stats.TotalFields)
@@ -532,10 +532,10 @@ func handleRollback(versionMgr *yamlmgmt.VersionManager) {
 
 	fmt.Printf("⚠️  Rolling back %s/%s to version %s\n", kind, name, versionID)
 	fmt.Printf("Are you sure? (yes/no): ")
-	
+
 	var confirm string
 	fmt.Scanln(&confirm)
-	
+
 	if confirm != "yes" {
 		fmt.Println("Rollback cancelled")
 		return
@@ -572,7 +572,7 @@ func handleDiff(versionMgr *yamlmgmt.VersionManager) {
 	}
 
 	var fromID, toID string
-	
+
 	if len(os.Args) >= 6 {
 		fromID = os.Args[4]
 		toID = os.Args[5]
@@ -603,7 +603,7 @@ func handleDiff(versionMgr *yamlmgmt.VersionManager) {
 			} else if change.Type == yamlmgmt.ChangeTypeDelete {
 				icon = "-"
 			}
-			
+
 			fmt.Printf("%s %s: %s\n", icon, change.Path, change.Description)
 		}
 	}
@@ -617,7 +617,7 @@ func handleApply(versionMgr *yamlmgmt.VersionManager, schemaRegistry *yamlmgmt.S
 	}
 
 	filename := os.Args[2]
-	
+
 	// Load file
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -643,7 +643,7 @@ func handleApply(versionMgr *yamlmgmt.VersionManager, schemaRegistry *yamlmgmt.S
 	kind := yamlmgmt.YAMLKind(doc.Kind)
 	name := doc.Metadata.Name
 	message := fmt.Sprintf("Applied from %s", filepath.Base(filename))
-	
+
 	version, err := versionMgr.CreateVersion(kind, name, &doc, message)
 	if err != nil {
 		fmt.Printf("❌ Failed to apply: %v\n", err)
@@ -676,7 +676,7 @@ func handleWatch(versionMgr *yamlmgmt.VersionManager, schemaRegistry *yamlmgmt.S
 	// Listen for events
 	for event := range hotReload.Events() {
 		timestamp := event.Timestamp.Format("15:04:05")
-		
+
 		icon := "📝"
 		switch event.Type {
 		case yamlmgmt.EventTypeCreated:
@@ -692,15 +692,15 @@ func handleWatch(versionMgr *yamlmgmt.VersionManager, schemaRegistry *yamlmgmt.S
 		}
 
 		fmt.Printf("[%s] %s %s/%s", timestamp, icon, event.Kind, event.Name)
-		
+
 		if event.Version != nil {
 			fmt.Printf(" (v%s)", event.Version.Hash[:8])
 		}
-		
+
 		if event.Error != "" {
 			fmt.Printf(" - Error: %s", event.Error)
 		}
-		
+
 		fmt.Println()
 	}
 }
@@ -732,7 +732,7 @@ func handleExport(versionMgr *yamlmgmt.VersionManager) {
 
 	for _, doc := range documents {
 		filename := filepath.Join(outputDir, fmt.Sprintf("%s.yaml", doc.Metadata.Name))
-		
+
 		data, err := yaml.Marshal(doc)
 		if err != nil {
 			fmt.Printf("❌ Failed to marshal %s: %v\n", doc.Metadata.Name, err)
@@ -760,7 +760,7 @@ func handleImport(versionMgr *yamlmgmt.VersionManager) {
 	importDir := os.Args[2]
 
 	fmt.Printf("📥 Importing configurations from %s\n", importDir)
-	
+
 	imported := 0
 	failed := 0
 
@@ -793,7 +793,7 @@ func handleImport(versionMgr *yamlmgmt.VersionManager) {
 		kind := yamlmgmt.YAMLKind(doc.Kind)
 		name := doc.Metadata.Name
 		message := fmt.Sprintf("Imported from %s", filepath.Base(path))
-		
+
 		if _, err := versionMgr.CreateVersion(kind, name, &doc, message); err != nil {
 			fmt.Printf("❌ Failed to import %s: %v\n", name, err)
 			failed++
@@ -806,7 +806,7 @@ func handleImport(versionMgr *yamlmgmt.VersionManager) {
 	})
 
 	fmt.Printf("\nImport complete: %d succeeded, %d failed\n", imported, failed)
-	
+
 	if failed > 0 {
 		os.Exit(1)
 	}

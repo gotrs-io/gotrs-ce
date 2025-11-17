@@ -10,8 +10,8 @@ type SimpleTicket struct {
 	Subject       string    `json:"subject"`
 	QueueID       uint      `json:"queue_id"`
 	TypeID        uint      `json:"type_id"`
-	Priority      string    `json:"priority"`      // "low", "normal", "high", "urgent"
-	Status        string    `json:"status"`        // "new", "open", "pending", "closed"
+	Priority      string    `json:"priority"` // "low", "normal", "high", "urgent"
+	Status        string    `json:"status"`   // "new", "open", "pending", "closed"
 	CustomerEmail string    `json:"customer_email"`
 	CustomerName  string    `json:"customer_name"`
 	AssignedTo    uint      `json:"assigned_to"`

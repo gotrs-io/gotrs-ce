@@ -16,46 +16,10 @@ import (
 // HandleAgentNewTicket displays the agent ticket creation form with necessary data
 func HandleAgentNewTicket(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Test-mode fallback for when database is not available
-		if os.Getenv("APP_ENV") == "test" && db == nil {
-			// Return mock data for testing
-			renderer := GetPongo2Renderer()
-			if renderer != nil {
-				user := GetUserMapForTemplate(c)
-				isInAdminGroup := false
-				if v, ok := user["IsInAdminGroup"].(bool); ok {
-					isInAdminGroup = v
-				}
-				renderer.HTML(c, http.StatusOK, "pages/tickets/new.pongo2", gin.H{
-					"Title":          "New Ticket - GOTRS",
-					"User":           user,
-					"ActivePage":     "tickets",
-					"IsInAdminGroup": isInAdminGroup,
-					"Queues": []gin.H{
-						{"ID": 1, "Name": "Raw"},
-						{"ID": 2, "Name": "Junk"},
-						{"ID": 3, "Name": "OBC"},
-					},
-					"Types": []gin.H{
-						{"ID": 1, "Label": "Unclassified"},
-						{"ID": 2, "Label": "Incident"},
-						{"ID": 3, "Label": "Request"},
-					},
-					"Priorities": []gin.H{
-						{"ID": 1, "Name": "1 very low"},
-						{"ID": 2, "Name": "2 low"},
-						{"ID": 3, "Name": "3 normal"},
-						{"ID": 4, "Name": "4 high"},
-						{"ID": 5, "Name": "5 very high"},
-					},
-					"CustomerUsers": []gin.H{
-						{"Login": "test@example.com", "Email": "test@example.com", "FirstName": "Test", "LastName": "User", "CustomerID": "COMP1", "PreferredQueueID": "1", "PreferredQueueName": "Raw"},
-						{"Login": "john@example.com", "Email": "john@example.com", "FirstName": "John", "LastName": "Doe", "CustomerID": "COMP2", "PreferredQueueID": "2", "PreferredQueueName": "Junk"},
-					},
-				})
-			} else {
-				renderTicketCreationFallback(c, "email")
-			}
+		skipDB := htmxHandlerSkipDB() || strings.TrimSpace(os.Getenv("SKIP_DB_WAIT")) == "1"
+		// Test-mode fallback for when database access is intentionally skipped
+		if skipDB {
+			renderTicketCreationFallback(c, "email")
 			return
 		}
 

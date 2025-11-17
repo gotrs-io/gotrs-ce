@@ -35,7 +35,7 @@ func NewDateChecksumGenerator(db *sql.DB, config DateChecksumConfig) *DateChecks
 	if config.ChecksumLength == 0 {
 		config.ChecksumLength = 2
 	}
-	
+
 	return &DateChecksumGenerator{
 		db:     db,
 		config: config,
@@ -45,27 +45,27 @@ func NewDateChecksumGenerator(db *sql.DB, config DateChecksumConfig) *DateChecks
 // Generate creates a new ticket number with checksum
 func (g *DateChecksumGenerator) Generate() (string, error) {
 	now := time.Now()
-	
+
 	// Build date part
 	datePart := fmt.Sprintf("%04d%02d%02d", now.Year(), now.Month(), now.Day())
-	
+
 	// Get counter UID (includes date for daily reset)
 	counterUID := g.getCounterUID(now)
-	
+
 	// Get next counter value
 	counter, err := getNextCounter(g.db, counterUID)
 	if err != nil {
 		return "", fmt.Errorf("failed to get next counter: %w", err)
 	}
-	
+
 	// Format counter with padding
 	counterFormat := fmt.Sprintf("%%0%dd", g.config.CounterDigits)
 	counterPart := fmt.Sprintf(counterFormat, counter)
-	
+
 	// Calculate checksum
 	checksumInput := datePart + counterPart
 	checksum := g.calculateChecksum(checksumInput)
-	
+
 	// Combine all parts
 	ticketNumber := fmt.Sprintf("%s%s%s%s%s",
 		datePart,
@@ -73,7 +73,7 @@ func (g *DateChecksumGenerator) Generate() (string, error) {
 		counterPart,
 		g.config.Separator,
 		checksum)
-	
+
 	return ticketNumber, nil
 }
 
@@ -84,7 +84,7 @@ func (g *DateChecksumGenerator) Reset() error {
 	if g.config.ResetDaily {
 		return nil
 	}
-	
+
 	// For non-daily reset, reset the main counter
 	counterUID := g.getCounterUID(time.Now())
 	return resetCounter(g.db, counterUID, 0)
@@ -96,11 +96,11 @@ func (g *DateChecksumGenerator) Validate(ticketNumber string) bool {
 	if len(parts) != 3 {
 		return false
 	}
-	
+
 	// Recalculate checksum
 	checksumInput := parts[0] + parts[1]
 	expectedChecksum := g.calculateChecksum(checksumInput)
-	
+
 	return parts[2] == expectedChecksum
 }
 
@@ -108,19 +108,19 @@ func (g *DateChecksumGenerator) Validate(ticketNumber string) bool {
 func (g *DateChecksumGenerator) calculateChecksum(input string) string {
 	// Use CRC32 for checksum
 	checksum := crc32.ChecksumIEEE([]byte(input))
-	
+
 	// Convert to string and truncate to desired length
 	checksumStr := fmt.Sprintf("%010d", checksum) // 10 digits max
-	
+
 	// Take last N digits
 	if len(checksumStr) > g.config.ChecksumLength {
 		checksumStr = checksumStr[len(checksumStr)-g.config.ChecksumLength:]
 	}
-	
+
 	// Pad if necessary
 	format := fmt.Sprintf("%%0%dd", g.config.ChecksumLength)
 	result := fmt.Sprintf(format, atoi(checksumStr))
-	
+
 	return result
 }
 

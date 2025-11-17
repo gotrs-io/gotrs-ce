@@ -17,49 +17,49 @@ type HTMLSanitizer struct {
 func NewHTMLSanitizer() *HTMLSanitizer {
 	// Create a policy that allows common formatting but prevents XSS
 	p := bluemonday.NewPolicy()
-	
+
 	// Basic formatting
 	p.AllowElements("b", "strong", "i", "em", "u", "s", "strike", "del")
-	
+
 	// Headings
 	p.AllowElements("h1", "h2", "h3", "h4", "h5", "h6")
-	
+
 	// Paragraphs and breaks
 	p.AllowElements("p", "br", "hr")
-	
+
 	// Lists
 	p.AllowElements("ul", "ol", "li")
-	
+
 	// Quotes and code
 	p.AllowElements("blockquote", "code", "pre")
-	
+
 	// Tables
 	p.AllowElements("table", "thead", "tbody", "tfoot", "tr", "th", "td")
 	p.AllowAttrs("colspan", "rowspan").OnElements("td", "th")
-	
+
 	// Images (with safe attributes)
 	p.AllowElements("img")
 	p.AllowAttrs("src", "alt", "title", "width", "height").OnElements("img")
 	p.AllowURLSchemes("http", "https", "data") // Allow data URLs for base64 images
-	
+
 	// Links (with safe attributes only)
 	p.AllowElements("a")
 	p.AllowAttrs("href").OnElements("a")
 	p.AllowURLSchemes("http", "https", "mailto")
 	p.RequireParseableURLs(true)
-	p.RequireNoFollowOnLinks(true) // Add rel="nofollow" to links
-	p.RequireNoReferrerOnLinks(true) // Add rel="noreferrer" to links
+	p.RequireNoFollowOnLinks(true)              // Add rel="nofollow" to links
+	p.RequireNoReferrerOnLinks(true)            // Add rel="noreferrer" to links
 	p.AddTargetBlankToFullyQualifiedLinks(true) // Open external links in new tab
-	
+
 	// Allow class attributes for styling (limited to safe values)
 	p.AllowAttrs("class").Matching(bluemonday.SpaceSeparatedTokens).OnElements(
 		"div", "span", "p", "ul", "ol", "li", "table", "tr", "td", "th",
 		"h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "code", "pre", "img",
 	)
-	
+
 	// Allow style attributes for color and background-color (TipTap rich text editor)
 	p.AllowAttrs("style").OnElements("span", "mark")
-	
+
 	return &HTMLSanitizer{
 		policy: p,
 	}
@@ -74,14 +74,14 @@ func (s *HTMLSanitizer) Sanitize(html string) string {
 func IsHTML(content string) bool {
 	// Check for common HTML tags
 	htmlTags := []string{"<p>", "<br>", "<div>", "<span>", "<b>", "<i>", "<strong>", "<em>", "<h1>", "<h2>", "<h3>", "<ul>", "<ol>", "<li>", "<table>", "<a ", "<blockquote>", "<img "}
-	
+
 	contentLower := strings.ToLower(content)
 	for _, tag := range htmlTags {
 		if strings.Contains(contentLower, tag) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -89,7 +89,7 @@ func IsHTML(content string) bool {
 func IsMarkdown(content string) bool {
 	// Check for common markdown patterns that indicate rich text formatting
 	markdownPatterns := []string{"**", "*", "_", "`", "# ", "## ", "### ", "- ", "* ", "+ ", "1. ", "[", "](", "![", "](", "\n"}
-	
+
 	// Count markdown elements
 	markdownCount := 0
 	for _, pattern := range markdownPatterns {
@@ -97,7 +97,7 @@ func IsMarkdown(content string) bool {
 			markdownCount++
 		}
 	}
-	
+
 	// If we have multiple markdown patterns, it's likely rich text
 	return markdownCount >= 2
 }
@@ -109,13 +109,13 @@ func MarkdownToHTML(markdown string) string {
 			html.WithUnsafe(), // Allow raw HTML in markdown
 		),
 	)
-	
+
 	var buf strings.Builder
 	if err := md.Convert([]byte(markdown), &buf); err != nil {
 		// If conversion fails, return original content
 		return markdown
 	}
-	
+
 	return buf.String()
 }
 

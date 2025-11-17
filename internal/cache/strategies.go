@@ -19,22 +19,22 @@ func (s *WriteThroughStrategy) Get(ctx context.Context, key string) (interface{}
 			return val, nil
 		}
 	}
-	
+
 	// Check Redis
 	if s.redis != nil {
 		val, err := s.redis.Get(ctx, key)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		// Store in local cache if found
 		if val != nil && s.local != nil {
 			s.local.Set(key, val, 5*time.Minute)
 		}
-		
+
 		return val, nil
 	}
-	
+
 	return nil, nil
 }
 
@@ -44,12 +44,12 @@ func (s *WriteThroughStrategy) Set(ctx context.Context, key string, value interf
 	if s.local != nil {
 		s.local.Set(key, value, ttl)
 	}
-	
+
 	// Write to Redis
 	if s.redis != nil {
 		return s.redis.Set(ctx, key, value, ttl)
 	}
-	
+
 	return nil
 }
 
@@ -59,12 +59,12 @@ func (s *WriteThroughStrategy) Delete(ctx context.Context, key string) error {
 	if s.local != nil {
 		s.local.Delete(key)
 	}
-	
+
 	// Delete from Redis
 	if s.redis != nil {
 		return s.redis.Delete(ctx, key)
 	}
-	
+
 	return nil
 }
 
@@ -74,12 +74,12 @@ func (s *WriteThroughStrategy) Clear(ctx context.Context, pattern string) error 
 	if s.local != nil {
 		s.local.Clear()
 	}
-	
+
 	// Clear Redis
 	if s.redis != nil {
 		return s.redis.Clear(ctx, pattern)
 	}
-	
+
 	return nil
 }
 
@@ -87,7 +87,7 @@ func (s *WriteThroughStrategy) Clear(ctx context.Context, pattern string) error 
 func (s *WriteThroughStrategy) GetMulti(ctx context.Context, keys []string) (map[string]interface{}, error) {
 	result := make(map[string]interface{})
 	missingKeys := []string{}
-	
+
 	// Check local cache first
 	if s.local != nil {
 		for _, key := range keys {
@@ -100,14 +100,14 @@ func (s *WriteThroughStrategy) GetMulti(ctx context.Context, keys []string) (map
 	} else {
 		missingKeys = keys
 	}
-	
+
 	// Get missing keys from Redis
 	if len(missingKeys) > 0 && s.redis != nil {
 		redisVals, err := s.redis.GetMulti(ctx, missingKeys)
 		if err != nil {
 			return result, err
 		}
-		
+
 		// Add Redis results and update local cache
 		for key, val := range redisVals {
 			result[key] = val
@@ -116,7 +116,7 @@ func (s *WriteThroughStrategy) GetMulti(ctx context.Context, keys []string) (map
 			}
 		}
 	}
-	
+
 	return result, nil
 }
 
@@ -128,12 +128,12 @@ func (s *WriteThroughStrategy) SetMulti(ctx context.Context, items map[string]in
 			s.local.Set(key, val, ttl)
 		}
 	}
-	
+
 	// Set in Redis
 	if s.redis != nil {
 		return s.redis.SetMulti(ctx, items, ttl)
 	}
-	
+
 	return nil
 }
 
@@ -152,20 +152,20 @@ func (s *WriteBehindStrategy) Get(ctx context.Context, key string) (interface{},
 			return val, nil
 		}
 	}
-	
+
 	if s.redis != nil {
 		val, err := s.redis.Get(ctx, key)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if val != nil && s.local != nil {
 			s.local.Set(key, val, 5*time.Minute)
 		}
-		
+
 		return val, nil
 	}
-	
+
 	return nil, nil
 }
 
@@ -175,7 +175,7 @@ func (s *WriteBehindStrategy) Set(ctx context.Context, key string, value interfa
 	if s.local != nil {
 		s.local.Set(key, value, ttl)
 	}
-	
+
 	// Queue for Redis write
 	if s.redis != nil {
 		select {
@@ -190,7 +190,7 @@ func (s *WriteBehindStrategy) Set(ctx context.Context, key string, value interfa
 			return s.redis.Set(ctx, key, value, ttl)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -200,7 +200,7 @@ func (s *WriteBehindStrategy) Delete(ctx context.Context, key string) error {
 	if s.local != nil {
 		s.local.Delete(key)
 	}
-	
+
 	// Queue for Redis delete
 	if s.redis != nil {
 		select {
@@ -214,7 +214,7 @@ func (s *WriteBehindStrategy) Delete(ctx context.Context, key string) error {
 			return s.redis.Delete(ctx, key)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -223,11 +223,11 @@ func (s *WriteBehindStrategy) Clear(ctx context.Context, pattern string) error {
 	if s.local != nil {
 		s.local.Clear()
 	}
-	
+
 	if s.redis != nil {
 		return s.redis.Clear(ctx, pattern)
 	}
-	
+
 	return nil
 }
 
@@ -245,7 +245,7 @@ func (s *WriteBehindStrategy) SetMulti(ctx context.Context, items map[string]int
 			s.local.Set(key, val, ttl)
 		}
 	}
-	
+
 	// Queue for Redis
 	if s.redis != nil {
 		for key, val := range items {
@@ -262,7 +262,7 @@ func (s *WriteBehindStrategy) SetMulti(ctx context.Context, items map[string]int
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -307,14 +307,14 @@ func (s *ReadThroughStrategy) Get(ctx context.Context, key string) (interface{},
 			return val, nil
 		}
 	}
-	
+
 	// Check Redis
 	if s.redis != nil {
 		val, err := s.redis.Get(ctx, key)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if val != nil {
 			if s.local != nil {
 				s.local.Set(key, val, 5*time.Minute)
@@ -322,22 +322,22 @@ func (s *ReadThroughStrategy) Get(ctx context.Context, key string) (interface{},
 			return val, nil
 		}
 	}
-	
+
 	// Load from source
 	if s.loader != nil {
 		val, err := s.loader.Load(ctx, key)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		// Cache the loaded value
 		if val != nil {
 			s.Set(ctx, key, val, 5*time.Minute)
 		}
-		
+
 		return val, nil
 	}
-	
+
 	return nil, nil
 }
 
@@ -346,11 +346,11 @@ func (s *ReadThroughStrategy) Set(ctx context.Context, key string, value interfa
 	if s.local != nil {
 		s.local.Set(key, value, ttl)
 	}
-	
+
 	if s.redis != nil {
 		return s.redis.Set(ctx, key, value, ttl)
 	}
-	
+
 	return nil
 }
 
@@ -359,11 +359,11 @@ func (s *ReadThroughStrategy) Delete(ctx context.Context, key string) error {
 	if s.local != nil {
 		s.local.Delete(key)
 	}
-	
+
 	if s.redis != nil {
 		return s.redis.Delete(ctx, key)
 	}
-	
+
 	return nil
 }
 
@@ -372,11 +372,11 @@ func (s *ReadThroughStrategy) Clear(ctx context.Context, pattern string) error {
 	if s.local != nil {
 		s.local.Clear()
 	}
-	
+
 	if s.redis != nil {
 		return s.redis.Clear(ctx, pattern)
 	}
-	
+
 	return nil
 }
 
@@ -384,7 +384,7 @@ func (s *ReadThroughStrategy) Clear(ctx context.Context, pattern string) error {
 func (s *ReadThroughStrategy) GetMulti(ctx context.Context, keys []string) (map[string]interface{}, error) {
 	result := make(map[string]interface{})
 	missingKeys := []string{}
-	
+
 	// Check local cache
 	if s.local != nil {
 		for _, key := range keys {
@@ -397,14 +397,14 @@ func (s *ReadThroughStrategy) GetMulti(ctx context.Context, keys []string) (map[
 	} else {
 		missingKeys = keys
 	}
-	
+
 	// Check Redis for missing keys
 	if len(missingKeys) > 0 && s.redis != nil {
 		redisVals, err := s.redis.GetMulti(ctx, missingKeys)
 		if err != nil {
 			return result, err
 		}
-		
+
 		stillMissing := []string{}
 		for _, key := range missingKeys {
 			if val, exists := redisVals[key]; exists && val != nil {
@@ -416,17 +416,17 @@ func (s *ReadThroughStrategy) GetMulti(ctx context.Context, keys []string) (map[
 				stillMissing = append(stillMissing, key)
 			}
 		}
-		
+
 		missingKeys = stillMissing
 	}
-	
+
 	// Load missing from source
 	if len(missingKeys) > 0 && s.loader != nil {
 		sourceVals, err := s.loader.LoadMulti(ctx, missingKeys)
 		if err != nil {
 			return result, err
 		}
-		
+
 		// Cache loaded values
 		for key, val := range sourceVals {
 			result[key] = val
@@ -435,7 +435,7 @@ func (s *ReadThroughStrategy) GetMulti(ctx context.Context, keys []string) (map[
 			}
 		}
 	}
-	
+
 	return result, nil
 }
 
@@ -446,11 +446,11 @@ func (s *ReadThroughStrategy) SetMulti(ctx context.Context, items map[string]int
 			s.local.Set(key, val, ttl)
 		}
 	}
-	
+
 	if s.redis != nil {
 		return s.redis.SetMulti(ctx, items, ttl)
 	}
-	
+
 	return nil
 }
 
@@ -468,12 +468,12 @@ func (s *CacheAsideStrategy) Get(ctx context.Context, key string) (interface{}, 
 			return val, nil
 		}
 	}
-	
+
 	// Check Redis
 	if s.redis != nil {
 		return s.redis.Get(ctx, key)
 	}
-	
+
 	return nil, nil
 }
 
@@ -482,11 +482,11 @@ func (s *CacheAsideStrategy) Set(ctx context.Context, key string, value interfac
 	if s.local != nil {
 		s.local.Set(key, value, ttl)
 	}
-	
+
 	if s.redis != nil {
 		return s.redis.Set(ctx, key, value, ttl)
 	}
-	
+
 	return nil
 }
 
@@ -495,11 +495,11 @@ func (s *CacheAsideStrategy) Delete(ctx context.Context, key string) error {
 	if s.local != nil {
 		s.local.Delete(key)
 	}
-	
+
 	if s.redis != nil {
 		return s.redis.Delete(ctx, key)
 	}
-	
+
 	return nil
 }
 
@@ -508,11 +508,11 @@ func (s *CacheAsideStrategy) Clear(ctx context.Context, pattern string) error {
 	if s.local != nil {
 		s.local.Clear()
 	}
-	
+
 	if s.redis != nil {
 		return s.redis.Clear(ctx, pattern)
 	}
-	
+
 	return nil
 }
 
@@ -520,7 +520,7 @@ func (s *CacheAsideStrategy) Clear(ctx context.Context, pattern string) error {
 func (s *CacheAsideStrategy) GetMulti(ctx context.Context, keys []string) (map[string]interface{}, error) {
 	result := make(map[string]interface{})
 	missingKeys := []string{}
-	
+
 	// Check local cache
 	if s.local != nil {
 		for _, key := range keys {
@@ -533,14 +533,14 @@ func (s *CacheAsideStrategy) GetMulti(ctx context.Context, keys []string) (map[s
 	} else {
 		missingKeys = keys
 	}
-	
+
 	// Get missing from Redis
 	if len(missingKeys) > 0 && s.redis != nil {
 		redisVals, err := s.redis.GetMulti(ctx, missingKeys)
 		if err != nil {
 			return result, err
 		}
-		
+
 		for key, val := range redisVals {
 			result[key] = val
 			// Update local cache
@@ -549,7 +549,7 @@ func (s *CacheAsideStrategy) GetMulti(ctx context.Context, keys []string) (map[s
 			}
 		}
 	}
-	
+
 	return result, nil
 }
 
@@ -560,10 +560,10 @@ func (s *CacheAsideStrategy) SetMulti(ctx context.Context, items map[string]inte
 			s.local.Set(key, val, ttl)
 		}
 	}
-	
+
 	if s.redis != nil {
 		return s.redis.SetMulti(ctx, items, ttl)
 	}
-	
+
 	return nil
 }

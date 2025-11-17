@@ -133,13 +133,13 @@ type InternalNote struct {
 
 // NoteTemplate represents a note template
 type NoteTemplate struct {
-	ID          uint     `json:"id"`
-	Name        string   `json:"name"`
-	Content     string   `json:"content"`
-	Category    string   `json:"category"`
-	Tags        []string `json:"tags"`
-	IsImportant bool     `json:"is_important"`
-	CreatedBy   uint     `json:"created_by"`
+	ID          uint      `json:"id"`
+	Name        string    `json:"name"`
+	Content     string    `json:"content"`
+	Category    string    `json:"category"`
+	Tags        []string  `json:"tags"`
+	IsImportant bool      `json:"is_important"`
+	CreatedBy   uint      `json:"created_by"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -182,18 +182,18 @@ type LDAPSyncResult struct {
 
 // Webhook represents a webhook configuration
 type Webhook struct {
-	ID          uint      `json:"id"`
-	Name        string    `json:"name"`
-	URL         string    `json:"url"`
-	Events      []string  `json:"events"`
-	Secret      string    `json:"secret,omitempty"`
-	IsActive    bool      `json:"is_active"`
-	RetryCount  int       `json:"retry_count"`
-	Timeout     int       `json:"timeout"`
+	ID          uint              `json:"id"`
+	Name        string            `json:"name"`
+	URL         string            `json:"url"`
+	Events      []string          `json:"events"`
+	Secret      string            `json:"secret,omitempty"`
+	IsActive    bool              `json:"is_active"`
+	RetryCount  int               `json:"retry_count"`
+	Timeout     int               `json:"timeout"`
 	Headers     map[string]string `json:"headers,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	LastFiredAt *time.Time `json:"last_fired_at,omitempty"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
+	LastFiredAt *time.Time        `json:"last_fired_at,omitempty"`
 }
 
 // WebhookDelivery represents a webhook delivery attempt
@@ -239,19 +239,19 @@ type TicketUpdateRequest struct {
 
 // TicketListOptions represents options for listing tickets
 type TicketListOptions struct {
-	Page         int      `json:"page,omitempty"`
-	PageSize     int      `json:"page_size,omitempty"`
-	Status       []string `json:"status,omitempty"`
-	Priority     []string `json:"priority,omitempty"`
-	QueueID      []uint   `json:"queue_id,omitempty"`
-	AssignedTo   *uint    `json:"assigned_to,omitempty"`
-	CustomerID   *uint    `json:"customer_id,omitempty"`
-	Search       string   `json:"search,omitempty"`
-	Tags         []string `json:"tags,omitempty"`
-	CreatedAfter *time.Time `json:"created_after,omitempty"`
+	Page          int        `json:"page,omitempty"`
+	PageSize      int        `json:"page_size,omitempty"`
+	Status        []string   `json:"status,omitempty"`
+	Priority      []string   `json:"priority,omitempty"`
+	QueueID       []uint     `json:"queue_id,omitempty"`
+	AssignedTo    *uint      `json:"assigned_to,omitempty"`
+	CustomerID    *uint      `json:"customer_id,omitempty"`
+	Search        string     `json:"search,omitempty"`
+	Tags          []string   `json:"tags,omitempty"`
+	CreatedAfter  *time.Time `json:"created_after,omitempty"`
 	CreatedBefore *time.Time `json:"created_before,omitempty"`
-	SortBy       string   `json:"sort_by,omitempty"`
-	SortOrder    string   `json:"sort_order,omitempty"`
+	SortBy        string     `json:"sort_by,omitempty"`
+	SortOrder     string     `json:"sort_order,omitempty"`
 }
 
 // TicketListResponse represents a response from listing tickets

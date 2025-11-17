@@ -20,33 +20,33 @@ func TestTemplateTranslationKeys(t *testing.T) {
 	}
 
 	i18n := GetInstance()
-	
+
 	// Pattern to match t("key") or {{ t("key") }} in templates
 	// Make sure we only match actual translation function calls, not HTML content
 	tFuncPattern := regexp.MustCompile(`\{\{[^}]*t\(["']([^"']+)["']\)[^}]*\}\}|[^a-zA-Z]t\(["']([^"']+)["']\)`)
-	
+
 	// Find all template files
 	templatesDir := "../../templates"
 	missingKeys := make(map[string][]string)
-	
+
 	err := filepath.Walk(templatesDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		
+
 		// Only check .pongo2 and .html files
 		if !strings.HasSuffix(path, ".pongo2") && !strings.HasSuffix(path, ".html") {
 			return nil
 		}
-		
+
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
-		
+
 		// Find all translation function calls
 		matches := tFuncPattern.FindAllStringSubmatch(string(content), -1)
-		
+
 		for _, match := range matches {
 			// The regex has two capture groups, check both
 			key := ""
@@ -55,7 +55,7 @@ func TestTemplateTranslationKeys(t *testing.T) {
 			} else if len(match) > 2 && match[2] != "" {
 				key = match[2]
 			}
-			
+
 			if key != "" {
 				// Check if key exists in English translations
 				value := i18n.T("en", key)
@@ -66,14 +66,14 @@ func TestTemplateTranslationKeys(t *testing.T) {
 				}
 			}
 		}
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		t.Fatalf("Error walking templates directory: %v", err)
 	}
-	
+
 	// Report missing keys
 	if len(missingKeys) > 0 {
 		t.Errorf("Found templates using non-existent translation keys:")
@@ -96,22 +96,22 @@ func TestTemplateTranslationKeys(t *testing.T) {
 func suggestCorrectKey(i18n *I18n, wrongKey string) string {
 	// Common mistakes: using common.X when it should be buttons.X
 	replacements := map[string]string{
-		"common.submit": "buttons.submit",
-		"common.next": "buttons.next",
+		"common.submit":   "buttons.submit",
+		"common.next":     "buttons.next",
 		"common.previous": "buttons.previous",
-		"common.back": "buttons.back",
-		"common.close": "buttons.close",
-		"common.add": "buttons.add",
-		"common.remove": "buttons.remove",
+		"common.back":     "buttons.back",
+		"common.close":    "buttons.close",
+		"common.add":      "buttons.add",
+		"common.remove":   "buttons.remove",
 	}
-	
+
 	if suggested, ok := replacements[wrongKey]; ok {
 		// Verify the suggested key actually exists
 		if i18n.T("en", suggested) != suggested {
 			return suggested
 		}
 	}
-	
+
 	// Try to find if the key exists in a different section
 	parts := strings.Split(wrongKey, ".")
 	if len(parts) == 2 {
@@ -123,7 +123,7 @@ func suggestCorrectKey(i18n *I18n, wrongKey string) string {
 			}
 		}
 	}
-	
+
 	return ""
 }
 
@@ -139,11 +139,11 @@ func TestTranslationKeyConsistency(t *testing.T) {
 
 	i18n := GetInstance()
 	enKeys := i18n.GetAllKeys("en")
-	
+
 	// Check for duplicate concepts in different sections
 	// e.g., both buttons.submit and common.submit
 	keysByName := make(map[string][]string)
-	
+
 	for _, key := range enKeys {
 		parts := strings.Split(key, ".")
 		if len(parts) >= 2 {
@@ -151,7 +151,7 @@ func TestTranslationKeyConsistency(t *testing.T) {
 			keysByName[name] = append(keysByName[name], key)
 		}
 	}
-	
+
 	// Report potential duplicates
 	duplicates := []string{}
 	for _, keys := range keysByName {
@@ -162,17 +162,17 @@ func TestTranslationKeyConsistency(t *testing.T) {
 				value := i18n.T("en", key)
 				values[value] = append(values[value], key)
 			}
-			
+
 			// If all keys have the same value, they're duplicates
 			for value, sameValueKeys := range values {
 				if len(sameValueKeys) > 1 {
-					duplicates = append(duplicates, 
+					duplicates = append(duplicates,
 						fmt.Sprintf("Keys %v all have value '%s'", sameValueKeys, value))
 				}
 			}
 		}
 	}
-	
+
 	if len(duplicates) > 0 {
 		t.Logf("Warning: Found duplicate translation keys with same values:")
 		for _, dup := range duplicates {

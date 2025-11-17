@@ -11,10 +11,10 @@ func TestAuthenticationContracts(t *testing.T) {
 	// Set up router
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	
+
 	// Use mock handlers for testing
 	mocks := &MockHandlers{}
-	
+
 	// Register API v1 routes with mock handlers
 	v1 := r.Group("/api/v1")
 	{
@@ -23,10 +23,10 @@ func TestAuthenticationContracts(t *testing.T) {
 		v1.POST("/auth/refresh", mocks.HandleRefresh)
 		v1.POST("/auth/logout", mocks.HandleLogout)
 	}
-	
+
 	// Create contract tester
 	ct := NewContractTest(t, r)
-	
+
 	// Contract: Successful Login
 	ct.AddContract(Contract{
 		Name:        "POST /api/v1/auth/login - Success",
@@ -79,7 +79,7 @@ func TestAuthenticationContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Invalid Credentials
 	ct.AddContract(Contract{
 		Name:        "POST /api/v1/auth/login - Invalid Credentials",
@@ -100,7 +100,7 @@ func TestAuthenticationContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Missing Required Fields
 	ct.AddContract(Contract{
 		Name:        "POST /api/v1/auth/login - Missing Password",
@@ -120,7 +120,7 @@ func TestAuthenticationContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Refresh Token
 	ct.AddContract(Contract{
 		Name:        "POST /api/v1/auth/refresh - Valid Token",
@@ -146,7 +146,7 @@ func TestAuthenticationContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Invalid Refresh Token
 	ct.AddContract(Contract{
 		Name:        "POST /api/v1/auth/refresh - Invalid Token",
@@ -166,7 +166,7 @@ func TestAuthenticationContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Contract: Logout
 	ct.AddContract(Contract{
 		Name:        "POST /api/v1/auth/logout - Success",
@@ -184,7 +184,7 @@ func TestAuthenticationContracts(t *testing.T) {
 			},
 		},
 	})
-	
+
 	// Run all contracts
 	ct.Run()
 }

@@ -29,18 +29,27 @@ func HandleAPIQueueGet(c *gin.Context) {
 		Name            string
 		GroupID         int
 		SystemAddressID sql.NullInt32
+		SalutationID    sql.NullInt32
+		SignatureID     sql.NullInt32
 		Comments        sql.NullString
 		UnlockTimeout   sql.NullInt32
+		FollowUpID      sql.NullInt32
 		FollowUpLock    sql.NullInt32
 		ValidID         int
 	}
 
 	err = db.QueryRow(database.ConvertPlaceholders(`
-		SELECT id, name, group_id, system_address_id, comments, 
-		       unlock_timeout, follow_up_lock, valid_id
+		SELECT id, name, group_id, system_address_id,
+		       salutation_id, signature_id,
+		       comments, unlock_timeout,
+		       follow_up_id, follow_up_lock,
+		       valid_id
 		FROM queue WHERE id = $1
 	`), id).Scan(&queue.ID, &queue.Name, &queue.GroupID, &queue.SystemAddressID,
-		&queue.Comments, &queue.UnlockTimeout, &queue.FollowUpLock, &queue.ValidID)
+		&queue.SalutationID, &queue.SignatureID,
+		&queue.Comments, &queue.UnlockTimeout,
+		&queue.FollowUpID, &queue.FollowUpLock,
+		&queue.ValidID)
 
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Queue not found"})
@@ -76,11 +85,20 @@ func HandleAPIQueueGet(c *gin.Context) {
 	if queue.SystemAddressID.Valid {
 		response["system_address_id"] = queue.SystemAddressID.Int32
 	}
+	if queue.SalutationID.Valid {
+		response["salutation_id"] = queue.SalutationID.Int32
+	}
+	if queue.SignatureID.Valid {
+		response["signature_id"] = queue.SignatureID.Int32
+	}
 	if queue.Comments.Valid {
 		response["comments"] = queue.Comments.String
 	}
 	if queue.UnlockTimeout.Valid {
 		response["unlock_timeout"] = queue.UnlockTimeout.Int32
+	}
+	if queue.FollowUpID.Valid {
+		response["follow_up_id"] = queue.FollowUpID.Int32
 	}
 	if queue.FollowUpLock.Valid {
 		response["follow_up_lock"] = queue.FollowUpLock.Int32

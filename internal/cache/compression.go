@@ -14,14 +14,14 @@ var (
 			return gzip.NewWriter(nil)
 		},
 	}
-	
+
 	gzipReaderPool = sync.Pool{
 		New: func() interface{} {
 			reader, _ := gzip.NewReader(nil)
 			return reader
 		},
 	}
-	
+
 	bufferPool = sync.Pool{
 		New: func() interface{} {
 			return new(bytes.Buffer)
@@ -34,35 +34,35 @@ func compress(data []byte) []byte {
 	if len(data) == 0 {
 		return data
 	}
-	
+
 	// Get buffer from pool
 	buf := bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	defer bufferPool.Put(buf)
-	
+
 	// Get gzip writer from pool
 	gz := gzipWriterPool.Get().(*gzip.Writer)
 	gz.Reset(buf)
 	defer gzipWriterPool.Put(gz)
-	
+
 	// Write compressed data
 	if _, err := gz.Write(data); err != nil {
 		return data // Return original on error
 	}
-	
+
 	if err := gz.Close(); err != nil {
 		return data // Return original on error
 	}
-	
+
 	// Return compressed data
 	compressed := make([]byte, buf.Len())
 	copy(compressed, buf.Bytes())
-	
+
 	// Only return compressed if it's smaller
 	if len(compressed) < len(data) {
 		return compressed
 	}
-	
+
 	return data
 }
 
@@ -71,39 +71,40 @@ func decompress(data []byte) []byte {
 	if len(data) == 0 {
 		return data
 	}
-	
+
 	// Check if data is gzipped (magic number)
 	if len(data) < 2 || data[0] != 0x1f || data[1] != 0x8b {
 		return data // Not gzipped, return as-is
 	}
-	
+
 	// Get reader from pool
 	reader := gzipReaderPool.Get().(*gzip.Reader)
 	defer gzipReaderPool.Put(reader)
-	
+
 	// Reset reader with new data
 	if err := reader.Reset(bytes.NewReader(data)); err != nil {
 		return data // Return original on error
 	}
-	
+
 	// Get buffer from pool
 	buf := bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	defer bufferPool.Put(buf)
-	
+
 	// Read decompressed data
 	if _, err := io.Copy(buf, reader); err != nil {
 		return data // Return original on error
 	}
-	
+
 	// Return decompressed data
 	decompressed := make([]byte, buf.Len())
 	copy(decompressed, buf.Bytes())
-	
+
 	return decompressed
 }
 
 // compressString compresses a string and returns base64.
+//
 //nolint:unused
 func compressString(s string) string {
 	compressed := compress([]byte(s))
@@ -111,13 +112,14 @@ func compressString(s string) string {
 }
 
 // decompressString decompresses a base64 string.
+//
 //nolint:unused
 func decompressString(s string) string {
 	data, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
 		return s // Return original on error
 	}
-	
+
 	decompressed := decompress(data)
 	return string(decompressed)
 }
@@ -136,7 +138,7 @@ func ShouldCompress(data []byte) bool {
 	if len(data) < 1024 {
 		return false
 	}
-	
+
 	// Don't compress already compressed data (check for common magic numbers)
 	if len(data) >= 2 {
 		// Gzip
@@ -156,7 +158,7 @@ func ShouldCompress(data []byte) bool {
 			return false
 		}
 	}
-	
+
 	// Check entropy (simple heuristic - count unique bytes)
 	uniqueBytes := make(map[byte]bool)
 	for _, b := range data {
@@ -166,6 +168,6 @@ func ShouldCompress(data []byte) bool {
 			return false
 		}
 	}
-	
+
 	return true
 }

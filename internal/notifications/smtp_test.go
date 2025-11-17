@@ -18,10 +18,12 @@ func TestSMTPProvider_Send(t *testing.T) {
 			Password   string `mapstructure:"password"`
 			AuthType   string `mapstructure:"auth_type"`
 			TLS        bool   `mapstructure:"tls"`
+			TLSMode    string `mapstructure:"tls_mode"`
 			SkipVerify bool   `mapstructure:"skip_verify"`
 		}{
-			Host: "localhost",
-			Port: 1025, // Mailhog SMTP port
+			Host:    "localhost",
+			Port:    1025, // Mailhog SMTP port
+			TLSMode: "",
 		},
 		From: "test@example.com",
 	}
@@ -85,12 +87,14 @@ func TestSMTPProvider_TLSConfig(t *testing.T) {
 			Password   string `mapstructure:"password"`
 			AuthType   string `mapstructure:"auth_type"`
 			TLS        bool   `mapstructure:"tls"`
+			TLSMode    string `mapstructure:"tls_mode"`
 			SkipVerify bool   `mapstructure:"skip_verify"`
 		}{
-			Host: "smtp.gmail.com",
-			Port: 587,
-			User: "test@example.com",
-			TLS:  true,
+			Host:    "smtp.gmail.com",
+			Port:    587,
+			User:    "test@example.com",
+			TLSMode: "",
+			TLS:     true,
 		},
 		From: "test@example.com",
 	}
@@ -155,11 +159,13 @@ func TestSMTPProvider_Authentication(t *testing.T) {
 					Password   string `mapstructure:"password"`
 					AuthType   string `mapstructure:"auth_type"`
 					TLS        bool   `mapstructure:"tls"`
+					TLSMode    string `mapstructure:"tls_mode"`
 					SkipVerify bool   `mapstructure:"skip_verify"`
 				}{
 					Host:     "localhost",
 					Port:     1025,
 					User:     tt.username,
+					TLSMode:  "",
 					Password: tt.password,
 					AuthType: tt.authType,
 				},

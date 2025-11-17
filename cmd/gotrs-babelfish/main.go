@@ -30,15 +30,15 @@ func showBabelFish() {
 
 func main() {
 	var (
-		action   = flag.String("action", "coverage", "Action to perform: coverage, missing, validate, export, import")
-		lang     = flag.String("lang", "", "Language code (required for some actions)")
-		format   = flag.String("format", "text", "Output format: text, json, csv")
-		file     = flag.String("file", "", "File path for import/export")
-		verbose  = flag.Bool("v", false, "Verbose output")
-		quiet    = flag.Bool("q", false, "Quiet mode (no ASCII art)")
-		help     = flag.Bool("help", false, "Show help with usage examples")
+		action  = flag.String("action", "coverage", "Action to perform: coverage, missing, validate, export, import")
+		lang    = flag.String("lang", "", "Language code (required for some actions)")
+		format  = flag.String("format", "text", "Output format: text, json, csv")
+		file    = flag.String("file", "", "File path for import/export")
+		verbose = flag.Bool("v", false, "Verbose output")
+		quiet   = flag.Bool("q", false, "Quiet mode (no ASCII art)")
+		help    = flag.Bool("help", false, "Show help with usage examples")
 	)
-	
+
 	flag.Usage = func() {
 		if !*quiet {
 			showBabelFish()
@@ -55,14 +55,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "\nSupported languages: en, es, fr, de, pt, ja, zh, ar, ru, it, nl, tlh (Klingon!)\n")
 		fmt.Fprintf(os.Stderr, "\n✨ Remember: The answer is 42, but what's the question?\n")
 	}
-	
+
 	flag.Parse()
-	
+
 	if *help {
 		flag.Usage()
 		os.Exit(0)
 	}
-	
+
 	// Show ASCII art unless in quiet mode or non-text format
 	if !*quiet && *format == "text" && *action == "coverage" {
 		showBabelFish()

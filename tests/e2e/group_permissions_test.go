@@ -44,7 +44,7 @@ func TestGroupPermissionsButton(t *testing.T) {
 		// Click the permissions button
 		err = permissionsButton.Click()
 		assert.NoError(t, err, "Should be able to click permissions button")
-		
+
 		// Wait a moment for any action to occur
 		time.Sleep(1 * time.Second)
 
@@ -77,7 +77,7 @@ func TestGroupPermissionsButton(t *testing.T) {
 
 		// Check the button styling
 		permissionsButton := browser.Page.Locator("button[title='Manage permissions']").First()
-		
+
 		// Check it has the key icon SVG
 		keyIcon := permissionsButton.Locator("svg path")
 		iconVisible, _ := keyIcon.IsVisible()
@@ -93,7 +93,7 @@ func TestGroupPermissionsButton(t *testing.T) {
 	t.Run("API endpoint returns placeholder data", func(t *testing.T) {
 		// The handler returns TODO placeholder data
 		// Let's verify the API endpoint works even if UI isn't implemented
-		
+
 		// This would need to make a direct API call with authentication
 		// For now, we note that handleGetGroupPermissions returns:
 		// {
@@ -106,7 +106,7 @@ func TestGroupPermissionsButton(t *testing.T) {
 		//     }
 		//   }
 		// }
-		
+
 		t.Log("API endpoint /admin/groups/:id/permissions returns placeholder data")
 		t.Log("Implementation status: TODO - Returns hardcoded permissions")
 	})
@@ -124,7 +124,7 @@ func TestGroupMembersButton(t *testing.T) {
 		// Login and navigate
 		err := auth.LoginAsAdmin()
 		require.NoError(t, err)
-		
+
 		err = browser.NavigateTo("/admin/groups")
 		require.NoError(t, err)
 		time.Sleep(2 * time.Second)
@@ -155,7 +155,7 @@ func TestGroupMembersButton(t *testing.T) {
 			}
 		}
 		assert.True(t, foundMembersMessage, "Should log TODO message for members")
-		
+
 		// No modal should open
 		membersModal := browser.Page.Locator("#membersModal")
 		modalVisible, _ := membersModal.IsVisible()
@@ -165,36 +165,36 @@ func TestGroupMembersButton(t *testing.T) {
 
 func TestUnimplementedGroupFeatures(t *testing.T) {
 	// Summary of unimplemented features found in the Groups UI
-	
+
 	t.Run("Document unimplemented features", func(t *testing.T) {
 		unimplementedFeatures := []struct {
-			feature     string
-			location    string
+			feature         string
+			location        string
 			currentBehavior string
 		}{
 			{
-				feature:     "Group Permissions Management",
-				location:    "Key icon button in group list",
+				feature:         "Group Permissions Management",
+				location:        "Key icon button in group list",
 				currentBehavior: "Logs 'Show permissions for group: [id]' to console",
 			},
 			{
-				feature:     "Group Members View",
-				location:    "Members link in group list",
+				feature:         "Group Members View",
+				location:        "Members link in group list",
 				currentBehavior: "Logs 'Show members for group: [id]' to console",
 			},
 			{
-				feature:     "Member Count Display",
-				location:    "Members column in group list",
+				feature:         "Member Count Display",
+				location:        "Members column in group list",
 				currentBehavior: "Shows '—' placeholder, attempts AJAX load but may fail",
 			},
 			{
-				feature:     "Permissions API",
-				location:    "GET /admin/groups/:id/permissions",
+				feature:         "Permissions API",
+				location:        "GET /admin/groups/:id/permissions",
 				currentBehavior: "Returns hardcoded placeholder permissions",
 			},
 			{
-				feature:     "Update Permissions API",
-				location:    "PUT /admin/groups/:id/permissions",
+				feature:         "Update Permissions API",
+				location:        "PUT /admin/groups/:id/permissions",
 				currentBehavior: "Returns success but doesn't actually update",
 			},
 		}

@@ -143,10 +143,10 @@ func (s *CannedResponseService) ApplyResponse(ctx context.Context, application *
 
 	// Record usage
 	usage := &models.CannedResponseUsage{
-		ResponseID:        response.ID,
-		TicketID:          application.TicketID,
-		UserID:            userID,
-		ModifiedBefore:    false,
+		ResponseID:     response.ID,
+		TicketID:       application.TicketID,
+		UserID:         userID,
+		ModifiedBefore: false,
 	}
 	if err := s.repo.RecordUsage(ctx, usage); err != nil {
 		// Log error but don't fail the application
@@ -160,11 +160,11 @@ func (s *CannedResponseService) ApplyResponse(ctx context.Context, application *
 	}
 
 	return &models.AppliedResponse{
-		Subject:      subject,
-		Content:      content,
-		ContentType:  response.ContentType,
-		Attachments:  response.AttachmentURLs,
-		AsInternal:   application.AsInternal,
+		Subject:     subject,
+		Content:     content,
+		ContentType: response.ContentType,
+		Attachments: response.AttachmentURLs,
+		AsInternal:  application.AsInternal,
 	}, nil
 }
 
@@ -178,7 +178,7 @@ func (s *CannedResponseService) ApplyResponseWithContext(ctx context.Context, ap
 
 	// Build variables map with auto-fill values
 	variables := make(map[string]string)
-	
+
 	// Copy manual variables
 	for k, v := range application.Variables {
 		variables[k] = v
@@ -225,7 +225,7 @@ func (s *CannedResponseService) ApplyResponseWithContext(ctx context.Context, ap
 	}
 
 	// Apply standard auto-fill for common variables
-	s.applyStandardAutoFill(response.Content + " " + response.Subject, variables, autoFillCtx)
+	s.applyStandardAutoFill(response.Content+" "+response.Subject, variables, autoFillCtx)
 
 	// Update application with filled variables
 	application.Variables = variables
@@ -237,14 +237,14 @@ func (s *CannedResponseService) ApplyResponseWithContext(ctx context.Context, ap
 func (s *CannedResponseService) applyStandardAutoFill(content string, variables map[string]string, ctx *models.AutoFillContext) {
 	// Standard variable mappings
 	standardMappings := map[string]string{
-		"{{agent_name}}":     ctx.AgentName,
-		"{{agent_email}}":    ctx.AgentEmail,
-		"{{ticket_number}}":  ctx.TicketNumber,
-		"{{customer_name}}":  ctx.CustomerName,
-		"{{customer_email}}": ctx.CustomerEmail,
-		"{{queue_name}}":     ctx.QueueName,
-		"{{current_date}}":   time.Now().Format("2006-01-02"),
-		"{{current_time}}":   time.Now().Format("15:04"),
+		"{{agent_name}}":       ctx.AgentName,
+		"{{agent_email}}":      ctx.AgentEmail,
+		"{{ticket_number}}":    ctx.TicketNumber,
+		"{{customer_name}}":    ctx.CustomerName,
+		"{{customer_email}}":   ctx.CustomerEmail,
+		"{{queue_name}}":       ctx.QueueName,
+		"{{current_date}}":     time.Now().Format("2006-01-02"),
+		"{{current_time}}":     time.Now().Format("15:04"),
 		"{{current_datetime}}": time.Now().Format("2006-01-02 15:04"),
 	}
 
@@ -266,9 +266,9 @@ func (s *CannedResponseService) ExportResponses(ctx context.Context) ([]byte, er
 	}
 
 	export := struct {
-		Version   string                   `json:"version"`
-		Exported  time.Time                `json:"exported"`
-		Responses []models.CannedResponse  `json:"responses"`
+		Version   string                  `json:"version"`
+		Exported  time.Time               `json:"exported"`
+		Responses []models.CannedResponse `json:"responses"`
 	}{
 		Version:   "1.0",
 		Exported:  time.Now(),
@@ -281,9 +281,9 @@ func (s *CannedResponseService) ExportResponses(ctx context.Context) ([]byte, er
 // ImportResponses imports responses from JSON
 func (s *CannedResponseService) ImportResponses(ctx context.Context, data []byte) error {
 	var export struct {
-		Version   string                   `json:"version"`
-		Exported  time.Time                `json:"exported"`
-		Responses []models.CannedResponse  `json:"responses"`
+		Version   string                  `json:"version"`
+		Exported  time.Time               `json:"exported"`
+		Responses []models.CannedResponse `json:"responses"`
 	}
 
 	if err := json.Unmarshal(data, &export); err != nil {

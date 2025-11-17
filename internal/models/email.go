@@ -6,24 +6,24 @@ import (
 
 // EmailAccount represents an email account for sending/receiving emails
 type EmailAccount struct {
-	ID                     int       `json:"id" db:"id"`
-	EmailAddress           string    `json:"email_address" db:"email_address"`
-	DisplayName            *string   `json:"display_name,omitempty" db:"display_name"`
-	SMTPHost               *string   `json:"smtp_host,omitempty" db:"smtp_host"`
-	SMTPPort               *int      `json:"smtp_port,omitempty" db:"smtp_port"`
-	SMTPUsername           *string   `json:"smtp_username,omitempty" db:"smtp_username"`
-	SMTPPasswordEncrypted  *string   `json:"-" db:"smtp_password_encrypted"`
-	IMAPHost               *string   `json:"imap_host,omitempty" db:"imap_host"`
-	IMAPPort               *int      `json:"imap_port,omitempty" db:"imap_port"`
-	IMAPUsername           *string   `json:"imap_username,omitempty" db:"imap_username"`
-	IMAPPasswordEncrypted  *string   `json:"-" db:"imap_password_encrypted"`
-	QueueID                *int      `json:"queue_id,omitempty" db:"queue_id"`
-	IsActive               bool      `json:"is_active" db:"is_active"`
-	CreatedAt              time.Time `json:"created_at" db:"created_at"`
-	CreatedBy              int       `json:"created_by" db:"created_by"`
-	UpdatedAt              time.Time `json:"updated_at" db:"updated_at"`
-	UpdatedBy              int       `json:"updated_by" db:"updated_by"`
-	
+	ID                    int       `json:"id" db:"id"`
+	EmailAddress          string    `json:"email_address" db:"email_address"`
+	DisplayName           *string   `json:"display_name,omitempty" db:"display_name"`
+	SMTPHost              *string   `json:"smtp_host,omitempty" db:"smtp_host"`
+	SMTPPort              *int      `json:"smtp_port,omitempty" db:"smtp_port"`
+	SMTPUsername          *string   `json:"smtp_username,omitempty" db:"smtp_username"`
+	SMTPPasswordEncrypted *string   `json:"-" db:"smtp_password_encrypted"`
+	IMAPHost              *string   `json:"imap_host,omitempty" db:"imap_host"`
+	IMAPPort              *int      `json:"imap_port,omitempty" db:"imap_port"`
+	IMAPUsername          *string   `json:"imap_username,omitempty" db:"imap_username"`
+	IMAPPasswordEncrypted *string   `json:"-" db:"imap_password_encrypted"`
+	QueueID               *int      `json:"queue_id,omitempty" db:"queue_id"`
+	IsActive              bool      `json:"is_active" db:"is_active"`
+	CreatedAt             time.Time `json:"created_at" db:"created_at"`
+	CreatedBy             int       `json:"created_by" db:"created_by"`
+	UpdatedAt             time.Time `json:"updated_at" db:"updated_at"`
+	UpdatedBy             int       `json:"updated_by" db:"updated_by"`
+
 	// Joined fields
 	Queue *Queue `json:"queue,omitempty"`
 }
@@ -76,7 +76,7 @@ type CustomerAccount struct {
 	CreatedBy      int       `json:"created_by" db:"created_by"`
 	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
 	UpdatedBy      int       `json:"updated_by" db:"updated_by"`
-	
+
 	// Joined fields
 	Organization *Organization `json:"organization,omitempty"`
 }
@@ -92,7 +92,7 @@ type TicketCategory struct {
 	CreatedBy        int       `json:"created_by" db:"created_by"`
 	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
 	UpdatedBy        int       `json:"updated_by" db:"updated_by"`
-	
+
 	// Joined fields
 	ParentCategory *TicketCategory   `json:"parent_category,omitempty"`
 	SubCategories  []*TicketCategory `json:"sub_categories,omitempty"`
@@ -117,11 +117,11 @@ type ArticleAttachment struct {
 
 // Template types
 const (
-	TemplateTypeGreeting  = "greeting"
-	TemplateTypeSignature = "signature"
-	TemplateTypeAutoReply = "auto_reply"
-	TemplateTypeTicketNew = "ticket_created"
-	TemplateTypeTicketUpdate = "ticket_updated"
+	TemplateTypeGreeting       = "greeting"
+	TemplateTypeSignature      = "signature"
+	TemplateTypeAutoReply      = "auto_reply"
+	TemplateTypeTicketNew      = "ticket_created"
+	TemplateTypeTicketUpdate   = "ticket_updated"
 	TemplateTypeTicketAssigned = "ticket_assigned"
-	TemplateTypeTicketClosed = "ticket_closed"
+	TemplateTypeTicketClosed   = "ticket_closed"
 )

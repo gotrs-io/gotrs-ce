@@ -5,18 +5,22 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 
 	"github.com/gotrs-io/gotrs-ce/internal/services/adapter"
 )
 
 // testDB is kept for API compatibility; we do not own the lifecycle
 var (
+	testDBMu       sync.RWMutex
 	testDB         *sql.DB
 	testDBOverride bool
 )
 
 // IsTestDBOverride reports whether a test database has been explicitly injected via SetDB.
 func IsTestDBOverride() bool {
+	testDBMu.RLock()
+	defer testDBMu.RUnlock()
 	return testDBOverride && testDB != nil
 }
 
@@ -51,8 +55,10 @@ func InitTestDB() error {
 		return err
 	}
 	// Keep a reference for CloseTestDB (no-op close semantics)
+	testDBMu.Lock()
 	testDB = db
 	testDBOverride = false
+	testDBMu.Unlock()
 	return nil
 }
 
@@ -71,12 +77,16 @@ func InitDB() error {
 // SetDB allows tests to inject a mock *sql.DB for functions that call GetDB.
 // Use ResetDB to restore the previous value.
 func SetDB(db *sql.DB) {
+	testDBMu.Lock()
 	testDB = db
 	testDBOverride = db != nil
+	testDBMu.Unlock()
 }
 
 // ResetDB clears the test-injected DB.
 func ResetDB() {
+	testDBMu.Lock()
 	testDB = nil
 	testDBOverride = false
+	testDBMu.Unlock()
 }

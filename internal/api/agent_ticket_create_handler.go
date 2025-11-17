@@ -19,8 +19,10 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/mailqueue"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
+	"github.com/gotrs-io/gotrs-ce/internal/notifications"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	"github.com/gotrs-io/gotrs-ce/internal/service"
+	"github.com/gotrs-io/gotrs-ce/internal/utils"
 )
 
 // HandleAgentCreateTicket creates a new ticket from the agent interface
@@ -442,27 +444,40 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 
 				// Queue the email for processing by EmailQueueTask
 				db, dbErr := database.GetDB()
-				if dbErr == nil {
-					queueRepo := mailqueue.NewMailQueueRepository(db)
-					senderEmail := "GOTRS Support Team"
-					if cfg := config.Get(); cfg != nil {
-						senderEmail = cfg.Email.From
-					}
-					queueItem := &mailqueue.MailQueueItem{
-						Sender:     &senderEmail,
-						Recipient:  customerEmail,
-						RawMessage: mailqueue.BuildEmailMessage(senderEmail, customerEmail, subject, body),
-						Attempts:   0,
-						CreateTime: time.Now(),
-					}
-
-					if queueErr := queueRepo.Insert(context.Background(), queueItem); queueErr != nil {
-						log.Printf("Failed to queue email for %s: %v", customerEmail, queueErr)
-					} else {
-						log.Printf("Queued email for %s (ticket %s) for processing", customerEmail, ticketModel.TicketNumber)
-					}
-				} else {
+				if dbErr != nil {
 					log.Printf("Failed to get database connection for queuing email: %v", dbErr)
+					return
+				}
+
+				queueRepo := mailqueue.NewMailQueueRepository(db)
+				var emailCfg *config.EmailConfig
+				if cfg := config.Get(); cfg != nil {
+					emailCfg = &cfg.Email
+				}
+				branding, brandErr := notifications.PrepareQueueEmail(
+					context.Background(),
+					db,
+					ticketModel.QueueID,
+					body,
+					utils.IsHTML(body),
+					emailCfg,
+				)
+				if brandErr != nil {
+					log.Printf("Queue identity lookup failed for ticket %d: %v", ticketModel.ID, brandErr)
+				}
+				senderEmail := branding.EnvelopeFrom
+				queueItem := &mailqueue.MailQueueItem{
+					Sender:     &senderEmail,
+					Recipient:  customerEmail,
+					RawMessage: mailqueue.BuildEmailMessage(branding.HeaderFrom, customerEmail, subject, branding.Body),
+					Attempts:   0,
+					CreateTime: time.Now(),
+				}
+
+				if queueErr := queueRepo.Insert(context.Background(), queueItem); queueErr != nil {
+					log.Printf("Failed to queue email for %s: %v", customerEmail, queueErr)
+				} else {
+					log.Printf("Queued email for %s (ticket %s) for processing", customerEmail, ticketModel.TicketNumber)
 				}
 			}()
 		}

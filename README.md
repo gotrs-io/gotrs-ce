@@ -70,7 +70,7 @@ make debug-env
 # Services will be available at:
 # - Frontend: http://localhost
 # - Backend API: http://localhost/api
-# - Mailhog (email testing): http://localhost:8025
+# - smtp4dev (email sandbox): http://localhost:8025
 # - Adminer (database UI): http://localhost:8090 (optional)
 
 ```

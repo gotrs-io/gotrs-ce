@@ -6,7 +6,7 @@ import (
 
 func TestQueueDescriptionTranslations(t *testing.T) {
 	i18n := GetInstance()
-	
+
 	// Test queue description translations
 	tests := []struct {
 		name     string
@@ -63,7 +63,7 @@ func TestQueueDescriptionTranslations(t *testing.T) {
 			expected: "Allgemeine Support-Anfragen",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := i18n.T(tt.lang, tt.key)

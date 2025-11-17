@@ -97,7 +97,7 @@ func TestZincClient(t *testing.T) {
 		results, err := client.Search(ctx, "tickets", query)
 		require.NoError(t, err)
 		assert.Greater(t, results.TotalHits, int64(0))
-		
+
 		// Verify all results match filters
 		for _, hit := range results.Hits {
 			source := hit.Source
@@ -108,7 +108,7 @@ func TestZincClient(t *testing.T) {
 
 	t.Run("UpdateDocument", func(t *testing.T) {
 		docID := "TICKET-200"
-		
+
 		// Index initial document
 		doc := &models.TicketSearchDocument{
 			ID:       docID,
@@ -138,7 +138,7 @@ func TestZincClient(t *testing.T) {
 
 	t.Run("DeleteDocument", func(t *testing.T) {
 		docID := "TICKET-300"
-		
+
 		// Index document
 		doc := &models.TicketSearchDocument{
 			ID:    docID,
@@ -212,7 +212,7 @@ func TestZincClient(t *testing.T) {
 
 	t.Run("DeleteIndex", func(t *testing.T) {
 		indexName := "temp_index"
-		
+
 		// Create index
 		client.CreateIndex(ctx, indexName, nil)
 
@@ -243,7 +243,7 @@ func TestZincClient(t *testing.T) {
 
 		results, err := client.Search(ctx, "tickets", query)
 		require.NoError(t, err)
-		
+
 		// Check for highlights in results
 		for _, hit := range results.Hits {
 			if hit.Source["title"] == "Email not working" {
@@ -293,14 +293,14 @@ func TestZincClient(t *testing.T) {
 	t.Run("SearchWithSort", func(t *testing.T) {
 		query := &models.SearchRequest{
 			Query:     "*",
-			SortBy:    "created_at", 
+			SortBy:    "created_at",
 			SortOrder: "desc",
 			PageSize:  10,
 		}
 
 		results, err := client.Search(ctx, "tickets", query)
 		require.NoError(t, err)
-		
+
 		// For mock client, just verify we got results
 		// Real sorting would be implemented in actual Zinc
 		assert.NotEmpty(t, results.Hits)

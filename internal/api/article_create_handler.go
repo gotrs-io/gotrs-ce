@@ -17,6 +17,8 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/core"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/mailqueue"
+	"github.com/gotrs-io/gotrs-ce/internal/notifications"
+	"github.com/gotrs-io/gotrs-ce/internal/utils"
 )
 
 // HandleCreateArticleAPI handles POST /api/v1/tickets/:ticket_id/articles
@@ -521,19 +523,42 @@ func HandleCreateArticleAPI(c *gin.Context) {
 				return
 			}
 
-			subject := fmt.Sprintf("Update on Ticket %s", "TBD") // Would need to get ticket number
+			var (
+				queueID      int
+				ticketNumber sql.NullString
+			)
+			if err := db.QueryRow(database.ConvertPlaceholders(`SELECT queue_id, tn FROM ticket WHERE id = $1`), ticketID).Scan(&queueID, &ticketNumber); err != nil {
+				log.Printf("Failed to load ticket metadata for article %d: %v", ticketID, err)
+			}
+
+			subject := "Update on Ticket"
+			if ticketNumber.Valid && ticketNumber.String != "" {
+				subject = fmt.Sprintf("Update on Ticket %s", ticketNumber.String)
+			}
 			body := fmt.Sprintf("A new update has been added to your ticket.\n\n%s\n\nBest regards,\nGOTRS Support Team", req.Body)
 
 			// Queue the email for processing by EmailQueueTask
 			queueRepo := mailqueue.NewMailQueueRepository(db)
-			senderEmail := "GOTRS Support Team"
+			var emailCfg *config.EmailConfig
 			if cfg := config.Get(); cfg != nil {
-				senderEmail = cfg.Email.From
+				emailCfg = &cfg.Email
 			}
+			branding, brandErr := notifications.PrepareQueueEmail(
+				context.Background(),
+				db,
+				queueID,
+				body,
+				utils.IsHTML(body),
+				emailCfg,
+			)
+			if brandErr != nil {
+				log.Printf("Queue identity lookup failed for ticket %d: %v", ticketID, brandErr)
+			}
+			senderEmail := branding.EnvelopeFrom
 			queueItem := &mailqueue.MailQueueItem{
 				Sender:     &senderEmail,
 				Recipient:  customerEmail,
-				RawMessage: mailqueue.BuildEmailMessage(senderEmail, customerEmail, subject, body),
+				RawMessage: mailqueue.BuildEmailMessage(branding.HeaderFrom, customerEmail, subject, branding.Body),
 				Attempts:   0,
 				CreateTime: time.Now(),
 			}

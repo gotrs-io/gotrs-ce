@@ -16,8 +16,10 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/config"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/mailqueue"
+	"github.com/gotrs-io/gotrs-ce/internal/notifications"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	"github.com/gotrs-io/gotrs-ce/internal/service"
+	"github.com/gotrs-io/gotrs-ce/internal/utils"
 )
 
 // HandleCreateTicketAPI handles ticket creation via API
@@ -32,13 +34,15 @@ func HandleCreateTicketAPI(c *gin.Context) {
 		}
 	}
 	var ticketRequest struct {
-		Title         string `json:"title" form:"title"`
-		QueueID       int    `json:"queue_id" form:"queue_id"`
-		PriorityID    int    `json:"priority_id" form:"priority_id"`
-		StateID       int    `json:"state_id" form:"state_id"`
-		TypeID        int    `json:"type_id" form:"type_id"`
-		Body          string `json:"body" form:"body"`
-		CustomerEmail string `json:"customer_email" form:"customer_email"`
+		Title          string `json:"title" form:"title"`
+		QueueID        int    `json:"queue_id" form:"queue_id"`
+		PriorityID     int    `json:"priority_id" form:"priority_id"`
+		StateID        int    `json:"state_id" form:"state_id"`
+		TypeID         int    `json:"type_id" form:"type_id"`
+		Body           string `json:"body" form:"body"`
+		CustomerEmail  string `json:"customer_email" form:"customer_email"`
+		CustomerID     string `json:"customer_id" form:"customer_id"`
+		CustomerUserID string `json:"customer_user_id" form:"customer_user_id"`
 	}
 
 	ctype := strings.ToLower(c.GetHeader("Content-Type"))
@@ -97,6 +101,12 @@ func HandleCreateTicketAPI(c *gin.Context) {
 			}
 		}
 	}
+	if ticketRequest.CustomerID == "" {
+		ticketRequest.CustomerID = strings.TrimSpace(c.PostForm("customer_id"))
+	}
+	if ticketRequest.CustomerUserID == "" {
+		ticketRequest.CustomerUserID = strings.TrimSpace(c.PostForm("customer_user_id"))
+	}
 
 	if ticketRequest.Title == "" || ticketRequest.QueueID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -122,7 +132,17 @@ func HandleCreateTicketAPI(c *gin.Context) {
 
 	repo := repository.NewTicketRepository(db)
 	svc := service.NewTicketService(repo)
-	created, err := svc.Create(c, service.CreateTicketInput{Title: ticketRequest.Title, QueueID: ticketRequest.QueueID, PriorityID: ticketRequest.PriorityID, StateID: ticketRequest.StateID, UserID: userID, Body: ticketRequest.Body, TypeID: ticketRequest.TypeID})
+	created, err := svc.Create(c, service.CreateTicketInput{
+		Title:          ticketRequest.Title,
+		QueueID:        ticketRequest.QueueID,
+		PriorityID:     ticketRequest.PriorityID,
+		StateID:        ticketRequest.StateID,
+		UserID:         userID,
+		Body:           ticketRequest.Body,
+		TypeID:         ticketRequest.TypeID,
+		CustomerID:     ticketRequest.CustomerID,
+		CustomerUserID: ticketRequest.CustomerUserID,
+	})
 	if err != nil {
 		if database.IsConnectionError(err) {
 			log.Printf("WARN: ticket creation aborted due to database connectivity issue: %v", err)
@@ -138,35 +158,53 @@ func HandleCreateTicketAPI(c *gin.Context) {
 
 	// Queue email notification if customer email is provided
 	if ticketRequest.CustomerEmail != "" {
-		log.Printf("DEBUG: API ticket created, queuing email to customerEmail='%s', ticketNumber='%s'", ticketRequest.CustomerEmail, created.TicketNumber)
+		customerEmail := ticketRequest.CustomerEmail
+		ticketNumber := created.TicketNumber
+		ticketTitle := created.Title
+		queueID := created.QueueID
+		ticketID := created.ID
+		log.Printf("DEBUG: API ticket created, queuing email to customerEmail='%s', ticketNumber='%s'", customerEmail, ticketNumber)
 		go func() {
-			subject := fmt.Sprintf("Ticket Created: %s", created.TicketNumber)
+			subject := fmt.Sprintf("Ticket Created: %s", ticketNumber)
 			body := fmt.Sprintf("Your ticket has been created successfully.\n\nTicket Number: %s\nTitle: %s\n\nYou can view your ticket at: /tickets/%d\n\nBest regards,\nGOTRS Support Team",
-				created.TicketNumber, created.Title, created.ID)
+				ticketNumber, ticketTitle, ticketID)
 
 			// Queue the email for processing by EmailQueueTask
 			db, dbErr := database.GetDB()
-			if dbErr == nil {
-				queueRepo := mailqueue.NewMailQueueRepository(db)
-				senderEmail := "GOTRS Support Team"
-				if cfg := config.Get(); cfg != nil {
-					senderEmail = cfg.Email.From
-				}
-				queueItem := &mailqueue.MailQueueItem{
-					Sender:     &senderEmail,
-					Recipient:  ticketRequest.CustomerEmail,
-					RawMessage: mailqueue.BuildEmailMessage(senderEmail, ticketRequest.CustomerEmail, subject, body),
-					Attempts:   0,
-					CreateTime: time.Now(),
-				}
-
-				if queueErr := queueRepo.Insert(context.Background(), queueItem); queueErr != nil {
-					log.Printf("Failed to queue email for %s: %v", ticketRequest.CustomerEmail, queueErr)
-				} else {
-					log.Printf("Queued email for %s (ticket %s) for processing", ticketRequest.CustomerEmail, created.TicketNumber)
-				}
-			} else {
+			if dbErr != nil {
 				log.Printf("Failed to get database connection for queuing email: %v", dbErr)
+				return
+			}
+
+			queueRepo := mailqueue.NewMailQueueRepository(db)
+			var emailCfg *config.EmailConfig
+			if cfg := config.Get(); cfg != nil {
+				emailCfg = &cfg.Email
+			}
+			branding, brandErr := notifications.PrepareQueueEmail(
+				context.Background(),
+				db,
+				queueID,
+				body,
+				utils.IsHTML(body),
+				emailCfg,
+			)
+			if brandErr != nil {
+				log.Printf("Queue identity lookup failed for queue %d: %v", queueID, brandErr)
+			}
+			senderEmail := branding.EnvelopeFrom
+			queueItem := &mailqueue.MailQueueItem{
+				Sender:     &senderEmail,
+				Recipient:  customerEmail,
+				RawMessage: mailqueue.BuildEmailMessage(branding.HeaderFrom, customerEmail, subject, branding.Body),
+				Attempts:   0,
+				CreateTime: time.Now(),
+			}
+
+			if queueErr := queueRepo.Insert(context.Background(), queueItem); queueErr != nil {
+				log.Printf("Failed to queue email for %s: %v", customerEmail, queueErr)
+			} else {
+				log.Printf("Queued email for %s (ticket %s) for processing", customerEmail, ticketNumber)
 			}
 		}()
 	}

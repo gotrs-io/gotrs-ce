@@ -336,7 +336,7 @@ func TestCannedResponseService(t *testing.T) {
 				service := &CannedResponseService{}
 				vars := service.extractVariables(tt.content)
 				assert.Equal(t, tt.expected, len(vars))
-				
+
 				for _, expectedVar := range tt.variables {
 					found := false
 					for _, v := range vars {

@@ -166,6 +166,7 @@ func ensureCoreHandlers() {
 		"HandleAdminGroupsAddUser":      func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"success": true}) },
 		"HandleAdminGroupsRemoveUser":   func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"success": true}) },
 		"handleAdminQueues":             handleAdminQueues,
+		"handleAdminEmailIdentities":    handleAdminEmailIdentities,
 		"handleAdminPriorities":         handleAdminPriorities,
 		"handleAdminPermissions":        handleAdminPermissions,
 		"handleGetUserPermissionMatrix": handleGetUserPermissionMatrix,
@@ -188,8 +189,13 @@ func ensureCoreHandlers() {
 		// Customer company handlers - full implementations
 		"handleAdminCustomerCompanies": HandleAdminCustomerCompanies,
 		"handleAdminNewCustomerCompany": func(c *gin.Context) {
+			skipDB := htmxHandlerSkipDB()
 			db, err := database.GetDB()
-			if err != nil {
+			if err != nil || db == nil {
+				if skipDB {
+					handleAdminNewCustomerCompany(nil)(c)
+					return
+				}
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 				return
 			}
@@ -276,6 +282,17 @@ func ensureCoreHandlers() {
 		"HandleAdminCustomerUsersExport":     HandleAdminCustomerUsersExport,
 		"HandleAdminCustomerUsersBulkAction": HandleAdminCustomerUsersBulkAction,
 
+		// Email identity API handlers
+		"HandleListSystemAddressesAPI": HandleListSystemAddressesAPI,
+		"HandleCreateSystemAddressAPI": HandleCreateSystemAddressAPI,
+		"HandleUpdateSystemAddressAPI": HandleUpdateSystemAddressAPI,
+		"HandleListSalutationsAPI":     HandleListSalutationsAPI,
+		"HandleCreateSalutationAPI":    HandleCreateSalutationAPI,
+		"HandleUpdateSalutationAPI":    HandleUpdateSalutationAPI,
+		"HandleListSignaturesAPI":      HandleListSignaturesAPI,
+		"HandleCreateSignatureAPI":     HandleCreateSignatureAPI,
+		"HandleUpdateSignatureAPI":     HandleUpdateSignatureAPI,
+
 		// Agent handlers (wrap to avoid DB in tests)
 		"handleAgentTickets": func(c *gin.Context) {
 			if os.Getenv("APP_ENV") == "test" {
@@ -323,6 +340,7 @@ func ensureCoreHandlers() {
 		"HandleDeleteArticleAPI":     HandleDeleteArticleAPI,
 		"HandleListUsersAPI":         HandleListUsersAPI,
 		"HandleGetUserAPI":           HandleGetUserAPI,
+		"HandleListGroupsAPI":        HandleListGroupsAPI,
 		"HandleCreateUserAPI":        HandleCreateUserAPI,
 		"HandleUpdateUserAPI":        HandleUpdateUserAPI,
 		"HandleDeleteUserAPI":        HandleDeleteUserAPI,

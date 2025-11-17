@@ -139,6 +139,100 @@ func TestCreateTicketAPI_HappyPath(t *testing.T) {
 	}
 }
 
+func TestCreateTicketAPI_PersistsCustomerIdentifiers(t *testing.T) {
+	t.Setenv("DB_DRIVER", "postgres")
+	t.Setenv("TEST_DB_DRIVER", "postgres")
+	t.Setenv("APP_ENV", "test")
+	mockDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock: %v", err)
+	}
+	defer mockDB.Close()
+	database.SetDB(mockDB)
+	database.ResetAdapterForTest()
+	injectGenerator()
+
+	now := time.Now()
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM queue")).
+		WithArgs(1).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, name, type_id, valid_id,")).
+		WithArgs(1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
+			AddRow(1, "new", 1, 1, now, 1, now, 1))
+
+	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO ticket (")).
+		WithArgs(
+			"202510050001",
+			"Customer API ticket",
+			1,
+			1,
+			nil,
+			nil,
+			nil,
+			1,
+			1,
+			"acme",
+			"bans",
+			1,
+			3,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			sqlmock.AnyArg(),
+			1,
+			sqlmock.AnyArg(),
+			1,
+		).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(55))
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id FROM ticket_history_type")).
+		WithArgs("NewTicket").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(30))
+
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO ticket_history (")).
+		WithArgs(
+			"Ticket created (202510050001)",
+			30,
+			55,
+			nil,
+			1,
+			1,
+			1,
+			3,
+			1,
+			sqlmock.AnyArg(),
+			1,
+			sqlmock.AnyArg(),
+			1,
+		).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	payload := map[string]interface{}{
+		"title":            "Customer API ticket",
+		"queue_id":         1,
+		"customer_id":      " acme ",
+		"customer_user_id": "bans\n",
+	}
+	b, _ := json.Marshal(payload)
+	r := setupCreateRouter()
+	req := httptest.NewRequest(http.MethodPost, "/api/tickets", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 got %d body=%s", w.Code, w.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
 func TestCreateTicketAPI_InvalidQueue(t *testing.T) {
 	t.Setenv("DB_DRIVER", "postgres")
 	t.Setenv("TEST_DB_DRIVER", "postgres")

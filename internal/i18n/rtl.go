@@ -32,11 +32,11 @@ type NumberFormat struct {
 
 // CurrencyFormat represents currency formatting configuration
 type CurrencyFormat struct {
-	Symbol         string `json:"symbol"`
-	Code           string `json:"code"`
-	Position       string `json:"position"` // before or after
-	DecimalPlaces  int    `json:"decimal_places"`
-	SpaceAfterSymbol bool `json:"space_after_symbol"`
+	Symbol           string `json:"symbol"`
+	Code             string `json:"code"`
+	Position         string `json:"position"` // before or after
+	DecimalPlaces    int    `json:"decimal_places"`
+	SpaceAfterSymbol bool   `json:"space_after_symbol"`
 }
 
 // SupportedLanguages contains configuration for all supported languages
@@ -54,10 +54,10 @@ var SupportedLanguages = map[string]LanguageConfig{
 			Digits:            "0123456789",
 		},
 		Currency: CurrencyFormat{
-			Symbol:        "$",
-			Code:          "USD",
-			Position:      "before",
-			DecimalPlaces: 2,
+			Symbol:           "$",
+			Code:             "USD",
+			Position:         "before",
+			DecimalPlaces:    2,
 			SpaceAfterSymbol: false,
 		},
 		Enabled: true,
@@ -75,10 +75,10 @@ var SupportedLanguages = map[string]LanguageConfig{
 			Digits:            "0123456789",
 		},
 		Currency: CurrencyFormat{
-			Symbol:        "€",
-			Code:          "EUR",
-			Position:      "after",
-			DecimalPlaces: 2,
+			Symbol:           "€",
+			Code:             "EUR",
+			Position:         "after",
+			DecimalPlaces:    2,
 			SpaceAfterSymbol: true,
 		},
 		Enabled: true,
@@ -96,10 +96,10 @@ var SupportedLanguages = map[string]LanguageConfig{
 			Digits:            "0123456789",
 		},
 		Currency: CurrencyFormat{
-			Symbol:        "€",
-			Code:          "EUR",
-			Position:      "after",
-			DecimalPlaces: 2,
+			Symbol:           "€",
+			Code:             "EUR",
+			Position:         "after",
+			DecimalPlaces:    2,
 			SpaceAfterSymbol: true,
 		},
 		Enabled: true,
@@ -117,10 +117,10 @@ var SupportedLanguages = map[string]LanguageConfig{
 			Digits:            "0123456789",
 		},
 		Currency: CurrencyFormat{
-			Symbol:        "€",
-			Code:          "EUR",
-			Position:      "after",
-			DecimalPlaces: 2,
+			Symbol:           "€",
+			Code:             "EUR",
+			Position:         "after",
+			DecimalPlaces:    2,
 			SpaceAfterSymbol: true,
 		},
 		Enabled: true,
@@ -138,10 +138,10 @@ var SupportedLanguages = map[string]LanguageConfig{
 			Digits:            "٠١٢٣٤٥٦٧٨٩", // Arabic-Indic digits
 		},
 		Currency: CurrencyFormat{
-			Symbol:        "ر.س",
-			Code:          "SAR",
-			Position:      "after",
-			DecimalPlaces: 2,
+			Symbol:           "ر.س",
+			Code:             "SAR",
+			Position:         "after",
+			DecimalPlaces:    2,
 			SpaceAfterSymbol: true,
 		},
 		Enabled: true,
@@ -159,10 +159,10 @@ var SupportedLanguages = map[string]LanguageConfig{
 			Digits:            "0123456789",
 		},
 		Currency: CurrencyFormat{
-			Symbol:        "₪",
-			Code:          "ILS",
-			Position:      "before",
-			DecimalPlaces: 2,
+			Symbol:           "₪",
+			Code:             "ILS",
+			Position:         "before",
+			DecimalPlaces:    2,
 			SpaceAfterSymbol: true,
 		},
 		Enabled: true,
@@ -180,10 +180,10 @@ var SupportedLanguages = map[string]LanguageConfig{
 			Digits:            "۰۱۲۳۴۵۶۷۸۹", // Persian digits
 		},
 		Currency: CurrencyFormat{
-			Symbol:        "﷼",
-			Code:          "IRR",
-			Position:      "after",
-			DecimalPlaces: 0,
+			Symbol:           "﷼",
+			Code:             "IRR",
+			Position:         "after",
+			DecimalPlaces:    0,
 			SpaceAfterSymbol: true,
 		},
 		Enabled: true,
@@ -201,10 +201,10 @@ var SupportedLanguages = map[string]LanguageConfig{
 			Digits:            "۰۱۲۳۴۵۶۷۸۹", // Urdu digits
 		},
 		Currency: CurrencyFormat{
-			Symbol:        "Rs",
-			Code:          "PKR",
-			Position:      "before",
-			DecimalPlaces: 2,
+			Symbol:           "Rs",
+			Code:             "PKR",
+			Position:         "before",
+			DecimalPlaces:    2,
 			SpaceAfterSymbol: true,
 		},
 		Enabled: true,
@@ -222,10 +222,10 @@ var SupportedLanguages = map[string]LanguageConfig{
 			Digits:            "0123456789",
 		},
 		Currency: CurrencyFormat{
-			Symbol:        "¥",
-			Code:          "JPY",
-			Position:      "before",
-			DecimalPlaces: 0,
+			Symbol:           "¥",
+			Code:             "JPY",
+			Position:         "before",
+			DecimalPlaces:    0,
 			SpaceAfterSymbol: false,
 		},
 		Enabled: true,
@@ -243,10 +243,10 @@ var SupportedLanguages = map[string]LanguageConfig{
 			Digits:            "0123456789",
 		},
 		Currency: CurrencyFormat{
-			Symbol:        "¥",
-			Code:          "CNY",
-			Position:      "before",
-			DecimalPlaces: 2,
+			Symbol:           "¥",
+			Code:             "CNY",
+			Position:         "before",
+			DecimalPlaces:    2,
 			SpaceAfterSymbol: false,
 		},
 		Enabled: true,
@@ -264,10 +264,10 @@ var SupportedLanguages = map[string]LanguageConfig{
 			Digits:            "0123456789",
 		},
 		Currency: CurrencyFormat{
-			Symbol:        "R$",
-			Code:          "BRL",
-			Position:      "before",
-			DecimalPlaces: 2,
+			Symbol:           "R$",
+			Code:             "BRL",
+			Position:         "before",
+			DecimalPlaces:    2,
 			SpaceAfterSymbol: true,
 		},
 		Enabled: true,
@@ -285,10 +285,10 @@ var SupportedLanguages = map[string]LanguageConfig{
 			Digits:            "0123456789", // Klingon uses standard digits in practice
 		},
 		Currency: CurrencyFormat{
-			Symbol:        "DarSeq",
-			Code:          "DRK",
-			Position:      "after",
-			DecimalPlaces: 2,
+			Symbol:           "DarSeq",
+			Code:             "DRK",
+			Position:         "after",
+			DecimalPlaces:    2,
 			SpaceAfterSymbol: true,
 		},
 		Enabled: true,
@@ -334,7 +334,7 @@ func ConvertDigits(number string, lang string) string {
 	if !exists || config.NumberFormat.Digits == "0123456789" {
 		return number
 	}
-	
+
 	result := ""
 	for _, char := range number {
 		if char >= '0' && char <= '9' {
@@ -345,7 +345,7 @@ func ConvertDigits(number string, lang string) string {
 			result += string(char)
 		}
 	}
-	
+
 	return result
 }
 
@@ -355,13 +355,13 @@ func FormatNumber(value float64, lang string, decimals int) string {
 	if !exists {
 		lang = "en"
 	}
-	
+
 	// This is a simplified implementation
 	// In production, use a proper number formatting library
-	
+
 	// Format the number
 	// TODO: Implement proper number formatting with separators
-	
+
 	return ConvertDigits("formatted_number", lang)
 }
 
@@ -371,10 +371,10 @@ func FormatCurrency(amount float64, lang string) string {
 	if !exists {
 		config = SupportedLanguages["en"]
 	}
-	
+
 	// Format the number part
 	numberStr := FormatNumber(amount, lang, config.Currency.DecimalPlaces)
-	
+
 	// Apply currency symbol
 	if config.Currency.Position == "before" {
 		if config.Currency.SpaceAfterSymbol {
@@ -395,14 +395,14 @@ func GetCSSClass(lang string) string {
 	if !exists {
 		return "lang-en ltr"
 	}
-	
+
 	classes := "lang-" + lang
 	if config.Direction == RTL {
 		classes += " rtl"
 	} else {
 		classes += " ltr"
 	}
-	
+
 	return classes
 }
 
@@ -412,7 +412,7 @@ func GetHTMLAttributes(lang string) map[string]string {
 	if !exists {
 		config = SupportedLanguages["en"]
 	}
-	
+
 	return map[string]string{
 		"lang": config.Code,
 		"dir":  string(config.Direction),

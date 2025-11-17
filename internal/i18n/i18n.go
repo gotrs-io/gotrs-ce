@@ -15,15 +15,15 @@ var translationsFS embed.FS
 
 // I18n handles internationalization
 type I18n struct {
-	translations map[string]map[string]interface{}
-	defaultLang  string
+	translations   map[string]map[string]interface{}
+	defaultLang    string
 	supportedLangs []string
-	mu           sync.RWMutex
+	mu             sync.RWMutex
 }
 
 // Config represents i18n configuration
 type Config struct {
-	DefaultLanguage string
+	DefaultLanguage    string
 	SupportedLanguages []string
 }
 
@@ -36,11 +36,11 @@ func Initialize(config *Config) error {
 	var initErr error
 	once.Do(func() {
 		Instance = &I18n{
-			translations: make(map[string]map[string]interface{}),
-			defaultLang:  config.DefaultLanguage,
+			translations:   make(map[string]map[string]interface{}),
+			defaultLang:    config.DefaultLanguage,
 			supportedLangs: config.SupportedLanguages,
 		}
-		
+
 		// Load all translation files
 		initErr = Instance.loadTranslations()
 	})
@@ -52,7 +52,7 @@ func GetInstance() *I18n {
 	if Instance == nil {
 		// Initialize with defaults if not already done
 		Initialize(&Config{
-			DefaultLanguage: "en",
+			DefaultLanguage:    "en",
 			SupportedLanguages: []string{"en", "es", "fr", "de", "pt", "ja", "zh", "ar", "ru", "it", "nl", "tlh"},
 		})
 	}
@@ -63,46 +63,46 @@ func GetInstance() *I18n {
 func (i *I18n) loadTranslations() error {
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	
+
 	// Clear and rebuild supported languages list from actual files
 	i.supportedLangs = []string{}
-	
+
 	// Read translation files
 	err := fs.WalkDir(translationsFS, "translations", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		
+
 		// Skip directories and non-JSON files
 		if d.IsDir() || !strings.HasSuffix(path, ".json") {
 			return nil
 		}
-		
+
 		// Extract language code from filename (e.g., "en.json" -> "en")
 		filename := filepath.Base(path)
 		lang := strings.TrimSuffix(filename, ".json")
-		
+
 		// Read file content
 		content, err := translationsFS.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("failed to read translation file %s: %w", path, err)
 		}
-		
+
 		// Parse JSON
 		var translations map[string]interface{}
 		if err := json.Unmarshal(content, &translations); err != nil {
 			return fmt.Errorf("failed to parse translation file %s: %w", path, err)
 		}
-		
+
 		// Store translations
 		i.translations[lang] = translations
-		
+
 		// Add to supported languages list
 		i.supportedLangs = append(i.supportedLangs, lang)
-		
+
 		return nil
 	})
-	
+
 	return err
 }
 
@@ -110,12 +110,12 @@ func (i *I18n) loadTranslations() error {
 func (i *I18n) T(lang, key string, args ...interface{}) string {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
-	
+
 	// Use default language if not supported
 	if !i.isSupported(lang) {
 		lang = i.defaultLang
 	}
-	
+
 	// Get translation for language
 	langTranslations, exists := i.translations[lang]
 	if !exists {
@@ -125,7 +125,7 @@ func (i *I18n) T(lang, key string, args ...interface{}) string {
 			return key // Return key if no translations available
 		}
 	}
-	
+
 	// Navigate through nested keys (e.g., "errors.validation.required")
 	value := i.getNestedValue(langTranslations, key)
 	if value == nil {
@@ -135,13 +135,13 @@ func (i *I18n) T(lang, key string, args ...interface{}) string {
 				value = i.getNestedValue(defaultTranslations, key)
 			}
 		}
-		
+
 		// Return key if translation not found
 		if value == nil {
 			return key
 		}
 	}
-	
+
 	// Convert to string and format with arguments if provided
 	if str, ok := value.(string); ok {
 		if len(args) > 0 {
@@ -149,7 +149,7 @@ func (i *I18n) T(lang, key string, args ...interface{}) string {
 		}
 		return str
 	}
-	
+
 	return key
 }
 
@@ -162,7 +162,7 @@ func (i *I18n) Translate(lang, key string, args ...interface{}) string {
 func (i *I18n) getNestedValue(m map[string]interface{}, key string) interface{} {
 	keys := strings.Split(key, ".")
 	var current interface{} = m
-	
+
 	for _, k := range keys {
 		if currentMap, ok := current.(map[string]interface{}); ok {
 			current = currentMap[k]
@@ -173,7 +173,7 @@ func (i *I18n) getNestedValue(m map[string]interface{}, key string) interface{} 
 			return nil
 		}
 	}
-	
+
 	return current
 }
 
@@ -212,15 +212,15 @@ func (i *I18n) SetDefaultLanguage(lang string) error {
 func (i *I18n) AddTranslation(lang, key, value string) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	
+
 	if i.translations[lang] == nil {
 		i.translations[lang] = make(map[string]interface{})
 	}
-	
+
 	// Handle nested keys
 	keys := strings.Split(key, ".")
 	current := i.translations[lang]
-	
+
 	for i, k := range keys {
 		if i == len(keys)-1 {
 			// Last key, set the value
@@ -244,10 +244,10 @@ func (i *I18n) LoadCustomTranslations(lang string, jsonData string) error {
 	if err := json.Unmarshal([]byte(jsonData), &translations); err != nil {
 		return fmt.Errorf("failed to parse custom translations: %w", err)
 	}
-	
+
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	
+
 	// Merge with existing translations
 	if i.translations[lang] == nil {
 		i.translations[lang] = translations
@@ -255,7 +255,7 @@ func (i *I18n) LoadCustomTranslations(lang string, jsonData string) error {
 		// Merge translations
 		i.mergeTranslations(i.translations[lang], translations)
 	}
-	
+
 	return nil
 }
 
@@ -280,7 +280,7 @@ func (i *I18n) mergeTranslations(target, source map[string]interface{}) {
 func (i *I18n) GetTranslations(lang string) map[string]interface{} {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
-	
+
 	return i.translations[lang]
 }
 
@@ -288,12 +288,12 @@ func (i *I18n) GetTranslations(lang string) map[string]interface{} {
 func (i *I18n) GetAllKeys(lang string) []string {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
-	
+
 	translations := i.translations[lang]
 	if translations == nil {
 		return []string{}
 	}
-	
+
 	keys := []string{}
 	i.extractKeys(translations, "", &keys)
 	return keys
@@ -306,7 +306,7 @@ func (i *I18n) extractKeys(m map[string]interface{}, prefix string, keys *[]stri
 		if prefix != "" {
 			fullKey = prefix + "." + key
 		}
-		
+
 		if nestedMap, ok := value.(map[string]interface{}); ok {
 			// Recursively extract keys from nested map
 			i.extractKeys(nestedMap, fullKey, keys)

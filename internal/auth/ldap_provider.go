@@ -2,8 +2,8 @@ package auth
 
 import (
 	"context"
-	"fmt"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/gotrs-io/gotrs-ce/internal/models"
@@ -11,13 +11,13 @@ import (
 
 // LDAPConfig holds LDAP server configuration
 type LDAPConfig struct {
-	Server   string
-	Port     int
-	BaseDN   string
-	BindDN   string
-	BindPass string
+	Server     string
+	Port       int
+	BaseDN     string
+	BindDN     string
+	BindPass   string
 	UserFilter string
-	TLS      bool
+	TLS        bool
 }
 
 // LDAPAuthProvider provides authentication against LDAP
@@ -42,7 +42,7 @@ func (p *LDAPAuthProvider) Authenticate(ctx context.Context, username, password 
 	// 4. Attempt to bind as user with provided password
 	// 5. If successful, retrieve user attributes
 	// 6. Map LDAP attributes to User model
-	
+
 	return nil, fmt.Errorf("LDAP authentication not yet implemented")
 }
 

@@ -147,6 +147,12 @@ spec:
       template: pages/admin/queues.pongo2
       description: "Display queue management page"
 
+    - path: /email-identities
+      method: GET
+      handler: handleAdminEmailIdentities
+      template: pages/admin/email_identities.pongo2
+      description: "Manage system addresses, salutations, and signatures"
+
     # Email queue management
     - path: /email-queue
       method: GET

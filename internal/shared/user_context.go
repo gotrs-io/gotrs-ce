@@ -10,15 +10,15 @@ import (
 
 // UserContext represents user information for templates
 type UserContext struct {
-	ID              int      `json:"id"`
-	Login           string   `json:"login"`
-	FirstName       string   `json:"first_name"`
-	LastName        string   `json:"last_name"`
-	Email           string   `json:"email"`
-	IsInAdminGroup  bool     `json:"is_in_admin_group"`
-	GroupIDs        []int    `json:"group_ids"`
-	RoleIDs         []int    `json:"role_ids"`
-	CustomerCompany string   `json:"customer_company"`
+	ID              int    `json:"id"`
+	Login           string `json:"login"`
+	FirstName       string `json:"first_name"`
+	LastName        string `json:"last_name"`
+	Email           string `json:"email"`
+	IsInAdminGroup  bool   `json:"is_in_admin_group"`
+	GroupIDs        []int  `json:"group_ids"`
+	RoleIDs         []int  `json:"role_ids"`
+	CustomerCompany string `json:"customer_company"`
 }
 
 // GetUserMapForTemplate builds a user context map for template rendering

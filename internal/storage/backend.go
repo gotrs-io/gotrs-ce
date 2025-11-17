@@ -11,39 +11,39 @@ import (
 type Backend interface {
 	// Store saves article content and returns a storage reference
 	Store(ctx context.Context, articleID int64, content *ArticleContent) (*StorageReference, error)
-	
+
 	// Retrieve gets article content by reference
 	Retrieve(ctx context.Context, ref *StorageReference) (*ArticleContent, error)
-	
+
 	// Delete removes article content
 	Delete(ctx context.Context, ref *StorageReference) error
-	
+
 	// Exists checks if article content exists
 	Exists(ctx context.Context, ref *StorageReference) (bool, error)
-	
+
 	// List returns all storage references for an article
 	List(ctx context.Context, articleID int64) ([]*StorageReference, error)
-	
+
 	// Migrate moves content between backends
 	Migrate(ctx context.Context, ref *StorageReference, target Backend) (*StorageReference, error)
-	
+
 	// GetInfo returns backend information
 	GetInfo() *BackendInfo
-	
+
 	// HealthCheck verifies backend is operational
 	HealthCheck(ctx context.Context) error
 }
 
 // ArticleContent represents the content to be stored
 type ArticleContent struct {
-	ArticleID    int64
-	ContentType  string
-	FileName     string
-	FileSize     int64
-	Content      []byte
-	Metadata     map[string]string
-	CreatedTime  time.Time
-	CreatedBy    int
+	ArticleID   int64
+	ContentType string
+	FileName    string
+	FileSize    int64
+	Content     []byte
+	Metadata    map[string]string
+	CreatedTime time.Time
+	CreatedBy   int
 }
 
 // StorageReference points to stored content
@@ -82,10 +82,10 @@ type BackendStats struct {
 type Factory interface {
 	// Create instantiates a storage backend
 	Create(backendType string, config map[string]interface{}) (Backend, error)
-	
+
 	// Register adds a new backend type
 	Register(backendType string, constructor BackendConstructor)
-	
+
 	// List returns available backend types
 	List() []string
 }
@@ -114,7 +114,7 @@ func (f *StorageFactory) Create(backendType string, config map[string]interface{
 	if !exists {
 		return nil, fmt.Errorf("unknown storage backend type: %s", backendType)
 	}
-	
+
 	return constructor(config)
 }
 
@@ -158,7 +158,7 @@ func (m *MixedModeBackend) Retrieve(ctx context.Context, ref *StorageReference) 
 	if err == nil {
 		return content, nil
 	}
-	
+
 	// Try fallback backends
 	for _, backend := range m.fallbacks {
 		content, err = backend.Retrieve(ctx, ref)
@@ -166,26 +166,26 @@ func (m *MixedModeBackend) Retrieve(ctx context.Context, ref *StorageReference) 
 			return content, nil
 		}
 	}
-	
+
 	return nil, fmt.Errorf("content not found in any backend")
 }
 
 // Delete removes from all backends
 func (m *MixedModeBackend) Delete(ctx context.Context, ref *StorageReference) error {
 	var lastErr error
-	
+
 	// Try to delete from primary
 	if err := m.primary.Delete(ctx, ref); err != nil {
 		lastErr = err
 	}
-	
+
 	// Try to delete from fallbacks
 	for _, backend := range m.fallbacks {
 		if err := backend.Delete(ctx, ref); err != nil {
 			lastErr = err
 		}
 	}
-	
+
 	return lastErr
 }
 
@@ -195,14 +195,14 @@ func (m *MixedModeBackend) Exists(ctx context.Context, ref *StorageReference) (b
 	if exists, err := m.primary.Exists(ctx, ref); err == nil && exists {
 		return true, nil
 	}
-	
+
 	// Check fallbacks
 	for _, backend := range m.fallbacks {
 		if exists, err := backend.Exists(ctx, ref); err == nil && exists {
 			return true, nil
 		}
 	}
-	
+
 	return false, nil
 }
 
@@ -210,7 +210,7 @@ func (m *MixedModeBackend) Exists(ctx context.Context, ref *StorageReference) (b
 func (m *MixedModeBackend) List(ctx context.Context, articleID int64) ([]*StorageReference, error) {
 	refs := make([]*StorageReference, 0)
 	seen := make(map[string]bool)
-	
+
 	// Get from primary
 	if primaryRefs, err := m.primary.List(ctx, articleID); err == nil {
 		for _, ref := range primaryRefs {
@@ -221,7 +221,7 @@ func (m *MixedModeBackend) List(ctx context.Context, articleID int64) ([]*Storag
 			}
 		}
 	}
-	
+
 	// Get from fallbacks
 	for _, backend := range m.fallbacks {
 		if fallbackRefs, err := backend.List(ctx, articleID); err == nil {
@@ -234,7 +234,7 @@ func (m *MixedModeBackend) List(ctx context.Context, articleID int64) ([]*Storag
 			}
 		}
 	}
-	
+
 	return refs, nil
 }
 
@@ -245,16 +245,16 @@ func (m *MixedModeBackend) Migrate(ctx context.Context, ref *StorageReference, t
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve content for migration: %w", err)
 	}
-	
+
 	// Store in target
 	newRef, err := target.Store(ctx, ref.ArticleID, content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store content in target backend: %w", err)
 	}
-	
+
 	// Delete from source (optional, depends on migration strategy)
 	// m.Delete(ctx, ref)
-	
+
 	return newRef, nil
 }
 
@@ -278,7 +278,7 @@ func (m *MixedModeBackend) HealthCheck(ctx context.Context) error {
 	if err := m.primary.HealthCheck(ctx); err != nil {
 		return fmt.Errorf("primary backend unhealthy: %w", err)
 	}
-	
+
 	// Check fallbacks (don't fail if fallback is down)
 	for i, backend := range m.fallbacks {
 		if err := backend.HealthCheck(ctx); err != nil {
@@ -286,17 +286,17 @@ func (m *MixedModeBackend) HealthCheck(ctx context.Context) error {
 			fmt.Printf("Warning: fallback backend %d unhealthy: %v\n", i, err)
 		}
 	}
-	
+
 	return nil
 }
 
 // StreamingBackend extends Backend with streaming capabilities
 type StreamingBackend interface {
 	Backend
-	
+
 	// StoreStream saves content from a reader
 	StoreStream(ctx context.Context, articleID int64, reader io.Reader, metadata *ArticleContent) (*StorageReference, error)
-	
+
 	// RetrieveStream gets content as a reader
 	RetrieveStream(ctx context.Context, ref *StorageReference) (io.ReadCloser, error)
 }

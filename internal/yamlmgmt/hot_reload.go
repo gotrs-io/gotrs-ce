@@ -16,16 +16,16 @@ import (
 
 // HotReloadManager manages hot reloading for all YAML configurations
 type HotReloadManager struct {
-	mu            sync.RWMutex
-	watcher       *fsnotify.Watcher
-	handlers      map[YAMLKind][]ReloadHandler
-	watchDirs     map[string]YAMLKind
-	versionMgr    *VersionManager
-	validator     Validator
-	eventChan     chan ConfigEvent
-	ctx           context.Context
-	cancel        context.CancelFunc
-	debounceDelay time.Duration
+	mu             sync.RWMutex
+	watcher        *fsnotify.Watcher
+	handlers       map[YAMLKind][]ReloadHandler
+	watchDirs      map[string]YAMLKind
+	versionMgr     *VersionManager
+	validator      Validator
+	eventChan      chan ConfigEvent
+	ctx            context.Context
+	cancel         context.CancelFunc
+	debounceDelay  time.Duration
 	pendingReloads map[string]time.Time
 }
 
@@ -300,7 +300,7 @@ func (hrm *HotReloadManager) getKindForFile(filename string) YAMLKind {
 	defer hrm.mu.RUnlock()
 
 	dir := filepath.Dir(filename)
-	
+
 	// Check exact match
 	if kind, exists := hrm.watchDirs[dir]; exists {
 		return kind

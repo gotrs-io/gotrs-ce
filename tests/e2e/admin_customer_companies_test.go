@@ -47,10 +47,10 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 		// Check for main UI elements
 		heading := browser.Page.Locator("h1, h2")
 		assert.True(t, heading.Count() > 0)
-		
+
 		addButton := browser.Page.Locator("button:has-text('Add New Company')")
 		assert.True(t, addButton.Count() > 0)
-		
+
 		table := browser.Page.Locator("table")
 		assert.True(t, table.Count() > 0)
 
@@ -80,25 +80,25 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 		// Verify form elements
 		heading := browser.Page.Locator("h1, h2:has-text('Create New Customer Company')")
 		assert.True(t, heading.Count() > 0)
-		
+
 		customerIDInput := browser.Page.Locator("input[name='customer_id']")
 		assert.True(t, customerIDInput.Count() > 0)
-		
+
 		nameInput := browser.Page.Locator("input[name='name']")
 		assert.True(t, nameInput.Count() > 0)
-		
+
 		streetInput := browser.Page.Locator("input[name='street']")
 		assert.True(t, streetInput.Count() > 0)
-		
+
 		cityInput := browser.Page.Locator("input[name='city']")
 		assert.True(t, cityInput.Count() > 0)
-		
+
 		countryInput := browser.Page.Locator("input[name='country']")
 		assert.True(t, countryInput.Count() > 0)
 
 		// Fill out the form
 		testCustomerID := fmt.Sprintf("TEST_%d", time.Now().Unix())
-		
+
 		customerIDInput.Fill(testCustomerID)
 		nameInput.Fill("Test Company Ltd")
 		streetInput.Fill("123 Test Street")
@@ -108,7 +108,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 		// Submit form
 		submitButton := browser.Page.Locator("button[type='submit']")
 		assert.True(t, submitButton.Count() > 0)
-		
+
 		// Click submit and wait for response
 		submitButton.Click()
 		browser.Page.WaitForLoad()
@@ -130,7 +130,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 		// Verify form is populated
 		heading := browser.Page.Locator("h1, h2:has-text('Edit Customer Company')")
 		assert.True(t, heading.Count() > 0)
-		
+
 		customerIDField := browser.Page.Locator("input[name='customer_id']")
 		if customerIDField.Count() > 0 {
 			value, err := customerIDField.InputValue()
@@ -169,24 +169,24 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 		actionButtons := browser.Page.Locator("button")
 		buttonCount, err := actionButtons.Count()
 		require.NoError(t, err)
-		
+
 		for i := 0; i < buttonCount; i++ {
 			button := actionButtons.Nth(i)
 			text, err := button.TextContent()
 			require.NoError(t, err)
-			
+
 			// Test edit action
 			if contains(text, "Edit") || contains(text, "edit") {
 				t.Logf("Found edit button: %s", text)
 				// Could click and verify navigation
 			}
-			
+
 			// Test delete action
 			if contains(text, "Delete") || contains(text, "delete") {
 				t.Logf("Found delete button: %s", text)
 				// Could click and verify modal appears
 			}
-			
+
 			// Test activate/deactivate action
 			if contains(text, "Activate") || contains(text, "Deactivate") {
 				t.Logf("Found activate button: %s", text)
@@ -212,7 +212,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 			loginHint := browser.Page.Locator("input[name='login_hint'], textarea[name='login_hint']")
 			theme := browser.Page.Locator("select[name='theme']")
 			customCSS := browser.Page.Locator("textarea[name='custom_css']")
-			
+
 			assert.True(t, loginHint.Count() > 0 || theme.Count() > 0)
 			assert.True(t, theme.Count() > 0)
 			assert.True(t, customCSS.Count() > 0)
@@ -235,7 +235,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 			// Verify services assignment interface
 			checkboxes := browser.Page.Locator("input[type='checkbox']")
 			multiSelect := browser.Page.Locator("select[multiple]")
-			
+
 			assert.True(t, checkboxes.Count() > 0 || multiSelect.Count() > 0)
 		}
 	})
@@ -256,7 +256,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 			// Verify modal or new page with users list
 			table := browser.Page.Locator("table")
 			modal := browser.Page.Locator(".modal, [role='dialog']")
-			
+
 			assert.True(t, table.Count() > 0 || modal.Count() > 0)
 		}
 	})
@@ -277,7 +277,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 			// Verify modal or new page with tickets list
 			table := browser.Page.Locator("table")
 			modal := browser.Page.Locator(".modal, [role='dialog']")
-			
+
 			assert.True(t, table.Count() > 0 || modal.Count() > 0)
 		}
 	})
@@ -288,7 +288,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 		if darkModeButton.Count() == 0 {
 			darkModeButton = browser.Page.Locator("button:has-text('moon'), [data-toggle='dark']")
 		}
-		
+
 		if darkModeButton.Count() > 0 {
 			// Toggle dark mode
 			darkModeButton.Click()
@@ -304,7 +304,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 			if lightModeButton.Count() == 0 {
 				lightModeButton = browser.Page.Locator("button:has-text('sun'), [data-toggle='light']")
 			}
-			
+
 			if lightModeButton.Count() > 0 {
 				lightModeButton.Click()
 				time.Sleep(500 * time.Millisecond)
@@ -357,9 +357,9 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 		// Should show 404 or error message
 		pageText, err := browser.Page.TextContent("body")
 		require.NoError(t, err)
-		assert.True(t, contains(pageText, "not found") || 
-					 contains(pageText, "error") ||
-					 contains(pageText, "404"))
+		assert.True(t, contains(pageText, "not found") ||
+			contains(pageText, "error") ||
+			contains(pageText, "404"))
 	})
 
 	t.Run("Form Validation", func(t *testing.T) {
@@ -379,8 +379,8 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 			pageText, err := browser.Page.TextContent("body")
 			require.NoError(t, err)
 			assert.True(t, contains(pageText, "required") ||
-						 contains(pageText, "error") ||
-						 contains(pageText, "validation"))
+				contains(pageText, "error") ||
+				contains(pageText, "validation"))
 		}
 
 		// Test invalid email format if there's an email field
@@ -394,7 +394,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 			pageText, err := browser.Page.TextContent("body")
 			require.NoError(t, err)
 			assert.True(t, contains(pageText, "email") ||
-						 contains(pageText, "invalid"))
+				contains(pageText, "invalid"))
 		}
 	})
 
@@ -436,7 +436,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 				require.NoError(t, err)
 				name, err := input.GetAttribute("name")
 				require.NoError(t, err)
-				
+
 				// Should have either id or name for accessibility
 				assert.True(t, (id != "" && id != "") || (name != "" && name != ""))
 			}
@@ -475,10 +475,10 @@ func TestAdminCustomerCompaniesAPIE2E(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 		// Test POST /admin/customer/companies (create)
-		formData := fmt.Sprintf("customer_id=API_TEST_%d&name=API Test Company&street=123 API St&city=API City&country=API Country&valid_id=1", 
+		formData := fmt.Sprintf("customer_id=API_TEST_%d&name=API Test Company&street=123 API St&city=API City&country=API Country&valid_id=1",
 			time.Now().Unix())
-		resp, err = client.Post(fmt.Sprintf("%s/admin/customer/companies", baseURL), 
-			"application/x-www-form-urlencoded", 
+		resp, err = client.Post(fmt.Sprintf("%s/admin/customer/companies", baseURL),
+			"application/x-www-form-urlencoded",
 			bytes.NewBufferString(formData))
 		require.NoError(t, err)
 		defer resp.Body.Close()
@@ -488,7 +488,7 @@ func TestAdminCustomerCompaniesAPIE2E(t *testing.T) {
 
 		// Test POST /admin/customer/companies/:id/edit (update)
 		updateData := fmt.Sprintf("name=Updated API Test Company&street=456 API St&city=Updated API City&country=API Country&valid_id=1")
-		req, err := http.NewRequest("POST", fmt.Sprintf("%s/admin/customer/companies/API_TEST/edit", baseURL), 
+		req, err := http.NewRequest("POST", fmt.Sprintf("%s/admin/customer/companies/API_TEST/edit", baseURL),
 			bytes.NewBufferString(updateData))
 		require.NoError(t, err)
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -560,8 +560,8 @@ func TestAdminCustomerCompaniesAPIE2E(t *testing.T) {
 
 		// Test invalid POST data
 		invalidData := "invalid=data"
-		resp, err = client.Post(fmt.Sprintf("%s/admin/customer/companies", baseURL), 
-			"application/x-www-form-urlencoded", 
+		resp, err = client.Post(fmt.Sprintf("%s/admin/customer/companies", baseURL),
+			"application/x-www-form-urlencoded",
 			bytes.NewBufferString(invalidData))
 		require.NoError(t, err)
 		defer resp.Body.Close()
@@ -572,12 +572,11 @@ func TestAdminCustomerCompaniesAPIE2E(t *testing.T) {
 
 // Helper function to check if string contains substring (case insensitive)
 func contains(text, substr string) bool {
-	return len(text) >= len(substr) && 
-		   (text == substr || 
-		    len(text) > len(substr) && (
-			    containsString(text, substr) || 
-			    containsString(text, toLower(substr)) ||
-			    containsString(toLower(text), substr)))
+	return len(text) >= len(substr) &&
+		(text == substr ||
+			len(text) > len(substr) && (containsString(text, substr) ||
+				containsString(text, toLower(substr)) ||
+				containsString(toLower(text), substr)))
 }
 
 func containsString(text, substr string) bool {

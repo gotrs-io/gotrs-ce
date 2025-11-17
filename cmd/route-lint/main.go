@@ -76,7 +76,7 @@ var lintRules = []LintRule{
 		Severity:    "error",
 		Check:       checkFileNameConsistency,
 	},
-	
+
 	// Required fields
 	{
 		ID:          "required-001",
@@ -92,7 +92,7 @@ var lintRules = []LintRule{
 		Severity:    "warning",
 		Check:       checkDescriptions,
 	},
-	
+
 	// Path conventions
 	{
 		ID:          "path-001",
@@ -108,7 +108,7 @@ var lintRules = []LintRule{
 		Severity:    "info",
 		Check:       checkRESTfulPaths,
 	},
-	
+
 	// Security checks
 	{
 		ID:          "security-001",
@@ -124,7 +124,7 @@ var lintRules = []LintRule{
 		Severity:    "warning",
 		Check:       checkSensitiveData,
 	},
-	
+
 	// Performance checks
 	{
 		ID:          "perf-001",
@@ -140,7 +140,7 @@ var lintRules = []LintRule{
 		Severity:    "info",
 		Check:       checkMethodSpecificity,
 	},
-	
+
 	// Testing
 	{
 		ID:          "test-001",
@@ -149,7 +149,7 @@ var lintRules = []LintRule{
 		Severity:    "info",
 		Check:       checkTestCases,
 	},
-	
+
 	// Documentation
 	{
 		ID:          "docs-001",
@@ -165,39 +165,39 @@ func main() {
 	if len(os.Args) > 1 {
 		routesDir = os.Args[1]
 	}
-	
+
 	fmt.Println("🔍 GOTRS Route Linter")
 	fmt.Println("====================")
 	fmt.Printf("Scanning: %s\n\n", routesDir)
-	
+
 	issues := []LintIssue{}
 	fileCount := 0
-	
+
 	// Walk through route files
 	err := filepath.Walk(routesDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		
+
 		if !strings.HasSuffix(path, ".yaml") && !strings.HasSuffix(path, ".yml") {
 			return nil
 		}
-		
+
 		fileCount++
 		fileIssues := lintFile(path)
 		issues = append(issues, fileIssues...)
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		fmt.Printf("Error scanning directory: %v\n", err)
 		os.Exit(1)
 	}
-	
+
 	// Display results
 	displayResults(issues, fileCount)
-	
+
 	// Exit with error if there are error-level issues
 	for _, issue := range issues {
 		if issue.Severity == "error" {
@@ -208,7 +208,7 @@ func main() {
 
 func lintFile(path string) []LintIssue {
 	issues := []LintIssue{}
-	
+
 	// Read file
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -220,7 +220,7 @@ func lintFile(path string) []LintIssue {
 		})
 		return issues
 	}
-	
+
 	// Parse YAML
 	var config RouteConfig
 	if err := yaml.Unmarshal(data, &config); err != nil {
@@ -232,7 +232,7 @@ func lintFile(path string) []LintIssue {
 		})
 		return issues
 	}
-	
+
 	// Run all lint rules
 	for _, rule := range lintRules {
 		ruleIssues := rule.Check(&config, path)
@@ -243,7 +243,7 @@ func lintFile(path string) []LintIssue {
 		}
 		issues = append(issues, ruleIssues...)
 	}
-	
+
 	return issues
 }
 
@@ -251,14 +251,14 @@ func lintFile(path string) []LintIssue {
 
 func checkRouteNaming(config *RouteConfig, path string) []LintIssue {
 	issues := []LintIssue{}
-	
+
 	// Check metadata name
 	if !isKebabCase(config.Metadata.Name) {
 		issues = append(issues, LintIssue{
 			Message: fmt.Sprintf("Route name '%s' should use kebab-case", config.Metadata.Name),
 		})
 	}
-	
+
 	// Check individual route names
 	for _, route := range config.Spec.Routes {
 		if route.Name != "" && !isKebabCase(route.Name) {
@@ -267,26 +267,26 @@ func checkRouteNaming(config *RouteConfig, path string) []LintIssue {
 			})
 		}
 	}
-	
+
 	return issues
 }
 
 func checkFileNameConsistency(config *RouteConfig, path string) []LintIssue {
 	issues := []LintIssue{}
-	
+
 	filename := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 	if filename != config.Metadata.Name {
 		issues = append(issues, LintIssue{
 			Message: fmt.Sprintf("File name '%s' doesn't match metadata.name '%s'", filename, config.Metadata.Name),
 		})
 	}
-	
+
 	return issues
 }
 
 func checkAPIVersion(config *RouteConfig, path string) []LintIssue {
 	issues := []LintIssue{}
-	
+
 	if config.APIVersion == "" {
 		issues = append(issues, LintIssue{
 			Message: "Missing apiVersion field",
@@ -296,19 +296,19 @@ func checkAPIVersion(config *RouteConfig, path string) []LintIssue {
 			Message: fmt.Sprintf("apiVersion should start with 'gotrs.io/', got '%s'", config.APIVersion),
 		})
 	}
-	
+
 	return issues
 }
 
 func checkDescriptions(config *RouteConfig, path string) []LintIssue {
 	issues := []LintIssue{}
-	
+
 	if config.Metadata.Description == "" {
 		issues = append(issues, LintIssue{
 			Message: "Missing metadata.description",
 		})
 	}
-	
+
 	for i, route := range config.Spec.Routes {
 		if route.Description == "" {
 			issues = append(issues, LintIssue{
@@ -316,20 +316,20 @@ func checkDescriptions(config *RouteConfig, path string) []LintIssue {
 			})
 		}
 	}
-	
+
 	return issues
 }
 
 func checkPathFormat(config *RouteConfig, path string) []LintIssue {
 	issues := []LintIssue{}
-	
+
 	for _, route := range config.Spec.Routes {
 		if !strings.HasPrefix(route.Path, "/") {
 			issues = append(issues, LintIssue{
 				Message: fmt.Sprintf("Path '%s' should start with /", route.Path),
 			})
 		}
-		
+
 		// Check for uppercase in path (except for path params)
 		pathParts := strings.Split(route.Path, "/")
 		for _, part := range pathParts {
@@ -341,24 +341,24 @@ func checkPathFormat(config *RouteConfig, path string) []LintIssue {
 			}
 		}
 	}
-	
+
 	return issues
 }
 
 func checkRESTfulPaths(config *RouteConfig, path string) []LintIssue {
 	issues := []LintIssue{}
-	
+
 	for _, route := range config.Spec.Routes {
 		methods := getMethodList(route.Method)
-		
+
 		// Check common anti-patterns
 		if strings.Contains(route.Path, "/get") || strings.Contains(route.Path, "/create") ||
-		   strings.Contains(route.Path, "/update") || strings.Contains(route.Path, "/delete") {
+			strings.Contains(route.Path, "/update") || strings.Contains(route.Path, "/delete") {
 			issues = append(issues, LintIssue{
 				Message: fmt.Sprintf("Path '%s' includes HTTP verbs - use HTTP methods instead", route.Path),
 			})
 		}
-		
+
 		// Check for appropriate methods
 		if strings.HasSuffix(route.Path, "/:id") {
 			if !contains(methods, "GET") && !contains(methods, "PUT") && !contains(methods, "DELETE") {
@@ -368,13 +368,13 @@ func checkRESTfulPaths(config *RouteConfig, path string) []LintIssue {
 			}
 		}
 	}
-	
+
 	return issues
 }
 
 func checkAuthentication(config *RouteConfig, path string) []LintIssue {
 	issues := []LintIssue{}
-	
+
 	// Check if this is an admin route
 	if config.Metadata.Namespace == "admin" || strings.Contains(config.Spec.Prefix, "/admin") {
 		for _, route := range config.Spec.Routes {
@@ -385,15 +385,15 @@ func checkAuthentication(config *RouteConfig, path string) []LintIssue {
 			}
 		}
 	}
-	
+
 	return issues
 }
 
 func checkSensitiveData(config *RouteConfig, path string) []LintIssue {
 	issues := []LintIssue{}
-	
+
 	sensitivePatterns := []string{"password", "token", "secret", "key", "credential"}
-	
+
 	for _, route := range config.Spec.Routes {
 		for _, pattern := range sensitivePatterns {
 			if strings.Contains(strings.ToLower(route.Path), pattern) {
@@ -403,13 +403,13 @@ func checkSensitiveData(config *RouteConfig, path string) []LintIssue {
 			}
 		}
 	}
-	
+
 	return issues
 }
 
 func checkWildcardPaths(config *RouteConfig, path string) []LintIssue {
 	issues := []LintIssue{}
-	
+
 	wildcardCount := 0
 	for _, route := range config.Spec.Routes {
 		if strings.Contains(route.Path, "*") {
@@ -419,19 +419,19 @@ func checkWildcardPaths(config *RouteConfig, path string) []LintIssue {
 			})
 		}
 	}
-	
+
 	if wildcardCount > 3 {
 		issues = append(issues, LintIssue{
 			Message: fmt.Sprintf("Too many wildcard paths (%d) in route group", wildcardCount),
 		})
 	}
-	
+
 	return issues
 }
 
 func checkMethodSpecificity(config *RouteConfig, path string) []LintIssue {
 	issues := []LintIssue{}
-	
+
 	for _, route := range config.Spec.Routes {
 		methods := getMethodList(route.Method)
 		if contains(methods, "*") || contains(methods, "ANY") {
@@ -440,32 +440,32 @@ func checkMethodSpecificity(config *RouteConfig, path string) []LintIssue {
 			})
 		}
 	}
-	
+
 	return issues
 }
 
 func checkTestCases(config *RouteConfig, path string) []LintIssue {
 	issues := []LintIssue{}
-	
+
 	routesWithoutTests := 0
 	for _, route := range config.Spec.Routes {
 		if len(route.TestCases) == 0 {
 			routesWithoutTests++
 		}
 	}
-	
+
 	if routesWithoutTests > 0 {
 		issues = append(issues, LintIssue{
 			Message: fmt.Sprintf("%d routes lack test cases", routesWithoutTests),
 		})
 	}
-	
+
 	return issues
 }
 
 func checkParameterDocs(config *RouteConfig, path string) []LintIssue {
 	issues := []LintIssue{}
-	
+
 	for _, route := range config.Spec.Routes {
 		// Check if path has parameters
 		if strings.Contains(route.Path, ":") {
@@ -477,7 +477,7 @@ func checkParameterDocs(config *RouteConfig, path string) []LintIssue {
 			}
 		}
 	}
-	
+
 	return issues
 }
 
@@ -516,7 +516,7 @@ func displayResults(issues []LintIssue, fileCount int) {
 	errors := []LintIssue{}
 	warnings := []LintIssue{}
 	infos := []LintIssue{}
-	
+
 	for _, issue := range issues {
 		switch issue.Severity {
 		case "error":
@@ -527,30 +527,30 @@ func displayResults(issues []LintIssue, fileCount int) {
 			infos = append(infos, issue)
 		}
 	}
-	
+
 	// Display grouped issues
 	if len(errors) > 0 {
 		fmt.Printf("\n❌ Errors (%d):\n", len(errors))
 		displayIssueGroup(errors)
 	}
-	
+
 	if len(warnings) > 0 {
 		fmt.Printf("\n⚠️  Warnings (%d):\n", len(warnings))
 		displayIssueGroup(warnings)
 	}
-	
+
 	if len(infos) > 0 {
 		fmt.Printf("\nℹ️  Info (%d):\n", len(infos))
 		displayIssueGroup(infos)
 	}
-	
+
 	// Summary
 	fmt.Printf("\n📊 Summary:\n")
 	fmt.Printf("   Files scanned: %d\n", fileCount)
 	fmt.Printf("   Errors:        %d\n", len(errors))
 	fmt.Printf("   Warnings:      %d\n", len(warnings))
 	fmt.Printf("   Info:          %d\n", len(infos))
-	
+
 	if len(issues) == 0 {
 		fmt.Printf("\n✅ All checks passed!\n")
 	} else if len(errors) == 0 {
@@ -566,14 +566,14 @@ func displayIssueGroup(issues []LintIssue) {
 	for _, issue := range issues {
 		byFile[issue.File] = append(byFile[issue.File], issue)
 	}
-	
+
 	// Sort files
 	files := make([]string, 0, len(byFile))
 	for file := range byFile {
 		files = append(files, file)
 	}
 	sort.Strings(files)
-	
+
 	// Display
 	for _, file := range files {
 		relFile, _ := filepath.Rel(".", file)

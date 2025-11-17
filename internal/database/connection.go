@@ -13,19 +13,28 @@ import (
 // GetDB returns the database connection singleton from the service registry.
 // Service registry is the single source of truth for database connections.
 func GetDB() (*sql.DB, error) {
-	if testDBOverride && testDB != nil {
-		return testDB, nil
+	testDBMu.RLock()
+	override := testDBOverride
+	current := testDB
+	testDBMu.RUnlock()
+
+	if override && current != nil {
+		return current, nil
 	}
 
-	if testDB != nil {
+	if current != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-		err := testDB.PingContext(ctx)
+		err := current.PingContext(ctx)
 		cancel()
 		if err == nil {
-			return testDB, nil
+			return current, nil
 		}
 		// Drop stale pointer and fall back to the service-managed connection.
-		testDB = nil
+		testDBMu.Lock()
+		if testDB == current {
+			testDB = nil
+		}
+		testDBMu.Unlock()
 	}
 
 	db, err := adapter.GetDB()
@@ -33,9 +42,11 @@ func GetDB() (*sql.DB, error) {
 		return nil, err
 	}
 
+	testDBMu.Lock()
 	if !testDBOverride {
 		testDB = db
 	}
+	testDBMu.Unlock()
 
 	return db, nil
 }

@@ -29,10 +29,10 @@ func NewSearchService(client zinc.Client) *SearchService {
 		nextSearchID:  1,
 		nextHistoryID: 1,
 	}
-	
+
 	// Initialize tickets index
 	service.initializeIndex(context.Background())
-	
+
 	return service
 }
 
@@ -42,7 +42,7 @@ func (s *SearchService) initializeIndex(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if !exists {
 		mapping := map[string]interface{}{
 			"properties": map[string]interface{}{
@@ -86,10 +86,10 @@ func (s *SearchService) initializeIndex(ctx context.Context) error {
 				},
 			},
 		}
-		
+
 		return s.client.CreateIndex(ctx, "tickets", mapping)
 	}
-	
+
 	return nil
 }
 
@@ -102,16 +102,16 @@ func (s *SearchService) IndexTicket(ctx context.Context, ticket *models.Ticket) 
 // UpdateTicketInIndex updates a ticket in the search index
 func (s *SearchService) UpdateTicketInIndex(ctx context.Context, ticket *models.Ticket) error {
 	doc := s.mapTicketToSearchDocument(ticket)
-	
+
 	updates := map[string]interface{}{
-		"title":        doc.Title,
-		"content":      doc.Content,
-		"status":       doc.Status,
-		"priority":     doc.Priority,
-		"queue":        doc.Queue,
-		"updated_at":   doc.UpdatedAt,
+		"title":      doc.Title,
+		"content":    doc.Content,
+		"status":     doc.Status,
+		"priority":   doc.Priority,
+		"queue":      doc.Queue,
+		"updated_at": doc.UpdatedAt,
 	}
-	
+
 	return s.client.UpdateDocument(ctx, "tickets", doc.ID, updates)
 }
 
@@ -138,7 +138,7 @@ func (s *SearchService) SearchTickets(ctx context.Context, request *models.Searc
 	if request.PageSize == 0 {
 		request.PageSize = 20
 	}
-	
+
 	return s.client.Search(ctx, "tickets", request)
 }
 
@@ -152,23 +152,23 @@ func (s *SearchService) SearchWithFilter(ctx context.Context, filter *models.Sea
 		Filters:   make(map[string]string),
 		Highlight: true,
 	}
-	
+
 	// Apply status filter
 	if len(filter.Statuses) > 0 {
 		// For simplicity, use the first status
 		request.Filters["status"] = s.mapStateToStatus(filter.Statuses[0])
 	}
-	
+
 	// Apply priority filter
 	if len(filter.Priorities) > 0 {
 		request.Filters["priority"] = filter.Priorities[0]
 	}
-	
+
 	// Apply queue filter
 	if len(filter.Queues) > 0 {
 		request.Filters["queue"] = filter.Queues[0]
 	}
-	
+
 	// Apply date filters
 	if filter.CreatedAfter != nil {
 		request.DateFrom = filter.CreatedAfter
@@ -176,7 +176,7 @@ func (s *SearchService) SearchWithFilter(ctx context.Context, filter *models.Sea
 	if filter.CreatedBefore != nil {
 		request.DateTo = filter.CreatedBefore
 	}
-	
+
 	return s.client.Search(ctx, "tickets", request)
 }
 
@@ -189,16 +189,16 @@ func (s *SearchService) GetSearchSuggestions(ctx context.Context, text string) (
 func (s *SearchService) SaveSearch(ctx context.Context, search *models.SavedSearch) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	search.ID = s.nextSearchID
 	s.nextSearchID++
 	search.CreatedAt = time.Now()
 	search.UpdatedAt = search.CreatedAt
-	
+
 	// Create a copy to store
 	stored := *search
 	s.savedSearches[search.ID] = &stored
-	
+
 	return nil
 }
 
@@ -206,12 +206,12 @@ func (s *SearchService) SaveSearch(ctx context.Context, search *models.SavedSear
 func (s *SearchService) GetSavedSearch(ctx context.Context, id uint) (*models.SavedSearch, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	search, exists := s.savedSearches[id]
 	if !exists {
 		return nil, fmt.Errorf("saved search %d not found", id)
 	}
-	
+
 	// Return a copy
 	result := *search
 	return &result, nil
@@ -221,14 +221,14 @@ func (s *SearchService) GetSavedSearch(ctx context.Context, id uint) (*models.Sa
 func (s *SearchService) GetSavedSearches(ctx context.Context, userID uint) ([]models.SavedSearch, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	var searches []models.SavedSearch
 	for _, search := range s.savedSearches {
 		if search.UserID == userID || search.IsPublic {
 			searches = append(searches, *search)
 		}
 	}
-	
+
 	return searches, nil
 }
 
@@ -238,12 +238,12 @@ func (s *SearchService) ExecuteSavedSearch(ctx context.Context, id uint) (*model
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Increment usage count
 	s.mu.Lock()
 	s.savedSearches[id].UsageCount++
 	s.mu.Unlock()
-	
+
 	return s.SearchWithFilter(ctx, &search.Filter)
 }
 
@@ -251,7 +251,7 @@ func (s *SearchService) ExecuteSavedSearch(ctx context.Context, id uint) (*model
 func (s *SearchService) RecordSearchHistory(ctx context.Context, userID uint, request *models.SearchRequest, results *models.SearchResult) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	history := models.SearchHistory{
 		ID:         s.nextHistoryID,
 		UserID:     userID,
@@ -261,14 +261,14 @@ func (s *SearchService) RecordSearchHistory(ctx context.Context, userID uint, re
 		SearchedAt: time.Now(),
 	}
 	s.nextHistoryID++
-	
+
 	s.searchHistory = append(s.searchHistory, history)
-	
+
 	// Keep only last 1000 entries
 	if len(s.searchHistory) > 1000 {
 		s.searchHistory = s.searchHistory[len(s.searchHistory)-1000:]
 	}
-	
+
 	return nil
 }
 
@@ -276,10 +276,10 @@ func (s *SearchService) RecordSearchHistory(ctx context.Context, userID uint, re
 func (s *SearchService) GetSearchHistory(ctx context.Context, userID uint, limit int) ([]models.SearchHistory, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	var history []models.SearchHistory
 	count := 0
-	
+
 	// Iterate in reverse for most recent first
 	for i := len(s.searchHistory) - 1; i >= 0 && count < limit; i-- {
 		if s.searchHistory[i].UserID == userID {
@@ -287,7 +287,7 @@ func (s *SearchService) GetSearchHistory(ctx context.Context, userID uint, limit
 			count++
 		}
 	}
-	
+
 	return history, nil
 }
 
@@ -295,23 +295,23 @@ func (s *SearchService) GetSearchHistory(ctx context.Context, userID uint, limit
 func (s *SearchService) GetSearchAnalytics(ctx context.Context, from, to time.Time) (*models.SearchAnalytics, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	analytics := &models.SearchAnalytics{
 		TopFilters: make(map[string]int),
 	}
-	
+
 	queryCount := make(map[string]int)
 	queryResults := make(map[string][]int)
 	userSet := make(map[uint]bool)
-	
+
 	for _, hist := range s.searchHistory {
 		if hist.SearchedAt.After(from) && hist.SearchedAt.Before(to) {
 			analytics.TotalSearches++
 			userSet[hist.UserID] = true
-			
+
 			queryCount[hist.Query]++
 			queryResults[hist.Query] = append(queryResults[hist.Query], hist.Results)
-			
+
 			// Count filters
 			if len(hist.Filter.Statuses) > 0 {
 				analytics.TopFilters["status"]++
@@ -324,9 +324,9 @@ func (s *SearchService) GetSearchAnalytics(ctx context.Context, from, to time.Ti
 			}
 		}
 	}
-	
+
 	analytics.UniqueUsers = len(userSet)
-	
+
 	// Calculate top queries
 	for query, count := range queryCount {
 		avgResults := 0.0
@@ -337,14 +337,14 @@ func (s *SearchService) GetSearchAnalytics(ctx context.Context, from, to time.Ti
 			}
 			avgResults = float64(sum) / float64(len(queryResults[query]))
 		}
-		
+
 		analytics.TopQueries = append(analytics.TopQueries, models.QueryStats{
 			Query:      query,
 			Count:      count,
 			AvgResults: avgResults,
 		})
 	}
-	
+
 	// Sort top queries by count
 	for i := 0; i < len(analytics.TopQueries); i++ {
 		for j := i + 1; j < len(analytics.TopQueries); j++ {
@@ -353,12 +353,12 @@ func (s *SearchService) GetSearchAnalytics(ctx context.Context, from, to time.Ti
 			}
 		}
 	}
-	
+
 	// Keep only top 10
 	if len(analytics.TopQueries) > 10 {
 		analytics.TopQueries = analytics.TopQueries[:10]
 	}
-	
+
 	// Calculate average result size
 	if analytics.TotalSearches > 0 {
 		totalResults := 0
@@ -369,7 +369,7 @@ func (s *SearchService) GetSearchAnalytics(ctx context.Context, from, to time.Ti
 		}
 		analytics.AverageResultSize = float64(totalResults) / float64(analytics.TotalSearches)
 	}
-	
+
 	return analytics, nil
 }
 
@@ -378,19 +378,19 @@ func (s *SearchService) ReindexAllTickets(ctx context.Context, fetcher func() ([
 	stats := &ReindexStats{
 		StartTime: time.Now(),
 	}
-	
+
 	// Fetch all tickets
 	tickets, err := fetcher()
 	if err != nil {
 		return stats, fmt.Errorf("failed to fetch tickets: %w", err)
 	}
-	
+
 	stats.Total = len(tickets)
-	
+
 	// Delete and recreate index
 	s.client.DeleteIndex(ctx, "tickets")
 	s.initializeIndex(ctx)
-	
+
 	// Bulk index in batches
 	batchSize := 100
 	for i := 0; i < len(tickets); i += batchSize {
@@ -398,7 +398,7 @@ func (s *SearchService) ReindexAllTickets(ctx context.Context, fetcher func() ([
 		if end > len(tickets) {
 			end = len(tickets)
 		}
-		
+
 		batch := tickets[i:end]
 		if err := s.BulkIndexTickets(ctx, batch); err != nil {
 			stats.Failed += len(batch)
@@ -407,10 +407,10 @@ func (s *SearchService) ReindexAllTickets(ctx context.Context, fetcher func() ([
 			stats.Indexed += len(batch)
 		}
 	}
-	
+
 	stats.EndTime = time.Now()
 	stats.Duration = stats.EndTime.Sub(stats.StartTime)
-	
+
 	return stats, nil
 }
 
@@ -426,19 +426,19 @@ func (s *SearchService) mapTicketToSearchDocument(ticket *models.Ticket) *models
 		CreatedAt:    ticket.CreateTime,
 		UpdatedAt:    ticket.ChangeTime,
 	}
-	
+
 	// Add customer info if available
 	if ticket.CustomerID != nil {
 		doc.CustomerEmail = *ticket.CustomerID
 	}
-	
+
 	// Add agent info if available
 	if ticket.UserID != nil {
 		doc.AgentName = fmt.Sprintf("Agent %d", *ticket.UserID)
 	}
-	
+
 	// TODO: Add messages, internal notes, and attachments when available
-	
+
 	return doc
 }
 
@@ -457,7 +457,7 @@ func (s *SearchService) mapTicketStateToStatus(stateID int) string {
 		9:  "closed successful",
 		10: "closed unsuccessful",
 	}
-	
+
 	if status, ok := statusMap[stateID]; ok {
 		return status
 	}
@@ -484,7 +484,7 @@ func (s *SearchService) mapTicketPriorityToString(priorityID int) string {
 		4: "high",
 		5: "very high",
 	}
-	
+
 	if priority, ok := priorityMap[priorityID]; ok {
 		return priority
 	}
@@ -500,7 +500,7 @@ func (s *SearchService) mapQueueIDToName(queueID int) string {
 		3: "Sales",
 		4: "Technical",
 	}
-	
+
 	if name, ok := queueMap[queueID]; ok {
 		return name
 	}
@@ -512,7 +512,7 @@ func (s *SearchService) requestToFilter(request *models.SearchRequest) models.Se
 	filter := models.SearchFilter{
 		Query: request.Query,
 	}
-	
+
 	// Extract filters
 	if status, ok := request.Filters["status"]; ok {
 		filter.Statuses = []string{status}
@@ -523,10 +523,10 @@ func (s *SearchService) requestToFilter(request *models.SearchRequest) models.Se
 	if queue, ok := request.Filters["queue"]; ok {
 		filter.Queues = []string{queue}
 	}
-	
+
 	filter.CreatedAfter = request.DateFrom
 	filter.CreatedBefore = request.DateTo
-	
+
 	return filter
 }
 

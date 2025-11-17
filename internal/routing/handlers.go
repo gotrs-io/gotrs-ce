@@ -224,7 +224,9 @@ func RegisterExistingHandlers(registry *HandlerRegistry) {
 
 	// Register non-API handlers referenced by YAML
 	registry.Override("HandleCustomerInfoPanel", HandleCustomerInfoPanel)
-	registry.Override("HandleAgentNewTicket", HandleAgentNewTicket)
+	if !registry.HandlerExists("HandleAgentNewTicket") {
+		registry.Override("HandleAgentNewTicket", HandleAgentNewTicket)
+	}
 }
 
 func testAuthBypassAllowed() bool {

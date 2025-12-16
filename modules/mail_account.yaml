@@ -32,6 +32,7 @@ fields:
       options: []
       validation: ""
       help: ""
+      placeholder: "support@example.com"
     - name: pw
       type: password
       db_column: pw
@@ -45,6 +46,7 @@ fields:
       options: []
       validation: ""
       help: ""
+      placeholder: "App password or OAuth token"
     - name: host
       type: string
       db_column: host
@@ -58,8 +60,9 @@ fields:
       options: []
       validation: ""
       help: ""
+      placeholder: "imap.mail.example"
     - name: account_type
-      type: string
+      type: select
       db_column: account_type
       label: Account Type
       required: true
@@ -67,14 +70,26 @@ fields:
       sortable: true
       show_in_list: true
       show_in_form: true
-      default: null
-      options: []
+      default: pop3
+      options:
+        - group: POP3
+          value: pop3
+          label: POP3 (Standard)
+        - group: POP3
+          value: pop3s
+          label: POP3S (SSL/TLS)
+        - group: IMAP
+          value: imap
+          label: IMAP (Standard)
+        - group: IMAP
+          value: imaps
+          label: IMAPS (SSL/TLS)
       validation: ""
-      help: ""
+      help: "Select the protocol that matches the mailbox configuration."
     - name: queue_id
       type: integer
       db_column: queue_id
-      label: Queue Id
+      label: Queue
       required: true
       searchable: false
       sortable: true
@@ -83,7 +98,31 @@ fields:
       default: null
       options: []
       validation: ""
-      help: ""
+      help: "Assign inbound messages to this queue."
+      placeholder: "Start typing a queue name"
+      lookup_table: queue
+      lookup_key: id
+      lookup_display: name
+      lookup_condition: "valid_id = 1"
+      widget: typeahead
+    - name: dispatching_mode
+      type: select
+      db_column: ""
+      label: Dispatching Mode
+      required: true
+      searchable: false
+      sortable: false
+      show_in_list: true
+      show_in_form: true
+      default: queue
+      options:
+        - value: queue
+          label: Route to assigned queue
+        - value: from
+          label: Route by From header
+      validation: ""
+      help: "Queue routing honors the queue dropdown; From-based routing defers to dispatch rules."
+      virtual: true
     - name: trusted
       type: integer
       db_column: trusted
@@ -91,12 +130,26 @@ fields:
       required: false
       searchable: false
       sortable: true
-      show_in_list: true
-      show_in_form: true
+      show_in_list: false
+      show_in_form: false
       default: null
       options: []
       validation: ""
       help: ""
+    - name: allow_trusted_headers
+      type: boolean
+      db_column: ""
+      label: Allow Trusted Headers
+      required: false
+      searchable: false
+      sortable: false
+      show_in_list: true
+      show_in_form: true
+      default: false
+      options: []
+      validation: ""
+      help: "Accept queue overrides from X-Znuny-Dest / X-GOTRS headers for this mailbox."
+      virtual: true
     - name: imap_folder
       type: string
       db_column: imap_folder
@@ -110,6 +163,7 @@ fields:
       options: []
       validation: ""
       help: ""
+      placeholder: "INBOX or INBOX/Support"
     - name: comments
       type: string
       db_column: comments
@@ -123,19 +177,40 @@ fields:
       options: []
       validation: ""
       help: ""
+      placeholder: "Optional notes for other admins"
+    - name: poll_interval_seconds
+      type: integer
+      db_column: ""
+      label: Poll Interval (seconds)
+      required: false
+      searchable: false
+      sortable: false
+      show_in_list: true
+      show_in_form: true
+      default: 600
+      options: []
+      validation: ""
+      help: "Override the scheduler interval for this mailbox. Leave 0 to inherit the global cadence."
+      placeholder: "Defaults to 600 seconds"
+      virtual: true
     - name: valid_id
       type: integer
       db_column: valid_id
-      label: Valid Id
-      required: false
+      label: Validity
+      required: true
       searchable: false
       sortable: true
       show_in_list: true
       show_in_form: true
-      default: null
+      default: 1
       options: []
       validation: ""
-      help: ""
+      help: "Choose whether this mailbox is active."
+      lookup_table: valid
+      lookup_key: id
+      lookup_display: name
+      lookup_condition: "1=1"
+      display_as: chip
     - name: create_time
       type: datetime
       db_column: create_time
@@ -204,10 +279,8 @@ filters:
       options:
         - value: ""
           label: "All Mail Accounts"
-        - value: "1"
-          label: "Valid"
-        - value: "2"
-          label: "Invalid"
+      source: database
+      query: SELECT id, name FROM valid ORDER BY name
 permissions: []
 validation:
     unique_fields: []

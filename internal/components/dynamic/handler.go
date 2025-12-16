@@ -26,6 +26,7 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/components/lambda"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/i18n"
+	"github.com/gotrs-io/gotrs-ce/internal/mailaccountmeta"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 )
 
@@ -100,26 +101,30 @@ type ModuleConfig struct {
 
 // Field represents a field in the module
 type Field struct {
-	Name          string         `yaml:"name"`
-	Type          string         `yaml:"type"`
-	DBColumn      string         `yaml:"db_column"`
-	Label         string         `yaml:"label"`
-	Required      bool           `yaml:"required"`
-	Searchable    bool           `yaml:"searchable"`
-	Sortable      bool           `yaml:"sortable"`
-	ShowInList    bool           `yaml:"show_in_list"`
-	ShowInForm    bool           `yaml:"show_in_form"`
-	Default       interface{}    `yaml:"default"`
-	Options       []Option       `yaml:"options"`
-	Validation    string         `yaml:"validation"`
-	Help          string         `yaml:"help"`
-	ListPosition  int            `yaml:"list_position"`
-	Filterable    bool           `yaml:"filterable"`
-	LookupTable   string         `yaml:"lookup_table"`
-	LookupKey     string         `yaml:"lookup_key"`
-	LookupDisplay string         `yaml:"lookup_display"`
-	DisplayAs     string         `yaml:"display_as"`
-	DisplayMap    map[int]string `yaml:"display_map"`
+	Name            string         `yaml:"name"`
+	Type            string         `yaml:"type"`
+	DBColumn        string         `yaml:"db_column"`
+	Label           string         `yaml:"label"`
+	Required        bool           `yaml:"required"`
+	Searchable      bool           `yaml:"searchable"`
+	Sortable        bool           `yaml:"sortable"`
+	ShowInList      bool           `yaml:"show_in_list"`
+	ShowInForm      bool           `yaml:"show_in_form"`
+	Default         interface{}    `yaml:"default"`
+	Options         []Option       `yaml:"options"`
+	Validation      string         `yaml:"validation"`
+	Help            string         `yaml:"help"`
+	Placeholder     string         `yaml:"placeholder"`
+	ListPosition    int            `yaml:"list_position"`
+	Filterable      bool           `yaml:"filterable"`
+	LookupTable     string         `yaml:"lookup_table"`
+	LookupKey       string         `yaml:"lookup_key"`
+	LookupDisplay   string         `yaml:"lookup_display"`
+	LookupCondition string         `yaml:"lookup_condition"`
+	Widget          string         `yaml:"widget"`
+	DisplayAs       string         `yaml:"display_as"`
+	DisplayMap      map[int]string `yaml:"display_map"`
+	Virtual         bool           `yaml:"virtual"`
 }
 
 // ComputedField represents a computed field that's not directly from the database
@@ -136,6 +141,7 @@ type ComputedField struct {
 type Option struct {
 	Value string `yaml:"value"`
 	Label string `yaml:"label"`
+	Group string `yaml:"group,omitempty"`
 }
 
 // Filter represents a filter configuration
@@ -346,6 +352,7 @@ func (h *DynamicModuleHandler) resolveConfigTranslations(config *ModuleConfig, l
 				resolved.Fields[i].Options[j] = Option{
 					Value: opt.Value,
 					Label: h.resolveTranslation(opt.Label, lang),
+					Group: opt.Group,
 				}
 			}
 		}
@@ -487,7 +494,7 @@ func (h *DynamicModuleHandler) handleList(c *gin.Context, config *ModuleConfig) 
 	}
 
 	var totalCount int
-	err := h.db.QueryRow(countQuery, args...).Scan(&totalCount)
+	err := h.queryRow(countQuery, args...).Scan(&totalCount)
 	if err != nil {
 		fmt.Printf("Error counting records: %v\n", err)
 		totalCount = 0
@@ -507,7 +514,7 @@ func (h *DynamicModuleHandler) handleList(c *gin.Context, config *ModuleConfig) 
 	query := baseQuery + " ORDER BY id DESC LIMIT $" + strconv.Itoa(len(args)+1) + " OFFSET $" + strconv.Itoa(len(args)+2)
 	args = append(args, pageSize, offset)
 
-	rows, err := h.db.Query(query, args...)
+	rows, err := h.query(query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -531,11 +538,10 @@ func (h *DynamicModuleHandler) handleList(c *gin.Context, config *ModuleConfig) 
 		})
 		return
 	}
-
 	// Populate database-sourced filter options
 	for i, filter := range config.Filters {
 		if filter.Source == "database" && filter.Query != "" {
-			filterRows, err := h.db.Query(filter.Query)
+			filterRows, err := h.query(filter.Query)
 			if err != nil {
 				fmt.Printf("Error loading filter options for %s: %v\n", filter.Field, err)
 				continue
@@ -689,7 +695,7 @@ func (h *DynamicModuleHandler) handleList(c *gin.Context, config *ModuleConfig) 
 			// Load options from database
 			query := fmt.Sprintf("SELECT %s, %s FROM %s ORDER BY %s",
 				filter.LookupKey, filter.LookupDisplay, filter.LookupTable, filter.LookupDisplay)
-			rows, err := h.db.Query(query)
+			rows, err := h.query(query)
 			if err == nil {
 				defer rows.Close()
 				options := []FilterOption{{Value: "", Label: fmt.Sprintf("All %s", filter.Label)}}
@@ -810,7 +816,7 @@ func (h *DynamicModuleHandler) handleExport(c *gin.Context, config *ModuleConfig
 		query += " WHERE id IN (" + strings.Join(placeholders, ", ") + ")"
 		query += " ORDER BY id DESC"
 
-		rows, err := h.db.Query(query, args...)
+		rows, err := h.query(query, args...)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -834,7 +840,7 @@ func (h *DynamicModuleHandler) handleExport(c *gin.Context, config *ModuleConfig
 
 	query += " ORDER BY id DESC"
 
-	rows, err := h.db.Query(query, args...)
+	rows, err := h.query(query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -899,7 +905,7 @@ func (h *DynamicModuleHandler) handleGet(c *gin.Context, config *ModuleConfig, i
 	columns := h.getSelectColumns(config)
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE id = $1", columns, config.Module.Table)
 
-	row := h.db.QueryRow(query, id)
+	row := h.queryRow(query, id)
 	item := h.scanRow(row, config)
 
 	if item == nil {
@@ -918,7 +924,7 @@ func (h *DynamicModuleHandler) handleGet(c *gin.Context, config *ModuleConfig, i
 			WHERE ug.user_id = $1
 			ORDER BY g.name`
 
-		rows, err := h.db.Query(groupQuery, id)
+		rows, err := h.query(groupQuery, id)
 		if err == nil {
 			defer rows.Close()
 			groups := []string{}
@@ -945,6 +951,8 @@ func (h *DynamicModuleHandler) handleCreate(c *gin.Context, config *ModuleConfig
 	config = h.resolveConfigTranslations(config, lang)
 
 	data := h.parseFormData(c, config)
+	h.applyModuleWriteTransforms(config, data)
+	h.applyModuleWriteTransforms(config, data)
 
 	// Get current user ID for audit fields
 	userIDValue, exists := c.Get("user_id")
@@ -966,6 +974,9 @@ func (h *DynamicModuleHandler) handleCreate(c *gin.Context, config *ModuleConfig
 	values := []interface{}{}
 
 	for _, field := range config.Fields {
+		if field.Virtual {
+			continue
+		}
 		if field.DBColumn == "id" {
 			continue
 		}
@@ -1017,11 +1028,31 @@ func (h *DynamicModuleHandler) handleCreate(c *gin.Context, config *ModuleConfig
 		strings.Join(columns, ", "),
 		strings.Join(placeholders, ", "))
 
+	query, useLastInsert := database.ConvertReturning(query)
+
 	var newID int64
-	err := h.db.QueryRow(query, values...).Scan(&newID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	var err error
+	if useLastInsert && database.IsMySQL() {
+		res, err := h.exec(query, values...)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		lastID, err := res.LastInsertId()
+		if err != nil {
+			fallbackRow := h.queryRow("SELECT LAST_INSERT_ID()")
+			if fallbackErr := fallbackRow.Scan(&lastID); fallbackErr != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fallbackErr.Error()})
+				return
+			}
+		}
+		newID = lastID
+	} else {
+		err = h.queryRow(query, values...).Scan(&newID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	// Handle group assignments for users module
@@ -1031,9 +1062,9 @@ func (h *DynamicModuleHandler) handleCreate(c *gin.Context, config *ModuleConfig
 			groupIDs := strings.Split(groupsStr, ",")
 			for _, groupID := range groupIDs {
 				if groupID != "" {
-					_, err = h.db.Exec(database.ConvertPlaceholders(`
+					_, err = h.exec(`
 						INSERT INTO user_groups (user_id, group_id, permission_key, permission_value, create_time, create_by, change_time, change_by)
-						VALUES ($1, $2, 'rw', 1, CURRENT_TIMESTAMP, $3, CURRENT_TIMESTAMP, $3)`),
+						VALUES ($1, $2, 'rw', 1, CURRENT_TIMESTAMP, $3, CURRENT_TIMESTAMP, $3)`,
 						newID, groupID, currentUserID)
 					if err != nil {
 						// Log but don't fail the whole operation
@@ -1077,6 +1108,9 @@ func (h *DynamicModuleHandler) handleUpdate(c *gin.Context, config *ModuleConfig
 	values := []interface{}{}
 
 	for _, field := range config.Fields {
+		if field.Virtual {
+			continue
+		}
 		if field.DBColumn == "id" {
 			continue
 		}
@@ -1115,7 +1149,7 @@ func (h *DynamicModuleHandler) handleUpdate(c *gin.Context, config *ModuleConfig
 		strings.Join(sets, ", "),
 		len(values))
 
-	_, err := h.db.Exec(query, values...)
+	_, err := h.exec(query, values...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -1129,7 +1163,7 @@ func (h *DynamicModuleHandler) handleUpdate(c *gin.Context, config *ModuleConfig
 		// Only update groups if they were explicitly submitted
 		if groupsSubmitted {
 			// First, remove all existing group assignments
-			_, err = h.db.Exec(database.ConvertPlaceholders("DELETE FROM user_groups WHERE user_id = $1"), id)
+			_, err = h.exec("DELETE FROM user_groups WHERE user_id = $1", id)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update groups: " + err.Error()})
 				return
@@ -1141,9 +1175,9 @@ func (h *DynamicModuleHandler) handleUpdate(c *gin.Context, config *ModuleConfig
 				groupIDs := strings.Split(groupsStr, ",")
 				for _, groupID := range groupIDs {
 					if groupID != "" {
-						_, err = h.db.Exec(database.ConvertPlaceholders(`
+						_, err = h.exec(`
 							INSERT INTO user_groups (user_id, group_id, permission_key, permission_value, create_time, create_by, change_time, change_by)
-							VALUES ($1, $2, 'rw', 1, CURRENT_TIMESTAMP, $3, CURRENT_TIMESTAMP, $3)`),
+							VALUES ($1, $2, 'rw', 1, CURRENT_TIMESTAMP, $3, CURRENT_TIMESTAMP, $3)`,
 							id, groupID, currentUserID)
 						if err != nil {
 							// Log but don't fail the whole operation
@@ -1176,7 +1210,7 @@ func (h *DynamicModuleHandler) handleDelete(c *gin.Context, config *ModuleConfig
 		query = fmt.Sprintf("DELETE FROM %s WHERE id = $1", config.Module.Table)
 	}
 
-	_, err := h.db.Exec(query, id)
+	_, err := h.exec(query, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -1198,6 +1232,10 @@ func (h *DynamicModuleHandler) handleDelete(c *gin.Context, config *ModuleConfig
 func (h *DynamicModuleHandler) getSelectColumns(config *ModuleConfig) string {
 	columns := []string{}
 	for _, field := range config.Fields {
+		if field.Virtual || strings.TrimSpace(field.DBColumn) == "" {
+			columns = append(columns, fmt.Sprintf("NULL AS %s", field.Name))
+			continue
+		}
 		columns = append(columns, field.DBColumn)
 	}
 	return strings.Join(columns, ", ")
@@ -1229,6 +1267,9 @@ func (h *DynamicModuleHandler) scanRows(rows *sql.Rows, config *ModuleConfig) []
 		items = append(items, item)
 	}
 
+	if len(items) > 0 {
+		h.applyModuleReadTransforms(config, items)
+	}
 	return items
 }
 
@@ -1250,6 +1291,7 @@ func (h *DynamicModuleHandler) scanRow(row *sql.Row, config *ModuleConfig) map[s
 		}
 	}
 
+	h.applyModuleReadTransforms(config, []map[string]interface{}{item})
 	return item
 }
 
@@ -1270,6 +1312,28 @@ func (h *DynamicModuleHandler) parseFormData(c *gin.Context, config *ModuleConfi
 	return data
 }
 
+func (h *DynamicModuleHandler) applyModuleWriteTransforms(config *ModuleConfig, data map[string]interface{}) {
+	if config == nil || data == nil {
+		return
+	}
+	switch config.Module.Name {
+	case "mail_account":
+		applyMailAccountWriteTransform(data)
+	}
+}
+
+func (h *DynamicModuleHandler) applyModuleReadTransforms(config *ModuleConfig, items []map[string]interface{}) {
+	if config == nil || len(items) == 0 {
+		return
+	}
+	switch config.Module.Name {
+	case "mail_account":
+		for _, item := range items {
+			applyMailAccountReadTransform(item)
+		}
+	}
+}
+
 func (h *DynamicModuleHandler) convertValue(value string, fieldType string) interface{} {
 	// Type conversion logic
 	switch fieldType {
@@ -1286,6 +1350,149 @@ func (h *DynamicModuleHandler) convertValue(value string, fieldType string) inte
 	default:
 		return value
 	}
+}
+
+func applyMailAccountWriteTransform(data map[string]interface{}) {
+	if data == nil {
+		return
+	}
+	mode := strings.ToLower(strings.TrimSpace(coerceString(data["dispatching_mode"])))
+	if mode == "" {
+		mode = "queue"
+	}
+	var meta mailaccountmeta.Metadata
+	if mode != "" && mode != "queue" {
+		meta.DispatchingMode = mode
+		data["queue_id"] = 0
+	}
+	allow := false
+	if raw, ok := data["allow_trusted_headers"]; ok {
+		if v, _ := coerceBool(raw); v {
+			allow = true
+		}
+	}
+	if allow {
+		flag := true
+		meta.AllowTrustedHeaders = &flag
+		data["trusted"] = 1
+	} else {
+		data["trusted"] = 0
+	}
+	if poll, ok := coerceInt(data["poll_interval_seconds"]); ok && poll > 0 {
+		interval := poll
+		meta.PollIntervalSeconds = &interval
+	}
+	base := coerceString(data["comments"])
+	data["comments"] = mailaccountmeta.EncodeComment(base, meta)
+	delete(data, "dispatching_mode")
+	delete(data, "allow_trusted_headers")
+	delete(data, "poll_interval_seconds")
+}
+
+func applyMailAccountReadTransform(item map[string]interface{}) {
+	if item == nil {
+		return
+	}
+	comment := coerceString(item["comments"])
+	if comment != "" {
+		base, meta := mailaccountmeta.DecodeComment(comment)
+		item["comments"] = base
+		applyMailAccountMetadataFields(item, meta)
+		return
+	}
+	applyMailAccountMetadataFields(item, mailaccountmeta.Metadata{})
+}
+
+func applyMailAccountMetadataFields(item map[string]interface{}, meta mailaccountmeta.Metadata) {
+	mode := meta.DispatchingMode
+	if mode == "" {
+		if queueID, ok := coerceInt(item["queue_id"]); ok && queueID == 0 {
+			mode = "from"
+		} else {
+			mode = "queue"
+		}
+	}
+	item["dispatching_mode"] = mode
+	allow := false
+	if meta.AllowTrustedHeaders != nil {
+		allow = *meta.AllowTrustedHeaders
+	} else if trusted, ok := coerceInt(item["trusted"]); ok {
+		allow = trusted != 0
+	}
+	item["allow_trusted_headers"] = allow
+	if meta.PollIntervalSeconds != nil {
+		item["poll_interval_seconds"] = *meta.PollIntervalSeconds
+	} else {
+		item["poll_interval_seconds"] = 0
+	}
+}
+
+func coerceString(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	case fmt.Stringer:
+		return v.String()
+	case nil:
+		return ""
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+func coerceInt(value interface{}) (int, bool) {
+	switch v := value.(type) {
+	case int:
+		return v, true
+	case int32:
+		return int(v), true
+	case int64:
+		return int(v), true
+	case float64:
+		return int(v), true
+	case float32:
+		return int(v), true
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return 0, false
+		}
+		if n, err := strconv.Atoi(trimmed); err == nil {
+			return n, true
+		}
+	case []byte:
+		if n, err := strconv.Atoi(strings.TrimSpace(string(v))); err == nil {
+			return n, true
+		}
+	}
+	return 0, false
+}
+
+func coerceBool(value interface{}) (bool, bool) {
+	switch v := value.(type) {
+	case bool:
+		return v, true
+	case string:
+		switch strings.ToLower(strings.TrimSpace(v)) {
+		case "1", "true", "yes", "on":
+			return true, true
+		case "0", "false", "no", "off", "":
+			return false, true
+		}
+	case []byte:
+		return coerceBool(string(v))
+	case int:
+		return v != 0, true
+	case int32:
+		return v != 0, true
+	case int64:
+		return v != 0, true
+	case float64:
+		return v != 0, true
+	}
+	return false, false
 }
 
 func (h *DynamicModuleHandler) isAPIRequest(c *gin.Context) bool {
@@ -1413,25 +1620,36 @@ func (h *DynamicModuleHandler) handleSchemaDiscovery(c *gin.Context) {
 func (h *DynamicModuleHandler) populateLookupOptions(config *ModuleConfig) {
 	for i, field := range config.Fields {
 		if field.LookupTable != "" && field.ShowInForm {
-			// Query lookup table for options
-			query := fmt.Sprintf("SELECT %s, %s FROM %s WHERE valid_id = 1 ORDER BY %s",
-				field.LookupKey, field.LookupDisplay, field.LookupTable, field.LookupDisplay)
-
-			if field.LookupKey == "" {
-				query = fmt.Sprintf("SELECT id, %s FROM %s WHERE valid_id = 1 ORDER BY %s",
-					field.LookupDisplay, field.LookupTable, field.LookupDisplay)
+			keyColumn := field.LookupKey
+			if keyColumn == "" {
+				keyColumn = "id"
+			}
+			displayColumn := field.LookupDisplay
+			if displayColumn == "" {
+				displayColumn = "name"
 			}
 
-			if field.LookupDisplay == "" {
-				query = fmt.Sprintf("SELECT id, name FROM %s WHERE valid_id = 1 ORDER BY name", field.LookupTable)
+			baseQuery := fmt.Sprintf("SELECT %s, %s FROM %s", keyColumn, displayColumn, field.LookupTable)
+			orderClause := fmt.Sprintf(" ORDER BY %s", displayColumn)
+			condition := strings.TrimSpace(field.LookupCondition)
+			if condition == "" {
+				condition = "valid_id = 1"
 			}
 
-			rows, err := h.db.Query(query)
+			query := baseQuery
+			if condition != "" {
+				query += " WHERE " + condition
+			}
+			query += orderClause
+
+			rows, err := h.query(query)
+			if err != nil && field.LookupCondition == "" && strings.Contains(strings.ToLower(err.Error()), "unknown column 'valid_id'") {
+				rows, err = h.query(baseQuery + orderClause)
+			}
 			if err != nil {
 				fmt.Printf("Error loading lookup options for %s: %v\n", field.Name, err)
 				continue
 			}
-			defer rows.Close()
 
 			options := []Option{}
 			for rows.Next() {
@@ -1443,10 +1661,10 @@ func (h *DynamicModuleHandler) populateLookupOptions(config *ModuleConfig) {
 					})
 				}
 			}
+			rows.Close()
 
-			// Update the field with options
 			config.Fields[i].Options = options
-			config.Fields[i].Type = "select" // Change type to select for lookup fields
+			config.Fields[i].Type = "select"
 		}
 	}
 }
@@ -1492,7 +1710,7 @@ func (h *DynamicModuleHandler) processLookups(items []map[string]interface{}, co
 		query := fmt.Sprintf("SELECT %s, %s FROM %s WHERE %s IN (%s)",
 			lookupKey, lookupDisplay, field.LookupTable, lookupKey, strings.Join(ids, ","))
 
-		rows, err := h.db.Query(query)
+		rows, err := h.query(query)
 		if err != nil {
 			fmt.Printf("Lookup query error for field %s: %v\n", field.Name, err)
 			continue
@@ -1609,15 +1827,21 @@ type simpleDatabaseWrapper struct {
 }
 
 func (w *simpleDatabaseWrapper) QueryRow(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	return w.db.QueryRow(query, args...)
+	remapped := database.RemapArgsForMySQL(query, args)
+	converted := database.ConvertPlaceholders(query)
+	return w.db.QueryRow(converted, remapped...)
 }
 
 func (w *simpleDatabaseWrapper) Query(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
-	return w.db.Query(query, args...)
+	remapped := database.RemapArgsForMySQL(query, args)
+	converted := database.ConvertPlaceholders(query)
+	return w.db.Query(converted, remapped...)
 }
 
 func (w *simpleDatabaseWrapper) Exec(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
-	return w.db.Exec(query, args...)
+	remapped := database.RemapArgsForMySQL(query, args)
+	converted := database.ConvertPlaceholders(query)
+	return w.db.Exec(converted, remapped...)
 }
 
 // Implement the required interface methods (minimal implementation for lambda use)
@@ -1696,7 +1920,7 @@ func (h *DynamicModuleHandler) handleDetails(c *gin.Context, config *ModuleConfi
 
 	// For other modules, use regular record lookup
 	query := fmt.Sprintf("SELECT * FROM %s WHERE id = $1", config.Module.Table)
-	row := h.db.QueryRow(query, id)
+	row := h.queryRow(query, id)
 
 	item := h.scanRow(row, config)
 	if item == nil {
@@ -1730,7 +1954,7 @@ func (h *DynamicModuleHandler) handleSysconfigDetails(c *gin.Context, config *Mo
 		IsRequired               bool   `json:"is_required"`
 	}
 
-	err := h.db.QueryRow(query, configName).Scan(
+	err := h.queryRow(query, configName).Scan(
 		&details.Name, &details.Description, &details.Navigation,
 		&details.EffectiveValue, &details.XMLContentParsed,
 		&details.UserModificationPossible, &details.IsReadonly, &details.IsRequired,
@@ -1798,7 +2022,7 @@ func (h *DynamicModuleHandler) handleSysconfigReset(c *gin.Context, config *Modu
 	// Remove any custom value from sysconfig_modified table
 	query := `DELETE FROM sysconfig_modified WHERE name = $1`
 
-	_, err := h.db.Exec(query, configName)
+	_, err := h.exec(query, configName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -1923,6 +2147,35 @@ func (h *DynamicModuleHandler) generateCSVResponse(c *gin.Context, config *Modul
 	c.Header("Content-Type", "text/csv")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	c.Data(http.StatusOK, "text/csv", csvData.Bytes())
+}
+
+// query executes SQL with driver-compatible placeholders.
+func (h *DynamicModuleHandler) query(query string, args ...interface{}) (*sql.Rows, error) {
+	remappedArgs := database.RemapArgsForMySQL(query, args)
+	converted := database.ConvertPlaceholders(query)
+	rows, err := h.db.Query(converted, remappedArgs...)
+	if err != nil {
+		fmt.Printf("Dynamic module query failed: %s (args=%v): %v\n", converted, remappedArgs, err)
+	}
+	return rows, err
+}
+
+// queryRow mirrors query but returns a single row handle.
+func (h *DynamicModuleHandler) queryRow(query string, args ...interface{}) *sql.Row {
+	remappedArgs := database.RemapArgsForMySQL(query, args)
+	converted := database.ConvertPlaceholders(query)
+	return h.db.QueryRow(converted, remappedArgs...)
+}
+
+// exec runs statements with automatic placeholder conversion.
+func (h *DynamicModuleHandler) exec(query string, args ...interface{}) (sql.Result, error) {
+	remappedArgs := database.RemapArgsForMySQL(query, args)
+	converted := database.ConvertPlaceholders(query)
+	res, err := h.db.Exec(converted, remappedArgs...)
+	if err != nil {
+		fmt.Printf("Dynamic module exec failed: %s (args=%v): %v\n", converted, remappedArgs, err)
+	}
+	return res, err
 }
 
 // buildFilterWhereClause builds WHERE clause based on filter parameters

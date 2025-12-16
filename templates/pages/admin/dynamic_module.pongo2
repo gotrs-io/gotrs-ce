@@ -727,34 +727,61 @@
                     <div class="mt-4 space-y-4">
                         {% for field in fields %}
                         {% if field.ShowInForm %}
-                        <div>
+                        <div id="field_{{ field.Name }}" data-field-name="{{ field.Name }}">
                             <label for="{{ field.Name }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                 {{ field.Label }}
                                 {% if field.Required %}<span class="text-red-500">*</span>{% endif %}
                             </label>
+                            {% set help_inline = false %}
                             {% if field.Type == "text" or field.Type == "textarea" or field.Type == "notes" %}
                                 <textarea id="{{ field.Name }}" name="{{ field.Name }}" rows="{{ field.Rows|default:3 }}" {% if field.Required %}required{% endif %}
                                     class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
                                     placeholder="{{ field.Placeholder|default:'' }}"></textarea>
                             {% elif field.Type == "select" %}
-                                <select id="{{ field.Name }}" name="{{ field.Name }}" {% if field.Required %}required{% endif %}
-                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm">
-                                    <option value="">-- Select --</option>
-                                    {% for option in field.Options %}
-                                    <option value="{{ option.Value }}">{{ option.Label }}</option>
-                                    {% endfor %}
-                                </select>
+                                {% if field.Widget == "typeahead" %}
+                                    <div class="mt-1" data-typeahead="true" data-field="{{ field.Name }}">
+                                        <input type="hidden" id="{{ field.Name }}" name="{{ field.Name }}" value="{{ field.Default|default:'' }}" {% if field.Required %}required{% endif %}>
+                                        <input type="text" id="{{ field.Name }}_typeahead" list="{{ field.Name }}_options"
+                                            placeholder="{{ field.Placeholder|default:'Start typing to search' }}"
+                                            class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                                        <datalist id="{{ field.Name }}_options">
+                                            {% for option in field.Options %}
+                                            <option value="{{ option.Label }}" data-value="{{ option.Value }}"></option>
+                                            {% endfor %}
+                                        </datalist>
+                                    </div>
+                                {% else %}
+                                    {% set current_group = "" %}
+                                    <select id="{{ field.Name }}" name="{{ field.Name }}" {% if field.Required %}required{% endif %}
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                                        <option value="">-- Select --</option>
+                                        {% for option in field.Options %}
+                                            {% if option.Group %}
+                                                {% if option.Group != current_group %}
+                                                    {% if current_group != "" %}</optgroup>{% endif %}
+                                                    <optgroup label="{{ option.Group }}">
+                                                    {% set current_group = option.Group %}
+                                                {% endif %}
+                                            {% elif current_group != "" %}
+                                                </optgroup>
+                                                {% set current_group = "" %}
+                                            {% endif %}
+                                            <option value="{{ option.Value }}">{{ option.Label }}</option>
+                                        {% endfor %}
+                                        {% if current_group != "" %}</optgroup>{% endif %}
+                                    </select>
+                                {% endif %}
                             {% elif field.Type == "color" %}
                                 <input type="color" id="{{ field.Name }}" name="{{ field.Name }}" value="{{ field.Default|default:'#000000' }}"
                                     class="mt-1 block h-10 w-20 border-gray-300 dark:border-gray-600 rounded-md shadow-sm">
                             {% elif field.Type == "password" %}
                                 <div class="relative">
                                     <input type="password" id="{{ field.Name }}" name="{{ field.Name }}" {% if field.Required %}required{% endif %}
+                                        placeholder="{{ field.Placeholder|default:'' }}"
                                         class="mt-1 block w-full pr-10 border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm">
                                     <button type="button" onclick="togglePassword('{{ field.Name }}')" 
                                         class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                                        <i id="{{ field.Name }}_eye" class="fas fa-eye icon-sm"></i>
-                                        <i id="{{ field.Name }}_eye_off" class="fas fa-eye-slash icon-sm hidden"></i>
+                                        <i id="{{ field.Name }}_eye_toggle" class="fas fa-eye icon-sm"></i>
                                     </button>
                                 </div>
                             {% elif field.Type == "radio" %}
@@ -814,22 +841,33 @@
                                     <span id="{{ field.Name }}_value" class="text-sm text-gray-600 dark:text-gray-400">{{ field.Default|default:50 }}</span>
                                 </div>
                             {% elif field.Type == "bool" or field.Type == "boolean" or field.Type == "checkbox" %}
-                                <input type="checkbox" id="{{ field.Name }}" name="{{ field.Name }}" value="1"
-                                    class="mt-1 rounded border-gray-300 dark:border-gray-600 text-blue-600 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50">
+                                {% if field.Name == "allow_trusted_headers" %}
+                                    {% set help_inline = true %}
+                                    <div class="mt-2 flex items-center justify-between gap-3">
+                                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ field.Help|default:"Accept queue overrides from X-Znuny-Dest / X-GOTRS headers for this mailbox." }}</span>
+                                        <input type="checkbox" id="{{ field.Name }}" name="{{ field.Name }}" value="1"
+                                            class="h-5 w-5 rounded border-gray-300 dark:border-gray-600 text-blue-600 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50">
+                                    </div>
+                                {% else %}
+                                    <input type="checkbox" id="{{ field.Name }}" name="{{ field.Name }}" value="1"
+                                        class="mt-1 rounded border-gray-300 dark:border-gray-600 text-blue-600 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50">
+                                {% endif %}
                             {% elif field.Type == "int" or field.Type == "integer" or field.Type == "number" %}
                                 <input type="number" id="{{ field.Name }}" name="{{ field.Name }}" {% if field.Required %}required{% endif %}
                                     min="{{ field.Min|default:'' }}" max="{{ field.Max|default:'' }}" step="{{ field.Step|default:1 }}"
+                                    placeholder="{{ field.Placeholder|default:'' }}"
                                     class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm">
                             {% elif field.Type == "float" or field.Type == "decimal" %}
                                 <input type="number" id="{{ field.Name }}" name="{{ field.Name }}" step="0.01" {% if field.Required %}required{% endif %}
                                     min="{{ field.Min|default:'' }}" max="{{ field.Max|default:'' }}"
+                                    placeholder="{{ field.Placeholder|default:'' }}"
                                     class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm">
                             {% else %}
                                 <input type="text" id="{{ field.Name }}" name="{{ field.Name }}" {% if field.Required %}required{% endif %}
                                     placeholder="{{ field.Placeholder|default:'' }}"
                                     class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm">
                             {% endif %}
-                            {% if field.Help %}
+                            {% if field.Help and not help_inline %}
                             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ field.Help }}</p>
                             {% endif %}
                         </div>
@@ -926,6 +964,22 @@ function openCreateModal() {
     currentEditId = null;
     document.getElementById('modalTitle').textContent = 'New {{ module.Singular }}';
     document.getElementById('moduleForm').reset();
+    if (moduleName === 'mail_account') {
+        const accountSelect = document.getElementById('account_type');
+        if (accountSelect && !accountSelect.value) {
+            accountSelect.value = 'pop3';
+        }
+        const pollInput = document.getElementById('poll_interval_seconds');
+        if (pollInput) {
+            pollInput.value = 600;
+        }
+        const validSelect = document.getElementById('valid_id');
+        if (validSelect) {
+            validSelect.value = '1';
+        }
+        setTypeaheadValue('queue_id', '');
+        updateMailAccountFieldVisibility();
+    }
     openModal();
 }
 
@@ -996,13 +1050,20 @@ function editItem(id) {
                 });
             }
             
+            if (moduleName === 'mail_account') {
+                setTypeaheadValue('queue_id', data.data['queue_id']);
+            }
             openModal();
+            if (moduleName === 'mail_account') {
+                updateMailAccountFieldVisibility();
+            }
         }
     });
 }
 
 function saveItem(event) {
     event.preventDefault();
+    syncAllTypeaheadFields();
     
     const formData = new FormData(document.getElementById('moduleForm'));
     const url = currentEditId ? `${API_BASE}/${currentEditId}` : API_BASE;
@@ -1321,17 +1382,20 @@ function showToast(message, type = 'info') {
 // Toggle password visibility
 function togglePassword(fieldName) {
     const input = document.getElementById(fieldName);
-    const eyeIcon = document.getElementById(fieldName + '_eye');
-    const eyeOffIcon = document.getElementById(fieldName + '_eye_off');
+    const eyeToggleIcon = document.getElementById(fieldName + '_eye_toggle');
     
     if (input.type === 'password') {
         input.type = 'text';
-        eyeIcon.classList.add('hidden');
-        eyeOffIcon.classList.remove('hidden');
+        if (eyeToggleIcon) {
+            eyeToggleIcon.classList.remove('fa-eye');
+            eyeToggleIcon.classList.add('fa-eye-slash');
+        }
     } else {
         input.type = 'password';
-        eyeIcon.classList.remove('hidden');
-        eyeOffIcon.classList.add('hidden');
+        if (eyeToggleIcon) {
+            eyeToggleIcon.classList.remove('fa-eye-slash');
+            eyeToggleIcon.classList.add('fa-eye');
+        }
     }
 }
 
@@ -2121,6 +2185,145 @@ function showToast(message, type = 'info') {
     }, 3000);
 }
 
+// Typeahead helpers for select fields that need search UX
+const typeaheadRegistry = {};
+
+function initTypeaheadFields() {
+    document.querySelectorAll('[data-typeahead="true"]').forEach(container => {
+        const fieldName = container.dataset.field;
+        if (!fieldName || typeaheadRegistry[fieldName]) {
+            return;
+        }
+
+        const hiddenInput = document.getElementById(fieldName);
+        const textInput = document.getElementById(fieldName + '_typeahead');
+        const dataList = document.getElementById(fieldName + '_options');
+        if (!hiddenInput || !textInput || !dataList) {
+            return;
+        }
+
+        const labelByValue = {};
+        const valueByLabel = {};
+        Array.from(dataList.options).forEach(option => {
+            const storedValue = option.dataset.value || option.value;
+            const label = option.value;
+            labelByValue[storedValue] = label;
+            valueByLabel[label] = storedValue;
+        });
+
+        const syncHidden = () => {
+            const label = textInput.value;
+            hiddenInput.value = valueByLabel[label] || '';
+        };
+
+        const getBestMatchLabel = () => {
+            const entered = textInput.value.trim();
+            if (entered && valueByLabel[entered]) {
+                return entered;
+            }
+            if (!entered) {
+                return '';
+            }
+            const lower = entered.toLowerCase();
+            const labels = Array.from(dataList.options).map(option => option.value);
+            const startsWithMatch = labels.find(label => label.toLowerCase().startsWith(lower));
+            if (startsWithMatch) {
+                return startsWithMatch;
+            }
+            return labels.find(label => label.toLowerCase().includes(lower)) || '';
+        };
+
+        textInput.addEventListener('change', syncHidden);
+        textInput.addEventListener('blur', syncHidden);
+        textInput.addEventListener('input', () => {
+            if (!valueByLabel[textInput.value]) {
+                hiddenInput.value = '';
+            }
+        });
+        textInput.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') {
+                return;
+            }
+            event.preventDefault();
+            let label = getBestMatchLabel();
+            if (!label && dataList.options.length > 0) {
+                label = dataList.options[0].value;
+            }
+            if (label) {
+                textInput.value = label;
+                hiddenInput.value = valueByLabel[label] || '';
+            } else {
+                hiddenInput.value = '';
+            }
+            focusNextFormField(textInput);
+        });
+
+        if (hiddenInput.value && labelByValue[hiddenInput.value]) {
+            textInput.value = labelByValue[hiddenInput.value];
+        }
+
+        typeaheadRegistry[fieldName] = {
+            sync: syncHidden,
+            setValue(value) {
+                hiddenInput.value = value || '';
+                textInput.value = value && labelByValue[value] ? labelByValue[value] : '';
+            },
+            clear() {
+                hiddenInput.value = '';
+                textInput.value = '';
+            }
+        };
+    });
+}
+
+function syncAllTypeaheadFields() {
+    Object.values(typeaheadRegistry).forEach(entry => {
+        if (entry && typeof entry.sync === 'function') {
+            entry.sync();
+        }
+    });
+}
+
+function setTypeaheadValue(fieldName, value) {
+    const entry = typeaheadRegistry[fieldName];
+    if (entry && typeof entry.setValue === 'function') {
+        entry.setValue(value);
+    } else {
+        const hiddenInput = document.getElementById(fieldName);
+        if (hiddenInput) {
+            hiddenInput.value = value || '';
+        }
+        const textInput = document.getElementById(fieldName + '_typeahead');
+        if (textInput && (!value || value === '')) {
+            textInput.value = '';
+        }
+    }
+}
+
+function focusNextFormField(currentElement) {
+    if (!currentElement) {
+        return;
+    }
+    const form = currentElement.closest('form');
+    if (!form) {
+        currentElement.blur();
+        return;
+    }
+    const focusableSelectors = 'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])';
+    const focusable = Array.from(form.querySelectorAll(focusableSelectors)).filter(el => el.offsetParent !== null);
+    const index = focusable.indexOf(currentElement);
+    if (index === -1) {
+        currentElement.blur();
+        return;
+    }
+    const nextElement = focusable[index + 1];
+    if (nextElement) {
+        nextElement.focus();
+    } else {
+        currentElement.blur();
+    }
+}
+
 // Inline Editing Functions
 let currentEditingElement = null;
 
@@ -2260,7 +2463,39 @@ document.addEventListener('DOMContentLoaded', function() {
     initColumnVisibility();
     initSavedFilters();
     initInlineEdit();
+    initTypeaheadFields();
 });
+
+function updateMailAccountFieldVisibility() {
+    if (moduleName !== 'mail_account') {
+        return;
+    }
+    const accountSelect = document.getElementById('account_type');
+    const imapField = document.getElementById('field_imap_folder');
+    const imapInput = document.getElementById('imap_folder');
+    if (!accountSelect || !imapField || !imapInput) {
+        return;
+    }
+    const value = (accountSelect.value || '').toLowerCase();
+    const isImap = value.startsWith('imap');
+    if (isImap) {
+        imapField.classList.remove('hidden');
+        imapInput.disabled = false;
+    } else {
+        imapField.classList.add('hidden');
+        imapInput.disabled = true;
+    }
+}
+
+if (moduleName === 'mail_account') {
+    document.addEventListener('DOMContentLoaded', function() {
+        const accountSelect = document.getElementById('account_type');
+        if (accountSelect) {
+            accountSelect.addEventListener('change', updateMailAccountFieldVisibility);
+        }
+        updateMailAccountFieldVisibility();
+    });
+}
 
 // ESC key to close modals and menus
 document.addEventListener('keydown', function(e) {

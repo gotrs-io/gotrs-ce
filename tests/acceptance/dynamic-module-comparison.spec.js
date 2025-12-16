@@ -6,6 +6,7 @@ import { test, expect } from '@playwright/test';
 // Configuration
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
 const DEMO_COOKIE = 'access_token=demo_session_admin';
+const MODULES_BASE = `${BASE_URL}/admin/modules`;
 
 // Test Suite: Dynamic Module System Acceptance Tests
 test.describe('Dynamic Module System - Side by Side Comparison', () => {
@@ -41,7 +42,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     });
 
     test('Dynamic users page loads successfully', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Check page loads  
       await expect(page).toHaveTitle(/Users Management/);
@@ -54,7 +55,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     });
 
     test('Comparison dashboard loads successfully', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/`);
+      await page.goto(`${BASE_URL}/admin/modules/`);
       
       // Check dashboard loads
       await expect(page).toHaveTitle(/Dynamic Module Testing/);
@@ -67,7 +68,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
       const usersRow = page.locator('tr:has-text("users")');
       await expect(usersRow).toBeVisible();
       await expect(usersRow.locator('a[href="/admin/users"]')).toBeVisible();
-      await expect(usersRow.locator('a[href="/admin/dynamic/users"]')).toBeVisible();
+      await expect(usersRow.locator('a[href="/admin/modules/users"]')).toBeVisible();
     });
   });
 
@@ -92,7 +93,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     });
 
     test('Dynamic users page displays user data', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Wait for data to load
       await expect(page.locator('tbody tr')).toHaveCountGreaterThan(0);
@@ -118,7 +119,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
       const staticCount = await page.locator('tbody tr').count();
       
       // Get dynamic count  
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       await expect(page.locator('tbody tr')).toHaveCountGreaterThan(0);
       const dynamicCount = await page.locator('tbody tr').count();
       
@@ -131,7 +132,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
   test.describe('API Functionality', () => {
     
     test('Dynamic API returns JSON data', async ({ page }) => {
-      const response = await page.request.get(`${BASE_URL}/admin/dynamic/users`, {
+      const response = await page.request.get(`${BASE_URL}/admin/modules/users`, {
         headers: {
           'Cookie': DEMO_COOKIE,
           'X-Requested-With': 'XMLHttpRequest',
@@ -157,7 +158,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     });
 
     test('Dynamic API handles non-existent module', async ({ page }) => {
-      const response = await page.request.get(`${BASE_URL}/admin/dynamic/nonexistent`, {
+      const response = await page.request.get(`${BASE_URL}/admin/modules/nonexistent`, {
         headers: {
           'Cookie': DEMO_COOKIE,
           'X-Requested-With': 'XMLHttpRequest',
@@ -173,7 +174,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
   test.describe('User Interface & Interactions', () => {
     
     test('Dynamic page has functional search', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Check search input exists
       await expect(page.locator('input[type="search"], input[placeholder*="search" i]')).toBeVisible();
@@ -188,7 +189,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     });
 
     test('Dynamic page has action buttons', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Check for Create/Add button
       await expect(page.locator('button:has-text("Create"), button:has-text("Add"), button:has-text("New")')).toBeVisible();
@@ -199,7 +200,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     });
 
     test('Dark mode toggle works on dynamic page', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Check for dark mode toggle
       const darkToggle = page.locator('button[id*="dark"], button[class*="dark"], [data-theme-toggle]').first();
@@ -220,7 +221,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     });
 
     test('Edit dialog opens with populated fields', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Wait for data to load
       await expect(page.locator('tbody tr')).toHaveCountGreaterThan(0);
@@ -255,7 +256,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     });
 
     test('Create dialog opens with empty fields', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Click create button
       const createButton = page.locator('button:has-text("New User")');
@@ -287,7 +288,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     });
 
     test('Edit dialog fetches correct user data via API', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Wait for data to load
       await expect(page.locator('tbody tr')).toHaveCountGreaterThan(0);
@@ -302,7 +303,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
       let apiUserId = null;
       
       page.on('request', request => {
-        if (request.url().includes('/admin/dynamic/users/') && request.method() === 'GET') {
+        if (request.url().includes(`${MODULES_BASE}/users/`) && request.method() === 'GET') {
           apiCalled = true;
           const urlParts = request.url().split('/');
           apiUserId = urlParts[urlParts.length - 1];
@@ -328,7 +329,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     });
 
     test('Modal can be closed with ESC key', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Open create modal
       await page.locator('button:has-text("New User")').click();
@@ -342,7 +343,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     });
 
     test('Form validation works in edit dialog', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Open create modal
       await page.locator('button:has-text("New User")').click();
@@ -353,7 +354,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
       
       // Check for HTML5 validation (form should not submit)
       const loginField = page.locator('#login');
-      const validationMessage = await loginField.evaluate((el) => (el as HTMLInputElement).validationMessage);
+      const validationMessage = await loginField.evaluate((el) => el.validationMessage);
       expect(validationMessage).toBeTruthy(); // Should have a validation message
       
       // Modal should still be visible (form didn't submit)
@@ -361,7 +362,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     });
 
     test('All required form fields are present in edit dialog', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Open create modal
       await page.locator('button:has-text("New User")').click();
@@ -395,7 +396,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     test('Dynamic page loads within acceptable time', async ({ page }) => {
       const startTime = Date.now();
       
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       await expect(page.locator('tbody tr')).toHaveCountGreaterThan(0);
       
       const loadTime = Date.now() - startTime;
@@ -413,7 +414,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
       
       // Measure dynamic page
       startTime = Date.now();
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       await expect(page.locator('tbody tr')).toHaveCountGreaterThan(0);
       const dynamicLoadTime = Date.now() - startTime;
       
@@ -432,17 +433,17 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
       // Clear cookies
       await page.context().clearCookies();
       
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Should redirect to login or show auth error
       await expect(page).toHaveURL(/login/);
     });
 
     test('Dynamic page handles network errors gracefully', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Simulate network failure (implementation dependent)
-      await page.route('**/admin/dynamic/users**', route => route.abort());
+      await page.route('**/admin/modules/users**', route => route.abort());
       
       // Page should still be accessible (cached or error message)
       await expect(page.locator('body')).toBeVisible();
@@ -453,7 +454,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
   test.describe('Module Configuration', () => {
     
     test('YAML configuration is properly loaded', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Check if moduleConfig is in page source
       const pageContent = await page.content();
@@ -463,7 +464,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     });
 
     test('Field configuration matches display', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Get the moduleConfig from page
       const moduleConfig = await page.evaluate(() => {
@@ -485,7 +486,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
   test.describe('Cross-Browser & Responsive', () => {
     
     test('Dynamic page is responsive', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Test mobile viewport
       await page.setViewportSize({ width: 375, height: 667 });
@@ -506,7 +507,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     
     test('Navigation between static and dynamic works', async ({ page }) => {
       // Start at comparison dashboard
-      await page.goto(`${BASE_URL}/admin/dynamic/`);
+      await page.goto(`${BASE_URL}/admin/modules/`);
       
       // Click to static users
       await page.click('a[href="/admin/users"]');
@@ -514,16 +515,16 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
       await expect(page.locator('tbody tr')).toHaveCountGreaterThan(0);
       
       // Go back to dashboard
-      await page.goto(`${BASE_URL}/admin/dynamic/`);
+      await page.goto(`${BASE_URL}/admin/modules/`);
       
       // Click to dynamic users
-      await page.click('a[href="/admin/dynamic/users"]');
-      await expect(page).toHaveURL(/\/admin\/dynamic\/users$/);
+      await page.click('a[href="/admin/modules/users"]');
+      await expect(page).toHaveURL(/\/admin\/modules\/users$/);
       await expect(page.locator('tbody tr')).toHaveCountGreaterThan(0);
     });
 
     test('Side-by-side testing functionality', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/`);
+      await page.goto(`${BASE_URL}/admin/modules/`);
       
       // Check if side-by-side buttons exist
       await expect(page.locator('button:has-text("Open Side by Side")')).toHaveCountGreaterThan(0);
@@ -537,7 +538,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
   test.describe('CRUD Operations', () => {
     
     test('Can create a new user via dynamic module', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Get initial count
       const initialCount = await page.locator('tbody tr').count();
@@ -572,7 +573,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     });
 
     test('Can update an existing user via dynamic module', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Click edit on first user
       const firstEditButton = page.locator('tbody tr').first().locator('button[onclick*="editItem"]');
@@ -610,7 +611,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
     });
 
     test('Can soft delete/deactivate a user via dynamic module', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       
       // Find a user with Valid status
       const validUserRow = page.locator('tbody tr').filter({ 
@@ -635,7 +636,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
 
     test('API endpoint for single user returns correct data', async ({ page }) => {
       // First get list to get a user ID
-      const listResponse = await page.request.get(`${BASE_URL}/admin/dynamic/users`, {
+      const listResponse = await page.request.get(`${BASE_URL}/admin/modules/users`, {
         headers: {
           'Cookie': DEMO_COOKIE,
           'X-Requested-With': 'XMLHttpRequest',
@@ -650,7 +651,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
       const firstUserLogin = listData.data[0].login;
       
       // Get single user
-      const singleResponse = await page.request.get(`${BASE_URL}/admin/dynamic/users/${firstUserId}`, {
+      const singleResponse = await page.request.get(`${BASE_URL}/admin/modules/users/${firstUserId}`, {
         headers: {
           'Cookie': DEMO_COOKIE,
           'X-Requested-With': 'XMLHttpRequest',
@@ -679,7 +680,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
       const staticFirstUser = await page.locator('tbody tr').first().textContent();
       
       // Get first user from dynamic page
-      await page.goto(`${BASE_URL}/admin/dynamic/users`);
+      await page.goto(`${BASE_URL}/admin/modules/users`);
       await expect(page.locator('tbody tr')).toHaveCountGreaterThan(0);
       
       const dynamicFirstUser = await page.locator('tbody tr').first().textContent();
@@ -698,7 +699,7 @@ test.describe('Dynamic Module System - Side by Side Comparison', () => {
 test.describe('Utility & Helper Tests', () => {
   
   test('Multiple modules are available in dynamic system', async ({ page }) => {
-    const response = await page.request.get(`${BASE_URL}/admin/dynamic/`, {
+    const response = await page.request.get(`${BASE_URL}/admin/modules/`, {
       headers: { 'Cookie': DEMO_COOKIE }
     });
     

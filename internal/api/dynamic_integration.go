@@ -3,6 +3,8 @@ package api
 import (
 	"database/sql"
 	"log"
+	"net/http"
+	"strings"
 
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
@@ -11,107 +13,95 @@ import (
 
 var dynamicHandler *dynamic.DynamicModuleHandler
 
-// SetupDynamicModules initializes and registers the dynamic module system
-// alongside existing static modules for side-by-side testing
-func SetupDynamicModules(router *gin.RouterGroup, db *sql.DB) error {
-	// If templates are not available in this test environment, skip setup
+type dynamicModuleAlias struct {
+	HandlerName  string
+	FriendlyPath string
+}
+
+var dynamicModuleAliases = map[string]dynamicModuleAlias{
+	"mail_account": {
+		HandlerName:  "handleAdminModuleMailAccounts",
+		FriendlyPath: "/admin/mail-accounts",
+	},
+	"notification_event": {
+		HandlerName:  "handleAdminModuleNotificationEvents",
+		FriendlyPath: "/admin/notification-events",
+	},
+	"communication_channel": {
+		HandlerName:  "handleAdminModuleCommunication",
+		FriendlyPath: "/admin/communication-channels",
+	},
+	"package_repository": {
+		HandlerName:  "handleAdminModulePackageRepos",
+		FriendlyPath: "/admin/package-repositories",
+	},
+	"auto_response": {
+		HandlerName:  "handleAdminModuleAutoResponses",
+		FriendlyPath: "/admin/auto-responses",
+	},
+	"auto_response_type": {
+		HandlerName:  "handleAdminModuleAutoResponseTypes",
+		FriendlyPath: "/admin/auto-response-types",
+	},
+	"follow_up_possible": {
+		HandlerName:  "handleAdminModuleFollowUps",
+		FriendlyPath: "/admin/follow-up-options",
+	},
+	"link_state": {
+		HandlerName:  "handleAdminModuleLinkStates",
+		FriendlyPath: "/admin/link-states",
+	},
+	"link_type": {
+		HandlerName:  "handleAdminModuleLinkTypes",
+		FriendlyPath: "/admin/link-types",
+	},
+	"queue_auto_response": {
+		HandlerName:  "handleAdminModuleQueueAutoResponses",
+		FriendlyPath: "/admin/queue-auto-responses",
+	},
+	"salutation": {
+		FriendlyPath: "/admin/modules/salutation",
+	},
+	"users": {
+		FriendlyPath: "/admin/modules/users",
+	},
+}
+
+func init() {
+	registerDynamicModuleHandlers()
+}
+
+func friendlyPathForModule(module string) string {
+	if alias, ok := dynamicModuleAliases[module]; ok {
+		return alias.FriendlyPath
+	}
+	return ""
+}
+
+// SetupDynamicModules initializes the dynamic module system. Route registration
+// is handled via YAML; this ensures endpoints exist even before the handler is ready.
+func SetupDynamicModules(db *sql.DB) error {
 	if pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
 		log.Printf("Dynamic modules disabled: template renderer not initialized")
 		return nil
 	}
 
-	// Initialize dynamic handler with database and templates
 	handler, err := dynamic.NewDynamicModuleHandler(db, pongo2Renderer.templateSet, "modules")
 	if err != nil {
 		return err
 	}
 
 	dynamicHandler = handler
-
-	// Register dynamic routes under /admin/dynamic prefix for testing
-	// This allows side-by-side comparison with static modules
-	dynamicRoutes := router.Group("/dynamic")
-	{
-		// List route - shows all items
-		dynamicRoutes.GET("/:module", handler.ServeModule)
-
-		// Export route (must be before /:id to match correctly)
-		dynamicRoutes.GET("/:module/export", handler.ServeModule)
-
-		// Single item routes
-		dynamicRoutes.GET("/:module/:id", handler.ServeModule)
-
-		// Create routes
-		dynamicRoutes.GET("/:module/new", handler.ServeModule)
-		dynamicRoutes.POST("/:module", handler.ServeModule)
-
-		// Update routes
-		dynamicRoutes.GET("/:module/:id/edit", handler.ServeModule)
-		dynamicRoutes.PUT("/:module/:id", handler.ServeModule)
-		dynamicRoutes.POST("/:module/:id", handler.ServeModule) // For HTML forms
-
-		// Delete routes
-		dynamicRoutes.DELETE("/:module/:id", handler.ServeModule)
-
-		// Status toggle route (soft delete)
-		dynamicRoutes.PUT("/:module/:id/status", handler.ServeModule)
-		dynamicRoutes.POST("/:module/:id/status", handler.ServeModule)
-
-		// Custom actions (reset password, manage groups, etc)
-		dynamicRoutes.POST("/:module/:id/:action", handler.ServeModule)
-		dynamicRoutes.GET("/:module/:id/:action", handler.ServeModule)
-	}
-
-	// Log available dynamic modules
 	modules := handler.GetAvailableModules()
 	log.Printf("Dynamic Module System loaded with %d modules:", len(modules))
 	for _, module := range modules {
-		log.Printf("  - /admin/dynamic/%s", module)
+		friendly := friendlyPathForModule(module)
+		if friendly != "" {
+			log.Printf("  - %s (alias %s)", module, friendly)
+			continue
+		}
+		log.Printf("  - %s", module)
 	}
-
-	// Add comparison dashboard for testing
-	dynamicRoutes.GET("/", func(c *gin.Context) {
-		// Return JSON list of modules for API requests
-		if c.GetHeader("X-Requested-With") == "XMLHttpRequest" {
-			modules := handler.GetAvailableModules()
-			c.JSON(200, gin.H{
-				"success": true,
-				"modules": modules,
-			})
-			return
-		}
-
-		modules := handler.GetAvailableModules()
-
-		// Build comparison data
-		comparisons := []map[string]interface{}{}
-		for _, module := range modules {
-			comparison := map[string]interface{}{
-				"name":        module,
-				"static_url":  "/admin/" + module,
-				"dynamic_url": "/admin/dynamic/" + module,
-			}
-
-			// Check if static version exists
-			switch module {
-			case "users", "groups", "queues", "priorities":
-				comparison["has_static"] = true
-			default:
-				comparison["has_static"] = false
-			}
-
-			comparisons = append(comparisons, comparison)
-		}
-
-		pongo2Renderer.HTML(c, 200, "pages/admin/dynamic_test.pongo2", pongo2.Context{
-			"Modules":    comparisons,
-			"User":       getUserMapForTemplate(c),
-			"ActivePage": "admin",
-			"Title":      "Dynamic Module Testing",
-		})
-	})
-
-	// Schema discovery route is now in htmx_routes.go handleSchemaDiscovery
 
 	return nil
 }
@@ -119,4 +109,91 @@ func SetupDynamicModules(router *gin.RouterGroup, db *sql.DB) error {
 // GetDynamicHandler returns the initialized dynamic handler
 func GetDynamicHandler() *dynamic.DynamicModuleHandler {
 	return dynamicHandler
+}
+
+func HandleAdminDynamicIndex(c *gin.Context) {
+	handleAdminDynamicIndex(c)
+}
+
+func HandleAdminDynamicModule(c *gin.Context) {
+	handleAdminDynamicModule(c)
+}
+
+// HandleAdminDynamicModuleFor returns a handler that forces the module param to a static value.
+func HandleAdminDynamicModuleFor(module string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		injectModuleParam(c, module)
+		handleAdminDynamicModule(c)
+	}
+}
+
+func injectModuleParam(c *gin.Context, module string) {
+	replaced := false
+	for i := range c.Params {
+		if c.Params[i].Key == "module" {
+			c.Params[i].Value = module
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		c.Params = append(c.Params, gin.Param{Key: "module", Value: module})
+	}
+}
+
+func handleAdminDynamicIndex(c *gin.Context) {
+	handler := GetDynamicHandler()
+	if handler == nil {
+		respondDynamicUnavailable(c)
+		return
+	}
+
+	modules := handler.GetAvailableModules()
+	if strings.EqualFold(c.GetHeader("X-Requested-With"), "XMLHttpRequest") || wantsJSONResponse(c) {
+		c.JSON(http.StatusOK, gin.H{"success": true, "modules": modules})
+		return
+	}
+
+	comparisons := make([]map[string]interface{}, 0, len(modules))
+	for _, module := range modules {
+		friendly := friendlyPathForModule(module)
+		comparison := map[string]interface{}{
+			"name":         module,
+			"static_url":   "/admin/" + module,
+			"has_static":   module == "users" || module == "groups" || module == "queues" || module == "priorities",
+			"friendly_url": friendly,
+			"has_friendly": friendly != "",
+		}
+		comparisons = append(comparisons, comparison)
+	}
+
+	if pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+		c.JSON(http.StatusOK, gin.H{"success": true, "modules": comparisons})
+		return
+	}
+
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/dynamic_test.pongo2", pongo2.Context{
+		"Modules":    comparisons,
+		"User":       getUserMapForTemplate(c),
+		"ActivePage": "admin",
+		"Title":      "Dynamic Module Testing",
+	})
+}
+
+func handleAdminDynamicModule(c *gin.Context) {
+	handler := GetDynamicHandler()
+	if handler == nil {
+		respondDynamicUnavailable(c)
+		return
+	}
+	handler.ServeModule(c)
+}
+
+func respondDynamicUnavailable(c *gin.Context) {
+	msg := "Dynamic module system not initialized"
+	if wantsJSONResponse(c) {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"success": false, "error": msg})
+		return
+	}
+	c.String(http.StatusServiceUnavailable, msg)
 }

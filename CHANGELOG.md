@@ -7,6 +7,11 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 ## [Unreleased]
 
 ### Added
+- Inbound email pipeline: POP3 connector factory, postmaster processor, ticket token filters, external ticket rules example, and mail account metadata/tests.
+- Scheduler jobs CLI (`cmd/goats/scheduler_jobs`) with metrics publishing.
+- Admin customer company create POST route at `/customer/companies/new`.
+- Queue meta partial for ticket list/queue UI and updated templates.
+- Dynamic module handler wiring with expanded acceptance coverage.
 - **Email Threading Support**: RFC-compliant Message-ID, In-Reply-To, and References headers for conversation tracking in customer notifications.
 - `BuildEmailMessageWithThreading()` function in mailqueue repository for generating threaded email messages.
 - `GenerateMessageID()` function for creating unique RFC-compliant message identifiers.
@@ -20,14 +25,19 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 - Regression coverage for `/admin/users` and YAML fallback routes when `GOTRS_DISABLE_TEST_AUTH_BYPASS` is disabled.
 
 ### Changed
+- Routes manifest regenerated (including admin dynamic aliases) and config defaults refreshed.
+- Ticket creation validation tightened; queue UI updated with meta component.
+- Dynamic module templates and handler registration aligned with tests.
+- E2E/Playwright and schema discovery scripts refreshed.
 - Agent ticket creation path issues `HX-Redirect` to the canonical zoom view and shares queue/state validation with the API handler.
 - API test harness now defaults to Postgres to align history assertions with integration coverage.
 
 ### Fixed
-- SQL placeholder conversion issues for MySQL compatibility in user and group repositories.
-- User title field length validation to prevent varchar(50) constraint violations.
+- Admin customer company create now returns validation (400) instead of 404 for POST to `/customer/companies/new`.
 - Database connectivity issues in test environments with proper network configuration for test containers.
 - Auth middleware, YAML fallback guards, and legacy route middleware now respect `GOTRS_DISABLE_TEST_AUTH_BYPASS`, preventing unauthenticated access to admin surfaces during regression runs.
+- SQL placeholder conversion issues for MySQL compatibility in user and group repositories.
+- User title field length validation to prevent varchar(50) constraint violations.
 - Admin groups overview now renders the `comments` column so descriptions entered in Znuny/OTRS appear in the group list UI.
 - Admin groups membership links now launch the modal and load data through `/members`, restoring the key icon and member count actions.
 - Queue-centric group permissions view with HTML + JSON endpoints for `/admin/groups/:id/permissions`.

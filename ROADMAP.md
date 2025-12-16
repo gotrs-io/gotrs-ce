@@ -1,4 +1,13 @@
-# GOTRS Development ### Test Stabilization Progress (Internal/API)
+# GOTRS Development
+
+## Recent Achievements (December 2025)
+- Inbound email pipeline (POP3 connector factory, postmaster processor, external ticket rules example, mail account metadata/tests).
+- Scheduler jobs CLI and metrics publishing.
+- Admin customer company create POST route restored; YAML manifests regenerated (including admin dynamic aliases).
+- Ticket creation validation tightened; queue meta partial added; dynamic module handler wiring fixed.
+- E2E/Playwright and schema discovery suites refreshed.
+
+## Test Stabilization Progress (Internal/API)
 - ✅ Queue API/HTMX suites pass - 🟢 Queues - UI exists, queue detail functionality working (statistics + recent tickets + filtered ticket list)DB-less fallbacks for CI without DB)
 - ✅ Priority API suites pass
 - ✅ User API suites pass (list/get/create/update/delete, groups)

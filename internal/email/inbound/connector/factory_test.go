@@ -46,3 +46,14 @@ func TestWithFetcherSkipsNil(t *testing.T) {
 		t.Fatalf("expected missing fetcher error")
 	}
 }
+
+func TestDefaultFactorySupportsIMAPTLS(t *testing.T) {
+	factory := DefaultFactory()
+	fetcher, err := factory.FetcherFor(Account{Type: "IMAPTLS"})
+	if err != nil {
+		t.Fatalf("expected imap fetcher, got error %v", err)
+	}
+	if fetcher.Name() != "imap" {
+		t.Fatalf("unexpected fetcher %s", fetcher.Name())
+	}
+}

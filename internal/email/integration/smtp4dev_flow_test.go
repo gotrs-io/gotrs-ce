@@ -40,6 +40,8 @@ type smtp4devConfig struct {
 	SMTPAddr      string
 	POPHost       string
 	POPPort       int
+	IMAPHost      string
+	IMAPPort      int
 	Username      string
 	Password      string
 	FromAddress   string
@@ -55,6 +57,8 @@ func loadConfig(t *testing.T) smtp4devConfig {
 		SMTPAddr:      getenv("SMTP4DEV_SMTP_ADDR", "localhost:1025"),
 		POPHost:       getenv("SMTP4DEV_POP_HOST", "localhost"),
 		POPPort:       getenvInt("SMTP4DEV_POP_PORT", 1110),
+		IMAPHost:      getenv("SMTP4DEV_IMAP_HOST", "localhost"),
+		IMAPPort:      getenvInt("SMTP4DEV_IMAP_PORT", 1143),
 		Username:      os.Getenv("SMTP4DEV_USER"),
 		Password:      os.Getenv("SMTP4DEV_PASS"),
 		FromAddress:   getenv("SMTP4DEV_FROM", "tester@example.com"),
@@ -224,6 +228,63 @@ func TestPOP3FetcherAgainstSMTP4Dev(t *testing.T) {
 	}
 
 	t.Fatalf("pop fetcher did not retrieve message containing token %s", token)
+}
+
+func TestIMAPFetcherAgainstSMTP4Dev(t *testing.T) {
+	cfg := loadConfig(t)
+	addr := fmt.Sprintf("%s:%d", cfg.IMAPHost, cfg.IMAPPort)
+	conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+	if err != nil {
+		t.Skipf("imap endpoint unavailable at %s: %v", addr, err)
+	}
+	_ = conn.Close()
+
+	client := NewSMTP4DevClient(cfg.APIBase, nil)
+	ctx := context.Background()
+
+	box, err := client.CreateMailbox(ctx, cfg.Username, cfg.Username, cfg.Password)
+	if err != nil {
+		t.Fatalf("create mailbox: %v", err)
+	}
+	t.Cleanup(func() { _ = client.DeleteMailbox(context.Background(), box.ID) })
+	_ = client.DeleteAllMessages(ctx)
+
+	token := randomToken()
+	if err := sendSMTP(t, cfg, cfg.SystemAddress, fmt.Sprintf("IMAP Fetch %s", token), fmt.Sprintf("IMAP Fetch %s", token)); err != nil {
+		t.Fatalf("send smtp: %v", err)
+	}
+
+	acc := connector.Account{Type: "imap", Host: cfg.IMAPHost, Port: cfg.IMAPPort, Username: cfg.Username, Password: []byte(cfg.Password), IMAPFolder: "INBOX"}
+	h := &recordingHandler{}
+	fetcher := connector.NewIMAPFetcher(connector.WithIMAPDeleteAfterFetch(false))
+
+	deadline := time.Now().Add(12 * time.Second)
+	for time.Now().Before(deadline) {
+		h.messages = nil
+		if err := fetcher.Fetch(ctx, acc, h); err != nil {
+			t.Fatalf("fetch: %v", err)
+		}
+		if len(h.messages) > 0 && strings.Contains(string(h.messages[0].Raw), token) {
+			got := h.messages[0].AccountSnapshot()
+			if got.Username != acc.Username || got.Host != acc.Host || got.Port != acc.Port || got.IMAPFolder != acc.IMAPFolder {
+				t.Fatalf("account snapshot mismatch: %+v", got)
+			}
+			if folder := h.messages[0].Metadata["imap_folder"]; folder != "INBOX" {
+				t.Fatalf("expected imap_folder metadata INBOX, got %s", folder)
+			}
+			msgs, err := client.ListMessages(ctx, box.ID)
+			if err != nil {
+				t.Fatalf("list messages: %v", err)
+			}
+			if len(msgs) == 0 {
+				t.Fatalf("expected message to remain when delete_after_fetch=false")
+			}
+			return
+		}
+		time.Sleep(400 * time.Millisecond)
+	}
+
+	t.Fatalf("imap fetcher did not retrieve message containing token %s", token)
 }
 
 func TestPOP3FetcherDeletesMessagesByDefault(t *testing.T) {

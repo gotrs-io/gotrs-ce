@@ -27,7 +27,10 @@ func NewFactory(opts ...FactoryOption) Factory {
 
 // DefaultFactory returns a factory preloaded with built-in connectors.
 func DefaultFactory() Factory {
-	return NewFactory(WithFetcher(NewPOP3Fetcher(), "pop3", "pop3s", "pop3_tls", "pop3s_tls"))
+	return NewFactory(
+		WithFetcher(NewPOP3Fetcher(), "pop3", "pop3s", "pop3_tls", "pop3s_tls"),
+		WithFetcher(NewIMAPFetcher(), "imap", "imaps", "imap_tls", "imaps_tls", "imaptls"),
+	)
 }
 
 // WithFetcher registers a fetcher for the provided account types.

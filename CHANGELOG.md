@@ -8,8 +8,10 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 
 ### Added
 - Inbound email pipeline: POP3 connector factory, postmaster processor, ticket token filters, external ticket rules example, and mail account metadata/tests.
+- IMAP connector support (go-imap/v2) with IMAPTLS alias, folder metadata propagation, and factory registration.
 - Admin mail account poll status API/routes backed by Valkey cache.
 - SMTP4Dev integration suite covering POP/SMTP roundtrips (attachments, threading, TLS/STARTTLS/SMTPS, concurrency) with minimal smtp4dev test client.
+- SMTP4Dev IMAP integration flow to verify folder retention and account metadata on fetch without delete.
 - POP3 fetcher resilience + mail queue task delivery/backoff cleanup coverage for SMTP sink flows.
 - Notifications render context helper to populate agent/customer names for templates.
 - Unit tests for filter chain, postmaster service, mail queue repository ordering, and email queue cleanup.
@@ -33,9 +35,11 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 - Routes manifest regenerated (including admin dynamic aliases) and config defaults refreshed.
 - Ticket creation validation tightened; queue UI updated with meta component.
 - Dynamic module templates and handler registration aligned with tests.
+- Scheduler email poller covers IMAPTLS alias predicate and factory registration.
 - E2E/Playwright and schema discovery scripts refreshed.
 - Agent ticket creation path issues `HX-Redirect` to the canonical zoom view and shares queue/state validation with the API handler.
 - API test harness now defaults to Postgres to align history assertions with integration coverage.
+- Documentation updated for inbound email IMAP aliases, folder metadata, and integration coverage notes.
 
 ### Fixed
 - Admin customer company create now returns validation (400) instead of 404 for POST to `/customer/companies/new`.

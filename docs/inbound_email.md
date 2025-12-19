@@ -55,13 +55,15 @@ surfaces via metrics so operators can act.
   ```
 - Implementations:
   - POP3/POP3S via `github.com/knadh/go-pop3` (thin wrapper: connect, UIDL, RETR, delete).
-  - IMAP/IMAPS via `github.com/emersion/go-imap/v2` (IDLE optional, folder select, UID fetch).
+  - IMAP/IMAPS via `github.com/emersion/go-imap/v2` (IDLE optional, folder select, UID fetch; accepts aliases `imap`, `imaps`, `imap_tls`, `imaps_tls`, `imaptls`).
 - Responsibilities:
   - Honor TLS requirements.
+  - Preserve folder context: `IMAPFolder` defaults to `INBOX` and is carried into `AccountSnapshot` and message metadata (`imap_folder`).
   - Default to Znuny's destructive fetch: POP3 issues `DELE`, IMAP expunges or moves processed
     messages so the remote mailbox is drained without keeping local cursor state.
   - Delete/move only after PostMaster reports success; failures leave the message for the next poll.
   - Convert bytes to `FetchedMessage` (raw RFC822 + metadata such as UID, envelope timestamps).
+  - Integration coverage: SMTP4Dev flows exercise POP (delete/no-delete) and IMAP (folder metadata, non-destructive) under the `integration` build tag.
 
 ### 3.3 Scheduler Job
 - Package: `internal/services/scheduler` currently contains TODO placeholders.

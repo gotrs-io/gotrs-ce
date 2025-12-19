@@ -203,6 +203,56 @@ func TestHandleEmailPollInvokesFetcher(t *testing.T) {
 	}
 }
 
+func TestHandleEmailPollSupportsIMAPTLS(t *testing.T) {
+	cronEngine := cron.New(cron.WithLocation(time.UTC))
+	t.Cleanup(func() { cronEngine.Stop() })
+
+	folder := "Inbox"
+	repo := &stubEmailRepository{
+		accounts: []*models.EmailAccount{
+			{ID: 1, Login: "agent", Host: "mail.example", AccountType: "POP3", PasswordEncrypted: "pw"},
+			{ID: 2, Login: "imap-agent", Host: "imap.example", AccountType: "IMAPTLS", PasswordEncrypted: "pw", IMAPFolder: &folder},
+		},
+	}
+	fetcher := &recordingFetcher{}
+	factory := connector.NewFactory(connector.WithFetcher(fetcher, "pop3", "pop3s", "pop3_tls", "pop3s_tls", "imap", "imaps", "imap_tls", "imaps_tls", "imaptls"))
+	handler := &stubConnectorHandler{}
+
+	svc := NewService(nil,
+		WithCron(cronEngine),
+		WithEmailAccountLister(repo),
+		WithConnectorFactory(factory),
+		WithEmailHandler(handler),
+	)
+
+	job := &models.ScheduledJob{Config: map[string]any{"worker_count": 2, "max_accounts": 2}}
+	if err := svc.handleEmailPoll(context.Background(), job); err != nil {
+		t.Fatalf("handleEmailPoll returned error: %v", err)
+	}
+
+	calls := fetcher.Calls()
+	if len(calls) != 2 {
+		t.Fatalf("expected 2 fetch calls, got %d", len(calls))
+	}
+	byID := make(map[int]connector.Account)
+	for _, acc := range calls {
+		byID[acc.ID] = acc
+	}
+	imapAcc, ok := byID[2]
+	if !ok {
+		t.Fatalf("imap account not fetched: %+v", byID)
+	}
+	if imapAcc.Type != "imaptls" {
+		t.Fatalf("expected imaptls type, got %s", imapAcc.Type)
+	}
+	if imapAcc.IMAPFolder != folder {
+		t.Fatalf("expected folder %s, got %s", folder, imapAcc.IMAPFolder)
+	}
+	if handler.Count() != 2 {
+		t.Fatalf("expected handler to run twice, got %d", handler.Count())
+	}
+}
+
 func TestHandleEmailPollPropagatesErrors(t *testing.T) {
 	cronEngine := cron.New(cron.WithLocation(time.UTC))
 	t.Cleanup(func() { cronEngine.Stop() })
@@ -453,6 +503,14 @@ func (f *recordingFetcher) CallAccountIDs() []int {
 		ids[i] = acc.ID
 	}
 	return ids
+}
+
+func (f *recordingFetcher) Calls() []connector.Account {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]connector.Account, len(f.calls))
+	copy(out, f.calls)
+	return out
 }
 
 func (f *recordingFetcher) ResetCalls() {

@@ -2,6 +2,7 @@
 
 ## Recent Achievements (December 2025)
 - Inbound email pipeline (POP3 connector factory, postmaster processor, external ticket rules example, mail account metadata/tests).
+- IMAP inbound connector with IMAPTLS alias wiring, scheduler factory coverage, SMTP4Dev IMAP integration test, and documented folder metadata propagation.
 - SMTP4Dev integration suite for POP/SMTP roundtrips (attachments, threading, TLS/starttls, concurrency), mail queue task cleanup/backoff coverage, and Valkey-backed admin mail account poll status API/routes.
 - Scheduler jobs CLI and metrics publishing.
 - Admin customer company create POST route restored; YAML manifests regenerated (including admin dynamic aliases).
@@ -373,7 +374,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ---
 
-*Last updated: November 13, 2025 - Ticket history parity recorded; History tab now reflects persisted actions across agent and admin flows.*
+*Last updated: December 19, 2025 - Added IMAP inbound alias coverage, scheduler wiring, and SMTP4Dev IMAP integration test documentation.*
 
 ---
 

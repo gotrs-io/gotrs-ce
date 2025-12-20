@@ -123,13 +123,13 @@ func main() {
 
 	// Register actual API handlers to override placeholders
 	apiHandlers := map[string]gin.HandlerFunc{
-		"handleDashboard":           api.HandleDashboard,
-		"dashboard_stats":           api.HandleDashboardStats,
-		"dashboard_recent_tickets":  api.HandleRecentTickets,
-		"dashboard_queue_status":    api.DashboardQueueStatus,
-		"dashboard_activity_stream": api.HandleActivityStream,
-		"handleUpdateTicketStatus":  api.HandleUpdateTicketStatus,
-		"handlePendingReminderFeed": api.HandlePendingReminderFeed,
+		"handleDashboard":             api.HandleDashboard,
+		"dashboard_stats":             api.HandleDashboardStats,
+		"dashboard_recent_tickets":    api.HandleRecentTickets,
+		"dashboard_queue_status":      api.DashboardQueueStatus,
+		"dashboard_activity_stream":   api.HandleActivityStream,
+		"handleUpdateTicketStatus":    api.HandleUpdateTicketStatus,
+		"handlePendingReminderFeed":   api.HandlePendingReminderFeed,
 		"HandleMailAccountPollStatus": api.HandleMailAccountPollStatus,
 
 		// Agent handlers

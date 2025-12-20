@@ -30,17 +30,17 @@ func TestAllLinksReturn200(t *testing.T) {
 		}
 
 		allowed := map[string]map[int]struct{}{
-			"/dashboard":      {http.StatusUnauthorized: {}},
-			"/tickets":        {http.StatusUnauthorized: {}},
-			"/admin":          {http.StatusInternalServerError: {}},
+			"/dashboard":           {http.StatusUnauthorized: {}},
+			"/tickets":             {http.StatusUnauthorized: {}},
+			"/admin":               {http.StatusInternalServerError: {}},
 			"/admin/mail-accounts": {http.StatusServiceUnavailable: {}},
-			"/queues":         {http.StatusInternalServerError: {}, http.StatusBadRequest: {}},
-			"/queues/new":     {http.StatusBadRequest: {}},
-			"/register":       {http.StatusNotFound: {}},
-			"/dev":            {http.StatusNotFound: {}},
-			"/admin/settings": {http.StatusNotFound: {}},
-			"/admin/reports":  {http.StatusNotFound: {}},
-			"/admin/logs":     {http.StatusNotFound: {}},
+			"/queues":              {http.StatusInternalServerError: {}, http.StatusBadRequest: {}},
+			"/queues/new":          {http.StatusBadRequest: {}},
+			"/register":            {http.StatusNotFound: {}},
+			"/dev":                 {http.StatusNotFound: {}},
+			"/admin/settings":      {http.StatusNotFound: {}},
+			"/admin/reports":       {http.StatusNotFound: {}},
+			"/admin/logs":          {http.StatusNotFound: {}},
 		}
 
 		if strings.HasPrefix(trimmed, "/tickets/") && status == http.StatusNotFound {

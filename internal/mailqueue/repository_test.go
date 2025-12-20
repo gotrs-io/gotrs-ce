@@ -3,6 +3,7 @@ package mailqueue
 import (
 	"context"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -56,5 +57,57 @@ func TestGetFailedOrdersOldestFirstAndRespectsLimit(t *testing.T) {
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("expectations: %v", err)
+	}
+}
+
+func TestBuildEmailMessageWithThreadingAddsThreadHeaders(t *testing.T) {
+	body := "<p>Hello</p>"
+	raw := BuildEmailMessageWithThreading("from@example.com", "to@example.com", "Hi", body, "example.com", "parent@example.com", "parent@example.com child@example.com")
+	msg := string(raw)
+
+	re := regexp.MustCompile(`Message-ID:\s*<[^>]+@example\.com>`)
+	if !re.MatchString(msg) {
+		t.Fatalf("missing or malformed Message-ID: %s", msg)
+	}
+
+	if !strings.Contains(msg, "In-Reply-To: parent@example.com") {
+		t.Fatalf("missing In-Reply-To header: %s", msg)
+	}
+	if !strings.Contains(msg, "References: parent@example.com child@example.com") {
+		t.Fatalf("missing References header: %s", msg)
+	}
+	if !strings.Contains(msg, "Content-Type: text/html; charset=UTF-8") {
+		t.Fatalf("expected HTML content type: %s", msg)
+	}
+}
+
+func TestBuildEmailMessageWithThreadingGeneratesMessageIDWhenThreadingEmpty(t *testing.T) {
+	raw := BuildEmailMessageWithThreading("from@example.com", "to@example.com", "Hi", "plain", "example.com", "", "")
+	msg := string(raw)
+
+	re := regexp.MustCompile(`Message-ID:\s*<[^>]+@example\.com>`)
+	if !re.MatchString(msg) {
+		t.Fatalf("missing Message-ID: %s", msg)
+	}
+	if strings.Contains(msg, "In-Reply-To:") {
+		t.Fatalf("unexpected In-Reply-To header: %s", msg)
+	}
+	if strings.Contains(msg, "References:") {
+		t.Fatalf("unexpected References header: %s", msg)
+	}
+}
+
+func TestExtractMessageIDFromRawMessage(t *testing.T) {
+	raw := BuildEmailMessageWithThreading("from@example.com", "to@example.com", "Hi", "plain", "example.com", "", "")
+	id := ExtractMessageIDFromRawMessage(raw)
+
+	if id == "" {
+		t.Fatalf("expected message id")
+	}
+	if strings.Contains(id, "<") || strings.Contains(id, ">") {
+		t.Fatalf("expected trimmed id, got %s", id)
+	}
+	if !strings.HasSuffix(id, "@example.com") {
+		t.Fatalf("unexpected domain in id: %s", id)
 	}
 }

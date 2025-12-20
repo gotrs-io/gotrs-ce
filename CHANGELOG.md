@@ -24,6 +24,8 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 - `GenerateMessageID()` function for creating unique RFC-compliant message identifiers.
 - Database schema support for storing email threading headers in article records.
 - Integration with agent ticket routes to include threading headers in customer notifications.
+- Outbound customer notifications now send threaded emails on ticket creation and public replies, persisting Message-ID/In-Reply-To/References for future responses.
+- Unit coverage for mailqueue threading helpers (Message-ID generation, threading headers, extraction) to guard regressions.
 - Completed ticket creation vertical slice: `/api/tickets` service handler, HTMX agent form, attachment/time accounting support, and history recorder coverage.
 - Ticket zoom (`pages/ticket_detail.pongo2`) now renders live articles, history, and customer context for newly created tickets.
 - Status transitions, agent assignment, and queue transfer endpoints wired for both HTMX and JSON flows with history logging.

@@ -512,7 +512,7 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 				ArticleID:  articleID64,
 				Sender:     &senderEmail,
 				Recipient:  customerEmail,
-				RawMessage: mailqueue.BuildEmailMessage(branding.HeaderFrom, customerEmail, subject, branding.Body),
+				RawMessage: mailqueue.BuildEmailMessageWithThreading(branding.HeaderFrom, customerEmail, subject, branding.Body, branding.Domain, "", ""),
 				Attempts:   0,
 				CreateTime: time.Now(),
 			}
@@ -521,6 +521,17 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 				log.Printf("Failed to queue email for %s: %v", customerEmail, err)
 			} else {
 				log.Printf("Queued email for %s (ticket %s) for processing", customerEmail, ticket.TicketNumber)
+				messageID := mailqueue.ExtractMessageIDFromRawMessage(queueItem.RawMessage)
+				if messageID != "" && articleID64 != nil {
+					if _, err := db.Exec(database.ConvertPlaceholders(`
+						UPDATE article_data_mime
+						SET a_message_id = $1, a_in_reply_to = $2, a_references = $3,
+						    change_time = CURRENT_TIMESTAMP, change_by = $4
+						WHERE article_id = $5
+					`), messageID, "", "", actorID, *articleID64); err != nil {
+						log.Printf("Failed to store threading headers for article %d: %v", *articleID64, err)
+					}
+				}
 			}
 		}()
 	}

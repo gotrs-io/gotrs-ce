@@ -18,6 +18,7 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/mailqueue"
 	"github.com/gotrs-io/gotrs-ce/internal/notifications"
+	"github.com/gotrs-io/gotrs-ce/internal/repository"
 	"github.com/gotrs-io/gotrs-ce/internal/utils"
 )
 
@@ -531,6 +532,18 @@ func HandleCreateArticleAPI(c *gin.Context) {
 				log.Printf("Failed to load ticket metadata for article %d: %v", ticketID, err)
 			}
 
+			articleRepo := repository.NewArticleRepository(db)
+			latestCustomerArticle, err := articleRepo.GetLatestCustomerArticleForTicket(uint(ticketID))
+			inReplyTo := ""
+			references := ""
+			if err == nil && latestCustomerArticle != nil && latestCustomerArticle.MessageID != "" {
+				inReplyTo = latestCustomerArticle.MessageID
+				references = latestCustomerArticle.MessageID
+				if latestCustomerArticle.References != "" {
+					references = latestCustomerArticle.References + " " + latestCustomerArticle.MessageID
+				}
+			}
+
 			subject := "Update on Ticket"
 			if ticketNumber.Valid && ticketNumber.String != "" {
 				subject = fmt.Sprintf("Update on Ticket %s", ticketNumber.String)
@@ -560,7 +573,7 @@ func HandleCreateArticleAPI(c *gin.Context) {
 			queueItem := &mailqueue.MailQueueItem{
 				Sender:     &senderEmail,
 				Recipient:  customerEmail,
-				RawMessage: mailqueue.BuildEmailMessage(branding.HeaderFrom, customerEmail, subject, branding.Body),
+				RawMessage: mailqueue.BuildEmailMessageWithThreading(branding.HeaderFrom, customerEmail, subject, branding.Body, branding.Domain, inReplyTo, references),
 				Attempts:   0,
 				CreateTime: time.Now(),
 			}
@@ -569,6 +582,17 @@ func HandleCreateArticleAPI(c *gin.Context) {
 				log.Printf("Failed to queue article notification email for %s: %v", customerEmail, err)
 			} else {
 				log.Printf("Queued article notification email for %s", customerEmail)
+				messageID := mailqueue.ExtractMessageIDFromRawMessage(queueItem.RawMessage)
+				if messageID != "" {
+					if _, err := db.Exec(database.ConvertPlaceholders(`
+						UPDATE article_data_mime
+						SET a_message_id = $1, a_in_reply_to = $2, a_references = $3,
+						    change_time = CURRENT_TIMESTAMP, change_by = $4
+						WHERE article_id = $5
+					`), messageID, inReplyTo, references, userID, articleID); err != nil {
+						log.Printf("Failed to store threading headers for article %d: %v", articleID, err)
+					}
+				}
 			}
 		}()
 	}

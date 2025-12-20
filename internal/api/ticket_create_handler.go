@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -201,11 +202,31 @@ func HandleCreateTicketAPI(c *gin.Context) {
 			if brandErr != nil {
 				log.Printf("Queue identity lookup failed for queue %d: %v", queueID, brandErr)
 			}
+
+			articleRepo := repository.NewArticleRepository(db)
+			latestCustomerArticle, err := articleRepo.GetLatestCustomerArticleForTicket(uint(ticketID))
+			inReplyTo := ""
+			references := ""
+			if err == nil && latestCustomerArticle != nil && latestCustomerArticle.MessageID != "" {
+				inReplyTo = latestCustomerArticle.MessageID
+				references = latestCustomerArticle.MessageID
+				if latestCustomerArticle.References != "" {
+					references = latestCustomerArticle.References + " " + latestCustomerArticle.MessageID
+				}
+			}
+
+			var articleID sql.NullInt64
+			if err := db.QueryRow(database.ConvertPlaceholders(`
+				SELECT id FROM article WHERE ticket_id = $1 ORDER BY id DESC LIMIT 1
+			`), ticketID).Scan(&articleID); err != nil {
+				log.Printf("Failed to lookup initial article for ticket %d: %v", ticketID, err)
+			}
+
 			senderEmail := branding.EnvelopeFrom
 			queueItem := &mailqueue.MailQueueItem{
 				Sender:     &senderEmail,
 				Recipient:  customerEmail,
-				RawMessage: mailqueue.BuildEmailMessage(branding.HeaderFrom, customerEmail, subject, branding.Body),
+				RawMessage: mailqueue.BuildEmailMessageWithThreading(branding.HeaderFrom, customerEmail, subject, branding.Body, branding.Domain, inReplyTo, references),
 				Attempts:   0,
 				CreateTime: time.Now(),
 			}
@@ -214,6 +235,17 @@ func HandleCreateTicketAPI(c *gin.Context) {
 				log.Printf("Failed to queue email for %s: %v", customerEmail, queueErr)
 			} else {
 				log.Printf("Queued email for %s (ticket %s) for processing", customerEmail, ticketNumber)
+				messageID := mailqueue.ExtractMessageIDFromRawMessage(queueItem.RawMessage)
+				if messageID != "" && articleID.Valid {
+					if _, err := db.Exec(database.ConvertPlaceholders(`
+						UPDATE article_data_mime
+						SET a_message_id = $1, a_in_reply_to = $2, a_references = $3,
+						    change_time = CURRENT_TIMESTAMP, change_by = $4
+						WHERE article_id = $5
+					`), messageID, inReplyTo, references, userID, articleID.Int64); err != nil {
+						log.Printf("Failed to store threading headers for article %d: %v", articleID.Int64, err)
+					}
+				}
 			}
 		}()
 	}

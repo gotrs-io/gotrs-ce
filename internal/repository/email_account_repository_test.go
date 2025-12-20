@@ -8,7 +8,6 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 )
 
-
 func TestEncodeDecodeMailAccountComment(t *testing.T) {
 	allow := true
 	poll := 45

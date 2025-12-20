@@ -8,6 +8,7 @@
 - Admin customer company create POST route restored; YAML manifests regenerated (including admin dynamic aliases).
 - Ticket creation validation tightened; queue meta partial added; dynamic module handler wiring fixed.
 - E2E/Playwright and schema discovery suites refreshed.
+- Outbound customer notifications now emit threaded emails on ticket creation and public replies, persisting Message-ID/In-Reply-To/References for conversation continuity, with mailqueue unit coverage for threading helpers.
 
 ## Test Stabilization Progress (Internal/API)
 - ✅ Queue API/HTMX suites pass - 🟢 Queues - UI exists, queue detail functionality working (statistics + recent tickets + filtered ticket list)DB-less fallbacks for CI without DB)

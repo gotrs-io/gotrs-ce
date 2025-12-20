@@ -231,53 +231,55 @@ gotrs-migrate --source postgres://user:pass@host/db \
 - [x] Queue transfer capability
 - [x] Basic search functionality — UI/API search with pagination (tests passing)
 
-### Week 3: Customer Features (Sep 12-18, 2025)
+### Week 3: Customer Features (December 22, 2025 - January 4, 2026)
 - [ ] Customer portal login
 - [ ] Customer ticket submission form
 - [ ] View own tickets
 - [ ] Add replies to own tickets
-- [ ] Email notifications (basic)
+- [x] Email notifications (basic) - ✅ completed November 1, 2025
 
-### Week 4: Testing & Stabilization (Sep 19-25, 2025)
+### Week 4: Testing & Stabilization (January 5-18, 2026)
 - [ ] Fix critical bugs discovered in weeks 1-3
-- [ ] Basic integration tests
-- [ ] Performance verification
-- [ ] Documentation of working features
+- [x] Basic integration tests - ✅ comprehensive suites passing (December 2025)
+- [ ] Performance verification (48-hour burn-in)
+- [x] Documentation of working features - ✅ completed December 2025
 - [ ] Deploy to staging environment
 
-**🚀 MVP Target: September 30, 2025**
-- Agents can manage tickets
-- Customers can submit and track tickets
-- Basic email notifications work
-- System is stable enough for pilot users
+**🚀 MVP Target: January 18, 2026 (Version 0.5.0)**
+- ✅ Agents can manage tickets (completed)
+- ⚠️ Customers can submit and track tickets (in progress)
+- ✅ Basic email notifications work (completed)
+- ⚠️ System is stable enough for pilot users (pending 48h burn-in)
 
-## ❌ Critical Missing Features for ANY Ticketing System
+## ✅ Core Ticketing Features Status (December 20, 2025)
 
-**Without these, GOTRS is not a ticketing system:**
-1. **Ticket Creation** - Can't create tickets via UI or API
-2. **Ticket Viewing** - Can't see ticket details
-3. **Ticket Updates** - Can't change status, assign, or modify tickets
-4. **Comments/Articles** - Can't add replies or internal notes
-5. **Customer Access** - No way for customers to submit tickets
-6. **Email Integration** - Basic email threading implemented, full email-to-ticket and notifications pending
-7. **Search** - Can't find tickets
-8. **Reports** - No metrics or statistics
+**Completed:**
+1. ✅ **Ticket Creation** - Agent UI and API endpoints functional (completed October 28, 2025)
+2. ✅ **Ticket Viewing** - Real ticket zoom with articles, history, and customer context (completed October 28, 2025)
+3. ✅ **Ticket Updates** - Status changes, agent assignment, queue transfer all working (completed October 28, 2025)
+4. ✅ **Comments/Articles** - Public and internal replies via REST + HTMX (completed October 28, 2025)
+5. ✅ **Email Integration** - Outbound threaded notifications on ticket create/reply (completed November 1, 2025); inbound email pipeline with POP3/IMAP (completed December 2025)
+6. ✅ **Search** - Basic search by number/title with pagination (completed September 2025)
+7. ✅ **Queue Statistics** - Per-queue ticket counts and dashboard (completed September 23, 2025)
 
-**Current Reality**: Agent/API ticket creation, attachments, real ticket zoom, and status/assignment workflows are live; customer access and outbound email remain open.
+**Remaining for MVP:**
+1. ❌ **Customer Portal** - Customer-facing ticket submission and viewing (target: January 4, 2026)
+2. ⚠️ **Stability** - 48-hour burn-in test (target: January 18, 2026)
+3. ⚠️ **Reports** - Comprehensive metrics and dashboards (post-MVP)
 
-## 📊 Honest Current Metrics (September 3, 2025)
+## 📊 Current Metrics (December 20, 2025)
 
 | Metric | Reality | MVP Target |
 |--------|---------|------------|
-| Core Ticket Functionality | **20%** | 100% |
-| Admin Modules Working | Unknown | 80% |
-| Tickets in Database | **0** | 100+ |
-| API Endpoints Complete | ~35% | 80% |
+| Core Ticket Functionality | **85%** | 100% |
+| Admin Modules Working | ~60% (varied) | 80% |
+| Tickets in Database | **100%** | 100% |
+| API Endpoints Complete | ~75% | 80% |
 | Customer Portal | **0%** | Basic |
-| Email Integration | **25%** | Basic |
-| Production Readiness | **0%** | 70% |
-| Test Coverage | Improving (core suites green) | 50% |
-| Days Until MVP Target | **28 days** | - |
+| Email Integration | **80%** (inbound + outbound threading) | Basic |
+| Production Readiness | **60%** | 70% |
+| Test Coverage | ~65% (comprehensive suites passing) | 50% |
+| Days Until MVP Target | **29 days** (Jan 18, 2026) | - |
 
 ## 🚦 Major Risks to MVP
 
@@ -337,18 +339,18 @@ gotrs-migrate --source postgres://user:pass@host/db \
 
 *Note: These are aspirational goals contingent on achieving a stable MVP first*
 
-## 📈 Success Criteria for MVP (0.4.0)
+## 📈 Success Criteria for MVP (0.5.0)
 
-**Minimum Viable Product - September 30, 2025:**
-- [ ] Agents can create and manage tickets
-- [ ] Customers can submit tickets via web form
-- [ ] Basic ticket workflow (new → open → closed)
-- [ ] Comments/articles on tickets work
-- [ ] Email notifications sent on ticket events
-- [ ] Search tickets by number or title
-- [ ] 5+ test tickets successfully processed
-- [ ] System stable for 48 hours without crashes
-- [ ] Basic documentation for setup and usage
+**Target Release: January 18, 2026**
+- [x] Agents can create and manage tickets (✅ completed October 28, 2025)
+- [ ] Customers can submit tickets via web form (target: January 4, 2026)
+- [x] Basic ticket workflow (new → open → closed) (✅ completed October 28, 2025)
+- [x] Comments/articles on tickets work (✅ completed October 28, 2025)
+- [x] Email notifications sent on ticket events (✅ completed November 1, 2025)
+- [x] Search tickets by number or title (✅ completed September 2025)
+- [x] 5+ test tickets successfully processed (✅ completed November 2025)
+- [ ] System stable for 48 hours without crashes (target: January 18, 2026)
+- [x] Basic documentation for setup and usage (✅ completed December 2025)
 
 ## 📈 Success Criteria for 1.0 (Future)
 
@@ -375,7 +377,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ---
 
-*Last updated: December 19, 2025 - Added IMAP inbound alias coverage, scheduler wiring, and SMTP4Dev IMAP integration test documentation.*
+*Last updated: December 20, 2025 - Reviewed and updated completion status; adjusted MVP target to January 18, 2026 (version 0.5.0).*
 
 ---
 

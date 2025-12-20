@@ -1,6 +1,7 @@
 package playwright
 
 import (
+	"github.com/gotrs-io/gotrs-ce/tests/e2e/config"
 	"github.com/playwright-community/playwright-go"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -12,10 +13,8 @@ func TestSimpleBrowser(t *testing.T) {
 	if os.Getenv("SKIP_BROWSER") == "true" {
 		t.Skip("Skipping browser test")
 	}
-	baseURL := os.Getenv("BASE_URL")
-	if baseURL == "" {
-		baseURL = "http://backend:8080"
-	}
+	cfg := config.GetConfig()
+	baseURL := cfg.BaseURL
 	_ = playwright.Install(&playwright.RunOptions{Browsers: []string{"chromium"}})
 	pw, err := playwright.Run()
 	if err != nil {

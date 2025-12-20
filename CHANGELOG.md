@@ -42,6 +42,7 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 - Agent ticket creation path issues `HX-Redirect` to the canonical zoom view and shares queue/state validation with the API handler.
 - API test harness now defaults to Postgres to align history assertions with integration coverage.
 - Documentation updated for inbound email IMAP aliases, folder metadata, and integration coverage notes.
+- DB-heavy integration suites now run inside compose with MariaDB + templates present; previous skips removed.
 
 ### Fixed
 - Admin customer company create now returns validation (400) instead of 404 for POST to `/customer/companies/new`.

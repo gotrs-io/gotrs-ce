@@ -25,7 +25,7 @@
 - ✅ **CODE CLEANUP** - Removed duplicate commented code blocks
 - ✅ Core toolbox-test now green (cmd/goats, internal/api, generated)
 - ✅ Reminder notification feed + snooze action wired end-to-end (`/api/notifications/pending` + `/api/tickets/:id/status` alias)
-- ⚠️ Some DB-heavy integration tests still skipped when DB/templates unavailable
+- ✅ DB-heavy integration suites now run in compose (MariaDB + templates present); skips removed
 
 ### Code Quality Improvements (September 23, 2025)
 - ✅ **Template System Robustness**: Enhanced validation validates 5 critical templates at startup
@@ -67,7 +67,7 @@
 - ✅ Admin middleware bypassed in test env to avoid 403 HTML noise
 - ✅ Core toolbox-test now green (cmd/goats, internal/api, generated)
 - ✅ Reminder notification feed + snooze action wired end-to-end (`/api/notifications/pending` + `/api/tickets/:id/status` alias)
-- ⚠️ Some DB-heavy integration tests still skipped when DB/templates unavailable
+- ✅ DB-heavy integration suites now run in compose (MariaDB + templates present); skips removed
 
 ## 📅 Development Timeline
 

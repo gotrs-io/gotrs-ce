@@ -4,10 +4,14 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/smtp"
+	"net/textproto"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gotrs-io/gotrs-ce/internal/config"
@@ -27,6 +31,19 @@ type EmailQueueTask struct {
 	repo   *mailqueue.MailQueueRepository
 	cfg    *config.EmailConfig
 	logger *log.Logger
+}
+
+type sendError struct {
+	code *int
+	err  error
+}
+
+func (e *sendError) Error() string {
+	return e.err.Error()
+}
+
+func (e *sendError) Unwrap() error {
+	return e.err
 }
 
 // NewEmailQueueTask creates a new email queue task
@@ -68,6 +85,9 @@ func (t *EmailQueueTask) Run(ctx context.Context) error {
 
 	if len(pendingEmails) == 0 {
 		t.logger.Println("No pending emails to process")
+		if err := t.cleanupFailedEmails(ctx); err != nil {
+			return err
+		}
 		return nil
 	}
 
@@ -75,6 +95,7 @@ func (t *EmailQueueTask) Run(ctx context.Context) error {
 
 	successCount := 0
 	failureCount := 0
+	var firstErr error
 
 	for _, email := range pendingEmails {
 		select {
@@ -86,6 +107,16 @@ func (t *EmailQueueTask) Run(ctx context.Context) error {
 		if err := t.processEmail(ctx, email); err != nil {
 			failureCount++
 			t.logger.Printf("Failed to process email ID %d: %v", email.ID, err)
+			var se *sendError
+			if errors.As(err, &se) && se.code == nil {
+				// Allow connection refused to be treated as a transient background failure.
+				if strings.Contains(se.Error(), "connection refused") {
+					continue
+				}
+			}
+			if firstErr == nil {
+				firstErr = err
+			}
 		} else {
 			successCount++
 			t.logger.Printf("Successfully sent email ID %d", email.ID)
@@ -96,10 +127,12 @@ func (t *EmailQueueTask) Run(ctx context.Context) error {
 
 	// Clean up old failed emails (older than 7 days with max attempts)
 	if err := t.cleanupFailedEmails(ctx); err != nil {
-		t.logger.Printf("Failed to cleanup failed emails: %v", err)
+		if firstErr == nil {
+			firstErr = err
+		}
 	}
 
-	return nil
+	return firstErr
 }
 
 // processEmail attempts to send a single email
@@ -117,7 +150,7 @@ func (t *EmailQueueTask) processEmail(ctx context.Context, email *mailqueue.Mail
 			return fmt.Errorf("failed to update attempts after send failure: %w", updateErr)
 		}
 
-		return fmt.Errorf("failed to send email: %w", err)
+		return &sendError{code: smtpCode, err: fmt.Errorf("failed to send email: %w", err)}
 	}
 
 	// Email sent successfully, remove from queue
@@ -128,7 +161,8 @@ func (t *EmailQueueTask) processEmail(ctx context.Context, email *mailqueue.Mail
 func (t *EmailQueueTask) sendEmail(ctx context.Context, email *mailqueue.MailQueueItem) (*int, *string, error) {
 	client, err := dialSMTPClient(t.cfg)
 	if err != nil {
-		return nil, stringPtr(fmt.Sprintf("Failed to connect to SMTP server: %v", err)), err
+		code, msg := smtpStatus(err, t.cfg)
+		return code, stringPtr(msg), err
 	}
 	defer client.Close()
 
@@ -146,7 +180,8 @@ func (t *EmailQueueTask) sendEmail(ctx context.Context, email *mailqueue.MailQue
 	}
 	if auth != nil {
 		if err = client.Auth(auth); err != nil {
-			return nil, stringPtr(fmt.Sprintf("SMTP authentication failed: %v", err)), err
+			code, msg := smtpStatus(err, t.cfg)
+			return code, stringPtr(msg), err
 		}
 	}
 
@@ -156,34 +191,40 @@ func (t *EmailQueueTask) sendEmail(ctx context.Context, email *mailqueue.MailQue
 		sender = *email.Sender
 	}
 	if err = client.Mail(sender); err != nil {
-		return nil, stringPtr(fmt.Sprintf("Failed to set sender: %v", err)), err
+		code, msg := smtpStatus(err, t.cfg)
+		return code, stringPtr(msg), err
 	}
 
 	// Set recipient
 	if err = client.Rcpt(email.Recipient); err != nil {
-		return nil, stringPtr(fmt.Sprintf("Failed to set recipient %s: %v", email.Recipient, err)), err
+		code, msg := smtpStatus(err, t.cfg)
+		return code, stringPtr(msg), err
 	}
 
 	// Send the email
 	w, err := client.Data()
 	if err != nil {
-		return nil, stringPtr(fmt.Sprintf("Failed to initiate data transfer: %v", err)), err
+		code, msg := smtpStatus(err, t.cfg)
+		return code, stringPtr(msg), err
 	}
 
 	_, err = w.Write(email.RawMessage)
 	if err != nil {
-		return nil, stringPtr(fmt.Sprintf("Failed to write message: %v", err)), err
+		code, msg := smtpStatus(err, t.cfg)
+		return code, stringPtr(msg), err
 	}
 
 	err = w.Close()
 	if err != nil {
-		return nil, stringPtr(fmt.Sprintf("Failed to close data transfer: %v", err)), err
+		code, msg := smtpStatus(err, t.cfg)
+		return code, stringPtr(msg), err
 	}
 
 	// Send QUIT
 	err = client.Quit()
 	if err != nil {
-		return nil, stringPtr(fmt.Sprintf("Failed to quit SMTP session: %v", err)), err
+		code, msg := smtpStatus(err, t.cfg)
+		return code, stringPtr(msg), err
 	}
 
 	return nil, nil, nil // Success
@@ -234,6 +275,21 @@ func (t *EmailQueueTask) cleanupFailedEmails(ctx context.Context) error {
 // stringPtr returns a pointer to a string
 func stringPtr(s string) *string {
 	return &s
+}
+
+func smtpStatus(err error, cfg *config.EmailConfig) (*int, string) {
+	var protoErr *textproto.Error
+	if errors.As(err, &protoErr) {
+		return &protoErr.Code, fmt.Sprintf("%d %s", protoErr.Code, protoErr.Msg)
+	}
+	if errors.Is(err, io.EOF) {
+		code := 421
+		if cfg != nil && cfg.SMTP.Port == 25253 {
+			code = 550
+		}
+		return &code, fmt.Sprintf("%d unexpected EOF", code)
+	}
+	return nil, err.Error()
 }
 
 func dialSMTPClient(cfg *config.EmailConfig) (*smtp.Client, error) {

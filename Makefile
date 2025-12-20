@@ -260,10 +260,11 @@ evidence-report:
 #########################################
 
 # Override test command to use TDD if in TDD cycle (Make conditionals avoid shell parsing issues)
+
 .PHONY: test
 test: toolbox-build
 	@printf "\n🧪 Running curated Go test suite (make test) ...\n"
-	@$(MAKE) test-up >/dev/null 2>&1 || true
+	@$(MAKE) test-stack-up >/dev/null 2>&1 || true
 	@$(call ensure_caches)
 	@$(call cache_guard)
 	$(CONTAINER_CMD) run --rm \
@@ -300,7 +301,11 @@ test: toolbox-build
 		-e TEST_BACKEND_PORT=$(TEST_BACKEND_PORT) \
 		-e TEST_BACKEND_CONTAINER_PORT=$(TEST_BACKEND_PORT) \
 		gotrs-toolbox:latest \
-		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; PKGS=$$(go list ./... | rg -v "tests/e2e"); go test -count=1 -timeout=15m -buildvcs=false $$PKGS'
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; set -e; \
+		CORE_PKGS=$$(go list ./... | rg -v "tests/e2e|tests/integration|internal/email/integration"); \
+		echo "Running core packages"; go test -count=1 -timeout=15m -buildvcs=false $$CORE_PKGS; \
+		echo "Running integration packages"; go test -tags=integration -count=1 -timeout=20m -buildvcs=false ./tests/integration ./internal/email/integration'
+	@$(MAKE) test-e2e-playwright-go
 
 # Debug environment detection
 debug-env:
@@ -839,6 +844,7 @@ toolbox-test-integration:
 		-e GOFLAGS=-buildvcs=false \
 		-e APP_ENV=test \
 		-e GOTRS_TEST_DB_READY=$(GOTRS_TEST_DB_READY) \
+		-e INT_PKGS \
 		gotrs-toolbox:latest \
 		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; export GOFLAGS="-buildvcs=false"; set -e; \
 		PKGS="$${INT_PKGS:-./internal/middleware}"; \
@@ -2170,19 +2176,29 @@ playwright-build:
 test-e2e-playwright-go:
 	@printf "\n🎭 Running Go Playwright-tagged e2e tests in dedicated container...\n"
 	$(CONTAINER_CMD) build -f Dockerfile.playwright-go -t gotrs-playwright-go:latest . >/dev/null
+	@if [ "$(CACHE_USE_VOLUMES)" = "1" ]; then \
+		HOST_UID=$$(id -u); HOST_GID=$$(id -g); \
+		$(CONTAINER_CMD) run --rm -u 0:0 -e HOST_UID=$$HOST_UID -e HOST_GID=$$HOST_GID -v gotrs_cache:/workspace/.cache alpine sh -c "mkdir -p /workspace/.cache/xdg /workspace/.cache/go-build /workspace/.cache/go-mod /workspace/.cache/ms-playwright && chown -R $$HOST_UID:$$HOST_GID /workspace/.cache"; \
+	fi
 	# Prefer explicit BASE_URL provided on invocation; ignore .env for this target
 	@if [ -n "$(BASE_URL)" ]; then echo "[playwright-go] (explicit) BASE_URL=$(BASE_URL)"; else echo "[playwright-go] (default) BASE_URL=$${BASE_URL:-http://localhost:8080}"; fi
 	# Allow overriding network (e.g. PLAYWRIGHT_NETWORK=gotrs-ce_default) to access compose service DNS
 	@if [ -n "$(PLAYWRIGHT_NETWORK)" ]; then echo "[playwright-go] Using network '$(PLAYWRIGHT_NETWORK)'"; else echo "[playwright-go] Using host network (override with PLAYWRIGHT_NETWORK=...)"; fi
 	$(CONTAINER_CMD) run --rm \
 		--security-opt label=disable \
+		-u "$$(id -u):$$(id -g)" \
 		-v "$$PWD:/workspace" \
+		-v gotrs_cache:/workspace/.cache \
 		-w /workspace \
 		$$( [ -n "$(PLAYWRIGHT_NETWORK)" ] && printf -- "--network $(PLAYWRIGHT_NETWORK)" || printf -- "--network host" ) \
 		-e BASE_URL=$(BASE_URL) \
 		-e RAW_BASE_URL=$(BASE_URL) \
 		-e DEMO_ADMIN_EMAIL=$(DEMO_ADMIN_EMAIL) \
 		-e DEMO_ADMIN_PASSWORD=$(DEMO_ADMIN_PASSWORD) \
+		-e PLAYWRIGHT_BROWSERS_PATH=/workspace/.cache/ms-playwright \
+		-e XDG_CACHE_HOME=/workspace/.cache/xdg \
+		-e GOCACHE=/workspace/.cache/go-build \
+		-e GOMODCACHE=/workspace/.cache/go-mod \
 		 gotrs-playwright-go:latest bash -lc "go test -v ./tests/e2e/playwright $${ARGS}"
 
 PLAYWRIGHT_RESULTS_DIR ?= /tmp/playwright-results

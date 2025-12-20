@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 
 ENV PATH=/usr/local/go/bin:$PATH \
     PLAYWRIGHT_PREINSTALLED=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/workspace/.cache/ms-playwright \
+    XDG_CACHE_HOME=/workspace/.cache/xdg \
     CGO_ENABLED=0
 
 WORKDIR /workspace

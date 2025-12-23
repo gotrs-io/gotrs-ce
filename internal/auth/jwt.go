@@ -16,6 +16,7 @@ var (
 type Claims struct {
 	UserID   uint   `json:"user_id"`
 	Email    string `json:"email"`
+	Login    string `json:"login,omitempty"`
 	Role     string `json:"role"`
 	TenantID uint   `json:"tenant_id,omitempty"`
 	jwt.RegisteredClaims
@@ -34,9 +35,15 @@ func NewJWTManager(secretKey string, tokenDuration time.Duration) *JWTManager {
 }
 
 func (m *JWTManager) GenerateToken(userID uint, email, role string, tenantID uint) (string, error) {
+	return m.GenerateTokenWithLogin(userID, email, email, role, tenantID)
+}
+
+// GenerateTokenWithLogin creates a JWT with explicit login and email values
+func (m *JWTManager) GenerateTokenWithLogin(userID uint, login, email, role string, tenantID uint) (string, error) {
 	claims := Claims{
 		UserID:   userID,
 		Email:    email,
+		Login:    login,
 		Role:     role,
 		TenantID: tenantID,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -44,7 +51,7 @@ func (m *JWTManager) GenerateToken(userID uint, email, role string, tenantID uin
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    "gotrs",
-			Subject:   email,
+			Subject:   login,
 		},
 	}
 

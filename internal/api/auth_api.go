@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -37,6 +38,17 @@ func HandleLoginAPI(c *gin.Context) {
 		return
 	}
 
+	// Server-side rate limiting (fail2ban style)
+	clientIP := c.ClientIP()
+	if blocked, remaining := auth.DefaultLoginRateLimiter.IsBlocked(clientIP, loginRequest.Login); blocked {
+		c.JSON(http.StatusTooManyRequests, gin.H{
+			"success":         false,
+			"error":           fmt.Sprintf("too many failed attempts, try again in %d seconds", int(remaining.Seconds())),
+			"retry_after_sec": int(remaining.Seconds()),
+		})
+		return
+	}
+
 	// Get database connection
 	db, err := database.GetDB()
 	if err != nil {
@@ -53,6 +65,7 @@ func HandleLoginAPI(c *gin.Context) {
 	// Authenticate user
 	user, accessToken, refreshToken, err := authService.Login(context.Background(), loginRequest.Login, loginRequest.Password)
 	if err != nil {
+		auth.DefaultLoginRateLimiter.RecordFailure(clientIP, loginRequest.Login)
 		if err == auth.ErrInvalidCredentials {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"success": false,
@@ -71,6 +84,9 @@ func HandleLoginAPI(c *gin.Context) {
 		}
 		return
 	}
+
+	// Clear rate limit on successful login
+	auth.DefaultLoginRateLimiter.RecordSuccess(clientIP, loginRequest.Login)
 
 	// Return success with tokens
 	c.JSON(http.StatusOK, gin.H{

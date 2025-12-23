@@ -1,368 +1,185 @@
-# GOTRS Development
+# GOTRS Development Roadmap
 
-## Recent Achievements (December 2025)
-- Inbound email pipeline (POP3 connector factory, postmaster processor, external ticket rules example, mail account metadata/tests).
-- IMAP inbound connector with IMAPTLS alias wiring, scheduler factory coverage, SMTP4Dev IMAP integration test, and documented folder metadata propagation.
-- SMTP4Dev integration suite for POP/SMTP roundtrips (attachments, threading, TLS/starttls, concurrency), mail queue task cleanup/backoff coverage, and Valkey-backed admin mail account poll status API/routes.
-- Scheduler jobs CLI and metrics publishing.
-- Admin customer company create POST route restored; YAML manifests regenerated (including admin dynamic aliases).
-- Ticket creation validation tightened; queue meta partial added; dynamic module handler wiring fixed.
-- E2E/Playwright and schema discovery suites refreshed.
-- Outbound customer notifications now emit threaded emails on ticket creation and public replies, persisting Message-ID/In-Reply-To/References for conversation continuity, with mailqueue unit coverage for threading helpers.
+*Last updated: December 23, 2025*
 
-## Test Stabilization Progress (Internal/API)
-- ✅ Queue API/HTMX suites pass - 🟢 Queues - UI exists, queue detail functionality working (statistics + recent tickets + filtered ticket list)DB-less fallbacks for CI without DB)
-- ✅ Priority API suites pass
-- ✅ User API suites pass (list/get/create/update/delete, groups)
-- ✅ Ticket search UI/API pass (q/search, pagination, "No results")
-- ✅ Queue detail JSON/HTML and pagination helpers aligned with tests
-- ✅ Type CRUD handlers aligned with sqlmock expectations (DB-backed and fallback)
-- ✅ Agent Ticket Zoom handlers gain deterministic test-mode fallbacks
-- ✅ Admin middleware bypassed in test env to avoid 403 HTML noise
-- ✅ Auth bypass flag enforced: setting `GOTRS_DISABLE_TEST_AUTH_BYPASS=1` now forces admin surfaces to fail closed during regression runs
-- ✅ **TEMPLATE VALIDATION** - Critical templates validated at startup
-- ✅ **HTML FALLBACK CLEANUP** - Replaced embedded HTML with JSON responses
-- ✅ **CODE CLEANUP** - Removed duplicate commented code blocks
-- ✅ Core toolbox-test now green (cmd/goats, internal/api, generated)
-- ✅ Reminder notification feed + snooze action wired end-to-end (`/api/notifications/pending` + `/api/tickets/:id/status` alias)
-- ✅ DB-heavy integration suites now run in compose (MariaDB + templates present); skips removed
+## 🚀 Current Status
 
-### Code Quality Improvements (September 23, 2025)
-- ✅ **Template System Robustness**: Enhanced validation validates 5 critical templates at startup
-- ✅ **HTML Fallback Cleanup**: Replaced complex embedded HTML with clean JSON error responses
-- ✅ **Code Deduplication**: Removed 200+ lines of duplicate commented code from htmx_routes.go
-- ✅ **Error Handling**: Consistent JSON error responses across HTMX endpoints
-- ✅ **Architecture**: Better separation between template rendering and error handling 🚀 Current Status (September 23, 2025)
+**Version**: Pre-release (targeting 0.5.0 MVP on January 18, 2026)
 
-**Major Milestone: Code Quality & Queue Enhancement Complete**
-- ✅ Database schema exists (OTRS-compatible)
-- ✅ Admin UI modules display (functionality varies)
-- ✅ Authentication works (root@localhost after running `make synthesize`)
-- ✅ **FULL MYSQL COMPATIBILITY** - Fixed all placeholder conversion issues
-- ✅ **TEMPLATE SYSTEM ROBUSTNESS** - Enhanced validation and error handling
-- ✅ **HTML FALLBACK CLEANUP** - Replaced embedded HTML with JSON error responses
-- ✅ **CODE CLEANUP** - Removed 200+ lines of duplicate commented code
-- ✅ **QUEUE DETAIL FUNCTIONALITY** - Real-time statistics and enhanced ticket display with filtered list view
-- ✅ Agent/tickets endpoint working without database errors
-- ✅ Agent ticket functionality, creation UI, viewing and ticket management UIs
-- ✅ **Basic Email Threading** - RFC-compliant Message-ID, In-Reply-To, and References headers implemented
-- ❌ No customer portal
+GOTRS is a modern, open-source ticketing system built with Go and HTMX, designed as an OTRS-compatible replacement. The core ticketing functionality is complete, and we're in the final stabilization phase before MVP release.
 
-**Recent Success**: Completed comprehensive code quality improvements including template system robustness, HTML fallback cleanup, and code deduplication. System now has proper error handling and cleaner architecture. **Latest Achievement**: Queue detail pages now display real-time statistics and enhanced ticket listings with navigation.
+### What Works Today
+- ✅ **Agent Interface**: Full ticket management (create, view, update, assign, transfer)
+- ✅ **Customer Portal**: Login, ticket submission, viewing, replies, and closure
+- ✅ **Email Integration**: Inbound (POP3/IMAP) and outbound with RFC-compliant threading
+- ✅ **Database**: Full MySQL/MariaDB and PostgreSQL compatibility
+- ✅ **Search**: Ticket search by number or title with pagination
+- ✅ **Queue Management**: Real-time statistics and ticket filtering
 
-**New Achievement (October 19, 2025)**: Reminder toasts are actionable end-to-end. The legacy `/api/notifications/pending` endpoint now resolves to the HTMX handler, and a matching `/api/tickets/:id/status` alias keeps snooze posts working without the `/agent` prefix. Routes manifest and regression tests cover the flow.
+### What's Missing for MVP
+- ⏳ 48-hour stability burn-in test
+- ⏳ Staging environment deployment
 
-**New Achievement (October 22, 2025)**: Ticket Zoom history and links fragments render consistently across PostgreSQL and MariaDB. History pulls article subjects from `article_data_mime`, and the links repository now duplicates placeholder parameters when `database.ConvertQuery` expands `$1` to multiple `?` tokens, preventing MariaDB-specific 500s. Ticket history parity achieved across agent/admin flows. The shared recorder now maps OTRS/Znuny history types, persists `ticket_history` entries for each action, and the History tab renders real timelines with repository and service test coverage.
+---
 
-**New Achievement (November 1, 2025)**: Email threading support implemented with RFC-compliant Message-ID, In-Reply-To, and References headers for conversation tracking in customer notifications. Database schema updated to store threading metadata, and agent routes now include threading headers when sending customer emails.
+## 📊 Metrics (December 23, 2025)
 
-### Test Stabilization Progress (Internal/API)
-- ✅ Queue API/HTMX suites pass (DB-less fallbacks for CI without DB)
-- ✅ Priority API suites pass
-- ✅ User API suites pass (list/get/create/update/delete, groups)
-- ✅ Ticket search UI/API pass (q/search, pagination, “No results”)
-- ✅ Queue detail JSON/HTML and pagination helpers aligned with tests
-- ✅ Type CRUD handlers aligned with sqlmock expectations (DB-backed and fallback)
-- ✅ Agent Ticket Zoom handlers gain deterministic test-mode fallbacks
-- ✅ Admin middleware bypassed in test env to avoid 403 HTML noise
-- ✅ Core toolbox-test now green (cmd/goats, internal/api, generated)
-- ✅ Reminder notification feed + snooze action wired end-to-end (`/api/notifications/pending` + `/api/tickets/:id/status` alias)
-- ✅ DB-heavy integration suites now run in compose (MariaDB + templates present); skips removed
-
-## 📅 Development Timeline
-
-### ✅ Phase 1: Foundation (August 10-17, 2025) - COMPLETE
-- **Database**: OTRS-compatible schema implementation
-- **Infrastructure**: Docker/Podman containerization
-- **Backend Core**: Go server with Gin framework
-- **Frontend**: HTMX + Alpine.js (server-side rendering)
-- **Authentication**: JWT-based auth system
-
-### ✅ Phase 2: Schema Management Revolution (August 18-27, 2025) - COMPLETE
-- **Baseline Schema System**: Replaced 28 migrations with single initialization
-- **OTRS Import**: MySQL to PostgreSQL conversion tools
-- **Dynamic Credentials**: `make synthesize` for secure password generation
-- **Repository Cleanup**: 228MB of unnecessary files removed
-- **Documentation Update**: Valkey port change (6380→6388), removed React references
-
-### ✅ Phase 2.5: MySQL Compatibility Layer (August 29, 2025) - COMPLETE
-- **Critical Achievement**: Full MySQL database compatibility restored
-- **Database Abstraction**: Fixed 500+ SQL placeholder conversion errors
-- **ConvertPlaceholders Pattern**: Established mandatory database access pattern
-- **OTRS MySQL Integration**: System now connects to live OTRS MySQL databases
-- **Zero Placeholder Errors**: Eliminated all "$1" MySQL syntax errors
-- **Testing Protocol**: Database access patterns validated against both PostgreSQL and MySQL
-
-### ✅ Phase 2.6: Code Quality & Architecture (September 23, 2025) - COMPLETE
-- **Template System Robustness**: Enhanced validation of critical templates at startup
-- **HTML Fallback Cleanup**: Replaced embedded HTML strings with JSON error responses
-- **Code Deduplication**: Removed 200+ lines of duplicate commented code
-- **Error Handling Consistency**: Standardized JSON responses for HTMX endpoints
-- **Architecture Improvements**: Better separation of concerns between templates and error handling
-- **Build Reliability**: Application fails fast when critical templates are missing
-
-### ✅ Phase 2.7: Queue Detail Enhancement (September 23, 2025) - COMPLETE
-- **Queue Statistics**: Added real-time ticket counts (total, open, pending, closed) to queue detail pages
-- **Recent Tickets Display**: Implemented enhanced ticket listing with visual chips for queue/priority/customer
-- **Clickable Navigation**: Added hyperlinks to individual ticket details from queue pages
-- **Template Updates**: Replaced placeholder content with functional data display
-- **Database Integration**: Connected queue detail pages to live ticket data
-- **Queue Filtering**: Queue detail pages now show filtered ticket list view with pre-set queue filter
-
-### ⚠️ Phase 3: Admin Interface - PARTIALLY COMPLETE
-
-**Admin Modules Reality Check (August 28, 2025):**
-- 🟡 Users Management - UI exists, functionality unknown
-- 🟡 Groups Management - UI exists, functionality unknown
-- ❌ Customer Users - 404 error
-- 🟡 Customer Companies - UI exists, functionality unknown
-- � Queues - UI exists, queue detail functionality working (statistics + recent tickets)
-- 🟡 Priorities - UI exists, functionality unknown
-- 🟡 States - UI exists, functionality unknown
-- 🟡 Types - UI exists, core list/create/update/delete wired; test-mode fallbacks added
-- 🟡 SLA Management - UI exists, functionality unknown
-- ❌ Services - 404 error
-- 🟡 Lookups - UI exists, functionality unknown
-- ❌ Roles/Permissions matrix - Not implemented
-- ❌ Dynamic Fields - Not implemented
-- ❌ Templates - Not implemented
-- ❌ Signatures/Salutations - Not implemented
-
-**Note**: "UI exists" means the page loads with authentication, actual CRUD functionality not verified
-
-### 🔧 Phase 4: Database Compatibility Enhancements - IN PROGRESS (December 2025)
-
-**Critical for True OTRS Compatibility**
-
-**Why This Matters**:
-- Current import only handles 11 of 116 OTRS tables
-- Cannot truly claim "100% OTRS compatible" without full schema support
-- OTRS uses XML schema definitions with database-specific drivers
-- We need similar abstraction but with modern YAML approach
-
-**Architecture Decisions** (December 29, 2025):
-1. **YAML over XML**: 50% less verbose, easier to maintain
-2. **Pure Driver Pattern**: No hybrid model, clean separation
-3. **Universal Migration**: Support any source to any target
-4. **SQL Dump Support**: Import from files, not just live databases
-
-**Implementation Components**:
-
-#### Database Driver Interface
-```go
-type DatabaseDriver interface {
-    CreateTable(schema TableSchema) string
-    Insert(table string, data map[string]interface{}) (Query, error)
-    Update(table string, data map[string]interface{}, where string) (Query, error)
-    Delete(table string, where string) (Query, error)
-    MapType(schemaType string) string
-    SupportsReturning() bool
-    BeginTx() (Transaction, error)
-}
-```
-
-#### YAML Schema Format
-```yaml
-# schemas/customer_company.yaml
-customer_company:
-  pk: customer_id  # Non-standard primary key
-  columns:
-    customer_id: varchar(150)!  # ! = required
-    name: varchar(200)! unique
-    street: varchar(200)?  # ? = nullable
-    valid_id: smallint! default(1)
-  indexes:
-    - name
-  timestamps: true  # Adds create_time, change_time
-```
-
-#### Supported Drivers
-1. **PostgreSQL**: Full feature support, RETURNING clauses
-2. **MySQL**: Compatibility mode, AUTO_INCREMENT mapping
-3. **SQLite**: Testing only, in-memory support
-4. **MySQL Dump**: Parse and import .sql files
-5. **PostgreSQL Dump**: Parse and import .sql files
-
-#### Universal Migration Tool
-```bash
-# Live database to database
-gotrs-migrate --source mysql://user:pass@host/db \
-              --target postgres://user:pass@host/db
-
-# SQL dump to database  
-gotrs-migrate --source mysql-dump://dump.sql \
-              --target postgres://user:pass@host/db
-
-# Database to SQL dump
-gotrs-migrate --source postgres://user:pass@host/db \
-              --target mysql-dump://export.sql
-```
-
-**Benefits**:
-- **100% OTRS Import**: All 116 tables, not just 11
-- **Database Independence**: Switch between MySQL/PostgreSQL freely
-- **Better Testing**: Use SQLite for fast unit tests
-- **Clean Architecture**: No SQL in business logic
-- **Migration Flexibility**: Import from dumps or live databases
-
-**Success Criteria**:
-- [ ] Import all 116 OTRS tables successfully
-- [ ] Export to MySQL format readable by OTRS
-- [ ] Same test suite passes on PostgreSQL and MySQL
-- [ ] 1GB dump migrates in < 5 minutes
-- [ ] Zero hardcoded SQL in repositories
-
-**Timeline**: December 29, 2025 - January 5, 2026
-
-## 🎯 Realistic MVP Timeline (Starting Now)
-
-### Week 1: Core Ticket System (Aug 29 - Sep 4, 2025)
-**Must Have - Without this, nothing else matters:**
-- [x] Implement ticket creation API (remove TODO stubs)
-- [x] Create ticket submission form UI
-- [x] Display ticket list (agent view) — minimal fallback for tests
-- [x] Full ticket detail view (ticket zoom now renders live data)
-- [x] Generate proper ticket numbers
-
-### Week 2: Ticket Management (Sep 5-11, 2025)
-- [x] Article/comment system (add replies to tickets)
-- [x] Ticket status updates
-- [x] Agent assignment functionality
-- [x] Queue transfer capability
-- [x] Basic search functionality — UI/API search with pagination (tests passing)
-
-### Week 3: Customer Features (December 22, 2025 - January 4, 2026)
-- [ ] Customer portal login
-- [ ] Customer ticket submission form
-- [ ] View own tickets
-- [ ] Add replies to own tickets
-- [x] Email notifications (basic) - ✅ completed November 1, 2025
-
-### Week 4: Testing & Stabilization (January 5-18, 2026)
-- [ ] Fix critical bugs discovered in weeks 1-3
-- [x] Basic integration tests - ✅ comprehensive suites passing (December 2025)
-- [ ] Performance verification (48-hour burn-in)
-- [x] Documentation of working features - ✅ completed December 2025
-- [ ] Deploy to staging environment
-
-**🚀 MVP Target: January 18, 2026 (Version 0.5.0)**
-- ✅ Agents can manage tickets (completed)
-- ⚠️ Customers can submit and track tickets (in progress)
-- ✅ Basic email notifications work (completed)
-- ⚠️ System is stable enough for pilot users (pending 48h burn-in)
-
-## ✅ Core Ticketing Features Status (December 20, 2025)
-
-**Completed:**
-1. ✅ **Ticket Creation** - Agent UI and API endpoints functional (completed October 28, 2025)
-2. ✅ **Ticket Viewing** - Real ticket zoom with articles, history, and customer context (completed October 28, 2025)
-3. ✅ **Ticket Updates** - Status changes, agent assignment, queue transfer all working (completed October 28, 2025)
-4. ✅ **Comments/Articles** - Public and internal replies via REST + HTMX (completed October 28, 2025)
-5. ✅ **Email Integration** - Outbound threaded notifications on ticket create/reply (completed November 1, 2025); inbound email pipeline with POP3/IMAP (completed December 2025)
-6. ✅ **Search** - Basic search by number/title with pagination (completed September 2025)
-7. ✅ **Queue Statistics** - Per-queue ticket counts and dashboard (completed September 23, 2025)
-
-**Remaining for MVP:**
-1. ❌ **Customer Portal** - Customer-facing ticket submission and viewing (target: January 4, 2026)
-2. ⚠️ **Stability** - 48-hour burn-in test (target: January 18, 2026)
-3. ⚠️ **Reports** - Comprehensive metrics and dashboards (post-MVP)
-
-## 📊 Current Metrics (December 20, 2025)
-
-| Metric | Reality | MVP Target |
-|--------|---------|------------|
-| Core Ticket Functionality | **85%** | 100% |
-| Admin Modules Working | ~60% (varied) | 80% |
-| Tickets in Database | **100%** | 100% |
-| API Endpoints Complete | ~75% | 80% |
-| Customer Portal | **0%** | Basic |
-| Email Integration | **80%** (inbound + outbound threading) | Basic |
+| Metric | Status | Target |
+|--------|--------|--------|
+| Core Ticket Functionality | **90%** | 100% |
+| Customer Portal | **85%** | Basic |
+| Email Integration | **80%** | Basic |
+| Admin Modules | ~60% | 80% |
+| Test Coverage | ~65% | 50% |
 | Production Readiness | **60%** | 70% |
-| Test Coverage | ~65% (comprehensive suites passing) | 50% |
-| Days Until MVP Target | **29 days** (Jan 18, 2026) | - |
+| Days to MVP | **26** | - |
 
-## 🚦 Major Risks to MVP
+---
 
-1. **No Ticket System**: The core functionality doesn't exist
-   - Mitigation: Drop everything else, focus ONLY on tickets for Week 1
+## ✅ Delivered (August - December 2025)
 
-2. **Unknown Admin Module Status**: UI exists but functionality untested
-   - Mitigation: Test and fix only what's needed for tickets, ignore the rest
+### Foundation (August 2025)
+- OTRS-compatible database schema (116 tables)
+- Docker/Podman containerization with rootless support
+- Go/Gin backend with HTMX + Alpine.js frontend
+- JWT-based authentication system
+- Baseline schema with `make synthesize` credential generation
 
-3. **Tight Timeline**: Only 33 days to September 30 MVP target
-   - Mitigation: Drastically reduced scope, only bare minimum for MVP
+### Database Compatibility (August - September 2025)
+- Full MySQL/MariaDB compatibility via `ConvertPlaceholders` pattern
+- PostgreSQL support with RETURNING clauses
+- OTRS MySQL database import capability
+- 500+ SQL placeholder conversion fixes
 
-4. **No Testing**: Can't verify what actually works
-   - Mitigation: Manual testing only for MVP, automation later
+### Core Ticketing (September - October 2025)
+- Ticket creation with proper number generation (DateChecksum format)
+- Ticket zoom with live articles, history, and customer context
+- Article system (public and internal replies)
+- Status transitions, agent assignment, queue transfer
+- Basic search with pagination
 
-## 🎖️ Version History
+### Agent Features (September - November 2025)
+- Queue detail pages with real-time statistics
+- Ticket history rendering across PostgreSQL/MariaDB
+- Reminder toasts with snooze actions
+- Per-queue ticket counts and filtering
 
-| Version | Date | Status | Reality Check |
-|---------|------|--------|---------------|
-| 0.1.0 | Aug 17, 2025 | Claimed | Database schema exists |
-| 0.2.0 | Aug 24, 2025 | Claimed | Some admin UIs load |
-| 0.3.0 | Aug 27, 2025 | Claimed | Schema migrations work |
-| - | Aug 28, 2025 | Historical | Early stabilization tracking |
-| 0.4.0 | Oct 20, 2025 | Released | Preferred queue automation, coverage harness |
+### Email Integration (November - December 2025)
+- RFC-compliant Message-ID, In-Reply-To, References headers
+- Outbound threaded notifications on ticket create/reply
+- Inbound POP3 connector with postmaster processor
+- IMAP connector with folder metadata propagation
+- SMTP4Dev integration test suite
 
-## 🔮 Post-MVP Roadmap (Aspirational)
+### Customer Portal (December 2025)
+- Customer login with stateless JWT
+- Ticket submission with Tiptap rich text editor
+- View own tickets with filtering
+- Add replies to own tickets
+- Close ticket functionality
+- Full i18n support (English and German) for all 12 portal templates
 
-### Epic: Secrets & Configuration Hardening
-- **Current posture (all editions)**: keep runtime secrets in `.env` files or orchestrator-provided environment variables. This matches our Docker/Podman Compose workflow and keeps developer onboarding frictionless. `.env.example` already warns operators to rotate every value before production and to store the file outside version control.
-- **Kubernetes fit (community)**: the same contract maps cleanly onto `Secret` manifests. Operators can mount an env file via projected secrets or rely on `envFrom`, so we can document “copy `.env` contents into a Kubernetes Secret” without touching code. This becomes part of the Phase 2 deployment docs.
-- **Future enhancements (enterprise)**: optional vault-backed secret adapters (HashiCorp Vault Agent, AWS Secrets Manager, etc.) delivered as enterprise add-ons. These would refresh credentials automatically, publish audit events, and remove `.env` handling entirely for regulated tenants. We explicitly defer implementation until after inbound email/connectors stabilize.
-- **Guardrails**: keep `.env` ignored in git (already true), document file-permission expectations, and add CI lint to flag obvious demo secrets in committed YAML. No schema or runtime changes are required for this epic’s initial community scope.
+### Quality & Testing
+- Template validation at startup
+- Comprehensive API/HTMX test suites
+- DB-less fallbacks for CI
+- Playwright E2E harness
 
-**Phase 1: Stabilization (Q4 2025)**
-- Complete all admin modules to production quality
+---
+
+## 🎯 MVP Release (0.5.0) - Target: January 18, 2026
+
+### Success Criteria
+- ✅ Agents can create and manage tickets
+- ✅ Customers can submit tickets via web form
+- ✅ Customers can view and reply to their tickets
+- ✅ Customers can close their own tickets
+- ✅ Basic ticket workflow (new → open → closed)
+- ✅ Comments/articles on tickets work
+- ✅ Email notifications sent on ticket events
+- ✅ Search tickets by number or title
+- ✅ 5+ test tickets successfully processed
+- ⏹️ System stable for 48 hours without crashes
+- ✅ Basic documentation for setup and usage
+
+### Remaining Work (Week 4: January 5-18, 2026)
+- ⏹️ Fix critical bugs discovered in testing
+- ⏹️ Performance verification (48-hour burn-in)
+- ⏹️ Deploy to staging environment
+
+---
+
+## 🔮 Future Roadmap
+
+### Post-MVP Stabilization (Q1 2026)
+- Complete admin module audit and fixes
 - Comprehensive test coverage (80%+)
 - Performance optimization for 1000+ concurrent users
-- Full email integration (inbound and outbound)
 - Complete API documentation
 - OTRS migration tools tested with real data
 
-**Phase 2: Enhancement (Q1-Q2 2026)**
+### Enhancement Phase (Q2 2026)
 - Advanced reporting and analytics
 - Workflow automation engine
 - Knowledge base integration
-- Multi-language support (i18n)
-- REST API v2 with GraphQL
+- Multi-language support (i18n) for customer portal
+- REST API v2 with GraphQL option
 - Kubernetes deployment manifests
 
-**Phase 3: Innovation (2026+)**
+### Innovation Phase (2026+)
 - Mobile applications (iOS/Android)
 - AI-powered ticket classification and routing
 - Predictive analytics for SLA management
 - Plugin marketplace for extensions
 - Enterprise integrations (Salesforce, ServiceNow, Slack)
-- Cloud/SaaS offering
+- Multi-tenant white-label theming
 
-*Note: These are aspirational goals contingent on achieving a stable MVP first*
+---
 
-## 📈 Success Criteria for MVP (0.5.0)
+## 🏗️ Technical Debt & Known Issues
 
-**Target Release: January 18, 2026**
-- [x] Agents can create and manage tickets (✅ completed October 28, 2025)
-- [ ] Customers can submit tickets via web form (target: January 4, 2026)
-- [x] Basic ticket workflow (new → open → closed) (✅ completed October 28, 2025)
-- [x] Comments/articles on tickets work (✅ completed October 28, 2025)
-- [x] Email notifications sent on ticket events (✅ completed November 1, 2025)
-- [x] Search tickets by number or title (✅ completed September 2025)
-- [x] 5+ test tickets successfully processed (✅ completed November 2025)
-- [ ] System stable for 48 hours without crashes (target: January 18, 2026)
-- [x] Basic documentation for setup and usage (✅ completed December 2025)
+### Admin Modules Status
+| Module | Status | Notes |
+|--------|--------|-------|
+| Users | 🟡 UI exists | CRUD not fully verified |
+| Groups | 🟡 UI exists | CRUD not fully verified |
+| Customer Users | ❌ 404 | Not implemented |
+| Customer Companies | 🟡 UI exists | POST route restored |
+| Queues | ✅ Working | Detail pages with stats |
+| Priorities | 🟡 UI exists | CRUD not fully verified |
+| States | 🟡 UI exists | CRUD not fully verified |
+| Types | ✅ Working | List/create/update/delete |
+| SLA | 🟡 UI exists | CRUD not fully verified |
+| Services | ❌ 404 | Not implemented |
+| Roles/Permissions | ❌ | Not implemented |
+| Dynamic Fields | ❌ | Not implemented |
+| Templates | ❌ | Not implemented |
+| Signatures | ❌ | Not implemented |
+
+### Deferred Items
+- Multi-tenant theming (requires schema changes)
+- Customer portal i18n
+- Inbound email auto-ticket creation rules UI
+- SLA engine
+- Dynamic fields system
+- Bulk ticket actions
+- Attachment handling in customer portal
+
+---
 
 ## 📈 Success Criteria for 1.0 (Future)
 
 **Production Release (TBD after MVP proven):**
-- [ ] All core OTRS features implemented
-- [ ] <200ms response time (p95)
-- [ ] Support for 1000+ concurrent users
-- [ ] 80%+ test coverage
-- [ ] Zero critical security issues
-- [ ] Complete documentation
-- [ ] Migration tools tested with real OTRS data
-- [ ] 5+ production deployments validated
+- ⏹️ All core OTRS features implemented
+- ⏹️ <200ms response time (p95)
+- ⏹️ Support for 1000+ concurrent users
+- ⏹️ 80%+ test coverage
+- ⏹️ Zero critical security issues
+- ⏹️ Complete documentation
+- ⏹️ Migration tools tested with real OTRS data
+- ⏹️ 5+ production deployments validated
+
+---
 
 ## 🤝 How to Contribute
 
@@ -377,387 +194,49 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ---
 
-*Last updated: December 20, 2025 - Reviewed and updated completion status; adjusted MVP target to January 18, 2026 (version 0.5.0).*
+## 🎖️ Version History
+
+| Version | Date | Milestone |
+|---------|------|-----------|
+| 0.1.0 | Aug 17, 2025 | Database schema, initial structure |
+| 0.2.0 | Aug 24, 2025 | Admin UI scaffolding |
+| 0.3.0 | Aug 27, 2025 | Schema migrations, MySQL compatibility |
+| 0.4.0 | Oct 20, 2025 | Ticket vertical slice, queue automation |
+| 0.5.0 | Jan 18, 2026 | **MVP Target** - Full ticketing system |
 
 ---
 
-## 🔄 Update: October 2, 2025 – MVP Focus & Anti-Regression Plan
-
-No additional core ticketing capabilities have been implemented since the September 23 update. All previously marked ✅ items remain valid. Work now shifts from infrastructural cleanup to delivering the first true ticket vertical slice while aggressively preventing further regressions.
-
-### 🎯 Immediate MVP Focus (Strict Priority Order)
-1. ✅ Ticket creation vertical slice (API handler, HTMX form, persistence, history, attachments) – landed October 28, 2025.  
-   - Agent and API paths now share validation, repository-backed TNs, article bootstrap, and history recording.  
-   - HTMX responses redirect to the canonical `/tickets/<id>` view and surface attachment results.
-2. ✅ Deterministic ticket number generator – in production since October 4, 2025 with property/race coverage.
-3. ✅ Real ticket zoom (Pongo2) replaces the test-mode fallback with live articles, time entries, and customer context.
-4. ✅ Articles/comments system – public and internal replies wired through REST + HTMX fragments with visibility handling.
-5. ✅ Status transitions & assignment workflow (new → open → closed, agent & queue transfer endpoints) – delivered October 28, 2025.
-6. ✅ **Email Threading Support** - RFC-compliant Message-ID, In-Reply-To, and References headers implemented for conversation tracking – delivered November 1, 2025.
-7. Minimal customer portal (login, submit ticket, view/respond to own tickets).
-8. Outbound email notification (one-way) via pluggable SMTP adapter + mail-sink container (fire on create + public reply) – **next active item**.
-8. Hardening / regression pass (stabilization freeze) before tagging 0.4.0.
-
-### ✅ Already Done / Do NOT Rework Now
-- Ticket creation vertical slice (API handler, HTMX form, attachments, history)
-- Real ticket zoom rendering with live articles & time accounting
-- Status transitions & assignment workflow (state changes, agent + queue transfer)
-- Queue detail statistics + ticket list
-- Search API/UI basic pagination
-- Type CRUD & fallback test harness
-- Template validation for critical set (extend later, not now)
-
-### 🧪 Anti-Regression Strategy (Actionable)
-| Layer | Action | Purpose |
-|-------|--------|---------|
-| Unit (domain) | Ticket number generator property & race tests | Prevent duplicate / out-of-order numbers |
-| Repo Contract | Interface-level tests run against Postgres & MySQL containers | Ensures placeholder conversion stability |
-| API Contract | JSON golden files for create/view/update ticket endpoints | Detect schema drift |
-| HTML Snapshot | Deterministic template render (strip dynamic timestamps) | Catch accidental markup changes |
-| Template Validation | Expand from 5 to +ticket_create + ticket_zoom after they land | Fast fail on missing templates |
-| DB-Less Mode | Maintain lightweight in-memory ticket repo for CI quick path | Keep feedback loop fast |
-| CI Gates | Require green: unit, repo contract (2 DBs), API goldens, template validation | Block regressions early |
-| Merge Discipline | <300 LOC functional changes per PR, vertical slice increments | Reduce blast radius |
-
-### 🔐 Risk Mitigations
-- Placeholder Conversion Regressions → Keep ConvertPlaceholders unit + integration tests per new query
-- Template Drift → Snapshot tests + startup validation expansion
-- Concurrency Issues (ticket create) → Sequence backed + race test
-- Silent HTML Errors → Force JSON + HTML dual asserts in tests for new handlers
-
-### 📌 Success Definition for This Slice
-- Create → redirect to real zoom (not fallback)
-- Ticket number visible & stable across refreshes
-- Add at least one public and one internal article
-- Change status & assign agent without error
-- Customer can create & view only their tickets
-- Notification event logged (even if email sink is noop in dev)
-
-### 🗂 Work Packaging (Suggested PR Sequence)
-1. Data Model Additions: ticket number sequence + article table (if not present)
-2. Ticket Create API + repository methods + tests (unit + contract)
-3. HTMX Create Form + template + HTML snapshot test
-4. Real Ticket Zoom (read path) + JSON/HTML tests
-5. Ticket Number Generator hardening (property + race tests)
-6. Articles add/list + differentiation (public/internal)
-7. Status & assignment endpoints + minimal UI controls
-8. Customer portal minimal (auth reuse + list/create/view)
-9. Notification interface + outbound stub implementation
-10. Stabilization: expand template validation + goldens + docs
-
-### 🧱 Deferred (Post-MVP Explicitly)
-- Inbound email processing
-- Advanced search facets / reporting
-- SLA engine
-- Dynamic fields system
-- Full admin module audit
-
-### 📉 Scope Guardrails
-- No workflow engine now (only 3 status states)
-- No bulk actions
-- No rich text (plain text articles)
-- No attachment handling yet
-
-### 🔍 Metrics to Track During Implementation
-- Time from commit to green CI (<5 min target with DB-less fast path)
-- Test count & duration per layer (watch for >20% jump per PR)
-- Ticket creation p95 in local container (<150ms target)
-
-### 🕓 Target Calendar Adjustment
-Given slippage past original Sept 30 MVP, set a realistic 0.4.0 target: **October 31, 2025** with weekly stabilization checkpoints (no new scope last 5 days of month).
-
-### 📘 Documentation To Update Incrementally
-- ROADMAP (this file)
-- API reference: ticket create / view / update endpoints
-- Template validation list
-- Testing README: how to run contract + snapshot suites
-
-*Last updated: October 2, 2025 – Added MVP focus sequence and anti-regression strategy. No new core ticket features since prior update; execution pivots to ticket vertical slice.*
-
----
-
-### ✅ Update: October 4, 2025 – Ticket Number Generator Live
-Successfully created first real ticket via new generator path (example ID: `20251004094740`).
-- Roadmap item "Generate proper ticket numbers" marked complete.
-- Legacy `generateTicketNumber()` fully removed; repository/service use injected `ticketnumber.Generator`.
-- Next focus: real ticket creation handler + zoom view (replace test-mode fallback) and article system.
-
-No further action needed on numbering unless hot reload requirement emerges.
-
----
-
-### ✅ Update: October 5, 2025 – Admin Dashboard Dedup & Queue Overview Stats
-
-Status since Oct 4:
-- Refactored admin dashboard to reuse exported handler (removed duplicated inline implementation) – stabilizes navigation context injection (commit: `1f41701`).
-- Ensured persistent visibility of Admin & Dev tabs across admin routes (nav condition relaxation).
-- Agent Queues overview page upgraded with per-queue state counts (new/open/pending/closed/total) + search filter (commit: `ba20161`).
-- Dark mode contrast & UI polish adjustments applied to totals column.
-- No additional ticket vertical slice capabilities landed yet (creation, articles, status changes still pending).
-
-Next Immediate Focus (unchanged priority): Ticket Creation Vertical Slice
-1. Implement ticket creation API handler (persist ticket + initial article, redirect to real zoom).
-2. HTMX create form (agent) with validation (queue, title, priority).
-3. Real ticket zoom (replace fallback) rendering ticket + (empty) articles list.
-4. Begin article (public/internal) add path.
-
-Risk Watch:
-- Scope creep into articles before create path is stable – enforce sequence above.
-- Template drift – add new templates to startup validation once create + zoom land.
-
-No roadmap timeline adjustments required; proceeding with vertical slice execution next.
-
----
-
-### ✅ Update: October 12, 2025 – OTRS FS Compatibility, Compose Wiring, Docs
-
-Delivered items:
-- [x] Adopted OTRS/Znuny filesystem layout for attachments across runtime
-- [x] docker-compose unified: STORAGE_PATH env + volume mapping kept in sync
-- [x] Documentation: added compose examples for mounting existing OTRS var/article (read-only and read-write), with SELinux notes
-
-Impact:
-- Smooth runtime compatibility with existing OTRS/Znuny attachment stores (read and write in-place)
-- Clear migration path for filesystem-based installs
-- No changes to MVP ticket vertical slice status; remaining work continues per Immediate MVP Focus
-
----
-
-### ✅ Update: October 19, 2025 – Reminder Toast Snooze Flow
-
-- Routed `/api/notifications/pending` through the exported reminder handler so toast polling works without 404s
-- Added POST `/api/tickets/:id/status` alias in YAML to mirror legacy API expectations for snooze actions
-- Updated handler registry (`HandleUpdateTicketStatus`) and regenerated `runtime/routes-manifest.json`
-- Extended `internal/api` tests to cover the status update handler wiring
-- Restarted containers via `make restart` to verify the end-to-end reminder snooze flow in production-like settings
-
-### ✅ Update: October 20, 2025 – Not Closed Filter & i18n Alignment
-
-- `/tickets` and `/agent/tickets` now default to the `not_closed` status, exposing it explicitly in each filter dropdown
-- Repository list queries honor `ExcludeClosedStates`, joining `ticket_state_type` to avoid over-fetching closed tickets
-- `tickets.not_closed` translation delivered for EN/DE/ES/AR/TLH so the new option localizes correctly
-- Cleaned temporary debug logging from the agent ticket list handler to keep production logs focused on actionable errors
-
-### ✅ Update: October 28, 2025 – Ticket Creation Vertical Slice Complete
-
-- `/api/tickets` now runs through the repository-backed service: queue/state validation, generator-issued ticket numbers, initial article bootstrap, and history recording.
-- Agent HTMX ticket creation persists attachments, optional time accounting, and issues `HX-Redirect` to the canonical ticket zoom.
-- Ticket zoom (`pages/ticket_detail.pongo2`) renders newly created tickets with live articles, history feed, time accounting, and customer context.
-- Status transitions, agent assignment, and queue transfer endpoints are wired into both HTMX flows and JSON APIs with matching history entries.
-- API + HTMX suites updated with Postgres defaults and history assertions; `make test` stays green inside toolbox runtimes.
-- **Next focus**: status & assignment transitions, then SMTP mailer integration backed by a mail-sink container for local acceptance tests.
-
----
-
-## 🧩 Planned: Ticket Number Generator Integration & Config Wiring (October 2025)
-
-This section captures the precise, minimal, non-duplicative plan to wire the existing unified YAML configuration platform to the already implemented ticket number generators in `internal/ticketnumber/` without recreating solved components.
-
-### Current State (Baseline)
-* Generators implemented & tested: AutoIncrement (Increment), Date, DateChecksum, Random.
-* Counter abstraction (`DBStore`) present; concurrency tests green.
-* Unified YAML platform (versioning, lint, schema, hot reload) fully operational (`internal/yamlmgmt`).
-* `ConfigAdapter` can import legacy `config/Config.yaml` and expose settings (slice-based `settings` list).
-* Schema defines settings `SystemID` and `Ticket::NumberGenerator` but runtime server code does not consume them.
-* Ticket creation path still uses legacy daily counting logic (not generator interface).
-
-### Goals
-1. Resolve generator name from config (`Ticket::NumberGenerator`) at startup.
-2. Obtain `SystemID` from config (int → string) and feed to generator config.
-3. Inject a `ticketnumber.Generator` into ticket creation workflow (repository/service) instead of legacy function.
-4. Provide safe fallback & logging on invalid configuration.
-5. Enable (optional) hot reload of generator if config changes, without destabilizing in-flight operations.
-6. Add targeted integration tests (config → generator → produced number shape) without duplicating existing unit tests.
-
-### Non-Goals (Avoid Rework)
-* Do NOT re-implement YAML parsing / version management / lint / schema.
-* Do NOT convert `settings` slice to a map prematurely (optimize later if needed).
-* Do NOT build a second configuration loader.
-* Do NOT change generator algorithms (already parity tested).
-* Do NOT expand schema yet (reuse existing names exactly: `Increment`, `Date`, `DateChecksum`, `Random`).
-
-### Implementation Steps (Minimal Surface)
-1. Bootstrap at server startup:
-   * Instantiate `yamlmgmt.VersionManager` pointing to config dir (if not already).
-   * If no current `system-config`, call `ConfigAdapter.ImportConfigYAML("./config/Config.yaml")` (idempotent guard).
-2. Create lightweight runtime accessor (optional helper) or reuse `ConfigAdapter` directly for `GetConfigValue`.
-3. Add `internal/ticketnumber/registry.go`:
-   * `func Resolve(name string, sysID string, store CounterStore, clk Clock) (Generator, error)`.
-   * Internal map: `Increment -> AutoIncrement`, `Date -> Date`, `DateChecksum -> DateChecksum`, `Random -> Random`.
-   * Case-sensitive match (exact per schema); return error if unknown.
-4. Retrieve values:
-   * `sysIDVal, _ := adapter.GetConfigValue("SystemID")` (int or string) → normalize to string.
-   * `genNameVal, _ := adapter.GetConfigValue("Ticket::NumberGenerator")` → string.
-5. Instantiate `DBStore` with `SystemID` once (share among generators requiring counters).
-6. Resolve generator; on error log warning & fallback (policy below).
-7. Refactor ticket creation path:
-   * Inject `Generator` into repository/service struct (constructor parameter).
-   * Replace legacy `generateTicketNumber()` with `g.Generate(ctx)`. (DONE – legacy function removed from repository & service)
-8. (Deferred Optional) Register hot reload handler for `KindConfig`:
-   * On changed settings: if either `SystemID` or `Ticket::NumberGenerator` changed, rebuild generator under mutex swap.
-9. Add integration tests:
-   * Table: generator name → regex pattern assert (e.g., DateChecksum: `^\d{8}\d{2}\d{5}\d$`).
-   * Invalid name scenario: set to `Bogus` → expect fallback + logged warning.
-10. Documentation updates:
-   * Add brief “Ticket Number Generator Selection” subsection referencing config keys (in this ROADMAP + maybe a dedicated doc later).
-
-### Fallback & Error Policy
-* Unknown `Ticket::NumberGenerator` → log warning once at startup; fallback order: prefer `DateChecksum` (checksum safety) then `Date` if that somehow fails.
-* Missing `SystemID` → default to `10` (current examples) with warning.
-* Hot reload invalid change: keep existing generator; emit warning event.
-
-### Hot Reload Strategy (Initial)
-* Phase 1: No live swap (static at startup) – simplest path to delivery.
-* Phase 2 (optional): Add handler; atomic pointer swap of `Generator`; maintain metrics (reload count, last change time).
-* Guard: if generator type switches between counter-based and random, reuse existing `DBStore`; safe as interface doesn’t retain state besides config.
-
-### Testing Strategy
-* Reuse existing unit/concurrency tests (no duplication).
-* New integration test harness builds minimal in-memory config version via `VersionManager` (no filesystem dependency if feasible) OR uses temp dir inside `tmp/` (ignored by git) consistent with project rules.
-* Patterns asserted, not concrete numbers (avoid flakiness for date/time).
-* Log capture for invalid name fallback test.
-
-### Risk & Mitigations
-| Risk | Mitigation |
-|------|------------|
-| Config adapter returns unexpected type (int vs float64 from YAML decode) | Normalize via type switch utility |
-| Concurrent ticket creation during generator swap (future hot reload) | Atomic pointer + RW mutex; not needed Phase 1 |
-| Legacy code paths still call old function | Grep & remove/redirect `generateTicketNumber` usages | DONE |
-| Performance regression on each number generation (re-reading config) | Resolve once; generator holds config values |
-| Fallback masking real config errors | Emit structured warning (once) + metric counter |
-
-### Minimal PR Sequencing
-1. Registry + startup wiring (static resolution) + repository injection (no hot reload).
-2. Replace all legacy calls & remove dead code; add integration tests.
-3. Optional: hot reload handler + swap logic.
-4. Docs + metrics (if desired) – small follow-up.
-
-### Done Criteria
-* Startup logs chosen generator and SystemID.
-* Ticket creation path exclusively uses `ticketnumber.Generator`.
-* Changing config (manual edit + re-import) and restarting picks new format.
-* All existing tests still green; new integration tests pass.
-* No duplicated config parsing logic introduced.
-* ROADMAP & (optional) docs mention configuration keys clearly.
-
-### Deferred (Explicitly)
-* Runtime hot reload of generator (Phase 2).
-* Exposure of generator choice in an admin UI.
-* Metrics (counter collisions, generation latency).
-* Alternative legacy daily counter compatibility layer (only if required later).
-
----
-
-## 🐐 Platform vs Product Executables (GoatKit vs GoTRS) – Draft Plan (Captured Oct 4, 2025)
-
-Purpose: Preserve intent to evolve a reusable platform (GoatKit) while continuing product (GoTRS) feature delivery without losing focus on current A-path work (ticket number integration & ticket vertical slice).
-
-### Current Executable Inventory (cmd/)
-Platform‑leaning tools (can be generalized):
-- route-docs, route-lint, route-version, routes-diff, routes-manifest
-- gotrs-config, gk (config manager / alias)
-- schema-discovery
-- contract-runner
-- generator (code/resource generation)
-- xlat-extract, test_xlat, test_i18n, add-translations (i18n tooling)
-
-Product / domain-specific (GoTRS / OTRS compatibility):
-- gotrs (CLI with synthesize/reset-user)
-- goats (likely current server runtime – confirm before refactor)
-- gotrs-db, gotrs-migrate, gotrs-babelfish, import-otrs
-- gotrs-storage
-- add-ticket-translations (ticket-domain i18n)
-
-Ambiguous / needs review:
-- services/ (entrypoints pending inspection)
-- generator (scope clarity required)
-
-### Gap Summary
-- No namespace separation (all under gotrs-ce).
-- Platform identity “GoatKit” not yet codified (no `kit-` binaries).
-- Platform code lives in product-centric package paths; prevents external adopters.
-
-### Incremental Extraction Strategy
-Phase 1 (Documentation Only – low risk):
-1. Classify executables (DONE here – persist in repo).
-2. Add Makefile groups: PLATFORM_BINARIES / PRODUCT_BINARIES (future task).
-
-Phase 2 (Aliases & Identity):
-1. Introduce alias wrappers: `kit-config` (calls gotrs-config), `kit-routes` (multiplexer for route-* tools), `kit-i18n`.
-2. Help text prints deprecation notice for old names once aliases stable.
-
-Phase 3 (Package Boundary):
-1. Create `pkg/kit/...` (public) or `internal/kit/...` (staging) for: config versioning facade, route versioning, i18n extract, ticket number generator interface.
-2. Move thin adapters in product layer referencing reused core.
-
-Phase 4 (Module Split – optional later):
-1. New module `github.com/gotrs-io/goatkit`.
-2. Migrate packages; keep replace directive locally during transition.
-
-### Non-Goals Now
-- No immediate renaming of existing binaries; avoid churn while ticket vertical slice incomplete.
-- No premature module split before core ticket creation + generator wiring are stable.
-
-### Risks & Mitigations
-| Risk | Mitigation |
-|------|------------|
-| Distraction from MVP | Timebox platform work after ticket slice milestones |
-| User scripts break with new names | Provide aliases + deprecation period |
-| Over-extraction before API stabilizes | Defer module split; start with doc + alias |
-
-### Action Backlog (To Revisit Post Ticket Slice)
-1. Add Makefile groups & echo in help target.
-2. Introduce alias binaries (tiny main wrappers).
-3. Draft `pkg/kit` README (scope + stability promises).
-4. Identify minimal stable interfaces (ConfigVersioning, RouteVersioning, IdentifierGenerator, I18NExtractor).
-5. Prepare migration guide for adopting GoatKit separately.
-
----
-## 🧩 Service Registry Evolution (Aspirational) – Added Oct 5, 2025
-
-File: `config/services.yaml.disabled`
-
-Status: Prototype / not loaded. Represents a future declarative multi‑service registry (DB primary/replica, cache, search, queue, storage) with bindings and migration strategies.
-
-Current Reality:
-- Runtime today only auto‑configures a single database (`primary-db`) from environment variables via `internal/services/adapter/database_adapter.go`.
-- No YAML ingestion path; the disabled file is inert.
-- Other declared services (cache, search, queue, storage) are not provisioned through a unified loader.
-
-Why It Matters (Future Value):
-- Centralize connection definitions (credentials via env interpolation) for portability.
-- Enable blue/green + canary migration orchestration (already sketched in file under `migrations:`).
-- Provide consistent binding model across apps (`gotrs`, future analytics workers) instead of ad‑hoc env wiring.
-
-Phase Placement:
-- Target implementation window: **Phase 2: Enhancement (Q1–Q2 2026)**, after core ticket vertical slice and stabilization are complete.
-
-Planned Minimal Increment (Phase 2 Early):
-1. Define loader: parse `config/services.yaml` (if present) → validate schema → register services & bindings.
-2. Environment interpolation `${VAR}` with required/optional semantics and startup validation.
-3. Fallback: if file absent, retain current env auto-config path.
-4. Expose `/admin/debug/services` endpoint enumerating registered services & health.
-
-Deferred (Later in Phase 2 or Phase 3):
-- Live migration orchestrator (blue‑green/canary execution engine) with progress events.
-- Health monitoring + automatic failover for replica → primary promotion.
-- Secret resolution via external vault provider abstraction.
-
-Risks & Mitigations:
-| Risk | Mitigation |
-|------|------------|
-| Overcomplicates early MVP | Keep loader optional; ignore if file missing |
-| Stale credentials cached | Short TTL or on-demand refresh for credentialed services |
-| Divergent config sources | Single authoritative registry when file present; disable env auto-config except overrides |
-
-Exit Criteria (Phase 2 milestone):
-- Loader activated when `config/services.yaml` exists (renamed from `.disabled`).
-- All currently hard-coded DB init paths refactored to registry consumption.
-- Admin debug endpoint lists at least primary-db + replica-db with health state.
-- Documentation section added describing format & precedence.
-
-Action (Before Phase 2 Starts):
-- Keep the file disabled to avoid confusion; no partial loader implementation.
-- Revisit once ticket system + core admin modules are stable and Viper integration settled.
-
----
+## 📜 Historical Development Log
+
+<details>
+<summary>Click to expand detailed development history</summary>
+
+### December 2025
+- Customer portal: login, ticket CRUD, replies, close functionality
+- Inbound email: POP3/IMAP connectors, postmaster processor
+- SMTP4Dev integration test suite
+- Admin mail account poll status API
+
+### November 2025
+- Email threading support (RFC-compliant headers)
+- Outbound notifications on ticket create/reply
+
+### October 2025
+- Ticket creation vertical slice complete
+- Real ticket zoom with live articles
+- Ticket number generator (DateChecksum format)
+- Status transitions and assignment workflow
+- Queue statistics and filtering
+
+### September 2025
+- MySQL compatibility layer (ConvertPlaceholders)
+- Template system robustness
+- Code quality improvements
+- Queue detail enhancements
+
+### August 2025
+- Foundation: schema, Docker, authentication
+- OTRS import capability
+- Dynamic credential generation
+
+</details>

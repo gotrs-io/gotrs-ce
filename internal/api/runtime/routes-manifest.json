@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-12-20T09:52:29.389316509Z",
+  "generatedAt": "2025-12-21T12:23:07.937383579Z",
   "routes": [
     {
       "group": "admin",
@@ -555,26 +555,6 @@
       "group": "admin",
       "method": "POST",
       "path": "/admin/customer/companies/:id/portal-settings",
-      "handler": "handleAdminUpdateCustomerPortalSettings",
-      "middleware": [
-        "auth",
-        "admin"
-      ]
-    },
-    {
-      "group": "admin",
-      "method": "GET",
-      "path": "/admin/customer/portal/settings",
-      "handler": "handleAdminCustomerPortalSettings",
-      "middleware": [
-        "auth",
-        "admin"
-      ]
-    },
-    {
-      "group": "admin",
-      "method": "PUT",
-      "path": "/admin/customer/portal/settings",
       "handler": "handleAdminUpdateCustomerPortalSettings",
       "middleware": [
         "auth",
@@ -2741,7 +2721,13 @@
       "group": "auth",
       "method": "GET",
       "path": "/auth/customer",
-      "handler": "handleDemoCustomerLogin"
+      "handler": "handleCustomerLoginPage"
+    },
+    {
+      "group": "auth",
+      "method": "GET",
+      "path": "/customer/login",
+      "handler": "handleCustomerLoginPage"
     },
     {
       "group": "basic",
@@ -2853,6 +2839,150 @@
       "handler": "handleClaudeChatDemo",
       "middleware": [
         "auth"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "GET",
+      "path": "/customer",
+      "handler": "handleCustomerDashboard",
+      "middleware": [
+        "customer-portal"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "GET",
+      "path": "/customer/tickets",
+      "handler": "handleCustomerTickets",
+      "middleware": [
+        "customer-portal"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "GET",
+      "path": "/customer/tickets/new",
+      "handler": "handleCustomerNewTicket",
+      "middleware": [
+        "customer-portal"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "POST",
+      "path": "/customer/tickets/create",
+      "handler": "handleCustomerCreateTicket",
+      "middleware": [
+        "customer-portal"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "GET",
+      "path": "/customer/tickets/:id",
+      "handler": "handleCustomerTicketView",
+      "middleware": [
+        "customer-portal"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "POST",
+      "path": "/customer/tickets/:id/reply",
+      "handler": "handleCustomerTicketReply",
+      "middleware": [
+        "customer-portal"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "POST",
+      "path": "/customer/tickets/:id/close",
+      "handler": "handleCustomerCloseTicket",
+      "middleware": [
+        "customer-portal"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "GET",
+      "path": "/customer/profile",
+      "handler": "handleCustomerProfile",
+      "middleware": [
+        "customer-portal"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "PUT",
+      "path": "/customer/profile/update",
+      "handler": "handleCustomerUpdateProfile",
+      "middleware": [
+        "customer-portal"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "GET",
+      "path": "/customer/password/form",
+      "handler": "handleCustomerPasswordForm",
+      "middleware": [
+        "customer-portal"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "POST",
+      "path": "/customer/password/change",
+      "handler": "handleCustomerChangePassword",
+      "middleware": [
+        "customer-portal"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "GET",
+      "path": "/customer/knowledge-base",
+      "handler": "handleCustomerKnowledgeBase",
+      "middleware": [
+        "customer-portal"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "GET",
+      "path": "/customer/kb/search",
+      "handler": "handleCustomerKBSearch",
+      "middleware": [
+        "customer-portal"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "GET",
+      "path": "/customer/kb/article/:id",
+      "handler": "handleCustomerKBArticle",
+      "middleware": [
+        "customer-portal"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "GET",
+      "path": "/customer/company/info",
+      "handler": "handleCustomerCompanyInfo",
+      "middleware": [
+        "customer-portal"
+      ]
+    },
+    {
+      "group": "customer",
+      "method": "GET",
+      "path": "/customer/company/users",
+      "handler": "handleCustomerCompanyUsers",
+      "middleware": [
+        "customer-portal"
       ]
     },
     {

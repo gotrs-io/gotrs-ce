@@ -12,6 +12,7 @@ import (
 // Core handlers
 var (
 	HandleLoginPage           = handleLoginPage
+	HandleCustomerLoginPage   = handleCustomerLoginPage
 	HandleLogout              = handleLogout
 	HandleDashboard           = handleDashboard
 	HandleDashboardStats      = handleDashboardStats

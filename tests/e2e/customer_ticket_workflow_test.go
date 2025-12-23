@@ -20,17 +20,17 @@ func TestCustomerTicketWorkflowComplete(t *testing.T) {
 
 	t.Run("Customer ticket creation form is accessible and properly structured", func(t *testing.T) {
 		// Navigate to ticket creation form
-		err := browser.NavigateTo("/customer/ticket/new")
+		err := browser.NavigateTo("/customer/tickets/new")
 		require.NoError(t, err)
 
 		// Should redirect to login for unauthenticated users
-		if browser.Page.URL() != browser.Config.BaseURL+"/customer/ticket/new" {
+		if browser.Page.URL() != browser.Config.BaseURL+"/customer/tickets/new" {
 			assert.Contains(t, browser.Page.URL(), "/login", "Should redirect to login")
 			return
 		}
 
 		// If we reached the form (authenticated), verify it loads correctly
-		assert.Equal(t, browser.Config.BaseURL+"/customer/ticket/new", browser.Page.URL())
+		assert.Equal(t, browser.Config.BaseURL+"/customer/tickets/new", browser.Page.URL())
 
 		// Check for required form elements
 		subjectInput := browser.Page.Locator("input[name='title'], input[name='subject']")
@@ -67,12 +67,12 @@ func TestCustomerTicketWorkflowComplete(t *testing.T) {
 		require.NoError(t, err, "Failed to login as admin")
 
 		// Try to access customer ticket creation
-		err = browser.NavigateTo("/customer/ticket/new")
+		err = browser.NavigateTo("/customer/tickets/new")
 		require.NoError(t, err)
 
 		// Should get forbidden or redirect
 		currentURL := browser.Page.URL()
-		if currentURL == browser.Config.BaseURL+"/customer/ticket/new" {
+		if currentURL == browser.Config.BaseURL+"/customer/tickets/new" {
 			// If we reached the page, check for error message
 			errorMsg := browser.Page.Locator(".error-message, .alert-danger, .text-red-600")
 			if count, _ := errorMsg.Count(); count > 0 {
@@ -81,7 +81,7 @@ func TestCustomerTicketWorkflowComplete(t *testing.T) {
 			}
 		} else {
 			// Should be redirected or show error
-			assert.NotEqual(t, browser.Config.BaseURL+"/customer/ticket/new", currentURL, "Admin should not access customer ticket creation")
+			assert.NotEqual(t, browser.Config.BaseURL+"/customer/tickets/new", currentURL, "Admin should not access customer ticket creation")
 		}
 
 		// Logout for next test
@@ -92,11 +92,11 @@ func TestCustomerTicketWorkflowComplete(t *testing.T) {
 		// This test would require a customer user to be set up
 		// For now, we'll test the validation logic by examining the form
 
-		err := browser.NavigateTo("/customer/ticket/new")
+		err := browser.NavigateTo("/customer/tickets/new")
 		require.NoError(t, err)
 
 		// Skip if redirected to login
-		if browser.Page.URL() != browser.Config.BaseURL+"/customer/ticket/new" {
+		if browser.Page.URL() != browser.Config.BaseURL+"/customer/tickets/new" {
 			t.Skip("Customer authentication required for this test")
 			return
 		}

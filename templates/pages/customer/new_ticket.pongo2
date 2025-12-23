@@ -1,6 +1,12 @@
 {% extends "layouts/base.pongo2" %}
 
-{% block title %}Create New Ticket - GOTRS{% endblock %}
+{% block title %}{{ t("customer.new_ticket.title") }} - GOTRS{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="/static/js/tiptap.min.js"></script>
+<script src="/static/js/tiptap-editor.js"></script>
+{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -10,7 +16,7 @@
             <ol class="flex items-center space-x-2 text-sm">
                 <li>
                     <a href="/customer/dashboard" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                        Dashboard
+                        {{ t("customer.nav.dashboard") }}
                     </a>
                 </li>
                 <li>
@@ -20,7 +26,7 @@
                 </li>
                 <li>
                     <a href="/customer/tickets" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                        My Tickets
+                        {{ t("customer.nav.my_tickets") }}
                     </a>
                 </li>
                 <li>
@@ -29,39 +35,39 @@
                     </svg>
                 </li>
                 <li class="text-gray-900 dark:text-white font-medium">
-                    Create New Ticket
+                    {{ t("customer.nav.new_ticket") }}
                 </li>
             </ol>
         </nav>
         
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Create New Support Ticket</h1>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">{{ t("customer.new_ticket.title") }}</h1>
         <p class="mt-2 text-gray-600 dark:text-gray-400">
-            Please provide detailed information about your issue to help us assist you better.
+            {{ t("customer.new_ticket.subtitle") }}
         </p>
     </div>
 
     <!-- Ticket Form -->
-    <form method="post" action="/customer/ticket/create" enctype="multipart/form-data" class="space-y-6">
+    <form method="post" action="/customer/tickets/create" enctype="multipart/form-data" class="space-y-6">
         <div class="bg-white dark:bg-gray-800 shadow rounded-lg">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Ticket Information</h2>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t("customer.new_ticket.ticket_info") }}</h2>
             </div>
             
             <div class="p-6 space-y-6">
                 <!-- Subject -->
                 <div>
                     <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Subject <span class="text-red-500">*</span>
+                        {{ t("customer.new_ticket.subject") }} <span class="text-red-500">{{ t("customer.common.required") }}</span>
                     </label>
                     <input type="text" 
                            id="title" 
                            name="title" 
                            required
                            maxlength="255"
-                           placeholder="Brief description of your issue"
+                           placeholder="{{ t("customer.new_ticket.subject_placeholder") }}"
                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500">
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        Please provide a clear and concise subject for your ticket.
+                        {{ t("customer.new_ticket.subject_help") }}
                     </p>
                 </div>
 
@@ -69,18 +75,18 @@
                 {% if Services %}
                 <div>
                     <label for="service_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Service Category
+                        {{ t("customer.new_ticket.service_category") }}
                     </label>
                     <select id="service_id" 
                             name="service_id"
                             class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">-- Select a service --</option>
+                        <option value="">{{ t("customer.new_ticket.select_service") }}</option>
                         {% for service in Services %}
                         <option value="{{ service.id }}">{{ service.name }}</option>
                         {% endfor %}
                     </select>
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        Select the service category that best matches your issue.
+                        {{ t("customer.new_ticket.service_help") }}
                     </p>
                 </div>
                 {% endif %}
@@ -88,7 +94,7 @@
                 <!-- Priority -->
                 <div>
                     <label for="priority_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Priority
+                        {{ t("customer.new_ticket.priority") }}
                     </label>
                     <select id="priority_id" 
                             name="priority_id"
@@ -100,30 +106,26 @@
                         {% endfor %}
                     </select>
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        Select the appropriate priority level for your request.
+                        {{ t("customer.new_ticket.priority_help") }}
                     </p>
                 </div>
 
                 <!-- Message -->
                 <div>
-                    <label for="message" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Description <span class="text-red-500">*</span>
+                    <label for="messageEditor" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        {{ t("customer.new_ticket.description") }} <span class="text-red-500">{{ t("customer.common.required") }}</span>
                     </label>
-                    <textarea id="message" 
-                              name="message" 
-                              rows="8"
-                              required
-                              placeholder="Please describe your issue in detail..."
-                              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500"></textarea>
+                    <div id="messageEditor" class="min-h-[200px]"></div>
+                    <input type="hidden" name="message" id="messageBody" required>
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        The more details you provide, the better we can assist you. Include any error messages, steps to reproduce, or relevant information.
+                        {{ t("customer.new_ticket.description_help") }}
                     </p>
                 </div>
 
                 <!-- Attachments (future feature) -->
                 <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Attachments
+                        {{ t("customer.new_ticket.attachments") }}
                     </label>
                     <div class="flex items-center justify-center w-full">
                         <label for="attachments" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-800 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500">
@@ -132,10 +134,10 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                                 </svg>
                                 <p class="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                                    <span class="font-semibold">Click to upload</span> or drag and drop
+                                    <span class="font-semibold">{{ t("customer.new_ticket.click_to_upload") }}</span> {{ t("customer.new_ticket.or_drag_and_drop") }}
                                 </p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400">
-                                    PNG, JPG, PDF up to 10MB
+                                    {{ t("customer.new_ticket.file_types") }}
                                 </p>
                             </div>
                             <input id="attachments" name="attachments" type="file" class="hidden" multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.txt,.doc,.docx,.xls,.xlsx" />
@@ -148,18 +150,18 @@
         <!-- Form Actions -->
         <div class="flex items-center justify-between">
             <a href="/customer/tickets" class="text-sm text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
-                ← Back to tickets
+                ← {{ t("customer.new_ticket.back_to_tickets") }}
             </a>
             
             <div class="flex space-x-3">
                 <button type="button" 
-                        onclick="if(confirm('Are you sure you want to cancel? Any unsaved changes will be lost.')) { window.location='/customer/tickets'; }"
+                        onclick="if(confirm('{{ t("customer.new_ticket.cancel_confirm") }}')) { window.location='/customer/tickets'; }"
                         class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    Cancel
+                    {{ t("customer.new_ticket.cancel") }}
                 </button>
                 <button type="submit" 
                         class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    Create Ticket
+                    {{ t("customer.new_ticket.create_ticket") }}
                 </button>
             </div>
         </div>
@@ -168,32 +170,32 @@
     <!-- Help Section -->
     <div class="mt-8 bg-blue-50 dark:bg-blue-900 rounded-lg p-6">
         <h3 class="text-lg font-medium text-blue-900 dark:text-blue-100 mb-4">
-            Tips for Creating Effective Support Tickets
+            {{ t("customer.new_ticket.tips_title") }}
         </h3>
         <ul class="space-y-2 text-sm text-blue-800 dark:text-blue-200">
             <li class="flex items-start">
                 <svg class="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
                 </svg>
-                <span>Use a descriptive subject that summarizes your issue</span>
+                <span>{{ t("customer.new_ticket.tip_1") }}</span>
             </li>
             <li class="flex items-start">
                 <svg class="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
                 </svg>
-                <span>Include step-by-step instructions to reproduce the issue</span>
+                <span>{{ t("customer.new_ticket.tip_2") }}</span>
             </li>
             <li class="flex items-start">
                 <svg class="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
                 </svg>
-                <span>Mention any error messages you're seeing</span>
+                <span>{{ t("customer.new_ticket.tip_3") }}</span>
             </li>
             <li class="flex items-start">
                 <svg class="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
                 </svg>
-                <span>Attach screenshots if they help explain the problem</span>
+                <span>{{ t("customer.new_ticket.tip_4") }}</span>
             </li>
         </ul>
     </div>
@@ -252,6 +254,32 @@ document.addEventListener('DOMContentLoaded', function() {
             
             dropZone.appendChild(fileList);
         }
+    }
+    
+    // Initialize Tiptap rich text editor for message
+    const descPlaceholder = '{{ t("customer.new_ticket.description_placeholder") }}';
+    if (window.TiptapEditor && typeof TiptapEditor.init === 'function') {
+        TiptapEditor.init('messageEditor', {
+            placeholder: descPlaceholder,
+            onUpdate: function(content) {
+                document.getElementById('messageBody').value = content;
+            }
+        });
+    } else {
+        // Fallback: Wait for TiptapEditor to be available
+        const checkTiptap = setInterval(function() {
+            if (window.TiptapEditor && typeof TiptapEditor.init === 'function') {
+                clearInterval(checkTiptap);
+                TiptapEditor.init('messageEditor', {
+                    placeholder: descPlaceholder,
+                    onUpdate: function(content) {
+                        document.getElementById('messageBody').value = content;
+                    }
+                });
+            }
+        }, 100);
+        // Stop checking after 5 seconds
+        setTimeout(function() { clearInterval(checkTiptap); }, 5000);
     }
 });
 </script>

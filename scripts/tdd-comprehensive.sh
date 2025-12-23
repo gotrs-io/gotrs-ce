@@ -1215,6 +1215,8 @@ async function runComprehensiveBrowserTests() {
         }
     });
     
+    const baseUrl = process.env.BASE_URL || 'http://localhost:8080';
+
     const testPages = [
         { path: '/login', requiredElements: ['input[type="email"]', 'input[type="password"]', 'button[type="submit"]'] },
         { path: '/admin/users', requiredElements: ['table', '.btn', 'h1'] },
@@ -1229,9 +1231,7 @@ async function runComprehensiveBrowserTests() {
         networkErrors = [];
         
         try {
-            console.log(`Testing page: ${testPage.path}`);
-            
-            await page.goto(`http://localhost:8080${testPage.path}`, { 
+            await page.goto(`${baseUrl}${testPage.path}`, { 
                 waitUntil: 'networkidle',
                 timeout: 30000 
             });

@@ -131,6 +131,69 @@ services:
     # Production binary runs automatically from Dockerfile CMD
     # For development hot reload, volume mount handles code changes
 
+  # GOTRS Customer Frontend - Dedicated customer-facing instance
+  customer-fe:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UID: ${HOST_UID:-1000}
+        GID: ${HOST_GID:-1000}
+    image: localhost/gotrs-backend:latest
+    container_name: gotrs-customer-fe
+    command: >
+      sh -c "
+        if [ ! -f /app/certs/server.crt ] || [ ! -f /app/certs/server.key ]; then
+          echo '🔐 Generating self-signed TLS certificates...'
+          mkdir -p /app/certs
+          openssl req -x509 -newkey rsa:4096 -keyout /app/certs/server.key -out /app/certs/server.crt -days 365 -nodes -subj '/CN=gotrs-customer-fe'
+          echo '✅ TLS certificates generated'
+        fi
+        ./goats
+      "
+    environment:
+      ENABLE_YAML_ROUTING: ${ENABLE_YAML_ROUTING:-true}
+      ROUTES_DIR: /app/routes
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: ${CUSTOMER_FE_APP_PORT:-8080}
+      ROOT_REDIRECT_PATH: /customer
+      CUSTOMER_FE_ONLY: "true"
+      DB_DRIVER: ${DB_DRIVER:-mariadb}
+      DB_HOST: ${DB_HOST:-mariadb}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DATABASE_URL: ${DATABASE_URL}
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      PASSWORD_HASH_TYPE: ${PASSWORD_HASH_TYPE:-sha256}
+      MIGRATE_PASSWORD_HASHES: ${MIGRATE_PASSWORD_HASHES:-false}
+      STORAGE_PATH: ${STORAGE_PATH:-/app/storage}
+      MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-10MB}
+      ALLOWED_FILE_TYPES: ${ALLOWED_FILE_TYPES:-pdf,doc,docx,txt,png,jpg,jpeg,gif,zip}
+      TLS_CERT_FILE: /app/certs/server.crt
+      TLS_KEY_FILE: /app/certs/server.key
+    ports:
+      - "${CUSTOMER_FE_PORT:-8083}:${CUSTOMER_FE_APP_PORT:-8080}"
+    volumes:
+      - ./storage:${STORAGE_PATH:-/app/storage}:Z
+      - ./certs:/app/certs:Z
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    networks:
+      - gotrs-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:${CUSTOMER_FE_APP_PORT:-8080}/health || exit 1"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # GOTRS Runner - Background task processor
   runner:
     image: localhost/gotrs-backend:latest
@@ -312,6 +375,63 @@ services:
     networks:
       - gotrs-network
     restart: unless-stopped
+    profiles: ["testdb"]
+
+  # GOTRS Customer Frontend Test - Dedicated customer-facing instance for test stack
+  customer-fe-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UID: ${HOST_UID:-1000}
+        GID: ${HOST_GID:-1000}
+    image: localhost/gotrs-backend:latest
+    container_name: gotrs-customer-fe-test
+    command: >
+      sh -c "
+        if [ ! -f /app/certs/server.crt ] || [ ! -f /app/certs/server.key ]; then
+          echo '🔐 Generating self-signed TLS certificates...'
+          mkdir -p /app/certs
+          openssl req -x509 -newkey rsa:4096 -keyout /app/certs/server.key -out /app/certs/server.crt -days 365 -nodes -subj '/CN=gotrs-customer-fe-test'
+          echo '✅ TLS certificates generated'
+        fi
+        ./goats
+      "
+    environment:
+      ENABLE_YAML_ROUTING: ${ENABLE_YAML_ROUTING:-true}
+      ROUTES_DIR: /app/routes
+      APP_ENV: test
+      APP_PORT: ${CUSTOMER_FE_TEST_APP_PORT:-8080}
+      ROOT_REDIRECT_PATH: /customer
+      CUSTOMER_FE_ONLY: "true"
+      DB_DRIVER: ${TEST_DB_DRIVER:-mysql}
+      DB_HOST: ${TEST_DB_MYSQL_HOST:-mariadb-test}
+      DB_PORT: ${TEST_DB_MYSQL_PORT:-3308}
+      DB_NAME: ${TEST_DB_MYSQL_NAME:-otrs_test}
+      DB_USER: ${TEST_DB_MYSQL_USER:-otrs}
+      DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD:-LetClaude.1n}
+      VALKEY_HOST: valkey-test
+      VALKEY_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-test-secret-key}
+      PASSWORD_HASH_TYPE: ${PASSWORD_HASH_TYPE:-sha256}
+      MIGRATE_PASSWORD_HASHES: ${MIGRATE_PASSWORD_HASHES:-false}
+      STORAGE_PATH: ${STORAGE_PATH:-/app/storage}
+      MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-10MB}
+      ALLOWED_FILE_TYPES: ${ALLOWED_FILE_TYPES:-pdf,doc,docx,txt,png,jpg,jpeg,gif,zip}
+      TLS_CERT_FILE: /app/certs/server.crt
+      TLS_KEY_FILE: /app/certs/server.key
+    ports:
+      - "${CUSTOMER_FE_TEST_PORT:-8084}:${CUSTOMER_FE_TEST_APP_PORT:-8080}"
+    volumes:
+      - ./storage:${STORAGE_PATH:-/app/storage}:Z
+      - ./certs:/app/certs:Z
+    depends_on:
+      valkey-test:
+        condition: service_healthy
+      mariadb-test:
+        condition: service_healthy
+    networks:
+      - gotrs-network
     profiles: ["testdb"]
 
   # Temporal Workflow Engine - COMMENTED OUT until code is implemented

@@ -91,6 +91,14 @@
 <body class="h-full bg-gray-50 dark:bg-gray-900">
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-md">{{ t("common.skip_to_content")|default:"Skip to content" }}</a>
     <div class="min-h-full">
+    {% set isCustomer = User and User.Role and User.Role|lower == "customer" %}
+    {% if not isCustomer and (Portal or PortalConfig) %}
+        {% set isCustomer = true %}
+    {% endif %}
+    {% if not isCustomer and ActivePage and ActivePage|lower|slice:"0:8" == "customer" %}
+        {% set isCustomer = true %}
+    {% endif %}
+
     {% set navDashboard = t("navigation.dashboard") %}
     {% if not navDashboard or navDashboard == "navigation.dashboard" %}
         {% set navDashboard = "Dashboard" %}
@@ -112,6 +120,20 @@
         {% set navDev = "Dev" %}
     {% endif %}
 
+    {% set dashboardHref = "/dashboard" %}
+    {% set ticketsHref = "/tickets" %}
+    {% set queuesHref = "/queues" %}
+    {% set profileHref = "/profile" %}
+    {% set settingsHref = "/settings" %}
+    {% set logoutHref = "/logout" %}
+    {% if isCustomer %}
+        {% set dashboardHref = "/customer" %}
+        {% set ticketsHref = "/customer/tickets" %}
+        {% set profileHref = "/customer/profile" %}
+        {% set settingsHref = "/customer/profile" %}
+        {% set logoutHref = "/customer/logout" %}
+    {% endif %}
+
     <!-- Navigation -->
     <nav class="bg-white dark:bg-gray-800 shadow-sm" role="navigation" aria-label="Main navigation" x-data="{ mobileMenuOpen: false }">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -122,21 +144,23 @@
                             <span class="text-2xl font-bold text-gotrs-600 dark:text-gotrs-400">GOTRS</span>
                         </div>
                         <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                            <a href="/dashboard" class="{% if ActivePage == 'dashboard' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                            <a href="{{ dashboardHref }}" class="{% if ActivePage == 'dashboard' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
                                 {{ navDashboard }}
                             </a>
-                            <a href="/tickets" class="{% if ActivePage == 'tickets' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                            <a href="{{ ticketsHref }}" class="{% if ActivePage == 'tickets' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
                                 {{ navTickets }}
                             </a>
-                            <a href="/queues" rel="nofollow" class="{% if ActivePage == 'queues' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                            {% if not isCustomer %}
+                            <a href="{{ queuesHref }}" rel="nofollow" class="{% if ActivePage == 'queues' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
                                 {{ navQueues }}
                             </a>
-                            {% if User and (User.Role == "Admin" or User.IsInAdminGroup or IsInAdminGroup) %}
+                            {% endif %}
+                            {% if not isCustomer and (User and (User.Role == "Admin" or User.IsInAdminGroup or IsInAdminGroup)) %}
                             <a href="/admin" class="{% if ActivePage == 'admin' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
                                 {{ navAdmin }}
                             </a>
                             {% endif %}
-                            {% if IsInAdminGroup or (User and (User.IsInAdminGroup or User.Role == "Admin")) %}
+                            {% if not isCustomer and (IsInAdminGroup or (User and (User.IsInAdminGroup or User.Role == "Admin"))) %}
                             <a href="/dev" class="{% if ActivePage == 'dev' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
                                 {{ navDev }}
                             </a>
@@ -161,10 +185,10 @@
                                 </span>
                             </button>
                             <div x-show="open" @click.away="open = false" x-transition class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white dark:bg-gray-800 py-1 shadow-lg ring-1 ring-black ring-opacity-5">
-                                <a href="/profile" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">{{ t("navigation.profile") }}</a>
-                                <a href="/settings" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">{{ t("navigation.settings") }}</a>
+                                <a href="{{ profileHref }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">{{ t("navigation.profile") }}</a>
+                                <a href="{{ settingsHref }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">{{ t("navigation.settings") }}</a>
                                 <hr class="my-1 border-gray-200 dark:border-gray-700">
-                                <a href="/logout" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">{{ t("auth.logout") }}</a>
+                                <a href="{{ logoutHref }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">{{ t("auth.logout") }}</a>
                             </div>
                         </div>
                     </div>
@@ -181,21 +205,23 @@
                 </div>
                 <div x-show="mobileMenuOpen" class="sm:hidden" x-transition>
                     <div class="space-y-1 pb-3 pt-2">
-                            <a href="/dashboard" class="block border-l-4 px-3 py-2 text-base font-medium {% if ActivePage == 'dashboard' %}bg-gray-100 border-gotrs-500 text-gray-900 dark:bg-gray-900 dark:text-white{% else %}border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white{% endif %}">
+                            <a href="{{ dashboardHref }}" class="block border-l-4 px-3 py-2 text-base font-medium {% if ActivePage == 'dashboard' %}bg-gray-100 border-gotrs-500 text-gray-900 dark:bg-gray-900 dark:text-white{% else %}border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white{% endif %}">
                                 {{ navDashboard }}
                             </a>
-                            <a href="/tickets" class="block border-l-4 px-3 py-2 text-base font-medium {% if ActivePage == 'tickets' %}bg-gray-100 border-gotrs-500 text-gray-900 dark:bg-gray-900 dark:text-white{% else %}border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white{% endif %}">
+                            <a href="{{ ticketsHref }}" class="block border-l-4 px-3 py-2 text-base font-medium {% if ActivePage == 'tickets' %}bg-gray-100 border-gotrs-500 text-gray-900 dark:bg-gray-900 dark:text-white{% else %}border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white{% endif %}">
                                 {{ navTickets }}
                             </a>
-                            <a href="/queues" class="block border-l-4 px-3 py-2 text-base font-medium {% if ActivePage == 'queues' %}bg-gray-100 border-gotrs-500 text-gray-900 dark:bg-gray-900 dark:text-white{% else %}border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white{% endif %}">
+                            {% if not isCustomer %}
+                            <a href="{{ queuesHref }}" class="block border-l-4 px-3 py-2 text-base font-medium {% if ActivePage == 'queues' %}bg-gray-100 border-gotrs-500 text-gray-900 dark:bg-gray-900 dark:text-white{% else %}border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white{% endif %}">
                                 {{ navQueues }}
                             </a>
-                        {% if User and (User.Role == "Admin" or User.IsInAdminGroup or IsInAdminGroup) %}
+                            {% endif %}
+                        {% if not isCustomer and (User and (User.Role == "Admin" or User.IsInAdminGroup or IsInAdminGroup)) %}
                         <a href="/admin" class="block border-l-4 px-3 py-2 text-base font-medium {% if ActivePage == 'admin' %}bg-gray-100 border-gotrs-500 text-gray-900 dark:bg-gray-900 dark:text-white{% else %}border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white{% endif %}">
                                     {{ navAdmin }}
                         </a>
                         {% endif %}
-                        {% if IsInAdminGroup or (User and (User.IsInAdminGroup or User.Role == "Admin")) %}
+                        {% if not isCustomer and (IsInAdminGroup or (User and (User.IsInAdminGroup or User.Role == "Admin"))) %}
                         <a href="/dev" class="block border-l-4 px-3 py-2 text-base font-medium {% if ActivePage == 'dev' %}bg-gray-100 border-gotrs-500 text-gray-900 dark:bg-gray-900 dark:text-white{% else %}border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white{% endif %}">
                                     {{ navDev }}
                         </a>
@@ -219,9 +245,9 @@
                             </div>
                         </div>
                         <div class="mt-3 space-y-1">
-                            <a href="/profile" class="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white">{{ t("navigation.profile") }}</a>
-                            <a href="/settings" class="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white">{{ t("navigation.settings") }}</a>
-                            <a href="/logout" class="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white">{{ t("auth.logout") }}</a>
+                            <a href="{{ profileHref }}" class="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white">{{ t("navigation.profile") }}</a>
+                            <a href="{{ settingsHref }}" class="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white">{{ t("navigation.settings") }}</a>
+                            <a href="{{ logoutHref }}" class="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white">{{ t("auth.logout") }}</a>
                         </div>
                     </div>
                     {% endif %}
@@ -233,6 +259,12 @@
         <main id="main-content" role="main">
             {% block content %}{% endblock %}
         </main>
+
+        {% if Portal and Portal.FooterText %}
+        <footer class="mt-10 border-t border-gray-200 dark:border-gray-700 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+            {{ Portal.FooterText }}
+        </footer>
+        {% endif %}
     </div>
 
     <!-- Toast container for notifications -->

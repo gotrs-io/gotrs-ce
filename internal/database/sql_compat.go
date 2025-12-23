@@ -16,7 +16,7 @@ func GetDBDriver() string {
 		driver = os.Getenv("DB_DRIVER")
 	}
 	if driver == "" {
-		driver = "postgres"
+		driver = "mysql"
 	}
 	return strings.ToLower(driver)
 }

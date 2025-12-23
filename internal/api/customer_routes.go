@@ -3,12 +3,15 @@ package api
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/sysconfig"
 	"github.com/gotrs-io/gotrs-ce/internal/utils"
 )
 
@@ -45,19 +48,67 @@ func RegisterCustomerRoutes(r *gin.RouterGroup, db *sql.DB) {
 	// r.GET("/company/users", handleCustomerCompanyUsers(db))
 }
 
+func customerPortalConfigFromContext(c *gin.Context, db *sql.DB) sysconfig.CustomerPortalConfig {
+	if cfg, ok := c.Get("customer_portal_config"); ok {
+		if typed, ok := cfg.(sysconfig.CustomerPortalConfig); ok {
+			return typed
+		}
+	}
+	if cfg, err := sysconfig.LoadCustomerPortalConfig(db); err == nil {
+		return cfg
+	}
+	return sysconfig.DefaultCustomerPortalConfig()
+}
+
+// requireCustomerAuth checks if the customer is authenticated and redirects to login if not.
+// Returns true if authenticated, false if redirected (caller should return early).
+func requireCustomerAuth(c *gin.Context) bool {
+	username := c.GetString("username")
+	role, _ := c.Get("user_role")
+	if username == "" || role != "Customer" {
+		accept := c.GetHeader("Accept")
+		if accept == "" || strings.Contains(accept, "text/html") || strings.Contains(accept, "*/*") {
+			c.Redirect(http.StatusFound, "/customer/login")
+			c.Abort()
+		} else {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+			c.Abort()
+		}
+		return false
+	}
+	return true
+}
+
+func withPortalContext(ctx pongo2.Context, cfg sysconfig.CustomerPortalConfig) pongo2.Context {
+	if ctx == nil {
+		ctx = pongo2.Context{}
+	}
+	ctx["Portal"] = cfg
+	ctx["PortalConfig"] = cfg
+	if title, ok := ctx["Title"].(string); !ok || strings.TrimSpace(title) == "" {
+		ctx["Title"] = cfg.Title
+	}
+	return ctx
+}
+
 // handleCustomerDashboard shows the customer's main dashboard
 func handleCustomerDashboard(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !requireCustomerAuth(c) {
+			return
+		}
 		userID := c.GetInt("userID")
 		username := c.GetString("username")
+		cfg := customerPortalConfigFromContext(c, db)
 
 		// Get customer's statistics
 		stats := struct {
-			OpenTickets     int
-			ClosedTickets   int
-			TotalTickets    int
-			LastTicketDate  *time.Time
-			AvgResponseTime string
+			OpenTickets      int
+			ClosedTickets    int
+			TotalTickets     int
+			LastTicketDate   time.Time
+			HasLastTicket    bool
+			AvgResponseTime  string
 		}{}
 
 		// Count open tickets for this customer
@@ -78,16 +129,19 @@ func handleCustomerDashboard(db *sql.DB) gin.HandlerFunc {
 
 		// Get last ticket date
 		var lastDate sql.NullTime
-		db.QueryRow(database.ConvertPlaceholders(`
+		err := db.QueryRow(database.ConvertPlaceholders(`
 			SELECT MAX(create_time) FROM ticket 
 			WHERE customer_user_id = $1
 		`), username).Scan(&lastDate)
 		if lastDate.Valid {
-			stats.LastTicketDate = &lastDate.Time
+			stats.LastTicketDate = lastDate.Time
+			stats.HasLastTicket = true
 		}
 
 		// Get recent tickets
-		rows, _ := db.Query(database.ConvertPlaceholders(`
+		// Note: For MySQL compatibility, placeholder order must match order of appearance in query
+		// $1 = userID (for unread_count subquery), $2 = username (for WHERE clause)
+		rows, err := db.Query(database.ConvertPlaceholders(`
 			SELECT t.id, t.tn, t.title, 
 				   ts.name as state,
 				   tp.name as priority,
@@ -102,14 +156,17 @@ func handleCustomerDashboard(db *sql.DB) gin.HandlerFunc {
 				   t.create_time,
 				   t.change_time,
 				   (SELECT COUNT(*) FROM article WHERE ticket_id = t.id) as article_count,
-				   (SELECT COUNT(*) FROM article WHERE ticket_id = t.id AND create_by != $2) as unread_count
+				   (SELECT COUNT(*) FROM article WHERE ticket_id = t.id AND create_by != $1) as unread_count
 			FROM ticket t
 			LEFT JOIN ticket_state ts ON t.ticket_state_id = ts.id
 			LEFT JOIN ticket_priority tp ON t.ticket_priority_id = tp.id
-			WHERE t.customer_user_id = $1
+			WHERE t.customer_user_id = $2
 			ORDER BY t.create_time DESC
 			LIMIT 10
-		`), username, userID)
+		`), userID, username)
+		if err != nil {
+			log.Printf("handleCustomerDashboard: query error: %v", err)
+		}
 		defer rows.Close()
 
 		recentTickets := []map[string]interface{}{}
@@ -126,9 +183,11 @@ func handleCustomerDashboard(db *sql.DB) gin.HandlerFunc {
 				ArticleCount  int
 				UnreadCount   int
 			}
-			rows.Scan(&ticket.ID, &ticket.TN, &ticket.Title, &ticket.State,
+			if err := rows.Scan(&ticket.ID, &ticket.TN, &ticket.Title, &ticket.State,
 				&ticket.Priority, &ticket.PriorityColor, &ticket.CreateTime,
-				&ticket.ChangeTime, &ticket.ArticleCount, &ticket.UnreadCount)
+				&ticket.ChangeTime, &ticket.ArticleCount, &ticket.UnreadCount); err != nil {
+				continue
+			}
 
 			recentTickets = append(recentTickets, map[string]interface{}{
 				"id":             ticket.ID,
@@ -165,22 +224,26 @@ func handleCustomerDashboard(db *sql.DB) gin.HandlerFunc {
 		announcements := []map[string]interface{}{}
 		// TODO: Add announcements table/feature
 
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/customer/dashboard.pongo2", pongo2.Context{
-			"Title":         "Customer Portal",
+		pongo2Renderer.HTML(c, http.StatusOK, "pages/customer/dashboard.pongo2", withPortalContext(pongo2.Context{
+			"Title":         cfg.Title,
 			"ActivePage":    "customer",
 			"Stats":         stats,
 			"RecentTickets": recentTickets,
 			"CustomerInfo":  customerInfo,
 			"Announcements": announcements,
-		})
+		}, cfg))
 	}
 }
 
 // handleCustomerTickets shows the customer's ticket list
 func handleCustomerTickets(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !requireCustomerAuth(c) {
+			return
+		}
 		username := c.GetString("username")
 		userID := c.GetInt("userID")
+		cfg := customerPortalConfigFromContext(c, db)
 
 		// Get filter parameters
 		status := c.DefaultQuery("status", "all")
@@ -234,8 +297,10 @@ func handleCustomerTickets(db *sql.DB) gin.HandlerFunc {
 		sortOrder := c.DefaultQuery("order", "desc")
 		query += fmt.Sprintf(" ORDER BY t.%s %s", sanitizeSortColumn(sortBy), sortOrder)
 
-		// Execute query
-		rows, err := db.Query(query, args...)
+		// Execute query with driver-specific placeholders
+		execQuery := database.ConvertPlaceholders(query)
+		execArgs := database.RemapArgsForMySQL(query, args)
+		rows, err := db.Query(execQuery, execArgs...)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -284,8 +349,8 @@ func handleCustomerTickets(db *sql.DB) gin.HandlerFunc {
 			})
 		}
 
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/customer/tickets.pongo2", pongo2.Context{
-			"Title":      "My Tickets",
+		pongo2Renderer.HTML(c, http.StatusOK, "pages/customer/tickets.pongo2", withPortalContext(pongo2.Context{
+			"Title":      fmt.Sprintf("%s - My Tickets", cfg.Title),
 			"ActivePage": "customer",
 			"Tickets":    tickets,
 			"CurrentFilters": map[string]string{
@@ -294,13 +359,14 @@ func handleCustomerTickets(db *sql.DB) gin.HandlerFunc {
 				"sort":   sortBy,
 				"order":  sortOrder,
 			},
-		})
+		}, cfg))
 	}
 }
 
 // handleCustomerNewTicket shows the new ticket form
 func handleCustomerNewTicket(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		cfg := customerPortalConfigFromContext(c, db)
 		// Get available services for customer
 		rows, _ := db.Query(database.ConvertPlaceholders(`
 			SELECT id, name FROM service 
@@ -343,20 +409,25 @@ func handleCustomerNewTicket(db *sql.DB) gin.HandlerFunc {
 			})
 		}
 
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/customer/new_ticket.pongo2", pongo2.Context{
-			"Title":      "Create New Ticket",
+		pongo2Renderer.HTML(c, http.StatusOK, "pages/customer/new_ticket.pongo2", withPortalContext(pongo2.Context{
+			"Title":      fmt.Sprintf("%s - Create New Ticket", cfg.Title),
 			"ActivePage": "customer",
 			"Services":   services,
 			"Priorities": priorities,
-		})
+		}, cfg))
 	}
 }
 
 // handleCustomerCreateTicket creates a new ticket
 func handleCustomerCreateTicket(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !requireCustomerAuth(c) {
+			return
+		}
 		username := c.GetString("username")
-		userID := c.GetInt("userID")
+		// For create_by/change_by we need a valid users.id; customer_user.id is not in users table
+		// Use system user (id=1) for customer-created tickets
+		systemUserID := 1
 
 		// Get form data
 		title := c.PostForm("title")
@@ -390,24 +461,47 @@ func handleCustomerCreateTicket(db *sql.DB) gin.HandlerFunc {
 		}
 
 		// Create ticket
-		var ticketID int
+		var ticketID int64
 		typeColumn := database.TicketTypeColumn()
-		err := db.QueryRow(database.ConvertPlaceholders(fmt.Sprintf(`
+
+		// Handle empty serviceID
+		var serviceIDVal interface{}
+		if serviceID == "" {
+			serviceIDVal = nil
+		} else {
+			serviceIDVal = serviceID
+		}
+
+		result, err := db.Exec(database.ConvertPlaceholders(fmt.Sprintf(`
 			INSERT INTO ticket (
 				tn, title, queue_id, %s, service_id,
-				ticket_state_id, ticket_priority_id,
+				ticket_state_id, ticket_priority_id, ticket_lock_id,
+				user_id, responsible_user_id,
 				customer_id, customer_user_id,
+				timeout, until_time,
+				escalation_time, escalation_update_time, escalation_response_time, escalation_solution_time,
 				create_time, create_by, change_time, change_by
 			) VALUES (
-				$1, $2, 1, 1, NULLIF($3, '')::integer,
-				1, $4,
+				$1, $2, 1, 1, $3,
+				1, $4, 1,
 				$5, $6,
-				NOW(), $7, NOW(), $7
-			) RETURNING id
-		`, typeColumn)), tn, title, serviceID, priorityID, customerID, username, userID).Scan(&ticketID)
+				$7, $8,
+				0, 0,
+				0, 0, 0, 0,
+				NOW(), $9, NOW(), $10
+			)
+		`, typeColumn)), tn, title, serviceIDVal, priorityID, systemUserID, systemUserID, customerID, username, systemUserID, systemUserID)
 
 		if err != nil {
+			log.Printf("Customer create ticket error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create ticket"})
+			return
+		}
+
+		ticketID, err = result.LastInsertId()
+		if err != nil {
+			log.Printf("Customer create ticket error (get ID): %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get ticket ID"})
 			return
 		}
 
@@ -433,30 +527,38 @@ func handleCustomerCreateTicket(db *sql.DB) gin.HandlerFunc {
 		}
 		defer tx.Rollback()
 
-		// Create first article
+		// Create first article (OTRS schema: subject/body are in article_data_mime)
 		var articleID int64
-		err = tx.QueryRow(database.ConvertPlaceholders(`
+		articleResult, err := tx.Exec(database.ConvertPlaceholders(`
 			INSERT INTO article (
 				ticket_id, article_sender_type_id, communication_channel_id,
-				is_visible_for_customer, subject,
+				is_visible_for_customer, search_index_needs_rebuild,
 				create_time, create_by, change_time, change_by
 			) VALUES (
 				$1, 3, 1,
-				1, $2,
-				NOW(), $3, NOW(), $3
-			) RETURNING id
-		`), ticketID, title, userID).Scan(&articleID)
+				1, 1,
+				NOW(), $2, NOW(), $3
+			)
+		`), ticketID, systemUserID, systemUserID)
 
 		if err != nil {
+			log.Printf("Customer create article error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create article"})
+			return
+		}
+
+		articleID, err = articleResult.LastInsertId()
+		if err != nil {
+			log.Printf("Customer create article error (get ID): %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get article ID"})
 			return
 		}
 
 		// Insert article data in mime table
 		_, err = tx.Exec(database.ConvertPlaceholders(`
 			INSERT INTO article_data_mime (article_id, a_from, a_subject, a_body, a_content_type, incoming_time, create_time, create_by, change_time, change_by)
-			VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7, CURRENT_TIMESTAMP, $7)
-		`), articleID, username, title, message, contentType, time.Now().Unix(), userID)
+			VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7, CURRENT_TIMESTAMP, $8)
+		`), articleID, username, title, message, contentType, time.Now().Unix(), systemUserID, systemUserID)
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create article data"})
@@ -470,15 +572,19 @@ func handleCustomerCreateTicket(db *sql.DB) gin.HandlerFunc {
 		}
 
 		// Redirect to ticket view
-		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/customer/ticket/%d", ticketID))
+		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/customer/tickets/%d", ticketID))
 	}
 }
 
 // handleCustomerTicketView displays a specific ticket with all its articles
 func handleCustomerTicketView(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !requireCustomerAuth(c) {
+			return
+		}
 		ticketID := c.Param("id")
 		username := c.GetString("username")
+		cfg := customerPortalConfigFromContext(c, db)
 
 		// Get ticket details - ensure customer owns this ticket
 		var ticket struct {
@@ -544,13 +650,12 @@ func handleCustomerTicketView(db *sql.DB) gin.HandlerFunc {
 			SELECT a.id, adm.a_subject, adm.a_body,
 			       ast.name as sender_type,
 			       u.login as author,
-			       cu.login as customer_author,
+			       adm.a_from as customer_from,
 			       a.create_time
 			FROM article a
 			LEFT JOIN article_data_mime adm ON a.id = adm.article_id
 			LEFT JOIN article_sender_type ast ON a.article_sender_type_id = ast.id
 			LEFT JOIN users u ON a.create_by = u.id
-			LEFT JOIN customer_user cu ON a.create_by = cu.id AND ast.id = 3
 			WHERE a.ticket_id = $1 
 			  AND a.is_visible_for_customer = 1
 			ORDER BY a.create_time ASC
@@ -560,33 +665,35 @@ func handleCustomerTicketView(db *sql.DB) gin.HandlerFunc {
 		articles := []map[string]interface{}{}
 		for rows.Next() {
 			var article struct {
-				ID             int
-				Subject        string
-				Body           string
-				SenderType     string
-				Author         sql.NullString
-				CustomerAuthor sql.NullString
-				CreateTime     time.Time
+				ID           int
+				Subject      sql.NullString
+				Body         sql.NullString
+				SenderType   string
+				Author       sql.NullString
+				CustomerFrom sql.NullString
+				CreateTime   time.Time
 			}
 
 			rows.Scan(&article.ID, &article.Subject, &article.Body,
-				&article.SenderType, &article.Author, &article.CustomerAuthor,
+				&article.SenderType, &article.Author, &article.CustomerFrom,
 				&article.CreateTime)
 
 			// Determine display author
 			author := "System"
 			isCustomer := false
-			if article.SenderType == "customer" && article.CustomerAuthor.Valid {
-				author = article.CustomerAuthor.String
+			if article.SenderType == "customer" {
 				isCustomer = true
+				if article.CustomerFrom.Valid && article.CustomerFrom.String != "" {
+					author = article.CustomerFrom.String
+				}
 			} else if article.Author.Valid {
 				author = article.Author.String
 			}
 
 			articles = append(articles, map[string]interface{}{
 				"id":          article.ID,
-				"subject":     article.Subject,
-				"body":        article.Body,
+				"subject":     article.Subject.String,
+				"body":        article.Body.String,
 				"author":      author,
 				"is_customer": isCustomer,
 				"created":     formatAge(article.CreateTime),
@@ -597,8 +704,8 @@ func handleCustomerTicketView(db *sql.DB) gin.HandlerFunc {
 		// Check if ticket can be closed by customer
 		canClose := ticket.StateID != 3 // Not already closed
 
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/customer/ticket_view.pongo2", pongo2.Context{
-			"Title":      fmt.Sprintf("Ticket #%s", ticket.TN),
+		pongo2Renderer.HTML(c, http.StatusOK, "pages/customer/ticket_view.pongo2", withPortalContext(pongo2.Context{
+			"Title":      fmt.Sprintf("%s - Ticket #%s", cfg.Title, ticket.TN),
 			"ActivePage": "customer",
 			"Ticket": map[string]interface{}{
 				"id":             ticket.ID,
@@ -619,15 +726,19 @@ func handleCustomerTicketView(db *sql.DB) gin.HandlerFunc {
 				"can_close":      canClose,
 			},
 			"Articles": articles,
-		})
+		}, cfg))
 	}
 }
 
 func handleCustomerTicketReply(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !requireCustomerAuth(c) {
+			return
+		}
 		ticketID := c.Param("id")
 		username := c.GetString("username")
-		userID := c.GetInt("userID")
+		// For create_by/change_by we need a valid users.id
+		systemUserID := 1
 
 		// Verify customer owns this ticket
 		var exists bool
@@ -650,25 +761,52 @@ func handleCustomerTicketReply(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Get ticket title for article subject
-		var ticketTitle string
+		// Get ticket title and customer email for article
+		var ticketTitle, customerEmail string
 		db.QueryRow(database.ConvertPlaceholders("SELECT title FROM ticket WHERE id = $1"), ticketID).Scan(&ticketTitle)
+		db.QueryRow(database.ConvertPlaceholders("SELECT email FROM customer_user WHERE login = $1"), username).Scan(&customerEmail)
 
-		// Create article
-		_, err = db.Exec(database.ConvertPlaceholders(`
+		// Create article (OTRS schema: article + article_data_mime)
+		// article_sender_type_id: 3 = customer
+		// communication_channel_id: 1 = email (Internal is typically 5, but we use 1 for customer web replies)
+		result, err := db.Exec(database.ConvertPlaceholders(`
 			INSERT INTO article (
 				ticket_id, article_sender_type_id, communication_channel_id,
-				is_visible_for_customer, subject, body,
+				is_visible_for_customer, search_index_needs_rebuild,
 				create_time, create_by, change_time, change_by
 			) VALUES (
 				$1, 3, 1,
-				1, $2, $3,
-				NOW(), $4, NOW(), $4
+				1, 1,
+				NOW(), $2, NOW(), $3
 			)
-		`), ticketID, "Re: "+ticketTitle, message, userID)
+		`), ticketID, systemUserID, systemUserID)
 
 		if err != nil {
+			log.Printf("Customer reply error (article insert): %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add reply"})
+			return
+		}
+
+		articleID, err := result.LastInsertId()
+		if err != nil {
+			log.Printf("Customer reply error (get article ID): %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get article ID"})
+			return
+		}
+
+		// Insert article_data_mime with subject and body
+		_, err = db.Exec(database.ConvertPlaceholders(`
+			INSERT INTO article_data_mime (
+				article_id, a_from, a_subject, a_body, a_content_type,
+				incoming_time, create_time, create_by, change_time, change_by
+			) VALUES (
+				$1, $2, $3, $4, 'text/plain; charset=utf-8',
+				UNIX_TIMESTAMP(), NOW(), $5, NOW(), $6
+			)
+		`), articleID, customerEmail, "Re: "+ticketTitle, message, systemUserID, systemUserID)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add reply content"})
 			return
 		}
 
@@ -677,7 +815,7 @@ func handleCustomerTicketReply(db *sql.DB) gin.HandlerFunc {
 			UPDATE ticket 
 			SET ticket_state_id = 4, change_time = NOW(), change_by = $2
 			WHERE id = $1 AND ticket_state_id IN (6, 7)
-		`), ticketID, userID)
+		`), ticketID, systemUserID)
 
 		// Redirect back to ticket view
 		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/customer/tickets/%s", ticketID))
@@ -686,9 +824,13 @@ func handleCustomerTicketReply(db *sql.DB) gin.HandlerFunc {
 
 func handleCustomerCloseTicket(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !requireCustomerAuth(c) {
+			return
+		}
 		ticketID := c.Param("id")
 		username := c.GetString("username")
-		userID := c.GetInt("userID")
+		// For create_by/change_by we need a valid users.id
+		systemUserID := 1
 
 		// Verify customer owns this ticket and it's not already closed
 		var stateID int
@@ -711,30 +853,46 @@ func handleCustomerCloseTicket(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Close the ticket
+		// Close the ticket (args must match SQL text order: change_by first, then id)
 		_, err = db.Exec(database.ConvertPlaceholders(`
 			UPDATE ticket 
-			SET ticket_state_id = 2, change_time = NOW(), change_by = $2
-			WHERE id = $1
-		`), ticketID, userID)
+			SET ticket_state_id = 2, change_time = NOW(), change_by = $1
+			WHERE id = $2
+		`), systemUserID, ticketID)
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to close ticket"})
+			log.Printf("Failed to close ticket %s: %v", ticketID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to close ticket: " + err.Error()})
 			return
 		}
 
-		// Add a note about closure
-		db.Exec(database.ConvertPlaceholders(`
+		// Add a note about closure - insert into article table first
+		result, err := db.Exec(database.ConvertPlaceholders(`
 			INSERT INTO article (
 				ticket_id, article_sender_type_id, communication_channel_id,
-				is_visible_for_customer, subject, body,
+				is_visible_for_customer,
 				create_time, create_by, change_time, change_by
 			) VALUES (
 				$1, 3, 1,
-				1, 'Ticket closed by customer', 'Customer closed this ticket.',
-				NOW(), $2, NOW(), $2
+				1,
+				NOW(), $2, NOW(), $3
 			)
-		`), ticketID, userID)
+		`), ticketID, systemUserID, systemUserID)
+
+		if err == nil {
+			if articleID, err := result.LastInsertId(); err == nil {
+				// Insert article content into article_data_mime (incoming_time is required)
+				db.Exec(database.ConvertPlaceholders(`
+					INSERT INTO article_data_mime (
+						article_id, a_from, a_to, a_subject, a_body, a_content_type,
+						incoming_time, create_time, create_by, change_time, change_by
+					) VALUES (
+						$1, 'Customer', '', 'Ticket closed by customer', 'Customer closed this ticket.', 'text/plain',
+						UNIX_TIMESTAMP(), NOW(), $2, NOW(), $3
+					)
+				`), articleID, systemUserID, systemUserID)
+			}
+		}
 
 		// Redirect to tickets list
 		c.Redirect(http.StatusSeeOther, "/customer/tickets")

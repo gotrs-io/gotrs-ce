@@ -76,6 +76,21 @@ func GetConfig() *TestConfig {
 	}
 	log.Printf("[e2e-config] Resolved BaseURL=%s (RAW_BASE_URL=%s)", baseURL, os.Getenv("RAW_BASE_URL"))
 
+	adminEmail := firstNonEmpty(
+		os.Getenv("DEMO_ADMIN_EMAIL"),
+		os.Getenv("ADMIN_USER"),
+		os.Getenv("TEST_USERNAME"),
+		"root@localhost",
+	)
+	adminPassword := firstNonEmpty(
+		os.Getenv("DEMO_ADMIN_PASSWORD"),
+		os.Getenv("ADMIN_PASSWORD"),
+		os.Getenv("TEST_PASSWORD"),
+		os.Getenv("TEST_MYSQL_ADMIN_PASSWORD"),
+		os.Getenv("TEST_PG_ADMIN_PASSWORD"),
+		"admin123",
+	)
+
 	headless := os.Getenv("HEADLESS") != "false"
 	slowMo := 0
 	if os.Getenv("SLOW_MO") != "" {
@@ -90,9 +105,18 @@ func GetConfig() *TestConfig {
 		SlowMo:        slowMo,
 		Screenshots:   os.Getenv("SCREENSHOTS") != "false",
 		Videos:        os.Getenv("VIDEOS") == "true",
-		AdminEmail:    os.Getenv("DEMO_ADMIN_EMAIL"),
-		AdminPassword: os.Getenv("DEMO_ADMIN_PASSWORD"),
+		AdminEmail:    adminEmail,
+		AdminPassword: adminPassword,
 	}
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // detectReachableBaseURL attempts to find a responsive backend if the provided baseURL is not reachable.
@@ -116,7 +140,10 @@ func detectReachableBaseURLVerbose(initial string) string {
 			port = "8080"
 		}
 		// If host contains underscores (compose service) also try localhost / 127.0.0.1 with same port first.
-		basePorts := []string{port, "8080", "18080", "8081"}
+		basePorts := []string{port, "8082", "8080", "18080", "8081"}
+		if testPort := os.Getenv("TEST_BACKEND_PORT"); testPort != "" {
+			basePorts = append([]string{testPort}, basePorts...)
+		}
 		// Preserve order but de-dupe later.
 		if host != "localhost" && host != "127.0.0.1" {
 			for _, p := range basePorts {
@@ -132,6 +159,9 @@ func detectReachableBaseURLVerbose(initial string) string {
 				candidates = append(candidates, "http://backend:"+p)
 			}
 		}
+	}
+	if tb := os.Getenv("TEST_BACKEND_BASE_URL"); tb != "" {
+		candidates = append([]string{tb}, candidates...)
 	}
 	// Always ensure plain localhost:8080 present.
 	candidates = append(candidates, "http://localhost:8080")

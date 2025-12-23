@@ -273,6 +273,9 @@ func registerExistingMiddleware(registry *HandlerRegistry, jwtManager interface{
 			middleware.SessionMiddleware(jwtManager)(c)
 		},
 
+		// Customer portal gate (loads config, can allow anonymous if login not required)
+		"customer-portal": middleware.CustomerPortalGate(shared.GetJWTManager()),
+
 		// Admin authorization middleware
 		"admin": func(c *gin.Context) {
 			role, exists := c.Get("user_role")

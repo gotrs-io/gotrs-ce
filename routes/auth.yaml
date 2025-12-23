@@ -37,6 +37,7 @@ spec:
       handler: handleLogoutRedirect
       description: "GET logout route that redirects to login"
 
+
     # Token refresh stub (returns 200 with not implemented message)
     - path: /api/auth/refresh
       method: POST
@@ -49,8 +50,32 @@ spec:
       handler: handleAuthRegister
       description: "Placeholder for user registration"
 
-    # Demo customer login for testing
+    # Customer login page
     - path: /auth/customer
       method: GET
-      handler: handleDemoCustomerLogin
-      description: "Demo customer login for testing customer functionality"
+      handler: handleCustomerLoginPage
+      template: pages/customer/login.pongo2
+      description: "Customer login portal"
+
+    - path: /customer/login
+      method: GET
+      handler: handleCustomerLoginPage
+      template: pages/customer/login.pongo2
+      description: "Alias customer login path"
+
+    - path: /customer/login
+      method: POST
+      handler: handleCustomerLogin
+      description: "Process customer login form (alias)"
+
+    # Customer login submit
+    - path: /api/auth/customer/login
+      method: POST
+      handler: handleCustomerLogin
+      description: "Process customer login form"
+
+    # Customer logout (no auth middleware - must clear cookies before middleware runs)
+    - path: /customer/logout
+      method: GET
+      handler: handleCustomerLogout
+      description: "Customer logout route - clears cookies and redirects to customer login"

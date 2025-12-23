@@ -1,6 +1,12 @@
 {% extends "layouts/base.pongo2" %}
 
-{% block title %}Ticket #{{ Ticket.tn }} - GOTRS{% endblock %}
+{% block title %}{{ t("customer.tickets.ticket_number") }}{{ Ticket.tn }} - GOTRS{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="/static/js/tiptap.min.js"></script>
+<script src="/static/js/tiptap-editor.js"></script>
+{% endblock %}
 
 {% block content %}
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -10,7 +16,7 @@
             <ol class="flex items-center space-x-2 text-sm">
                 <li>
                     <a href="/customer/dashboard" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                        Dashboard
+                        {{ t("customer.nav.dashboard") }}
                     </a>
                 </li>
                 <li>
@@ -20,7 +26,7 @@
                 </li>
                 <li>
                     <a href="/customer/tickets" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                        My Tickets
+                        {{ t("customer.nav.my_tickets") }}
                     </a>
                 </li>
                 <li>
@@ -29,7 +35,7 @@
                     </svg>
                 </li>
                 <li class="text-gray-900 dark:text-white font-medium">
-                    Ticket #{{ Ticket.tn }}
+                    {{ t("customer.tickets.ticket_number") }}{{ Ticket.tn }}
                 </li>
             </ol>
         </nav>
@@ -46,7 +52,7 @@
                 </span>
                 {% if Ticket.can_close %}
                 <button onclick="confirmCloseTicket()" class="px-4 py-2 border border-red-300 dark:border-red-600 text-sm font-medium rounded-md text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-900">
-                    Close Ticket
+                    {{ t("customer.tickets.close_ticket") }}
                 </button>
                 {% endif %}
             </div>
@@ -56,57 +62,57 @@
     <!-- Ticket Info -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow mb-6">
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Ticket Information</h2>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t("customer.ticket_view.ticket_info") }}</h2>
         </div>
         <div class="p-6">
             <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-3">
                 <div>
-                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Ticket Number</dt>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ t("customer.ticket_view.ticket_number") }}</dt>
                     <dd class="mt-1 text-sm text-gray-900 dark:text-white font-mono">#{{ Ticket.tn }}</dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Priority</dt>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ t("customer.ticket_view.priority") }}</dt>
                     <dd class="mt-1 text-sm font-medium" {% if Ticket.priority_color %}style="color: {{ Ticket.priority_color }}"{% endif %}>
                         {{ Ticket.priority }}
                     </dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Service</dt>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ t("customer.ticket_view.service") }}</dt>
                     <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ Ticket.service|default:"-" }}</dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Queue</dt>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ t("customer.ticket_view.queue") }}</dt>
                     <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ Ticket.queue }}</dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Created</dt>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ t("customer.ticket_view.created") }}</dt>
                     <dd class="mt-1 text-sm text-gray-900 dark:text-white">
                         {% if Ticket.created_at_iso %}
-                        <span data-relative-time data-mode="since" data-direction="past" data-timestamp="{{ Ticket.created_at_iso }}">{{ Ticket.age }}</span> ago
+                        <span data-relative-time data-mode="since" data-direction="past" data-timestamp="{{ Ticket.created_at_iso }}">{{ Ticket.age }}</span> {{ t("customer.tickets.ago") }}
                         {% else %}
-                        {{ Ticket.age }} ago
+                        {{ Ticket.age }} {{ t("customer.tickets.ago") }}
                         {% endif %}
                     </dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</dt>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ t("customer.ticket_view.last_updated") }}</dt>
                     <dd class="mt-1 text-sm text-gray-900 dark:text-white">
                         {% if Ticket.updated_at_iso %}
-                        <span data-relative-time data-mode="since" data-direction="past" data-timestamp="{{ Ticket.updated_at_iso }}">{{ Ticket.last_changed }}</span> ago
+                        <span data-relative-time data-mode="since" data-direction="past" data-timestamp="{{ Ticket.updated_at_iso }}">{{ Ticket.last_changed }}</span> {{ t("customer.tickets.ago") }}
                         {% else %}
-                        {{ Ticket.last_changed }} ago
+                        {{ Ticket.last_changed }} {{ t("customer.tickets.ago") }}
                         {% endif %}
                     </dd>
                 </div>
                 {% if Ticket.owner %}
                 <div>
-                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Owner</dt>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ t("customer.ticket_view.owner") }}</dt>
                     <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ Ticket.owner }}</dd>
                 </div>
                 {% endif %}
                 {% if Ticket.responsible %}
                 <div>
-                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Assigned To</dt>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ t("customer.ticket_view.assigned_to") }}</dt>
                     <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ Ticket.responsible }}</dd>
                 </div>
                 {% endif %}
@@ -117,7 +123,7 @@
     <!-- Articles/Messages -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow mb-6">
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Conversation</h2>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t("customer.ticket_view.conversation") }}</h2>
         </div>
         <div class="divide-y divide-gray-200 dark:divide-gray-700">
             {% for article in Articles %}
@@ -137,7 +143,7 @@
                                     {{ article.author }}
                                 </span>
                                 <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                                    {% if article.is_customer %}(Customer){% else %}(Agent){% endif %}
+                                    {% if article.is_customer %}({{ t("customer.ticket_view.customer") }}){% else %}({{ t("customer.ticket_view.agent") }}){% endif %}
                                 </span>
                             </div>
                             <span class="text-xs text-gray-500 dark:text-gray-400">
@@ -167,27 +173,23 @@
     {% if Ticket.state_id != 3 %}
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow" id="reply">
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Add Reply</h2>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t("customer.ticket_view.add_reply") }}</h2>
         </div>
         <form method="post" action="/customer/tickets/{{ Ticket.id }}/reply" class="p-6">
             <div class="mb-4">
-                <label for="message" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Your Message <span class="text-red-500">*</span>
+                <label for="replyEditor" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {{ t("customer.ticket_view.your_message") }} <span class="text-red-500">{{ t("customer.common.required") }}</span>
                 </label>
-                <textarea id="message" 
-                          name="message" 
-                          rows="6"
-                          required
-                          placeholder="Type your reply here..."
-                          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500"></textarea>
+                <div id="replyEditor" class="min-h-[200px]"></div>
+                <input type="hidden" name="message" id="replyBody" required>
             </div>
             
             <div class="flex items-center justify-between">
                 <a href="/customer/tickets" class="text-sm text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
-                    ← Back to tickets
+                    ← {{ t("customer.new_ticket.back_to_tickets") }}
                 </a>
                 <button type="submit" class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    Send Reply
+                    {{ t("customer.ticket_view.send_reply") }}
                 </button>
             </div>
         </form>
@@ -198,9 +200,9 @@
         <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
         </svg>
-        <p class="text-gray-600 dark:text-gray-400">This ticket is closed. No further replies can be added.</p>
+        <p class="text-gray-600 dark:text-gray-400">{{ t("customer.ticket_view.ticket_closed") }}</p>
         <a href="/customer/tickets" class="mt-4 inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-            ← Back to tickets
+            ← {{ t("customer.new_ticket.back_to_tickets") }}
         </a>
     </div>
     {% endif %}
@@ -208,7 +210,7 @@
 
 <script>
 function confirmCloseTicket() {
-    if (confirm('Are you sure you want to close this ticket? This action cannot be undone.')) {
+    if (confirm('{{ t("customer.ticket_view.close_confirm") }}')) {
         // Create form and submit
         const form = document.createElement('form');
         form.method = 'POST';
@@ -217,5 +219,34 @@ function confirmCloseTicket() {
         form.submit();
     }
 }
+
+// Initialize Tiptap rich text editor for reply (only if reply form exists)
+document.addEventListener('DOMContentLoaded', function() {
+    const replyEditorContainer = document.getElementById('replyEditor');
+    const replyPlaceholder = '{{ t("customer.ticket_view.reply_placeholder") }}';
+    if (replyEditorContainer && window.TiptapEditor && typeof TiptapEditor.init === 'function') {
+        TiptapEditor.init('replyEditor', {
+            placeholder: replyPlaceholder,
+            onUpdate: function(content) {
+                document.getElementById('replyBody').value = content;
+            }
+        });
+    } else if (replyEditorContainer) {
+        // Fallback: Wait for TiptapEditor to be available
+        const checkTiptap = setInterval(function() {
+            if (window.TiptapEditor && typeof TiptapEditor.init === 'function') {
+                clearInterval(checkTiptap);
+                TiptapEditor.init('replyEditor', {
+                    placeholder: replyPlaceholder,
+                    onUpdate: function(content) {
+                        document.getElementById('replyBody').value = content;
+                    }
+                });
+            }
+        }, 100);
+        // Stop checking after 5 seconds
+        setTimeout(function() { clearInterval(checkTiptap); }, 5000);
+    }
+});
 </script>
 {% endblock %}

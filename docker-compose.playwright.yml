@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   playwright:
     image: mcr.microsoft.com/playwright:v1.55.1-jammy
@@ -9,13 +7,21 @@ services:
       - gotrs-network
     volumes:
       - ./:/workspace
+      - gotrs_node_modules:/workspace/node_modules
+      - gotrs_cache:/workspace/.cache
     working_dir: /workspace
     command: tail -f /dev/null  # Keep container running
     environment:
       - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+      - NPM_CONFIG_CACHE=/workspace/.cache/npm
+      - XDG_CACHE_HOME=/workspace/.cache/xdg
       - NODE_ENV=test
 
 networks:
   gotrs-network:
     external: true
     name: gotrs-ce_gotrs-network
+
+volumes:
+  gotrs_node_modules:
+  gotrs_cache:

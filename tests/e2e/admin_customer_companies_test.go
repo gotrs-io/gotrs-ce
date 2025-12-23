@@ -2,22 +2,19 @@ package e2e
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/gotrs-io/gotrs-ce/tests/e2e/helpers"
+	playwright "github.com/playwright-community/playwright-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // TestAdminCustomerCompaniesE2E tests the complete customer company management workflow
 func TestAdminCustomerCompaniesE2E(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-
 	// Setup browser and navigate to admin
 	browser := helpers.NewBrowserHelper(t)
 	err := browser.Setup()
@@ -28,8 +25,6 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 	auth := helpers.NewAuthHelper(browser)
 	err = auth.LoginAsAdmin()
 	require.NoError(t, err, "Failed to login as admin")
-
-	baseURL := browser.Config.BaseURL
 
 	t.Run("Customer Companies List Page", func(t *testing.T) {
 		// Navigate to customer companies page
@@ -46,17 +41,17 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 
 		// Check for main UI elements
 		heading := browser.Page.Locator("h1, h2")
-		assert.True(t, heading.Count() > 0)
+		assert.Greater(t, mustCount(t, heading), 0)
 
 		addButton := browser.Page.Locator("button:has-text('Add New Company')")
-		assert.True(t, addButton.Count() > 0)
+		assert.Greater(t, mustCount(t, addButton), 0)
 
 		table := browser.Page.Locator("table")
-		assert.True(t, table.Count() > 0)
+		assert.Greater(t, mustCount(t, table), 0)
 
 		// Test search functionality
 		searchInput := browser.Page.Locator("input[placeholder*='Search'], input[name*='search']")
-		if searchInput.Count() > 0 {
+		if mustCount(t, searchInput) > 0 {
 			searchInput.Fill("test")
 			searchInput.Type("company")
 			browser.WaitForLoad()
@@ -64,8 +59,9 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 
 		// Test status filter
 		statusSelect := browser.Page.Locator("select[name='status'], select:has-text('Status')")
-		if statusSelect.Count() > 0 {
-			statusSelect.SelectOption("valid")
+		if mustCount(t, statusSelect) > 0 {
+			_, err := statusSelect.SelectOption(playwright.SelectOptionValues{Values: &[]string{"valid"}})
+			require.NoError(t, err)
 			browser.WaitForLoad()
 		}
 	})
@@ -79,22 +75,22 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 
 		// Verify form elements
 		heading := browser.Page.Locator("h1, h2:has-text('Create New Customer Company')")
-		assert.True(t, heading.Count() > 0)
+		assert.Greater(t, mustCount(t, heading), 0)
 
 		customerIDInput := browser.Page.Locator("input[name='customer_id']")
-		assert.True(t, customerIDInput.Count() > 0)
+		assert.Greater(t, mustCount(t, customerIDInput), 0)
 
 		nameInput := browser.Page.Locator("input[name='name']")
-		assert.True(t, nameInput.Count() > 0)
+		assert.Greater(t, mustCount(t, nameInput), 0)
 
 		streetInput := browser.Page.Locator("input[name='street']")
-		assert.True(t, streetInput.Count() > 0)
+		assert.Greater(t, mustCount(t, streetInput), 0)
 
 		cityInput := browser.Page.Locator("input[name='city']")
-		assert.True(t, cityInput.Count() > 0)
+		assert.Greater(t, mustCount(t, cityInput), 0)
 
 		countryInput := browser.Page.Locator("input[name='country']")
-		assert.True(t, countryInput.Count() > 0)
+		assert.Greater(t, mustCount(t, countryInput), 0)
 
 		// Fill out the form
 		testCustomerID := fmt.Sprintf("TEST_%d", time.Now().Unix())
@@ -107,7 +103,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 
 		// Submit form
 		submitButton := browser.Page.Locator("button[type='submit']")
-		assert.True(t, submitButton.Count() > 0)
+		assert.Greater(t, mustCount(t, submitButton), 0)
 
 		// Click submit and wait for response
 		submitButton.Click()
@@ -115,8 +111,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 
 		// Verify success or validation errors
 		// Should either redirect to list or show success message
-		currentURL, err := browser.Page.URL()
-		require.NoError(t, err)
+		currentURL := browser.Page.URL()
 		assert.Contains(t, currentURL, "/admin/customer/companies")
 	})
 
@@ -129,17 +124,17 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 
 		// Verify form is populated
 		heading := browser.Page.Locator("h1, h2:has-text('Edit Customer Company')")
-		assert.True(t, heading.Count() > 0)
+		assert.Greater(t, mustCount(t, heading), 0)
 
 		customerIDField := browser.Page.Locator("input[name='customer_id']")
-		if customerIDField.Count() > 0 {
+		if mustCount(t, customerIDField) > 0 {
 			value, err := customerIDField.InputValue()
 			require.NoError(t, err)
 			assert.NotEmpty(t, value)
 		}
 
 		nameField := browser.Page.Locator("input[name='name']")
-		if nameField.Count() > 0 {
+		if mustCount(t, nameField) > 0 {
 			originalName, err := nameField.InputValue()
 			require.NoError(t, err)
 			assert.NotEmpty(t, originalName)
@@ -150,7 +145,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 
 			// Submit form
 			submitButton := browser.Page.Locator("button[type='submit']")
-			if submitButton.Count() > 0 {
+			if mustCount(t, submitButton) > 0 {
 				submitButton.Click()
 				browser.WaitForLoad()
 			}
@@ -204,7 +199,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 
 		// Look for portal settings tab
 		portalTab := browser.Page.Locator("text=Portal Settings")
-		if portalTab.Count() > 0 {
+		if mustCount(t, portalTab) > 0 {
 			portalTab.Click()
 			browser.WaitForLoad()
 
@@ -213,9 +208,9 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 			theme := browser.Page.Locator("select[name='theme']")
 			customCSS := browser.Page.Locator("textarea[name='custom_css']")
 
-			assert.True(t, loginHint.Count() > 0 || theme.Count() > 0)
-			assert.True(t, theme.Count() > 0)
-			assert.True(t, customCSS.Count() > 0)
+			assert.True(t, mustCount(t, loginHint) > 0 || mustCount(t, theme) > 0)
+			assert.Greater(t, mustCount(t, theme), 0)
+			assert.Greater(t, mustCount(t, customCSS), 0)
 		}
 	})
 
@@ -228,7 +223,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 
 		// Look for services tab
 		servicesTab := browser.Page.Locator("text=Services")
-		if servicesTab.Count() > 0 {
+		if mustCount(t, servicesTab) > 0 {
 			servicesTab.Click()
 			browser.WaitForLoad()
 
@@ -236,7 +231,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 			checkboxes := browser.Page.Locator("input[type='checkbox']")
 			multiSelect := browser.Page.Locator("select[multiple]")
 
-			assert.True(t, checkboxes.Count() > 0 || multiSelect.Count() > 0)
+			assert.True(t, mustCount(t, checkboxes) > 0 || mustCount(t, multiSelect) > 0)
 		}
 	})
 
@@ -249,7 +244,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 
 		// Look for users button/modal trigger
 		usersButton := browser.Page.Locator("text=Users")
-		if usersButton.Count() > 0 {
+		if mustCount(t, usersButton) > 0 {
 			usersButton.Click()
 			browser.WaitForLoad()
 
@@ -257,7 +252,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 			table := browser.Page.Locator("table")
 			modal := browser.Page.Locator(".modal, [role='dialog']")
 
-			assert.True(t, table.Count() > 0 || modal.Count() > 0)
+			assert.True(t, mustCount(t, table) > 0 || mustCount(t, modal) > 0)
 		}
 	})
 
@@ -270,7 +265,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 
 		// Look for tickets button/modal trigger
 		ticketsButton := browser.Page.Locator("text=Tickets")
-		if ticketsButton.Count() > 0 {
+		if mustCount(t, ticketsButton) > 0 {
 			ticketsButton.Click()
 			browser.WaitForLoad()
 
@@ -278,18 +273,18 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 			table := browser.Page.Locator("table")
 			modal := browser.Page.Locator(".modal, [role='dialog']")
 
-			assert.True(t, table.Count() > 0 || modal.Count() > 0)
+			assert.True(t, mustCount(t, table) > 0 || mustCount(t, modal) > 0)
 		}
 	})
 
 	t.Run("Dark Mode Compatibility", func(t *testing.T) {
 		// Test dark mode toggle
 		darkModeButton := browser.Page.Locator("text=dark, .dark, [data-theme='dark']")
-		if darkModeButton.Count() == 0 {
+		if mustCount(t, darkModeButton) == 0 {
 			darkModeButton = browser.Page.Locator("button:has-text('moon'), [data-toggle='dark']")
 		}
 
-		if darkModeButton.Count() > 0 {
+		if mustCount(t, darkModeButton) > 0 {
 			// Toggle dark mode
 			darkModeButton.Click()
 			time.Sleep(500 * time.Millisecond) // Wait for transition
@@ -301,11 +296,11 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 
 			// Toggle back
 			lightModeButton := browser.Page.Locator("text=light, .light, [data-theme='light']")
-			if lightModeButton.Count() == 0 {
+			if mustCount(t, lightModeButton) == 0 {
 				lightModeButton = browser.Page.Locator("button:has-text('sun'), [data-toggle='light']")
 			}
 
-			if lightModeButton.Count() > 0 {
+			if mustCount(t, lightModeButton) > 0 {
 				lightModeButton.Click()
 				time.Sleep(500 * time.Millisecond)
 
@@ -319,7 +314,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 
 	t.Run("Responsive Design", func(t *testing.T) {
 		// Test mobile view
-		_, err := browser.Page.SetViewportSize(375, 667) // iPhone size
+		err := browser.Page.SetViewportSize(375, 667) // iPhone size
 		require.NoError(t, err)
 		time.Sleep(500 * time.Millisecond)
 
@@ -330,10 +325,10 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 
 		// Verify mobile navigation works
 		nav := browser.Page.Locator("nav, .mobile-menu, .navbar")
-		assert.True(t, nav.Count() > 0)
+		assert.Greater(t, mustCount(t, nav), 0)
 
 		// Test tablet view
-		_, err = browser.Page.SetViewportSize(768, 1024) // iPad size
+		err = browser.Page.SetViewportSize(768, 1024) // iPad size
 		require.NoError(t, err)
 		time.Sleep(500 * time.Millisecond)
 
@@ -343,7 +338,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 		browser.WaitForLoad()
 
 		// Reset to desktop
-		_, err = browser.Page.SetViewportSize(1920, 1080)
+		err = browser.Page.SetViewportSize(1920, 1080)
 		require.NoError(t, err)
 	})
 
@@ -370,8 +365,8 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 		browser.WaitForLoad()
 
 		// Try to submit empty form
-		submitButton := browser.FindByType("submit")
-		if submitButton.Exists() {
+		submitButton := browser.Page.Locator("button[type='submit'], input[type='submit']")
+		if mustCount(t, submitButton) > 0 {
 			submitButton.Click()
 			browser.WaitForLoad()
 
@@ -384,8 +379,8 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 		}
 
 		// Test invalid email format if there's an email field
-		emailField := browser.FindByName("email")
-		if emailField.Exists() {
+		emailField := browser.Page.Locator("input[name='email'], input[type='email']")
+		if mustCount(t, emailField) > 0 {
 			emailField.Fill("invalid-email")
 			submitButton.Click()
 			browser.WaitForLoad()
@@ -438,7 +433,7 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 				require.NoError(t, err)
 
 				// Should have either id or name for accessibility
-				assert.True(t, (id != "" && id != "") || (name != "" && name != ""))
+				assert.True(t, id != "" || name != "")
 			}
 		}
 	})
@@ -446,9 +441,6 @@ func TestAdminCustomerCompaniesE2E(t *testing.T) {
 
 // TestAdminCustomerCompaniesAPIE2E tests the API endpoints directly
 func TestAdminCustomerCompaniesAPIE2E(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
 	client := &http.Client{Timeout: 30 * time.Second}
 	baseURL := "http://localhost:8080"
 
@@ -568,6 +560,13 @@ func TestAdminCustomerCompaniesAPIE2E(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	})
+}
+
+func mustCount(t *testing.T, locator playwright.Locator) int {
+	t.Helper()
+	count, err := locator.Count()
+	require.NoError(t, err)
+	return count
 }
 
 // Helper function to check if string contains substring (case insensitive)

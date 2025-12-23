@@ -1154,17 +1154,17 @@ clean-host-binaries:
 up:
 	$(call check_compose)
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
-		$(COMPOSE_CMD) up $(COMPOSE_UP_FLAGS) --build postgres valkey backend; \
+		$(COMPOSE_CMD) up $(COMPOSE_UP_FLAGS) --build postgres valkey backend customer-fe; \
 	else \
-		$(COMPOSE_CMD) up $(COMPOSE_UP_FLAGS) --build mariadb valkey backend; \
+		$(COMPOSE_CMD) up $(COMPOSE_UP_FLAGS) --build mariadb valkey backend customer-fe; \
 	fi
 	@$(MAKE) clean-host-binaries
 # Start in background (and clean host binaries after build)
 up-d:
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
-		$(COMPOSE_CMD) up -d --build postgres valkey backend runner; \
+		$(COMPOSE_CMD) up -d --build postgres valkey backend customer-fe runner; \
 	else \
-		$(COMPOSE_CMD) up -d --build mariadb valkey backend runner; \
+		$(COMPOSE_CMD) up -d --build mariadb valkey backend customer-fe runner; \
 	fi
 	@$(MAKE) clean-host-binaries
 # Stop all services
@@ -2201,16 +2201,41 @@ test-e2e-playwright-go:
 		-e GOMODCACHE=/workspace/.cache/go-mod \
 		 gotrs-playwright-go:latest bash -lc "go test -v ./tests/e2e/playwright $${ARGS}"
 
+.PHONY: test-e2e-go
+test-e2e-go:
+	@printf "\n🎭 Running Go E2E tests (Playwright) via dedicated container...\n"
+	$(CONTAINER_CMD) build -f Dockerfile.playwright-go -t gotrs-playwright-go:latest . >/dev/null
+	@if [ -n "$(BASE_URL)" ]; then echo "[e2e-go] (explicit) BASE_URL=$(BASE_URL)"; else echo "[e2e-go] (default) BASE_URL=$${BASE_URL:-http://localhost:8080}"; fi
+	@TEST_PATTERN=$${TEST:-CustomerTicket}; echo "[e2e-go] Running pattern: $$TEST_PATTERN";
+	$(CONTAINER_CMD) run --rm \
+		--security-opt label=disable \
+		-u "$$UID:$$GID" \
+		-v "$$PWD:/workspace" \
+		-v gotrs_cache:/workspace/.cache \
+		-w /workspace \
+		--network host \
+		-e BASE_URL=$(BASE_URL) \
+		-e RAW_BASE_URL=$(BASE_URL) \
+		-e DEMO_ADMIN_EMAIL=$(DEMO_ADMIN_EMAIL) \
+		-e DEMO_ADMIN_PASSWORD=$(DEMO_ADMIN_PASSWORD) \
+		-e PLAYWRIGHT_BROWSERS_PATH=/workspace/.cache/ms-playwright \
+		-e XDG_CACHE_HOME=/workspace/.cache/xdg \
+		-e GOCACHE=/workspace/.cache/go-build \
+		-e GOMODCACHE=/workspace/.cache/go-mod \
+		 gotrs-playwright-go:latest bash -lc "go test -v ./tests/e2e -run \"$${TEST:-CustomerTicket}\""
+
 PLAYWRIGHT_RESULTS_DIR ?= /tmp/playwright-results
 PLAYWRIGHT_OUTPUT_DIR ?= /tmp/playwright-artifacts
 PLAYWRIGHT_HTML_REPORT_DIR ?= /tmp/playwright-report
 
 .PHONY: test-acceptance-playwright
 test-acceptance-playwright: css-deps-stable playwright-build
+	@$(MAKE) test-stack-up
 	@printf "Running Playwright acceptance tests...\n"
 	@$(COMPOSE_CMD) -f docker-compose.playwright.yml run --rm \
 		-e HEADLESS=$${HEADLESS:-true} \
-		-e BASE_URL=$${BASE_URL:-http://backend:8080} \
+		-e BASE_URL=http://backend-test:8080 \
+		-e PLAYWRIGHT_FALLBACK_BASE_URL=http://backend-test:8080 \
 		-e PLAYWRIGHT_SKIP_WEBSERVER=1 \
 		-e PWTEST_HTML_REPORT_OPEN=$${PWTEST_HTML_REPORT_OPEN:-never} \
 		-e PLAYWRIGHT_RESULTS_DIR=$(PLAYWRIGHT_RESULTS_DIR) \

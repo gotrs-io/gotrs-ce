@@ -11,9 +11,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/shared"
 )
+
+// wantsHTMLResponse returns true if the request expects HTML response (browser-like)
+func wantsHTMLResponse(c *gin.Context) bool {
+	accept := strings.ToLower(c.GetHeader("Accept"))
+	if accept == "" {
+		return true
+	}
+	return strings.Contains(accept, "text/html") || strings.Contains(accept, "*/*")
+}
 
 // buildUserContext produces a consistent User map and admin flags
 func buildUserContext(c *gin.Context) (gin.H, bool) {
@@ -56,7 +66,7 @@ func RegisterExistingHandlers(registry *HandlerRegistry) {
 
 			// Public (unauthenticated) paths bypass auth
 			path := c.Request.URL.Path
-			if path == "/login" || path == "/api/auth/login" || path == "/health" || path == "/metrics" || path == "/favicon.ico" || strings.HasPrefix(path, "/static/") {
+			if path == "/login" || path == "/api/auth/login" || path == "/api/auth/customer/login" || path == "/health" || path == "/metrics" || path == "/favicon.ico" || strings.HasPrefix(path, "/static/") || path == "/customer/login" || path == "/auth/customer" {
 				c.Next()
 				return
 			}
@@ -82,10 +92,12 @@ func RegisterExistingHandlers(registry *HandlerRegistry) {
 
 			// If no token found, redirect for HTML requests, JSON for APIs
 			if token == "" {
-				accept := strings.ToLower(c.GetHeader("Accept"))
-				if strings.Contains(accept, "text/html") || accept == "" {
-					// Browser navigation -> redirect to login
-					c.Redirect(http.StatusSeeOther, "/login")
+				if wantsHTMLResponse(c) {
+					loginPath := "/login"
+					if strings.HasPrefix(path, "/customer") {
+						loginPath = "/customer/login"
+					}
+					c.Redirect(http.StatusSeeOther, loginPath)
 				} else {
 					c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing authorization token"})
 				}
@@ -100,9 +112,12 @@ func RegisterExistingHandlers(registry *HandlerRegistry) {
 				// Clear invalid cookie
 				c.SetCookie("auth_token", "", -1, "/", "", false, true)
 				c.SetCookie("access_token", "", -1, "/", "", false, true)
-				accept := strings.ToLower(c.GetHeader("Accept"))
-				if strings.Contains(accept, "text/html") || accept == "" {
-					c.Redirect(http.StatusSeeOther, "/login")
+				if wantsHTMLResponse(c) {
+					loginPath := "/login"
+					if strings.HasPrefix(path, "/customer") {
+						loginPath = "/customer/login"
+					}
+					c.Redirect(http.StatusSeeOther, loginPath)
 				} else {
 					c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 				}
@@ -215,6 +230,8 @@ func RegisterExistingHandlers(registry *HandlerRegistry) {
 		"audit": func(c *gin.Context) {
 			c.Next()
 		},
+
+		"customer-portal": middleware.CustomerPortalGate(shared.GetJWTManager()),
 	}
 
 	// Register all middleware

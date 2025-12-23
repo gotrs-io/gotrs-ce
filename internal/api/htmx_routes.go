@@ -37,6 +37,7 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/models"
 	"github.com/gotrs-io/gotrs-ce/internal/notifications"
 	"github.com/gotrs-io/gotrs-ce/internal/repository"
+	"github.com/gotrs-io/gotrs-ce/internal/shared"
 	"github.com/gotrs-io/gotrs-ce/internal/utils"
 
 	"github.com/gotrs-io/gotrs-ce/internal/service"
@@ -1410,9 +1411,10 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 
 	// Authentication endpoints (no auth required)
 	{
-		api.GET("/auth/login", handleHTMXLogin)            // Also support GET for the form
-		api.GET("/auth/customer", handleDemoCustomerLogin) // Demo customer login
+		api.GET("/auth/login", handleHTMXLogin) // Also support GET for the form
+		api.GET("/auth/customer", handleCustomerLoginPage)
 		api.POST("/auth/login", handleLogin(jwtManager))
+		api.POST("/auth/customer/login", handleCustomerLogin(jwtManager))
 		api.POST("/auth/logout", handleHTMXLogout)
 		api.GET("/auth/refresh", handleAuthRefresh)
 		api.POST("/auth/refresh", handleAuthRefresh)
@@ -1478,6 +1480,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 
 	// Customer Portal Routes
 	customerRoutes := protected.Group("/customer")
+	customerRoutes.Use(middleware.RequireRole("Customer"))
 	{
 		// Get database connection for customer routes
 		if os.Getenv("APP_ENV") != "test" {
@@ -1759,12 +1762,49 @@ func handleLoginPage(c *gin.Context) {
 	})
 }
 
+func handleCustomerLoginPage(c *gin.Context) {
+	// If user has a valid token, redirect to tickets
+	if cookie, err := c.Cookie("access_token"); err == nil && cookie != "" {
+		jwtManager := shared.GetJWTManager()
+		if claims, err := jwtManager.ValidateToken(cookie); err == nil && claims.Role == "Customer" {
+			c.Redirect(http.StatusFound, "/customer/tickets")
+			return
+		}
+		// Invalid token - clear it to prevent redirect loops
+		c.SetCookie("access_token", "", -1, "/", "", false, true)
+		c.SetCookie("auth_token", "", -1, "/", "", false, true)
+	}
+
+	errorMsg := c.Query("error")
+
+	pongo2Renderer.HTML(c, http.StatusOK, "pages/customer/login.pongo2", pongo2.Context{
+		"error": errorMsg,
+	})
+}
+
 // handleLogin processes login requests
 func handleLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Get credentials from form
 		username := c.PostForm("username")
 		password := c.PostForm("password")
+
+		// Server-side rate limiting (fail2ban style)
+		clientIP := c.ClientIP()
+		if blocked, remaining := auth.DefaultLoginRateLimiter.IsBlocked(clientIP, username); blocked {
+			if c.GetHeader("HX-Request") == "true" {
+				c.JSON(http.StatusTooManyRequests, gin.H{
+					"success":         false,
+					"error":           fmt.Sprintf("too many failed attempts, try again in %d seconds", int(remaining.Seconds())),
+					"retry_after_sec": int(remaining.Seconds()),
+				})
+			} else {
+				pongo2Renderer.HTML(c, http.StatusTooManyRequests, "pages/login.pongo2", pongo2.Context{
+					"Error": fmt.Sprintf("Too many failed attempts. Please try again in %d seconds.", int(remaining.Seconds())),
+				})
+			}
+			return
+		}
 
 		// Authenticate against database
 		validLogin := false
@@ -1833,6 +1873,7 @@ func handleLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 		}
 
 		if !validLogin {
+			auth.DefaultLoginRateLimiter.RecordFailure(clientIP, username)
 			// For API/HTMX requests, return JSON error
 			if c.GetHeader("HX-Request") == "true" || strings.Contains(c.GetHeader("Accept"), "application/json") || pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
 				c.JSON(http.StatusUnauthorized, gin.H{
@@ -1847,6 +1888,9 @@ func handleLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 			})
 			return
 		}
+
+		// Clear rate limit on successful login
+		auth.DefaultLoginRateLimiter.RecordSuccess(clientIP, username)
 
 		// Create session token
 		var token string
@@ -1969,7 +2013,12 @@ func handleHTMXLogout(c *gin.Context) {
 	// Clear the session cookie
 	c.SetCookie("access_token", "", -1, "/", "", false, true)
 	c.SetCookie("auth_token", "", -1, "/", "", false, true)
-	c.Header("HX-Redirect", "/login")
+	c.SetCookie("token", "", -1, "/", "", false, true)
+	c.SetCookie("access_token", "", -1, "/customer", "", false, true)
+	c.SetCookie("auth_token", "", -1, "/customer", "", false, true)
+	c.SetCookie("token", "", -1, "/customer", "", false, true)
+	target := loginRedirectPath(c)
+	c.Header("HX-Redirect", target)
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
@@ -1990,7 +2039,49 @@ func handleLogout(c *gin.Context) {
 	// Clear the session cookie
 	c.SetCookie("access_token", "", -1, "/", "", false, true)
 	c.SetCookie("auth_token", "", -1, "/", "", false, true)
-	c.Redirect(http.StatusFound, "/login")
+	c.SetCookie("token", "", -1, "/", "", false, true)
+	c.SetCookie("access_token", "", -1, "/customer", "", false, true)
+	c.SetCookie("auth_token", "", -1, "/customer", "", false, true)
+	c.SetCookie("token", "", -1, "/customer", "", false, true)
+	c.Redirect(http.StatusFound, loginRedirectPath(c))
+}
+
+func loginRedirectPath(c *gin.Context) string {
+	path := c.Request.URL.Path
+	if strings.Contains(path, "/customer") {
+		return "/customer/login"
+	}
+
+	if ref := c.Request.Referer(); strings.Contains(ref, "/customer/") || strings.HasSuffix(ref, "/customer") {
+		return "/customer/login"
+	}
+
+	if full := c.FullPath(); full != "" && strings.HasPrefix(full, "/customer") {
+		return "/customer/login"
+	}
+
+	if role, ok := c.Get("user_role"); ok {
+		if strings.EqualFold(fmt.Sprintf("%v", role), "customer") {
+			return "/customer/login"
+		}
+	}
+
+	if isCustomer, ok := c.Get("is_customer"); ok {
+		if val, ok := isCustomer.(bool); ok && val {
+			return "/customer/login"
+		}
+	}
+
+	if strings.HasPrefix(c.Request.URL.Path, "/customer") {
+		return "/customer/login"
+	}
+
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("CUSTOMER_FE_ONLY"))) {
+	case "1", "true":
+		return "/customer/login"
+	}
+
+	return "/login"
 }
 
 // handleDashboard shows the main dashboard

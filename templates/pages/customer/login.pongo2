@@ -1,0 +1,181 @@
+{% extends "layouts/auth.pongo2" %}
+
+{% block title %}{{ t("customer.portal.login_title") }} - GOTRS{% endblock %}
+
+{% block content %}
+<div class="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+    <div class="absolute top-4 right-4">
+        <button type="button" onclick="toggleDarkMode()" 
+                class="rounded-lg p-2.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700"
+                title="Toggle dark mode">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+            </svg>
+        </button>
+    </div>
+    
+    <div class="sm:mx-auto sm:w-full sm:max-w-sm">
+        <img class="mx-auto h-24 w-24" src="/static/favicon.svg" alt="GOTRS Logo">
+        <h2 class="mt-6 text-center text-2xl font-bold leading-9 tracking-tight text-gray-900 dark:text-white">
+            {{ t("customer.portal.login_title") }}
+        </h2>
+    </div>
+
+    <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+        {% if error %}
+        <div class="rounded-md bg-red-50 dark:bg-red-900/20 p-4 mb-4">
+            <div class="text-sm text-red-800 dark:text-red-200">
+                {{ error }}
+            </div>
+        </div>
+        {% endif %}
+        
+        <form class="space-y-6" action="/api/auth/customer/login" method="POST" hx-boost="true" hx-target="body" hx-swap="outerHTML">
+            <div>
+                <label for="login" class="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300">{{ t("customer.auth.login") }}</label>
+                <div class="mt-2">
+                    <input id="login" name="login" type="text" autocomplete="username" required autofocus class="block w-full rounded-md border-0 px-3 py-2.5 text-gray-900 dark:text-white dark:bg-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-gotrs-600 sm:text-sm sm:leading-6">
+                </div>
+            </div>
+
+            <div>
+                <div class="flex items-center justify-between">
+                    <label for="password" class="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300">{{ t("customer.auth.password") }}</label>
+                </div>
+                <div class="mt-2 relative">
+                    <input id="password" name="password" type="password" autocomplete="current-password" required class="block w-full rounded-md border-0 px-3 pr-14 py-2.5 text-gray-900 dark:text-white dark:bg-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-gotrs-600 sm:text-sm sm:leading-6">
+                    <div id="capsLockIcon" class="absolute inset-y-0 right-2 hidden items-center" title="Caps Lock is ON">
+                        <span class="text-[10px] font-mono px-1 rounded bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700">CAPS</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="error-message"></div>
+            
+            <div id="loading" class="htmx-indicator">
+                <div class="text-center text-sm text-gray-500 dark:text-gray-400">
+                    {{ t("customer.auth.signing_in") }}
+                </div>
+            </div>
+
+            <div>
+                <button type="submit" 
+                        class="flex w-full justify-center rounded-md bg-gotrs-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-gotrs-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gotrs-600">
+                    {{ t("customer.auth.sign_in") }}
+                </button>
+            </div>
+        </form>
+        <p class="mt-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            <a href="/login" class="font-semibold text-gotrs-600 hover:text-gotrs-500 dark:text-gotrs-400 dark:hover:text-gotrs-300">{{ t("customer.nav.agent_login") }}</a>
+        </p>
+    </div>
+</div>
+
+<script>
+    const capsLockIcon = document.getElementById('capsLockIcon');
+    const loginInput = document.getElementById('login');
+    if (loginInput) {
+        requestAnimationFrame(() => {
+            try {
+                loginInput.focus();
+                loginInput.select();
+            } catch (_) {}
+        });
+    }
+    function updateCapsLock(e) {
+        try {
+            const on = e && typeof e.getModifierState === 'function' && e.getModifierState('CapsLock');
+            if (on) {
+                capsLockIcon.classList.remove('hidden');
+                capsLockIcon.classList.add('flex');
+            } else {
+                capsLockIcon.classList.add('hidden');
+                capsLockIcon.classList.remove('flex');
+            }
+        } catch (_) {}
+    }
+    ['keydown','keyup'].forEach(ev => document.addEventListener(ev, updateCapsLock));
+
+    const errorBox = document.getElementById('error-message');
+    const submitBtn = document.querySelector('form button[type="submit"]');
+    const FAIL_KEY = 'customerLoginFailCount';
+    const UNTIL_KEY = 'customerLoginBackoffUntil';
+    const invalidCredentialsMsg = '{{ t("customer.auth.invalid_credentials") }}';
+    const tooManyAttemptsMsg = '{{ t("customer.auth.too_many_attempts") }}';
+
+    function setError(msg) {
+        if (!errorBox) return;
+        errorBox.innerHTML = '<div class="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-800 dark:text-red-200">' + (msg || invalidCredentialsMsg) + '</div>';
+    }
+    function clearError() { if (errorBox) errorBox.innerHTML = ''; }
+
+    function failCount() { return parseInt(localStorage.getItem(FAIL_KEY) || '0', 10) || 0; }
+    function setFailCount(n) { localStorage.setItem(FAIL_KEY, String(n)); }
+    function setBackoff(seconds) {
+        const until = Date.now() + seconds * 1000;
+        localStorage.setItem(UNTIL_KEY, String(until));
+        applyBackoff();
+    }
+    function remainingBackoff() {
+        const until = parseInt(localStorage.getItem(UNTIL_KEY) || '0', 10) || 0;
+        return Math.max(0, Math.ceil((until - Date.now()) / 1000));
+    }
+    let backoffTimer;
+    function applyBackoff() {
+        const rem = remainingBackoff();
+        if (rem > 0) {
+            if (submitBtn) submitBtn.disabled = true;
+            setError(tooManyAttemptsMsg.replace('%d', rem));
+            clearInterval(backoffTimer);
+            backoffTimer = setInterval(() => {
+                const r = remainingBackoff();
+                if (r <= 0) {
+                    clearInterval(backoffTimer);
+                    if (submitBtn) submitBtn.disabled = false;
+                    clearError();
+                } else {
+                    setError(tooManyAttemptsMsg.replace('%d', r));
+                }
+            }, 500);
+        } else {
+            if (submitBtn) submitBtn.disabled = false;
+        }
+    }
+    applyBackoff();
+
+    document.body.addEventListener('htmx:beforeSwap', function(evt) {
+        if (!(evt.detail && evt.detail.xhr)) return;
+        const status = evt.detail.xhr.status;
+        if (status >= 400) {
+            evt.detail.shouldSwap = false;
+            let msg = invalidCredentialsMsg;
+            try {
+                const ct = evt.detail.xhr.getResponseHeader('Content-Type') || '';
+                if (ct.includes('application/json')) {
+                    const j = JSON.parse(evt.detail.xhr.responseText || '{}');
+                    if (j && (j.error || j.message)) msg = j.error || j.message;
+                }
+            } catch (_) {}
+            setError(msg);
+            const n = failCount() + 1;
+            setFailCount(n);
+            if (n >= 3) {
+                const seconds = Math.min(60, Math.pow(2, n - 3));
+                setBackoff(seconds);
+            }
+        }
+    });
+
+    document.body.addEventListener('htmx:afterRequest', function(evt) {
+        if (!(evt.detail && evt.detail.elt && evt.detail.elt.matches('form'))) return;
+        if (evt.detail.xhr && evt.detail.xhr.status === 200) {
+            const redirectUrl = evt.detail.xhr.getResponseHeader('HX-Redirect') || evt.detail.xhr.getResponseHeader('hx-redirect') || '/customer/tickets';
+            try { window.location.replace(redirectUrl); } catch(_) { window.location = redirectUrl; }
+            setTimeout(function() { document.location.href = redirectUrl; }, 10);
+            setFailCount(0);
+            localStorage.removeItem(UNTIL_KEY);
+            clearError();
+        }
+    });
+</script>
+{% endblock %}

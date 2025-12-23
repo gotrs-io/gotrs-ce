@@ -93,6 +93,7 @@ INSERT IGNORE INTO queue (
 (3, 'Junk', 1, 3, 1, 1, 0, 2, 0, 'Queue for junk/spam', 1, NOW(), 1, NOW(), 1),
 (4, 'Misc', 1, 4, 1, 1, 0, 1, 0, 'Miscellaneous queue', 1, NOW(), 1, NOW(), 1);
 
+-- System admin user (disabled by default - use 'make synthesize' to generate credentials)
 INSERT IGNORE INTO users (id, login, pw, first_name, last_name, valid_id, create_time, create_by, change_time, change_by) VALUES
 (1, 'root@localhost', SHA2(UUID(), 256), 'System', 'Administrator', 2, NOW(), 1, NOW(), 1);
 

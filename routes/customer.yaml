@@ -9,9 +9,7 @@ metadata:
 spec:
   prefix: /customer
   middleware:
-    - session # Set session context including is_customer
-    - auth # Require authentication
-    - customer # Require customer access
+    - customer-portal # Loads portal config; handles auth requirement per config
   routes:
     # Customer dashboard
     - path: /
@@ -28,30 +26,30 @@ spec:
       description: "Display customer's ticket list"
 
     # New ticket creation
-    - path: /ticket/new
+    - path: /tickets/new
       method: GET
       handler: handleCustomerNewTicket
       template: pages/customer/new_ticket.pongo2
       description: "Display new ticket creation form"
 
-    - path: /ticket/create
+    - path: /tickets/create
       method: POST
       handler: handleCustomerCreateTicket
       description: "Process new ticket creation"
 
     # Individual ticket management
-    - path: /ticket/:id
+    - path: /tickets/:id
       method: GET
       handler: handleCustomerTicketView
       template: pages/customer/ticket_view.pongo2
       description: "Display customer ticket details and conversation"
 
-    - path: /ticket/:id/reply
+    - path: /tickets/:id/reply
       method: POST
       handler: handleCustomerTicketReply
       description: "Process customer reply to ticket"
 
-    - path: /ticket/:id/close
+    - path: /tickets/:id/close
       method: POST
       handler: handleCustomerCloseTicket
       description: "Close customer ticket"

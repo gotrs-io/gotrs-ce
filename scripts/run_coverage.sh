@@ -3,7 +3,7 @@ set -euo pipefail
 
 mkdir -p generated
 
-PKGS=$(go list ./... | grep -Ev '/tests/|/tools/test-utilities|/examples$|/internal/api($|/)|/internal/i18n$')
+PKGS=$(go list ./... | grep -Ev '/tests/|/tools/test-utilities|/examples$|/internal/api($|/)|/internal/i18n$|/tmp$')
 if [[ -z "${PKGS}" ]]; then
 	echo "No packages selected for coverage" >&2
 	exit 1

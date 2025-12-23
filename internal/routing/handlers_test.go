@@ -207,7 +207,7 @@ func TestAuthMiddlewareHonorsBypassDisable(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/admin/users", nil)
-	req.Header.Set("Accept", "*/*")
+	req.Header.Set("Accept", "application/json")
 	resp := httptest.NewRecorder()
 
 	router.ServeHTTP(resp, req)

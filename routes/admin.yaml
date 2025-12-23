@@ -339,15 +339,12 @@ spec:
       description: "Update customer portal settings for a company"
 
     - path: /customer/portal/settings
-      method: GET
-      handler: handleAdminCustomerPortalSettings
+      handlers:
+        GET: handleAdminCustomerPortalSettings
+        PUT: handleAdminUpdateCustomerPortalSettings
+        POST: handleAdminUpdateCustomerPortalSettings
       template: pages/admin/customer_portal_settings.pongo2
-      description: "Display customer portal settings"
-
-    - path: /customer/portal/settings
-      method: PUT
-      handler: handleAdminUpdateCustomerPortalSettings
-      description: "Update customer portal settings"
+      description: "Display and update global customer portal settings"
 
     - path: /customer/portal/logo/upload
       method: POST

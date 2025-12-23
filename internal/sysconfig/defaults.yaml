@@ -1,0 +1,6 @@
+# Default sysconfig values used as read-only fallback when database sysconfig tables are missing.
+CustomerPortal::Enabled: "true"
+CustomerPortal::LoginRequired: "true"
+CustomerPortal::Title: "Customer Portal"
+CustomerPortal::FooterText: "Powered by GOTRS"
+CustomerPortal::LandingPage: "/customer/tickets"

@@ -173,16 +173,21 @@ var HandleAuthLogin = func(c *gin.Context) {
 		c.Set("auth_provider", provider)
 	}
 
+	redirectTarget := "/dashboard"
+	if strings.EqualFold(user.Role, "customer") {
+		redirectTarget = "/customer/tickets"
+	}
+
 	if strings.Contains(contentType, "application/json") {
-		c.JSON(http.StatusOK, gin.H{"success": true, "access_token": accessToken, "refresh_token": refreshToken, "token_type": "Bearer"})
+		c.JSON(http.StatusOK, gin.H{"success": true, "access_token": accessToken, "refresh_token": refreshToken, "token_type": "Bearer", "redirect": redirectTarget})
 		return
 	}
 	if c.GetHeader("HX-Request") == "true" {
-		c.Header("HX-Redirect", "/dashboard")
+		c.Header("HX-Redirect", redirectTarget)
 		c.String(http.StatusOK, "Login successful, redirecting...")
 		return
 	}
-	c.Redirect(http.StatusSeeOther, "/dashboard")
+	c.Redirect(http.StatusSeeOther, redirectTarget)
 }
 
 // HandleAuthLogout handles user logout

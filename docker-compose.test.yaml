@@ -7,14 +7,18 @@ services:
     container_name: gotrs-backend-test
     user: "1000:1000"
     environment:
-      APP_ENV: test
-      GOTRS_DISABLE_TEST_AUTH_BYPASS: "1"
+      APP_ENV: integration
+      GOTRS_DISABLE_TEST_AUTH_BYPASS: "0"
       DB_DRIVER: ${TEST_DB_DRIVER:-mysql}
       DB_HOST: ${TEST_DB_MYSQL_HOST:-mariadb-test}
       DB_PORT: 3306
       DB_NAME: ${TEST_DB_MYSQL_NAME:-otrs_test}
       DB_USER: ${TEST_DB_MYSQL_USER:-otrs}
       DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD:-LetClaude.1n}
+      TEST_DB_HOST: ${TEST_DB_MYSQL_HOST:-mariadb-test}
+      TEST_DB_NAME: ${TEST_DB_MYSQL_NAME:-otrs_test}
+      TEST_DB_USER: ${TEST_DB_MYSQL_USER:-otrs}
+      TEST_DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD:-LetClaude.1n}
       REDIS_HOST: ${TEST_DB_REDIS_HOST:-valkey-test}
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${TEST_REDIS_PASSWORD:-valkey-test-password}
@@ -46,8 +50,8 @@ services:
     container_name: gotrs-runner-test
     user: "1000:1000"
     environment:
-      APP_ENV: test
-      GOTRS_DISABLE_TEST_AUTH_BYPASS: "1"
+      APP_ENV: integration
+      GOTRS_DISABLE_TEST_AUTH_BYPASS: "0"
       DB_DRIVER: ${TEST_DB_DRIVER:-mysql}
       DB_HOST: ${TEST_DB_MYSQL_HOST:-mariadb-test}
       DB_PORT: 3306
@@ -59,6 +63,39 @@ services:
       REDIS_PASSWORD: ${TEST_REDIS_PASSWORD:-valkey-test-password}
     depends_on:
       backend-test:
+        condition: service_healthy
+    networks:
+      - gotrs-network
+
+  customer-fe-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: gotrs-customer-fe-test
+    user: "1000:1000"
+    environment:
+      APP_ENV: integration
+      GOTRS_DISABLE_TEST_AUTH_BYPASS: "0"
+      DB_DRIVER: ${TEST_DB_DRIVER:-mysql}
+      DB_HOST: ${TEST_DB_MYSQL_HOST:-mariadb-test}
+      DB_PORT: 3306
+      DB_NAME: ${TEST_DB_MYSQL_NAME:-otrs_test}
+      DB_USER: ${TEST_DB_MYSQL_USER:-otrs}
+      DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD:-LetClaude.1n}
+      REDIS_HOST: ${TEST_DB_REDIS_HOST:-valkey-test}
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${TEST_REDIS_PASSWORD:-valkey-test-password}
+      JWT_SECRET: ${JWT_SECRET:-test-jwt-secret-key}
+      SESSION_SECRET: ${SESSION_SECRET:-test-session-secret}
+    expose:
+      - "8080"
+    ports:
+      - "${TEST_CUSTOMER_FE_PORT:-18082}:8080"
+    depends_on:
+      mariadb-test:
+        condition: service_healthy
+      valkey-test:
         condition: service_healthy
     networks:
       - gotrs-network

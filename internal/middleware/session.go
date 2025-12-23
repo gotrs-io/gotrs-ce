@@ -35,14 +35,20 @@ func SessionMiddleware(jwtManager *auth.JWTManager) gin.HandlerFunc {
 			}
 		}
 
-		// If no token found, redirect to login
+		// If no token found, redirect to the appropriate login page
 		if token == "" {
 			if isAPIRequest(c) {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 				c.Abort()
 				return
 			}
-			c.Redirect(http.StatusSeeOther, "/login")
+
+			path := c.Request.URL.Path
+			if strings.HasPrefix(path, "/customer") {
+				c.Redirect(http.StatusSeeOther, "/auth/customer")
+			} else {
+				c.Redirect(http.StatusSeeOther, "/login")
+			}
 			c.Abort()
 			return
 		}
@@ -129,6 +135,10 @@ func SessionMiddleware(jwtManager *auth.JWTManager) gin.HandlerFunc {
 		c.Set("user_email", claims.Email)
 		c.Set("user_role", claims.Role)
 		c.Set("user_name", claims.Email) // Use email as name for now
+		c.Set("userID", int(claims.UserID))
+		c.Set("username", claims.Login)
+		c.Set("tenant_id", claims.TenantID)
+		c.Set("tenant_host", c.Request.Host)
 
 		// Set is_customer based on role
 		if claims.Role == "Customer" {

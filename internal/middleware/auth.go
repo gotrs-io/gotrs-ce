@@ -68,6 +68,10 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		c.Set("user_email", claims.Email)
 		c.Set("user_role", claims.Role)
 		c.Set("tenant_id", claims.TenantID)
+		c.Set("userID", int(claims.UserID))
+		c.Set("username", claims.Login)
+		c.Set("is_customer", claims.Role == "Customer")
+		c.Set("tenant_host", c.Request.Host)
 		c.Set("claims", claims)
 
 		c.Next()
@@ -148,6 +152,10 @@ func (m *AuthMiddleware) OptionalAuth() gin.HandlerFunc {
 		c.Set("user_email", claims.Email)
 		c.Set("user_role", claims.Role)
 		c.Set("tenant_id", claims.TenantID)
+		c.Set("userID", int(claims.UserID))
+		c.Set("username", claims.Login)
+		c.Set("is_customer", claims.Role == "Customer")
+		c.Set("tenant_host", c.Request.Host)
 		c.Set("claims", claims)
 		c.Set("authenticated", true)
 
@@ -188,7 +196,16 @@ func (m *AuthMiddleware) extractToken(c *gin.Context) string {
 func (m *AuthMiddleware) unauthorizedResponse(c *gin.Context, message string) {
 	accept := c.GetHeader("Accept")
 	if strings.Contains(accept, "text/html") {
-		c.Redirect(http.StatusFound, "/login")
+		loginPath := "/login"
+		if strings.HasPrefix(c.Request.URL.Path, "/customer") {
+			loginPath = "/customer/login"
+		} else {
+			flag := strings.ToLower(os.Getenv("CUSTOMER_FE_ONLY"))
+			if flag == "1" || flag == "true" {
+				loginPath = "/customer/login"
+			}
+		}
+		c.Redirect(http.StatusFound, loginPath)
 		c.Abort()
 		return
 	}

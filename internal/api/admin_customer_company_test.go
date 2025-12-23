@@ -588,7 +588,10 @@ func TestAdminCustomerCompanyPortalSettings(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("POST /admin/customer/companies/:id/portal-settings updates portal settings", func(t *testing.T) {
-		router := NewSimpleRouter()
+		db := getTestDB(t)
+		defer db.Close()
+
+		router := NewSimpleRouterWithDB(db)
 
 		// Test portal settings data
 		formData := url.Values{}
@@ -603,7 +606,7 @@ func TestAdminCustomerCompanyPortalSettings(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		assert.True(t, w.Code == http.StatusOK || w.Code == http.StatusBadRequest)
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
 

@@ -19,18 +19,18 @@ func TestCustomerTicketCreation(t *testing.T) {
 
 	t.Run("Customer can access ticket creation form", func(t *testing.T) {
 		// Navigate to ticket creation form
-		err := browser.NavigateTo("/customer/ticket/new")
+		err := browser.NavigateTo("/customer/tickets/new")
 		require.NoError(t, err)
 
 		// Check if we're redirected to login (expected for unauthenticated)
-		if browser.Page.URL() != browser.Config.BaseURL+"/customer/ticket/new" {
+		if browser.Page.URL() != browser.Config.BaseURL+"/customer/tickets/new" {
 			// Should be on login page
 			assert.Contains(t, browser.Page.URL(), "/login")
 			return
 		}
 
 		// If we reached the form, verify it loads correctly
-		assert.Equal(t, browser.Config.BaseURL+"/customer/ticket/new", browser.Page.URL())
+		assert.Equal(t, browser.Config.BaseURL+"/customer/tickets/new", browser.Page.URL())
 
 		// Check for form elements
 		subjectInput := browser.Page.Locator("input[name='subject'], input[name='title']")
@@ -49,11 +49,11 @@ func TestCustomerTicketCreation(t *testing.T) {
 
 	t.Run("Customer can create ticket via form submission", func(t *testing.T) {
 		// Navigate to ticket creation form
-		err := browser.NavigateTo("/customer/ticket/new")
+		err := browser.NavigateTo("/customer/tickets/new")
 		require.NoError(t, err)
 
 		// Skip if redirected to login
-		if browser.Page.URL() != browser.Config.BaseURL+"/customer/ticket/new" {
+		if browser.Page.URL() != browser.Config.BaseURL+"/customer/tickets/new" {
 			t.Skip("Customer authentication required for this test")
 			return
 		}
@@ -83,7 +83,7 @@ func TestCustomerTicketCreation(t *testing.T) {
 
 			// Check if we got redirected to a ticket view
 			currentURL := browser.Page.URL()
-			if strings.Contains(currentURL, "/customer/ticket/") && currentURL != browser.Config.BaseURL+"/customer/ticket/new" {
+			if strings.Contains(currentURL, "/customer/tickets/") && currentURL != browser.Config.BaseURL+"/customer/tickets/new" {
 				t.Logf("Ticket created successfully, redirected to: %s", currentURL)
 			} else {
 				// Check for error messages

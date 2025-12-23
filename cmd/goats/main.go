@@ -169,20 +169,8 @@ func main() {
 		"handleCustomerKBArticle":      api.HandleCustomerKBArticle,
 		"handleCustomerCompanyInfo":    api.HandleCustomerCompanyInfo,
 		"handleCustomerCompanyUsers":   api.HandleCustomerCompanyUsers,
-		"handleCustomerDashboard": func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{
-				"message": "Customer Dashboard",
-				"user":    "Customer User",
-				"status":  "Customer access working!",
-			})
-		},
-		"handleCustomerTickets": func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{
-				"message": "Customer Tickets",
-				"tickets": []gin.H{},
-				"status":  "Customer tickets working!",
-			})
-		},
+		"handleCustomerDashboard":      api.HandleCustomerDashboard,
+		"handleCustomerTickets":        api.HandleCustomerTickets,
 
 		// Ticket handlers
 		"handleTicketDetail":          api.HandleTicketDetail,
@@ -289,10 +277,22 @@ func main() {
 		"HandleDevDatabase":   api.HandleDevDatabase,
 
 		// Auth handlers
-		"handleLoginPage": api.HandleLoginPage,
-		"handleAuthLogin": api.HandleAuthLogin,
-		"handleLogout":    api.HandleLogout,
-		"HandleLoginAPI":  api.HandleLoginAPI,
+		"handleLoginPage":         api.HandleLoginPage,
+		"handleCustomerLoginPage": api.HandleCustomerLoginPage,
+		"handleCustomerLogin":     api.HandleCustomerLogin,
+		"handleAuthLogin":         api.HandleAuthLogin,
+		"handleLogout":            api.HandleLogout,
+		"HandleLoginAPI":          api.HandleLoginAPI,
+		"handleCustomerLogout": func(c *gin.Context) {
+			c.SetCookie("auth_token", "", -1, "/", "", false, true)
+			c.SetCookie("access_token", "", -1, "/", "", false, true)
+			c.SetCookie("token", "", -1, "/", "", false, true)
+			c.SetCookie("auth_token", "", -1, "/customer", "", false, true)
+			c.SetCookie("access_token", "", -1, "/customer", "", false, true)
+			c.SetCookie("token", "", -1, "/customer", "", false, true)
+			c.Header("HX-Redirect", "/customer/login")
+			c.Redirect(http.StatusSeeOther, "/customer/login")
+		},
 
 		// Admin handlers
 		// Users handled by dynamic module system and specific admin user handlers
@@ -379,7 +379,7 @@ func main() {
 
 		// Basic system handlers
 		"handleRoot": func(c *gin.Context) {
-			c.Redirect(http.StatusFound, "/login")
+			c.Redirect(http.StatusFound, api.RootRedirectTarget())
 		},
 		"handleHealthCheck": func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
@@ -542,6 +542,16 @@ func main() {
 
 	// Create router for YAML routes
 	r := gin.New()
+
+	customerOnly := strings.EqualFold(os.Getenv("CUSTOMER_FE_ONLY"), "true") || os.Getenv("CUSTOMER_FE_ONLY") == "1"
+	if customerOnly {
+		r.Use(api.CustomerOnlyGuard(true))
+		log.Println("🔒 Customer FE mode: admin routes disabled")
+
+		r.NoRoute(func(c *gin.Context) {
+			c.Redirect(http.StatusFound, api.RootRedirectTarget())
+		})
+	}
 
 	// Global i18n middleware (language detection via ?lang=, cookie, user, Accept-Language)
 	i18nMW := middleware.NewI18nMiddleware()
@@ -720,10 +730,10 @@ func main() {
 
 	fmt.Printf("Starting GOTRS HTMX server on port %s\n", port)
 	fmt.Println("Available routes:")
-	fmt.Println("  GET  /          -> Redirect to /login")
-	fmt.Println("  GET  /login     -> Login page")
-	fmt.Println("  GET  /dashboard -> Dashboard (demo)")
-	fmt.Println("  GET  /tickets   -> Tickets list (demo)")
+	fmt.Printf("  GET  /          -> Redirect to %s\n", api.RootRedirectTarget())
+	fmt.Println("  GET  /customer  -> Customer dashboard")
+	fmt.Println("  GET  /customer/login -> Customer login page")
+	fmt.Println("  POST /customer/login -> Customer login submit")
 	fmt.Println("  POST /api/auth/login -> HTMX login")
 	fmt.Println("")
 	fmt.Println("LDAP API routes:")

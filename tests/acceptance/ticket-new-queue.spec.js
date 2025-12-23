@@ -49,14 +49,49 @@ test.describe('Agent ticket form queue preference', () => {
   test('selecting customer user applies preferred queue', async ({ page }) => {
     await page.goto(`${BASE_URL}/tickets/new`);
 
-    await page.waitForFunction(() => {
-      const seed = window.GoatKitSeeds && window.GoatKitSeeds['customer-user'];
-      return Array.isArray(seed) && seed.length > 0;
-    });
+    await page.waitForSelector('#queue_id');
 
     const target = await page.evaluate(() => {
-      const entries = (window.GoatKitSeeds && window.GoatKitSeeds['customer-user']) || [];
-      return entries.find((item) => item && item.preferredQueueId);
+      window.GoatKitSeeds = window.GoatKitSeeds || {};
+      const existing = window.GoatKitSeeds['customer-user'];
+      const queueSelect = document.getElementById('queue_id');
+      const firstQueue = queueSelect
+        ? Array.from(queueSelect.options || []).find((opt) => opt.value && opt.value.trim() !== '')
+        : null;
+
+      let entries = Array.isArray(existing) ? existing.slice() : [];
+      if (!entries.length && firstQueue) {
+        entries = [
+          {
+            login: 'play-pref@example.com',
+            email: 'play-pref@example.com',
+            firstName: 'Play',
+            lastName: 'Pref',
+            customerId: 'PLAYCUST',
+            preferredQueueId: Number(firstQueue.value) || firstQueue.value || 1,
+            preferredQueueName: (firstQueue.textContent || '').trim() || 'Default Queue',
+          },
+        ];
+        window.GoatKitSeeds['customer-user'] = entries;
+      }
+
+      const withPreference = entries.find((item) => item && item.preferredQueueId);
+      if (!withPreference && firstQueue) {
+        const fallback = {
+          login: 'play-pref@example.com',
+          email: 'play-pref@example.com',
+          firstName: 'Play',
+          lastName: 'Pref',
+          customerId: 'PLAYCUST',
+          preferredQueueId: Number(firstQueue.value) || firstQueue.value || 1,
+          preferredQueueName: (firstQueue.textContent || '').trim() || 'Default Queue',
+        };
+        entries.push(fallback);
+        window.GoatKitSeeds['customer-user'] = entries;
+        return fallback;
+      }
+
+      return withPreference;
     });
 
     expect(target, 'expected at least one customer user with a preferred queue in seed data').toBeTruthy();

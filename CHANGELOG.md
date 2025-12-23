@@ -7,6 +7,10 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 ## [Unreleased]
 
 ### Added
+- **Customer Portal**: Full customer-facing ticket management with login, ticket creation, viewing, replies, and ticket closure.
+- **Customer Portal i18n**: Full internationalization for all 12 customer portal templates with English and German translations.
+- Customer portal rich text editor (Tiptap) for ticket creation and replies.
+- Customer close ticket functionality with proper article/article_data_mime insertion.
 - Inbound email pipeline: POP3 connector factory, postmaster processor, ticket token filters, external ticket rules example, and mail account metadata/tests.
 - IMAP connector support (go-imap/v2) with IMAPTLS alias, folder metadata propagation, and factory registration.
 - Admin mail account poll status API/routes backed by Valkey cache.

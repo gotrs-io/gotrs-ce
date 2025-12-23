@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/routing"
+	"github.com/gotrs-io/gotrs-ce/internal/shared"
 )
 
 // Simple global handler registry to decouple YAML route loader from hardcoded map.
@@ -109,14 +111,101 @@ func ensureCoreHandlers() {
 		// Static and basic routes
 		"handleStaticFiles":       HandleStaticFiles,
 		"handleLogout":            handleLogout,
+		"handleCustomerLogout": func(c *gin.Context) {
+			// clear all auth cookies and redirect to customer login
+			// Clear for root path
+			c.SetCookie("auth_token", "", -1, "/", "", false, true)
+			c.SetCookie("access_token", "", -1, "/", "", false, true)
+			c.SetCookie("token", "", -1, "/", "", false, true)
+			// Also clear for /customer path in case proxy scoped cookies
+			c.SetCookie("auth_token", "", -1, "/customer", "", false, true)
+			c.SetCookie("access_token", "", -1, "/customer", "", false, true)
+			c.SetCookie("token", "", -1, "/customer", "", false, true)
+			c.Header("HX-Redirect", "/customer/login")
+			c.Redirect(http.StatusSeeOther, "/customer/login")
+		},
 		"handleDemoCustomerLogin": handleDemoCustomerLogin,
+		"handleCustomerLoginPage": handleCustomerLoginPage,
+		"handleCustomerLogin": func(c *gin.Context) {
+			handleCustomerLogin(shared.GetJWTManager())(c)
+		},
+		"handleCustomerDashboard": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerDashboard(db)(c)
+		},
+		"handleCustomerTickets": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerTickets(db)(c)
+		},
+		"handleCustomerNewTicket": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerNewTicket(db)(c)
+		},
+		"handleCustomerCreateTicket": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerCreateTicket(db)(c)
+		},
+		"handleCustomerTicketView": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerTicketView(db)(c)
+		},
+		"handleCustomerTicketReply": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerTicketReply(db)(c)
+		},
+		"handleCustomerCloseTicket": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerCloseTicket(db)(c)
+		},
+		"handleCustomerProfile": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerProfile(db)(c)
+		},
+		"handleCustomerUpdateProfile": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerUpdateProfile(db)(c)
+		},
+		"handleCustomerPasswordForm": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerPasswordForm(db)(c)
+		},
+		"handleCustomerChangePassword": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerChangePassword(db)(c)
+		},
+		"handleCustomerKnowledgeBase": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerKnowledgeBase(db)(c)
+		},
+		"handleCustomerKBSearch": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerKBSearch(db)(c)
+		},
+		"handleCustomerKBArticle": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerKBArticle(db)(c)
+		},
+		"handleCustomerCompanyInfo": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerCompanyInfo(db)(c)
+		},
+		"handleCustomerCompanyUsers": func(c *gin.Context) {
+			db, _ := database.GetDB()
+			handleCustomerCompanyUsers(db)(c)
+		},
 		"handleLogoutRedirect": func(c *gin.Context) {
 			// clear tokens then redirect to login
 			c.SetCookie("auth_token", "", -1, "/", "", false, true)
 			c.SetCookie("access_token", "", -1, "/", "", false, true)
-			c.Redirect(http.StatusFound, "/login")
+			target := loginRedirectPath(c)
+			if strings.Contains(c.Request.URL.Path, "/customer") {
+				target = "/customer/login"
+			}
+			c.Redirect(http.StatusFound, target)
 		},
-		"handleRoot":         func(c *gin.Context) { c.Redirect(http.StatusFound, "/login") },
+		"handleRoot": func(c *gin.Context) {
+			c.Redirect(http.StatusFound, RootRedirectTarget())
+		},
 		"handleAuthRefresh":  handleAuthRefresh,
 		"handleAuthRegister": handleAuthRegister,
 

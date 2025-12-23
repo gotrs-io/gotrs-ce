@@ -32,6 +32,7 @@ func (p *DatabaseAuthProvider) Authenticate(ctx context.Context, username, passw
 	// Try to find user by login or email
 	var user *models.User
 	var err error
+	isCustomer := false
 
 	// In OTRS, agents use login (which can contain @), not separate email field
 	// Always try GetByLogin first for agents
@@ -46,6 +47,7 @@ func (p *DatabaseAuthProvider) Authenticate(ctx context.Context, username, passw
 			fmt.Printf("DatabaseAuthProvider: Customer lookup also failed: %v\n", err)
 			return nil, ErrUserNotFound
 		}
+		isCustomer = true
 	}
 
 	// Check if user is active (valid_id = 1 in OTRS)
@@ -55,16 +57,18 @@ func (p *DatabaseAuthProvider) Authenticate(ctx context.Context, username, passw
 	}
 
 	// Verify password using our configurable hasher
-	fmt.Printf("DatabaseAuthProvider: Verifying password for user %s\n", user.Login)
-	fmt.Printf("DatabaseAuthProvider: Password hash from DB: %s\n", user.Password)
-	fmt.Printf("DatabaseAuthProvider: Password length from user: %d\n", len(password))
+	if !isCustomer {
+		fmt.Printf("DatabaseAuthProvider: Verifying password for user %s\n", user.Login)
+		fmt.Printf("DatabaseAuthProvider: Password hash from DB: %s\n", user.Password)
+		fmt.Printf("DatabaseAuthProvider: Password length from user: %d\n", len(password))
 
-	// Use our hasher which auto-detects hash type (SHA256 for OTRS, bcrypt for GOTRS)
-	if !p.hasher.VerifyPassword(password, user.Password) {
-		fmt.Printf("DatabaseAuthProvider: Password verification failed\n")
-		return nil, ErrInvalidCredentials
+		// Use our hasher which auto-detects hash type (SHA256 for OTRS, bcrypt for GOTRS)
+		if !p.hasher.VerifyPassword(password, user.Password) {
+			fmt.Printf("DatabaseAuthProvider: Password verification failed\n")
+			return nil, ErrInvalidCredentials
+		}
+		fmt.Printf("DatabaseAuthProvider: Password verification successful\n")
 	}
-	fmt.Printf("DatabaseAuthProvider: Password verification successful\n")
 
 	// Clear password from user object before returning
 	user.Password = ""
@@ -120,7 +124,7 @@ func (p *DatabaseAuthProvider) Priority() int {
 
 // authenticateCustomerUser authenticates a customer user from the customer_user table
 func (p *DatabaseAuthProvider) authenticateCustomerUser(ctx context.Context, username, password string) (*models.User, error) {
-	// Query customer_user table
+	// Query customer_user table - allow login by username OR email
 	var login, email, customerID, firstName, lastName, pw string
 	var validID int
 	var id int64
@@ -128,10 +132,10 @@ func (p *DatabaseAuthProvider) authenticateCustomerUser(ctx context.Context, use
 	query := `
 		SELECT id, login, email, customer_id, first_name, last_name, pw, valid_id
 		FROM customer_user
-		WHERE login = ?
+		WHERE login = ? OR email = ?
 	`
 
-	err := p.db.QueryRowContext(ctx, query, username).Scan(
+	err := p.db.QueryRowContext(ctx, query, username, username).Scan(
 		&id, &login, &email, &customerID, &firstName, &lastName, &pw, &validID,
 	)
 	if err != nil {

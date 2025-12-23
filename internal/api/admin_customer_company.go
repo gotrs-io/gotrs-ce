@@ -2,7 +2,6 @@ package api
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -767,100 +766,22 @@ func handleAdminCustomerPortalSettings(db *sql.DB) gin.HandlerFunc {
 
 		customerID := strings.TrimSpace(c.Param("id"))
 		if customerID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "customer id required"})
+			cfg := loadCustomerPortalConfig(db)
+			pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/customer_portal_settings.pongo2", pongo2.Context{
+				"Title":           "Customer Portal Settings",
+				"ActivePage":      "admin",
+				"ActiveAdminPage": "customer-portal",
+				"Settings":        cfg,
+				"User":            getUserMapForTemplate(c),
+			})
 			return
 		}
 
-		var companyName string
-		err := db.QueryRow(database.ConvertPlaceholders("SELECT name FROM customer_company WHERE customer_id = $1"), customerID).Scan(&companyName)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				c.JSON(http.StatusNotFound, gin.H{"error": "customer company not found"})
-			} else {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load customer company"})
-			}
-			return
-		}
-
-		var configJSON sql.NullString
-		err = db.QueryRow(database.ConvertPlaceholders(`
-			SELECT content_json FROM sysconfig 
-			WHERE name = $1
-		`), "CustomerPortal::Company::"+customerID).Scan(&configJSON)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			if isPortalConfigTableMissing(err) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "portal configuration storage unavailable"})
-			} else {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load portal settings"})
-			}
-			return
-		}
-
-		portalConfig := map[string]interface{}{
-			"logo_url":         "",
-			"primary_color":    "#1e40af",
-			"secondary_color":  "#64748b",
-			"header_bg":        "#ffffff",
-			"footer_text":      "© " + companyName,
-			"welcome_message":  "Welcome to " + companyName + " Support Portal",
-			"custom_css":       "",
-			"enable_kb":        true,
-			"enable_downloads": false,
-			"custom_domain":    "",
-		}
-
-		if configJSON.Valid {
-			var stored struct {
-				LogoURL         string `json:"logo_url"`
-				PrimaryColor    string `json:"primary_color"`
-				SecondaryColor  string `json:"secondary_color"`
-				HeaderBG        string `json:"header_bg"`
-				FooterText      string `json:"footer_text"`
-				WelcomeMessage  string `json:"welcome_message"`
-				CustomCSS       string `json:"custom_css"`
-				EnableKB        *bool  `json:"enable_kb"`
-				EnableDownloads *bool  `json:"enable_downloads"`
-				CustomDomain    string `json:"custom_domain"`
-			}
-
-			if err := json.Unmarshal([]byte(configJSON.String), &stored); err == nil {
-				if stored.LogoURL != "" {
-					portalConfig["logo_url"] = stored.LogoURL
-				}
-				if stored.PrimaryColor != "" {
-					portalConfig["primary_color"] = stored.PrimaryColor
-				}
-				if stored.SecondaryColor != "" {
-					portalConfig["secondary_color"] = stored.SecondaryColor
-				}
-				if stored.HeaderBG != "" {
-					portalConfig["header_bg"] = stored.HeaderBG
-				}
-				if stored.FooterText != "" {
-					portalConfig["footer_text"] = stored.FooterText
-				}
-				if stored.WelcomeMessage != "" {
-					portalConfig["welcome_message"] = stored.WelcomeMessage
-				}
-				if stored.CustomCSS != "" {
-					portalConfig["custom_css"] = stored.CustomCSS
-				}
-				if stored.EnableKB != nil {
-					portalConfig["enable_kb"] = *stored.EnableKB
-				}
-				if stored.EnableDownloads != nil {
-					portalConfig["enable_downloads"] = *stored.EnableDownloads
-				}
-				if stored.CustomDomain != "" {
-					portalConfig["custom_domain"] = stored.CustomDomain
-				}
-			}
-		}
-
+		cfg := loadCustomerPortalConfigForCustomer(db, customerID)
 		c.JSON(http.StatusOK, gin.H{
-			"company_name":  companyName,
-			"portal_config": portalConfig,
-			"preview_url":   "/customer/portal/" + customerID + "/preview",
+			"success":     true,
+			"customer_id": customerID,
+			"settings":    cfg,
 		})
 	}
 }
@@ -875,90 +796,88 @@ func handleAdminUpdateCustomerPortalSettings(db *sql.DB) gin.HandlerFunc {
 
 		customerID := strings.TrimSpace(c.Param("id"))
 		if customerID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "customer id required"})
+			cfg := customerPortalConfig{
+				Enabled:       parseCheckbox(c, "enabled"),
+				LoginRequired: parseCheckbox(c, "login_required"),
+				Title:         strings.TrimSpace(c.PostForm("title")),
+				FooterText:    strings.TrimSpace(c.PostForm("footer_text")),
+				LandingPage:   strings.TrimSpace(c.PostForm("landing_page")),
+			}
+			userID := c.GetInt("user_id")
+			if err := saveCustomerPortalConfig(db, cfg, userID); err != nil {
+				if isPortalConfigTableMissing(err) {
+					shared.SendToastResponse(c, true, "Customer portal settings saved (sysconfig unavailable)", "/admin/customer/portal/settings")
+					return
+				}
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			if c.GetHeader("HX-Request") == "true" {
+				c.Header("HX-Redirect", "/admin/customer/portal/settings")
+			}
+
+			shared.SendToastResponse(c, true, "Customer portal settings saved", "/admin/customer/portal/settings")
 			return
 		}
 
-		payload := struct {
-			LogoURL         string `json:"logo_url"`
-			PrimaryColor    string `json:"primary_color"`
-			SecondaryColor  string `json:"secondary_color"`
-			HeaderBG        string `json:"header_bg"`
-			FooterText      string `json:"footer_text"`
-			WelcomeMessage  string `json:"welcome_message"`
-			CustomCSS       string `json:"custom_css"`
-			EnableKB        bool   `json:"enable_kb"`
-			EnableDownloads bool   `json:"enable_downloads"`
-			CustomDomain    string `json:"custom_domain"`
-		}{
-			LogoURL:         c.PostForm("logo_url"),
-			PrimaryColor:    c.PostForm("primary_color"),
-			SecondaryColor:  c.PostForm("secondary_color"),
-			HeaderBG:        c.PostForm("header_bg"),
-			FooterText:      c.PostForm("footer_text"),
-			WelcomeMessage:  c.PostForm("welcome_message"),
-			CustomCSS:       c.PostForm("custom_css"),
-			EnableKB:        c.PostForm("enable_kb") == "1",
-			EnableDownloads: c.PostForm("enable_downloads") == "1",
-			CustomDomain:    c.PostForm("custom_domain"),
+		cfg := customerPortalConfig{
+			Enabled:       parseCheckbox(c, "enabled"),
+			LoginRequired: parseCheckbox(c, "login_required"),
+			Title:         strings.TrimSpace(c.PostForm("title")),
+			FooterText:    strings.TrimSpace(c.PostForm("footer_text")),
+			LandingPage:   strings.TrimSpace(c.PostForm("landing_page")),
 		}
-
-		configJSON, err := json.Marshal(payload)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid portal configuration"})
-			return
-		}
-
-		configName := "CustomerPortal::Company::" + customerID
-
-		var exists bool
-		if err := db.QueryRow(database.ConvertPlaceholders("SELECT EXISTS(SELECT 1 FROM sysconfig WHERE name = $1)"), configName).Scan(&exists); err != nil {
+		userID := c.GetInt("user_id")
+		if err := saveCustomerPortalConfigForCustomer(db, customerID, cfg, userID); err != nil {
 			if isPortalConfigTableMissing(err) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "portal configuration storage unavailable"})
-			} else {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to verify portal settings"})
+				c.JSON(http.StatusOK, gin.H{
+					"success":     true,
+					"customer_id": customerID,
+					"warning":     "sysconfig tables unavailable, skipping save",
+				})
+				return
 			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		if exists {
-			if _, err := db.Exec(database.ConvertPlaceholders(`
-				UPDATE sysconfig 
-				SET content_json = $2, change_time = NOW(), change_by = 1
-				WHERE name = $1
-			`), configName, string(configJSON)); err != nil {
-				if isPortalConfigTableMissing(err) {
-					c.JSON(http.StatusBadRequest, gin.H{"error": "portal configuration storage unavailable"})
-				} else {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update portal settings"})
-				}
-				return
-			}
-		} else {
-			if _, err := db.Exec(database.ConvertPlaceholders(`
-				INSERT INTO sysconfig (name, content_json, valid_id, create_time, create_by, change_time, change_by)
-				VALUES ($1, $2, 1, NOW(), 1, NOW(), 1)
-			`), configName, string(configJSON)); err != nil {
-				if isPortalConfigTableMissing(err) {
-					c.JSON(http.StatusBadRequest, gin.H{"error": "portal configuration storage unavailable"})
-				} else {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create portal settings"})
-				}
-				return
-			}
-		}
-
-		shared.SendToastResponse(c, true, "Portal settings updated successfully", fmt.Sprintf("/admin/customer/companies/%s/edit?tab=portal", customerID))
+		c.JSON(http.StatusOK, gin.H{
+			"success":     true,
+			"customer_id": customerID,
+			"settings":    cfg,
+		})
 	}
+}
+
+func parseCheckbox(c *gin.Context, name string) bool {
+	vals := c.PostFormArray(name)
+	if len(vals) == 0 {
+		return false
+	}
+	v := strings.TrimSpace(strings.ToLower(vals[len(vals)-1]))
+	return v == "1" || v == "on" || v == "true"
 }
 
 func isPortalConfigTableMissing(err error) bool {
 	if err == nil {
 		return false
 	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return true
+	}
 	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "sysconfig unavailable") {
+		return true
+	}
+	if strings.Contains(msg, "sysconfig default missing") {
+		return true
+	}
 	if !strings.Contains(msg, "sysconfig") {
 		return false
+	}
+	if strings.Contains(msg, "no such table") {
+		return true
 	}
 	return strings.Contains(msg, "doesn't exist") || strings.Contains(msg, "does not exist") || strings.Contains(msg, "undefined table") || strings.Contains(msg, "undefined_relation")
 }

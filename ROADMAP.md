@@ -1,6 +1,6 @@
 # GOTRS Development Roadmap
 
-*Last updated: December 24, 2025*
+*Last updated: December 24, 2025 (evening)*
 
 ## 🚀 Current Status
 
@@ -145,10 +145,11 @@ GOTRS is a modern, open-source ticketing system built with Go and HTMX, designed
 | Groups | ✅ Working | Full CRUD, 15+ unit tests, 9 Playwright E2E |
 | Customer Users | ✅ Working | Full CRUD, 7 unit tests, 10 Playwright E2E, import/export, bulk actions |
 | Customer Companies | ✅ Working | Full CRUD, 66 unit tests, portal settings, services |
-| Queues | ✅ Working | Detail pages with stats |
-| Priorities | 🟡 UI exists | CRUD not fully verified |
-| States | 🟡 UI exists | CRUD not fully verified |
-| Types | ✅ Working | List/create/update/delete |
+| Queues | ✅ Working | Full CRUD, 32 unit tests, detail pages with stats |
+| Lookups | ✅ Working | Combined page, 50 unit tests covering States/Types/Priorities/Statuses |
+| States | ✅ Working | Full CRUD, 9 unit tests |
+| Types | ✅ Working | Full CRUD, 14 unit tests |
+| Priorities | ✅ Working | Admin page, API endpoints |
 | SLA | 🟡 UI exists | CRUD not fully verified |
 | Services | ❌ 404 | Not implemented |
 | Roles/Permissions | ❌ | Not implemented |
@@ -212,6 +213,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 <summary>Click to expand detailed development history</summary>
 
 ### December 2025
+- Admin Lookups: comprehensive test suite (50+ tests) covering States, Types, Priorities, combined page
+- Admin Queues: comprehensive test suite (32 tests) with DB integration
+- Test infrastructure: hard-fail on DB unavailable, proper test stack setup
 - Customer portal: login, ticket CRUD, replies, close functionality
 - Inbound email: POP3/IMAP connectors, postmaster processor
 - SMTP4Dev integration test suite

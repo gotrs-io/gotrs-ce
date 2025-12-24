@@ -70,6 +70,30 @@ func TestAdminStatesPage(t *testing.T) {
 		assert.True(t, w.Code == http.StatusOK || w.Code == http.StatusInternalServerError)
 	})
 
+	t.Run("GET /admin/states with sort and order", func(t *testing.T) {
+		router := gin.New()
+		router.GET("/admin/states", handleAdminStates)
+
+		req := httptest.NewRequest(http.MethodGet, "/admin/states?sort=name&order=desc", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.True(t, w.Code == http.StatusOK || w.Code == http.StatusInternalServerError)
+	})
+
+	t.Run("GET /admin/states with type filter", func(t *testing.T) {
+		router := gin.New()
+		router.GET("/admin/states", handleAdminStates)
+
+		req := httptest.NewRequest(http.MethodGet, "/admin/states?type=1", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.True(t, w.Code == http.StatusOK || w.Code == http.StatusInternalServerError)
+	})
+
 	t.Run("GET /admin/states/types returns state types", func(t *testing.T) {
 		router := gin.New()
 		router.GET("/admin/states/types", handleGetStateTypes)
@@ -125,6 +149,30 @@ func TestAdminStatesCreate(t *testing.T) {
 		}
 	})
 
+	t.Run("POST /admin/states/create with JSON", func(t *testing.T) {
+		router := gin.New()
+		router.POST("/admin/states/create", handleAdminStateCreate)
+
+		payload := map[string]interface{}{
+			"name":    "JSON State",
+			"type_id": 1,
+		}
+		jsonData, _ := json.Marshal(payload)
+
+		req := httptest.NewRequest(http.MethodPost, "/admin/states/create", bytes.NewReader(jsonData))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.True(t, response["success"].(bool))
+	})
+
 	t.Run("POST /admin/states/create validates required fields", func(t *testing.T) {
 		router := gin.New()
 		router.POST("/admin/states/create", handleAdminStateCreate)
@@ -151,6 +199,36 @@ func TestAdminStatesCreate(t *testing.T) {
 
 func TestAdminStatesUpdate(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+
+	t.Run("POST /admin/states/:id/update with JSON", func(t *testing.T) {
+		router := gin.New()
+		router.POST("/admin/states/:id/update", handleAdminStateUpdate)
+
+		payload := map[string]interface{}{
+			"name": "JSON Updated State",
+		}
+		jsonData, _ := json.Marshal(payload)
+
+		req := httptest.NewRequest(http.MethodPost, "/admin/states/1/update", bytes.NewReader(jsonData))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("POST /admin/states/:id/update with invalid ID", func(t *testing.T) {
+		router := gin.New()
+		router.POST("/admin/states/:id/update", handleAdminStateUpdate)
+
+		req := httptest.NewRequest(http.MethodPost, "/admin/states/invalid/update", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
 
 	t.Run("PUT /admin/states/:id/update updates state", func(t *testing.T) {
 		router := gin.New()

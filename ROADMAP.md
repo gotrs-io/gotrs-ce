@@ -1,6 +1,6 @@
 # GOTRS Development Roadmap
 
-*Last updated: December 23, 2025*
+*Last updated: December 24, 2025*
 
 ## 🚀 Current Status
 
@@ -141,10 +141,10 @@ GOTRS is a modern, open-source ticketing system built with Go and HTMX, designed
 ### Admin Modules Status
 | Module | Status | Notes |
 |--------|--------|-------|
-| Users | 🟡 UI exists | CRUD not fully verified |
-| Groups | 🟡 UI exists | CRUD not fully verified |
-| Customer Users | ❌ 404 | Not implemented |
-| Customer Companies | 🟡 UI exists | POST route restored |
+| Users | ✅ Working | Full CRUD, 20 unit tests, Playwright E2E |
+| Groups | ✅ Working | Full CRUD, 15+ unit tests, 9 Playwright E2E |
+| Customer Users | ✅ Working | Full CRUD, 7 unit tests, 10 Playwright E2E, import/export, bulk actions |
+| Customer Companies | ✅ Working | Full CRUD, 66 unit tests, portal settings, services |
 | Queues | ✅ Working | Detail pages with stats |
 | Priorities | 🟡 UI exists | CRUD not fully verified |
 | States | 🟡 UI exists | CRUD not fully verified |

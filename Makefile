@@ -259,11 +259,12 @@ evidence-report:
 # ENHANCED TEST COMMANDS WITH TDD INTEGRATION
 #########################################
 
-# Override test command to use TDD if in TDD cycle (Make conditionals avoid shell parsing issues)
+# Legacy test target - use test-comprehensive via 'make test' instead
+# Keeping as test-legacy for backwards compatibility
 
-.PHONY: test
-test: toolbox-build
-	@printf "\n🧪 Running curated Go test suite (make test) ...\n"
+.PHONY: test-legacy
+test-legacy: toolbox-build
+	@printf "\n🧪 Running curated Go test suite (make test-legacy) ...\n"
 	@$(MAKE) test-stack-up >/dev/null 2>&1 || true
 	@$(call ensure_caches)
 	@$(call cache_guard)
@@ -676,7 +677,7 @@ toolbox-test-api-host: toolbox-build
 		-e TEST_DB_PORT=$(TOOLBOX_TEST_DB_PORT) \
 		-e GOTRS_TEST_DB_READY=$(GOTRS_TEST_DB_READY) \
 		gotrs-toolbox:latest \
-		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go test -buildvcs=false -v ./internal/api -run ^Test\(BuildRoutesManifest\|Queue\|Article\|Search\|Priority\|User\)'
+		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go test -buildvcs=false -v ./internal/api -run ^Test\(BuildRoutesManifest\|Queue\|Article\|Search\|Priority\|User\|AdminCustomerCompan\)'
 
 # Run core tests (cmd/goats + internal/api + generated/tdd-comprehensive)
 toolbox-test:

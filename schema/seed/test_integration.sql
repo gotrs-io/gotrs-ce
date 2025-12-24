@@ -5,7 +5,9 @@ BEGIN;
 
 -- Ensure auxiliary test groups exist
 INSERT INTO groups (id, name, comments, valid_id, create_time, create_by, change_time, change_by)
-VALUES (4, 'testgroup', 'Integration test group', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)
+VALUES 
+(4, 'support', 'Frontline support team', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+(5, 'testgroup', 'Integration test group', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)
 ON CONFLICT (id) DO NOTHING;
 
 -- Add a Support queue expected by integration tests

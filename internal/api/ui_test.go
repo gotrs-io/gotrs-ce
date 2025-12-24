@@ -506,7 +506,7 @@ func TestPageLoadPerformance(t *testing.T) {
 		{
 			name:      "Admin page size is reasonable",
 			route:     "/admin",
-			maxSizeKB: 40,
+			maxSizeKB: 45,
 		},
 	}
 

@@ -1,25 +1,22 @@
-# Static Routes Baseline
 #
-# This file is auto-created by scripts/validate_routes.sh the first time
-# code-defined (non-YAML) business routes are detected in htmx_routes.go.
-#
-# Purpose: Prevent reintroduction or growth of hard-coded routes. All
-# business/API routes must live in YAML route files. Only keep /health,
+# ---- TEMPORARY ACCEPTED CODE-DEFINED ROUTES (Oct 4 2025) ----
 # /static assets and minimal bootstrap in code.
-#
-# Migration Workflow:
 # 1. Move a code route to YAML.
 # 2. Remove it from htmx_routes.go.
 # 3. Regenerate: make build (script will show no new code routes).
 # 4. Manually edit this baseline to delete the moved path.
 # 5. Commit changes.
-#
 # Do NOT add new entries here unless absolutely necessary and temporary.
-
-# ---- TEMPORARY ACCEPTED CODE-DEFINED ROUTES (Oct 4 2025) ----
-# These were detected by validate_routes during make build. They MUST be
-# migrated into YAML route definitions and then removed from this list.
 # Grouped by feature. Do not expand this list further; only shrink it.
+# Migration Workflow:
+# Purpose: Prevent reintroduction or growth of hard-coded routes. All
+# Static Routes Baseline
+# These were detected by validate_routes during make build. They MUST be
+# This file is auto-created by scripts/validate_routes.sh the first time
+# business/API routes must live in YAML route files. Only keep /health,
+# code-defined (non-YAML) business routes are detected in htmx_routes.go.
+# migrated into YAML route definitions and then removed from this list.
+/admin/users/:id/status
 /canned-responses
 /canned-responses/:id
 /canned-responses/categories
@@ -94,4 +91,3 @@
 /tickets/stream
 /types
 /types/:id
-

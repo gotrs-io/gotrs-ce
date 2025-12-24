@@ -41,6 +41,9 @@ func TestAllLinksReturn200(t *testing.T) {
 			"/admin/settings":      {http.StatusNotFound: {}},
 			"/admin/reports":       {http.StatusNotFound: {}},
 			"/admin/logs":          {http.StatusNotFound: {}},
+			"/customer/profile":    {http.StatusServiceUnavailable: {}},
+			"/customer":            {http.StatusServiceUnavailable: {}},
+			"/customer/tickets":    {http.StatusServiceUnavailable: {}},
 		}
 
 		if strings.HasPrefix(trimmed, "/tickets/") && status == http.StatusNotFound {

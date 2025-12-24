@@ -28,7 +28,11 @@ if [ ! -f "$BASELINE_FILE" ]; then
   exit 0
 fi
 
-NEW=$(comm -13 "$BASELINE_FILE" "$CURRENT" || true)
+# Strip comments and empty lines from baseline before comparison
+BASELINE_CLEAN="$TMP_DIR/baseline_clean.txt"
+grep -v '^#' "$BASELINE_FILE" | grep -v '^$' | sort -u > "$BASELINE_CLEAN" || true
+
+NEW=$(comm -13 "$BASELINE_CLEAN" "$CURRENT" || true)
 
 if [ -n "$NEW" ]; then
   echo "ERROR: New hard-coded routes detected (should move to YAML):" >&2

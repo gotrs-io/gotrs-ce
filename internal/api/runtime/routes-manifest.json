@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-12-21T12:23:07.937383579Z",
+  "generatedAt": "2025-12-24T15:45:22.937704793Z",
   "routes": [
     {
       "group": "admin",
@@ -2728,6 +2728,24 @@
       "method": "GET",
       "path": "/customer/login",
       "handler": "handleCustomerLoginPage"
+    },
+    {
+      "group": "auth",
+      "method": "POST",
+      "path": "/customer/login",
+      "handler": "handleCustomerLogin"
+    },
+    {
+      "group": "auth",
+      "method": "POST",
+      "path": "/api/auth/customer/login",
+      "handler": "handleCustomerLogin"
+    },
+    {
+      "group": "auth",
+      "method": "GET",
+      "path": "/customer/logout",
+      "handler": "handleCustomerLogout"
     },
     {
       "group": "basic",

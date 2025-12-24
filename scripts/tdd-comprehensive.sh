@@ -1101,7 +1101,7 @@ run_comprehensive_api_tests() {
         local response_time=$(curl -s -o /dev/null -w "%{time_total}" "$BASE_URL$endpoint")
         
         case "$status_code" in
-            200|201|302|401) # Success or expected redirect/auth
+            200|201|302|303|401) # Success or expected redirect/auth (303 = See Other for login redirect)
                 ((working_endpoints++))
                 endpoint_results+=("{\"endpoint\": \"$endpoint\", \"status\": $status_code, \"result\": \"OK\", \"response_time\": $response_time}")
                 ;;
@@ -1475,9 +1475,9 @@ run_comprehensive_regression_tests() {
     
     # Regression Test 1: Authentication system integrity
     log "Testing authentication system integrity..."
-    # Expect 401 or redirect (301/302) when unauthenticated on admin pages
+    # Expect 401 or redirect (301/302/303) when unauthenticated on admin pages
     admin_status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/admin/users")
-    if [ "$admin_status" = "401" ] || [ "$admin_status" = "301" ] || [ "$admin_status" = "302" ]; then
+    if [ "$admin_status" = "401" ] || [ "$admin_status" = "301" ] || [ "$admin_status" = "302" ] || [ "$admin_status" = "303" ]; then
         success "Authentication protection: PASS ($admin_status)"
         jq '.evidence.regression_tests.auth_protection = "PASS"' \
             "$evidence_file" > "$evidence_file.tmp" && mv "$evidence_file.tmp" "$evidence_file"

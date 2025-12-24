@@ -5,7 +5,9 @@ START TRANSACTION;
 
 -- Ensure auxiliary test groups exist
 INSERT IGNORE INTO groups (id, name, comments, valid_id, create_time, create_by, change_time, change_by)
-VALUES (4, 'testgroup', 'Integration test group', 1, NOW(), 1, NOW(), 1);
+VALUES 
+(4, 'support', 'Frontline support team', 1, NOW(), 1, NOW(), 1),
+(5, 'testgroup', 'Integration test group', 1, NOW(), 1, NOW(), 1);
 
 INSERT IGNORE INTO queue (
     id,

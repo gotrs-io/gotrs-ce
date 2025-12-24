@@ -8,10 +8,10 @@ services:
     container_name: gotrs-mariadb
     user: "999:999" # Run as mysql user (standard for MariaDB)
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-changeme}
-      MYSQL_DATABASE: ${DB_NAME:-otrs}
-      MYSQL_USER: ${DB_USER:-otrs}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-LetClaude.1n}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
       # MariaDB specific settings for better performance
       MYSQL_INITDB_SKIP_TZINFO: 1
     ports:

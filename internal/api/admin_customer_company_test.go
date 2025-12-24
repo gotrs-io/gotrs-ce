@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
@@ -19,33 +18,15 @@ import (
 )
 
 // Helper function to get test database connection
+// Uses database.InitTestDB() for consistency with other admin tests
 func getTestDB(t *testing.T) *sql.DB {
-	if !dbAvailable() {
-		t.Skip("Test database not available (GOTRS_TEST_DB_READY!=1)")
+	if err := database.InitTestDB(); err != nil {
+		t.Fatalf("Test database not available: %v. Run: make test-db-up", err)
 	}
 
-	driver := os.Getenv("TEST_DB_DRIVER")
-	if driver == "" {
-		driver = "mysql"
-	}
-
-	var dsn string
-	if driver == "mysql" || driver == "mariadb" {
-		dsn = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&multiStatements=true&timeout=2s",
-			os.Getenv("TEST_DB_USER"), os.Getenv("TEST_DB_PASSWORD"),
-			os.Getenv("TEST_DB_HOST"), os.Getenv("TEST_DB_PORT"), os.Getenv("TEST_DB_NAME"))
-	} else {
-		dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			os.Getenv("TEST_DB_HOST"), os.Getenv("TEST_DB_PORT"), os.Getenv("TEST_DB_USER"),
-			os.Getenv("TEST_DB_PASSWORD"), os.Getenv("TEST_DB_NAME"))
-	}
-
-	db, err := sql.Open(driver, dsn)
-	require.NoError(t, err, "Failed to connect to test database")
-
-	// Verify connection
-	err = db.Ping()
-	require.NoError(t, err, "Failed to ping test database")
+	db, err := database.GetDB()
+	require.NoError(t, err, "Failed to get test database connection")
+	require.NotNil(t, db, "Database connection is nil")
 
 	return db
 }
@@ -614,7 +595,14 @@ func TestAdminCustomerCompanyServices(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("POST /admin/customer/companies/:id/services assigns services", func(t *testing.T) {
-		router := NewSimpleRouter()
+		db := getTestDB(t)
+		defer db.Close()
+
+		customerID := "TEST_SERVICES_" + fmt.Sprint(time.Now().Unix())
+		createTestCustomerCompany(t, db, customerID)
+		defer cleanupTestCustomerCompany(t, db, customerID)
+
+		router := NewSimpleRouterWithDB(db)
 
 		// Test service assignment data
 		formData := url.Values{}
@@ -622,7 +610,7 @@ func TestAdminCustomerCompanyServices(t *testing.T) {
 		formData.Add("services", "2")
 		formData.Add("services", "3")
 
-		req := httptest.NewRequest(http.MethodPost, "/admin/customer/companies/TEST001/services",
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/admin/customer/companies/%s/services", customerID),
 			bytes.NewBufferString(formData.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
@@ -633,9 +621,16 @@ func TestAdminCustomerCompanyServices(t *testing.T) {
 	})
 
 	t.Run("GET /admin/customer/companies/:id/services returns assigned services", func(t *testing.T) {
-		router := NewSimpleRouter()
+		db := getTestDB(t)
+		defer db.Close()
 
-		req := httptest.NewRequest(http.MethodGet, "/admin/customer/companies/TEST001/services", nil)
+		customerID := "TEST_SERVICES2_" + fmt.Sprint(time.Now().Unix())
+		createTestCustomerCompany(t, db, customerID)
+		defer cleanupTestCustomerCompany(t, db, customerID)
+
+		router := NewSimpleRouterWithDB(db)
+
+		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/admin/customer/companies/%s/services", customerID), nil)
 		w := httptest.NewRecorder()
 
 		router.ServeHTTP(w, req)
@@ -648,9 +643,16 @@ func TestAdminCustomerCompanyUsers(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("GET /admin/customer/companies/:id/users returns company users", func(t *testing.T) {
-		router := NewSimpleRouter()
+		db := getTestDB(t)
+		defer db.Close()
 
-		req := httptest.NewRequest(http.MethodGet, "/admin/customer/companies/TEST001/users", nil)
+		customerID := "TEST_USERS_" + fmt.Sprint(time.Now().Unix())
+		createTestCustomerCompany(t, db, customerID)
+		defer cleanupTestCustomerCompany(t, db, customerID)
+
+		router := NewSimpleRouterWithDB(db)
+
+		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/admin/customer/companies/%s/users", customerID), nil)
 		w := httptest.NewRecorder()
 
 		router.ServeHTTP(w, req)
@@ -663,9 +665,16 @@ func TestAdminCustomerCompanyTickets(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("GET /admin/customer/companies/:id/tickets returns company tickets", func(t *testing.T) {
-		router := NewSimpleRouter()
+		db := getTestDB(t)
+		defer db.Close()
 
-		req := httptest.NewRequest(http.MethodGet, "/admin/customer/companies/TEST001/tickets", nil)
+		customerID := "TEST_TICKETS_" + fmt.Sprint(time.Now().Unix())
+		createTestCustomerCompany(t, db, customerID)
+		defer cleanupTestCustomerCompany(t, db, customerID)
+
+		router := NewSimpleRouterWithDB(db)
+
+		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/admin/customer/companies/%s/tickets", customerID), nil)
 		w := httptest.NewRecorder()
 
 		router.ServeHTTP(w, req)
@@ -942,12 +951,15 @@ func TestAdminCustomerCompanyCRUD(t *testing.T) {
 	})
 
 	t.Run("related operations", func(t *testing.T) {
-		router := NewSimpleRouter()
+		db := getTestDB(t)
+		router := NewSimpleRouterWithDB(db)
 
-		// Register all routes
+		// Create test company for related operations
+		createTestCustomerCompany(t, db, "RELTEST001")
+		defer cleanupTestCustomerCompany(t, db, "RELTEST001")
 
 		t.Run("activate company", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/admin/customer/companies/TEST001/activate", nil)
+			req := httptest.NewRequest(http.MethodPost, "/admin/customer/companies/RELTEST001/activate", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -956,7 +968,7 @@ func TestAdminCustomerCompanyCRUD(t *testing.T) {
 		})
 
 		t.Run("view company users", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/admin/customer/companies/TEST001/users", nil)
+			req := httptest.NewRequest(http.MethodGet, "/admin/customer/companies/RELTEST001/users", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -964,7 +976,7 @@ func TestAdminCustomerCompanyCRUD(t *testing.T) {
 		})
 
 		t.Run("view company tickets", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/admin/customer/companies/TEST001/tickets", nil)
+			req := httptest.NewRequest(http.MethodGet, "/admin/customer/companies/RELTEST001/tickets", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -972,7 +984,7 @@ func TestAdminCustomerCompanyCRUD(t *testing.T) {
 		})
 
 		t.Run("view company services", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/admin/customer/companies/TEST001/services", nil)
+			req := httptest.NewRequest(http.MethodGet, "/admin/customer/companies/RELTEST001/services", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -984,7 +996,7 @@ func TestAdminCustomerCompanyCRUD(t *testing.T) {
 			formData.Add("services", "1")
 			formData.Add("services", "2")
 
-			req := httptest.NewRequest(http.MethodPost, "/admin/customer/companies/TEST001/services",
+			req := httptest.NewRequest(http.MethodPost, "/admin/customer/companies/RELTEST001/services",
 				bytes.NewBufferString(formData.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			w := httptest.NewRecorder()

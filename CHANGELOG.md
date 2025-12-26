@@ -59,6 +59,7 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 - Documentation updated for inbound email IMAP aliases, folder metadata, and integration coverage notes.
 
 ### Fixed
+- **Customer User Typeahead JSON Escaping**: Fixed JSON parsing issues in customer user autocomplete seed data where HTML entities (e.g., `&amp;`) were causing parse errors. Added `|escapejs` filter to properly escape strings for JSON context.
 - **Admin Navigation Bar**: Fixed navigation showing customer portal links on admin pages (e.g., `/admin/customer/companies/*/edit`) when `PortalConfig` was passed for portal settings tab. Added `isAdmin` flag check in `base.pongo2` to prevent `isCustomer` detection on admin pages.
 - SLA admin update handler now converts PostgreSQL placeholders to MySQL (`ConvertPlaceholders`).
 - SLA admin create handler properly handles NOT NULL columns by converting nil to 0.

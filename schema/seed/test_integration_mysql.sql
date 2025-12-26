@@ -168,6 +168,17 @@ VALUES
     ('john.customer', 'john.customer@example.test', 'COMP1', NULL, NULL, 'Test', 'Customer Alpha', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Seeded integration user', 1, NOW(), 1, NOW(), 1),
     ('jane.customer', 'jane.customer@example.test', 'COMP2', NULL, NULL, 'Test', 'Customer Beta', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Seeded integration user', 1, NOW(), 1, NOW(), 1);
 
+-- Update Support queue to use the 'support' group (id=4) so customers can have unique preferred queues
+UPDATE queue SET group_id = 4 WHERE id = 5 AND name = 'Support';
+
+-- Give customers preferred queues via group_customer (for queue preference tests)
+-- COMP1 (john.customer) gets Support queue via support group (id=4) with rw permission
+-- COMP2 (jane.customer) gets Misc queue via users group (id=1) with ro permission
+INSERT IGNORE INTO group_customer (customer_id, group_id, permission_key, permission_value, permission_context, create_time, create_by, change_time, change_by)
+VALUES
+    ('COMP1', 4, 'rw', 1, '', NOW(), 1, NOW(), 1),
+    ('COMP2', 1, 'ro', 1, '', NOW(), 1, NOW(), 1);
+
 -- Seed queue statistics: Raw queue (2 tickets) and Junk queue (1 ticket)
 INSERT IGNORE INTO ticket (
     tn,

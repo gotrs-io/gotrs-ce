@@ -147,6 +147,8 @@ Avoid `FormData` for checkbox matrices when the backend expects `application/x-w
 - `make frontend-clean-build`: clean and rebuild all frontend assets
 - `make frontend-dev`: start frontend development server with hot reload
 
+**DANGER**: Never use `docker compose down -v` - the `-v` flag removes ALL volumes including the dev database. Profile flags (`--profile testdb`) do NOT reliably isolate volume removal. If you need to reset the test database, use `make test-db-reset` or manually remove only test volumes.
+
 **Note**: `css-deps` uses `npm-check-updates` which may upgrade Tailwind CSS to v4, causing build failures. Pin Tailwind to `^3.4.0` in package.json and avoid `npm-check-updates` for frontend dependencies.
 
 ### Container-First Enforcement Helpers

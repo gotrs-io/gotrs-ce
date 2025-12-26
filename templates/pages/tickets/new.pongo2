@@ -163,40 +163,16 @@
 <!-- Seed JSON for GoatKit autocomplete (customer-user) -->
 <script type="application/json" data-gk-seed="customer-user">[
     {% for customerUser in CustomerUsers %}{
-        "login": "{{ customerUser.Login }}",
-        "email": "{{ customerUser.Email }}",
-        "firstName": "{{ customerUser.FirstName }}",
-        "lastName": "{{ customerUser.LastName }}",
-        "customerId": "{{ customerUser.CustomerID|default:customerUser.CustomerId|default:"" }}",
+        "login": "{{ customerUser.Login|escapejs }}",
+        "email": "{{ customerUser.Email|escapejs }}",
+        "firstName": "{{ customerUser.FirstName|escapejs }}",
+        "lastName": "{{ customerUser.LastName|escapejs }}",
+        "customerId": "{{ customerUser.CustomerID|default:customerUser.CustomerId|default:""|escapejs }}",
         "preferredQueueId": "{{ customerUser.PreferredQueueID|default:customerUser.PreferredQueueId|default:"" }}",
-        "preferredQueueName": "{{ customerUser.PreferredQueueName|default:customerUser.PreferredQueueName|default:"" }}"
+        "preferredQueueName": "{{ customerUser.PreferredQueueName|default:customerUser.PreferredQueueName|default:""|escapejs }}"
     }{% if not loop.last %},{% endif %}{% endfor %}
 ]</script>
-<script>
-    (function ensurePreferredQueueSeed(){
-        var seeds = (window.GoatKitSeeds && window.GoatKitSeeds['customer-user']) || [];
-        var hasPreferred = Array.isArray(seeds) && seeds.some(function(s){ return s && s.preferredQueueId; });
-        if (hasPreferred) { return; }
-        var queues = [
-            {% for queue in Queues %}{ id: {{ queue.ID }}, name: "{{ queue.Name }}" }{% if not loop.last %},{% endif %}{% endfor %}
-        ].filter(function(q){ return q && q.id; });
-        var first = queues.length ? queues[0] : null;
-        if (!first) { return; }
-        var fallback = {
-            login: 'play-pref@example.com',
-            email: 'play-pref@example.com',
-            firstName: 'Play',
-            lastName: 'Pref',
-            customerId: 'PLAYCUST',
-            preferredQueueId: first.id,
-            preferredQueueName: first.name || 'Default Queue'
-        };
-        if (!Array.isArray(seeds)) { seeds = []; }
-        seeds.push(fallback);
-        window.GoatKitSeeds = window.GoatKitSeeds || {};
-        window.GoatKitSeeds['customer-user'] = seeds;
-    })();
-</script>
+
 <!-- Handle form response and file uploads -->
 <script>
     // Hidden field to carry CustomerID; set automatically when a known user is selected

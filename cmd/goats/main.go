@@ -383,6 +383,15 @@ func main() {
 		"HandleAdminCustomerUsersExport":     api.HandleAdminCustomerUsersExport,
 		"HandleAdminCustomerUsersBulkAction": api.HandleAdminCustomerUsersBulkAction,
 
+		// Customer User Services handlers (individual user to service assignments)
+		"handleAdminCustomerUserServices":         api.HandleAdminCustomerUserServices,
+		"handleAdminCustomerUserServicesAllocate": api.HandleAdminCustomerUserServicesAllocate,
+		"handleAdminCustomerUserServicesUpdate":   api.HandleAdminCustomerUserServicesUpdate,
+		"handleAdminServiceCustomerUsersAllocate": api.HandleAdminServiceCustomerUsersAllocate,
+		"handleAdminServiceCustomerUsersUpdate":   api.HandleAdminServiceCustomerUsersUpdate,
+		"handleAdminDefaultServices":              api.HandleAdminDefaultServices,
+		"handleAdminDefaultServicesUpdate":        api.HandleAdminDefaultServicesUpdate,
+
 		// Basic system handlers
 		"handleRoot": func(c *gin.Context) {
 			c.Redirect(http.StatusFound, api.RootRedirectTarget())

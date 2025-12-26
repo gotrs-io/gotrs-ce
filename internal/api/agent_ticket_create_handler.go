@@ -47,6 +47,7 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 		queueID := c.PostForm("queue_id")
 		priorityID := c.PostForm("priority")
 		typeID := c.PostForm("type_id")
+		serviceID := c.PostForm("service_id")
 		stateID := strings.TrimSpace(c.PostForm("next_state_id"))
 		nextStateName := strings.TrimSpace(c.PostForm("next_state"))
 		if stateID == "" {
@@ -250,12 +251,19 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 			v := customerUserIDValue.String
 			custUserPtr = &v
 		}
+		var serviceIDPtr *int
+		if serviceID != "" {
+			if sid, serr := strconv.Atoi(serviceID); serr == nil && sid > 0 {
+				serviceIDPtr = &sid
+			}
+		}
 		var userIDInt = int(userID)
 		ticketModel := &models.Ticket{
 			Title:             title,
 			QueueID:           queueIDInt,
 			TicketLockID:      1,
 			TypeID:            typePtr,
+			ServiceID:         serviceIDPtr,
 			UserID:            &userIDInt,
 			ResponsibleUserID: &userIDInt,
 			TicketPriorityID:  priorityIDInt,

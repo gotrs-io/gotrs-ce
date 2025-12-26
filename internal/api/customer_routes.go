@@ -10,6 +10,7 @@ import (
 
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/config"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/sysconfig"
 	"github.com/gotrs-io/gotrs-ce/internal/utils"
@@ -366,13 +367,20 @@ func handleCustomerTickets(db *sql.DB) gin.HandlerFunc {
 // handleCustomerNewTicket shows the new ticket form
 func handleCustomerNewTicket(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !requireCustomerAuth(c) {
+			return
+		}
+		username := c.GetString("username")
 		cfg := customerPortalConfigFromContext(c, db)
-		// Get available services for customer
-		rows, _ := db.Query(database.ConvertPlaceholders(`
-			SELECT id, name FROM service 
-			WHERE valid_id = 1
-			ORDER BY name
-		`))
+
+		// Get services assigned to this customer user via service_customer_user table
+		query := database.ConvertPlaceholders(`
+			SELECT s.id, s.name FROM service s
+			INNER JOIN service_customer_user scu ON s.id = scu.service_id
+			WHERE s.valid_id = 1 AND scu.customer_user_login = $1
+			ORDER BY s.name
+		`)
+		rows, _ := db.Query(query, username)
 		defer rows.Close()
 
 		services := []map[string]interface{}{}
@@ -386,6 +394,38 @@ func handleCustomerNewTicket(db *sql.DB) gin.HandlerFunc {
 				"id":   service.ID,
 				"name": service.Name,
 			})
+		}
+
+		// Fall back to <DEFAULT> services if no explicit assignments and config allows it
+		if len(services) == 0 {
+			// Check config for Ticket::Service::Default::UnknownCustomer equivalent
+			useDefaults := true // Default to true for Znuny compatibility
+			if appCfg := config.Get(); appCfg != nil {
+				useDefaults = appCfg.Ticket.Service.DefaultUnknownCustomer
+			}
+
+			if useDefaults {
+				defaultQuery := database.ConvertPlaceholders(`
+					SELECT s.id, s.name FROM service s
+					INNER JOIN service_customer_user scu ON s.id = scu.service_id
+					WHERE s.valid_id = 1 AND scu.customer_user_login = '<DEFAULT>'
+					ORDER BY s.name
+				`)
+				defaultRows, _ := db.Query(defaultQuery)
+				defer defaultRows.Close()
+
+				for defaultRows.Next() {
+					var service struct {
+						ID   int
+						Name string
+					}
+					defaultRows.Scan(&service.ID, &service.Name)
+					services = append(services, map[string]interface{}{
+						"id":   service.ID,
+						"name": service.Name,
+					})
+				}
+			}
 		}
 
 		// Get priorities customer can select

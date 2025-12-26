@@ -375,6 +375,13 @@ func ensureCoreHandlers() {
 		"HandleAdminCustomerUsersExport":     HandleAdminCustomerUsersExport,
 		"HandleAdminCustomerUsersBulkAction": HandleAdminCustomerUsersBulkAction,
 
+		// Customer user ↔ services management
+		"handleAdminCustomerUserServices":         HandleAdminCustomerUserServices,
+		"handleAdminCustomerUserServicesAllocate": HandleAdminCustomerUserServicesAllocate,
+		"handleAdminCustomerUserServicesUpdate":   HandleAdminCustomerUserServicesUpdate,
+		"handleAdminServiceCustomerUsersAllocate": HandleAdminServiceCustomerUsersAllocate,
+		"handleAdminServiceCustomerUsersUpdate":   HandleAdminServiceCustomerUsersUpdate,
+
 		// Email identity API handlers
 		"HandleListSystemAddressesAPI": HandleListSystemAddressesAPI,
 		"HandleCreateSystemAddressAPI": HandleCreateSystemAddressAPI,

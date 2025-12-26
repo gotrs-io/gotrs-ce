@@ -166,6 +166,12 @@ ticket:
   default_lock: 1            # 1 = unlock (OTRS lock IDs)
   auto_assign: false
   
+  # Service settings (Znuny-compatible)
+  service:
+    # Enable default services for customers without explicit assignments
+    # Uses <DEFAULT> pseudo-user in service_customer_user table (Znuny pattern)
+    default_unknown_customer: true
+  
   # SLA configuration
   sla:
     enabled: false

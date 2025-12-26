@@ -53,6 +53,14 @@ func HandleAgentNewTicket(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		// Get services
+		services, err := getServicesForAgent(db)
+		if err != nil {
+			log.Printf("Error getting services: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load services"})
+			return
+		}
+
 		// Get customer users
 		customerUsers, err := getCustomerUsersForAgent(db)
 		if err != nil {
@@ -86,6 +94,7 @@ func HandleAgentNewTicket(db *sql.DB) gin.HandlerFunc {
 				"Queues":            queues,
 				"Types":             types,
 				"Priorities":        priorities,
+				"Services":          services,
 				"CustomerUsers":     customerUsers,
 				"TicketStates":      stateOptions,
 				"TicketStateLookup": stateLookup,
@@ -170,6 +179,31 @@ func getPrioritiesForAgent(db *sql.DB) ([]gin.H, error) {
 		priorities = append(priorities, gin.H{"ID": id, "Name": name})
 	}
 	return priorities, nil
+}
+
+// getServicesForAgent gets services available for agent ticket creation
+func getServicesForAgent(db *sql.DB) ([]gin.H, error) {
+	rows, err := db.Query(database.ConvertPlaceholders(`
+		SELECT id, name 
+		FROM service 
+		WHERE valid_id = 1 
+		ORDER BY name
+	`))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var services []gin.H
+	for rows.Next() {
+		var id int
+		var name string
+		if err := rows.Scan(&id, &name); err != nil {
+			return nil, err
+		}
+		services = append(services, gin.H{"ID": id, "Name": name})
+	}
+	return services, nil
 }
 
 // getCustomerUsersForAgent gets customer users available for agent ticket creation

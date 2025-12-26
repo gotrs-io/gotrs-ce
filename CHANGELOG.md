@@ -41,6 +41,10 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 - MySQL test container now applies the same integration fixtures as PostgreSQL, so API suites run identically across drivers.
 - Regression coverage for `/admin/users` and YAML fallback routes when `GOTRS_DISABLE_TEST_AUTH_BYPASS` is disabled.
 - **Admin Services Module**: Full CRUD functionality with 31 unit tests covering page rendering, create (form+JSON), update, delete, validation, DB integration, JSON responses, HTMX responses, and content-type handling.
+- **Admin Customer User Services**: New management page at `/admin/customer-user-services` for assigning services to individual customer users, with dual-view UI (customer→services and service→customers).
+- **Service Filtering in Customer Portal**: Customer ticket creation form now filters services to only show those assigned to the logged-in customer user via `service_customer_user` table.
+- **Service Field in Agent Ticket Form**: Agents can now select a Service when creating tickets, with the service_id saved to the ticket record.
+- **Default Services for Customer Users**: Customer users can now have default services assigned that are automatically pre-selected when creating tickets via the customer portal.
 
 ### Changed
 - Routes manifest regenerated (including admin dynamic aliases) and config defaults refreshed.
@@ -53,6 +57,7 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 - Documentation updated for inbound email IMAP aliases, folder metadata, and integration coverage notes.
 
 ### Fixed
+- **Admin Navigation Bar**: Fixed navigation showing customer portal links on admin pages (e.g., `/admin/customer/companies/*/edit`) when `PortalConfig` was passed for portal settings tab. Added `isAdmin` flag check in `base.pongo2` to prevent `isCustomer` detection on admin pages.
 - SLA admin update handler now converts PostgreSQL placeholders to MySQL (`ConvertPlaceholders`).
 - SLA admin create handler properly handles NOT NULL columns by converting nil to 0.
 - Admin customer company create now returns validation (400) instead of 404 for POST to `/customer/companies/new`.

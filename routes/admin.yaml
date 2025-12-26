@@ -433,6 +433,43 @@ spec:
       handler: HandleAdminCustomerUsersBulkAction
       description: "Perform customer user bulk action"
 
+    # Customer User Services - individual service assignment
+    - path: /customer-user-services
+      method: GET
+      handler: handleAdminCustomerUserServices
+      template: pages/admin/customer_user_services.pongo2
+      description: "Customer user ↔ service relations management"
+
+    - path: /customer-user-services/customer/:login
+      method: GET
+      handler: handleAdminCustomerUserServicesAllocate
+      description: "Get services for a customer user"
+
+    - path: /customer-user-services/customer/:login
+      method: POST
+      handler: handleAdminCustomerUserServicesUpdate
+      description: "Update services for a customer user"
+
+    - path: /customer-user-services/service/:id
+      method: GET
+      handler: handleAdminServiceCustomerUsersAllocate
+      description: "Get customer users for a service"
+
+    - path: /customer-user-services/service/:id
+      method: POST
+      handler: handleAdminServiceCustomerUsersUpdate
+      description: "Update customer users for a service"
+
+    - path: /customer-user-services/default
+      method: GET
+      handler: handleAdminDefaultServices
+      description: "Get default service assignments"
+
+    - path: /customer-user-services/default
+      method: POST
+      handler: handleAdminDefaultServicesUpdate
+      description: "Update default service assignments"
+
     # System operations
     - path: /settings
       method: GET

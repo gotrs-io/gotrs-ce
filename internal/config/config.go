@@ -179,7 +179,10 @@ type TicketConfig struct {
 	DefaultPriority string `mapstructure:"default_priority"`
 	DefaultStatus   string `mapstructure:"default_status"`
 	AutoAssign      bool   `mapstructure:"auto_assign"`
-	SLA             struct {
+	Service         struct {
+		DefaultUnknownCustomer bool `mapstructure:"default_unknown_customer"`
+	} `mapstructure:"service"`
+	SLA struct {
 		Enabled       bool          `mapstructure:"enabled"`
 		FirstResponse time.Duration `mapstructure:"first_response"`
 		Resolution    time.Duration `mapstructure:"resolution"`

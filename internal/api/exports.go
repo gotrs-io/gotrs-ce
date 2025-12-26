@@ -175,6 +175,64 @@ var (
 		}
 		handleAdminUploadCustomerPortalLogo(dbService.GetDB())(c)
 	}
+
+	// Customer user ↔ services management
+	HandleAdminCustomerUserServices = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminCustomerUserServices(dbService.GetDB())(c)
+	}
+	HandleAdminCustomerUserServicesAllocate = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminCustomerUserServicesAllocate(dbService.GetDB())(c)
+	}
+	HandleAdminCustomerUserServicesUpdate = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminCustomerUserServicesUpdate(dbService.GetDB())(c)
+	}
+	HandleAdminServiceCustomerUsersAllocate = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminServiceCustomerUsersAllocate(dbService.GetDB())(c)
+	}
+	HandleAdminServiceCustomerUsersUpdate = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminServiceCustomerUsersUpdate(dbService.GetDB())(c)
+	}
+	HandleAdminDefaultServices = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminDefaultServices(dbService.GetDB())(c)
+	}
+	HandleAdminDefaultServicesUpdate = func(c *gin.Context) {
+		dbService, err := adapter.GetDatabase()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
+			return
+		}
+		handleAdminDefaultServicesUpdate(dbService.GetDB())(c)
+	}
 )
 
 // Ticket handlers

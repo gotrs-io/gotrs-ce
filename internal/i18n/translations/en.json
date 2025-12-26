@@ -969,6 +969,7 @@
     "customer_user_help": "Start typing to search existing customer users. New email addresses are allowed.",
     "initial_interaction": "Initial Interaction",
     "initial_interaction_help": "Choose how the initial customer interaction should be recorded.",
+    "no_service": "-- No Service --",
     "interaction": {
       "email": "Email",
       "phone": "Phone",

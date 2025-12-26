@@ -21,12 +21,29 @@ import (
 func TestMain(m *testing.M) {
 	ensureTestEnvironment()
 
+	// SKIP_DB_WAIT is for tests that genuinely don't need DB (e.g., pure unit tests)
+	// Most API tests require DB - if you're getting timeouts, run: make test-db-up
 	if os.Getenv("SKIP_DB_WAIT") == "1" {
 		os.Exit(m.Run())
 	}
 
-	if err := waitForTestDatabase(45 * time.Second); err != nil {
-		fmt.Fprintf(os.Stderr, "test database unavailable: %v\n", err)
+	// Fail fast (3s) with clear error - don't waste time on 45s timeouts
+	if err := waitForTestDatabase(3 * time.Second); err != nil {
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "╔══════════════════════════════════════════════════════════════════╗")
+		fmt.Fprintln(os.Stderr, "║  TEST DATABASE UNAVAILABLE                                       ║")
+		fmt.Fprintln(os.Stderr, "╠══════════════════════════════════════════════════════════════════╣")
+		fmt.Fprintln(os.Stderr, "║  These tests require the test database to be running.            ║")
+		fmt.Fprintln(os.Stderr, "║                                                                  ║")
+		fmt.Fprintln(os.Stderr, "║  To start the test database:                                     ║")
+		fmt.Fprintln(os.Stderr, "║    make test-db-up                                               ║")
+		fmt.Fprintln(os.Stderr, "║                                                                  ║")
+		fmt.Fprintln(os.Stderr, "║  To run tests with DB:                                           ║")
+		fmt.Fprintln(os.Stderr, "║    make toolbox-exec ARGS=\"go test ./internal/api/...\"           ║")
+		fmt.Fprintln(os.Stderr, "║                                                                  ║")
+		fmt.Fprintf(os.Stderr,  "║  Error: %-55s ║\n", err.Error()[:min(55, len(err.Error()))])
+		fmt.Fprintln(os.Stderr, "╚══════════════════════════════════════════════════════════════════╝")
+		fmt.Fprintln(os.Stderr, "")
 		os.Exit(1)
 	}
 

@@ -786,19 +786,16 @@ toolbox-test-all:
 
 .PHONY: test-unit
 test-unit:
-	@echo "🧪 Running stable unit test set (excluding examples and e2e)..."
+	@echo "🧪 Running unit tests (with test database)..."
 	@$(MAKE) toolbox-build
 	@$(call ensure_caches)
-	@$(CONTAINER_CMD) run --rm \
-		--security-opt label=disable \
-		-v "$$PWD:/workspace" \
-		-w /workspace \
-		-u "$$(id -u):$$(id -g)" \
+	@# Ensure test DB is running
+	@$(MAKE) test-db-up >/dev/null 2>&1 || true
+	@$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml --profile toolbox --profile testdb run --rm -T \
 		-e GOCACHE=/workspace/.cache/go-build \
 		-e GOMODCACHE=/workspace/.cache/go-mod \
 		-e GOFLAGS=-buildvcs=false \
-		-e SKIP_DB_WAIT=1 \
-		gotrs-toolbox:latest \
+		toolbox \
 		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go test -count=1 -buildvcs=false -v ./cmd/goats ./internal/... ./generated/... | tee generated/test-results/unit_stable.log'
 
 .PHONY: test-e2e
@@ -1474,10 +1471,11 @@ toolbox-exec:
 		exit 1; \
 	fi
 	@printf "\n🔧 toolbox -> %s\n" "$(ARGS)"
+	@# Always include testdb profile so tests can reach the test database
 	@if echo "$(COMPOSE_CMD)" | grep -q "podman-compose"; then \
-		COMPOSE_PROFILES=toolbox $(COMPOSE_CMD) run --rm -T toolbox bash -lc "$(ARGS)"; \
+		COMPOSE_PROFILES="toolbox,testdb" $(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml run --rm -T toolbox bash -lc "$(ARGS)"; \
 	else \
-		$(COMPOSE_CMD) --profile toolbox run --rm -T toolbox bash -lc "$(ARGS)"; \
+		$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml --profile toolbox --profile testdb run --rm -T toolbox bash -lc "$(ARGS)"; \
 	fi
 
 toolbox-exec-test:

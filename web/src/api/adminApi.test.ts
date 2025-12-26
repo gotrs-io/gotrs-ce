@@ -149,9 +149,12 @@ describe('adminApi', () => {
     });
 
     it('redirects to login on auth failure', async () => {
-      const originalLocation = window.location;
-      delete (window as any).location;
-      window.location = { href: '' } as Location;
+      // Mock window.location for JSDOM
+      const originalHref = window.location.href;
+      Object.defineProperty(window, 'location', {
+        value: { href: '' },
+        writable: true,
+      });
 
       const mockResponse = {
         ok: true,
@@ -163,7 +166,11 @@ describe('adminApi', () => {
       await expect(handleFetchResponse(mockResponse)).rejects.toThrow('Session expired');
       expect(window.location.href).toBe('/login');
 
-      window.location = originalLocation;
+      // Restore
+      Object.defineProperty(window, 'location', {
+        value: { href: originalHref },
+        writable: true,
+      });
     });
   });
 

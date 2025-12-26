@@ -965,6 +965,7 @@
     "customer_user_help": "Tippen Sie, um vorhandene Kundenbenutzer zu suchen. Neue E-Mail-Adressen sind erlaubt.",
     "initial_interaction": "Erste Interaktion",
     "initial_interaction_help": "Wählen Sie, wie die erste Kundeninteraktion protokolliert werden soll.",
+    "no_service": "-- Kein Service --",
     "interaction": {
       "email": "E-Mail",
       "phone": "Telefon",

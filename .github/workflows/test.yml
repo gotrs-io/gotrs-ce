@@ -1,13 +1,10 @@
 name: Tests
 
 on:
-  # Disable auto-triggers to prevent CI spam during development
-  # push:
-  #   branches: [ main, develop ]
-  # pull_request:
-  #   branches: [ main ]
-  
-  # Manual trigger only
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
     inputs:
       run_integration_tests:

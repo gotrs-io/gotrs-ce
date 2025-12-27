@@ -188,7 +188,7 @@ func HandleAdminCustomerUsersList(c *gin.Context) {
 	}
 
 	// Render template for regular HTTP requests
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/customer_users.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/customer_users.pongo2", pongo2.Context{
 		"User":           getUserFromContext(c),
 		"ActivePage":     "admin",
 		"Title":          "Customer User Management",
@@ -664,7 +664,7 @@ func HandleAdminCustomerUsersTickets(c *gin.Context) {
 
 // HandleAdminCustomerUsersImportForm handles GET /admin/customer-users/import
 func HandleAdminCustomerUsersImportForm(c *gin.Context) {
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/customer_users_import.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/customer_users_import.pongo2", pongo2.Context{
 		"User":       getUserFromContext(c),
 		"ActivePage": "admin",
 		"Title":      "Import Customer Users",

@@ -136,12 +136,12 @@ func handleAdminCustomerCompanies(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		if pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+		if getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 			renderCustomerCompaniesFallback(c, companies, search, validFilter)
 			return
 		}
 
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/customer_companies.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/customer_companies.pongo2", pongo2.Context{
 			"Title":           "Customer Companies",
 			"ActivePage":      "admin",
 			"ActiveAdminPage": "customer-companies",
@@ -189,7 +189,7 @@ func renderCustomerCompaniesFallback(c *gin.Context, companies []map[string]inte
 // handleAdminNewCustomerCompany shows the new customer company form
 func handleAdminNewCustomerCompany(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/customer_company_form.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/customer_company_form.pongo2", pongo2.Context{
 			"Title":           "New Customer Company",
 			"ActivePage":      "admin",
 			"ActiveAdminPage": "customer-companies",
@@ -330,7 +330,7 @@ func handleAdminEditCustomerCompany(db *sql.DB) gin.HandlerFunc {
 			templateData["SuccessMessage"] = "Customer company updated successfully"
 		}
 
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/customer_company_form.pongo2", templateData)
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/customer_company_form.pongo2", templateData)
 	}
 }
 
@@ -767,7 +767,7 @@ func handleAdminCustomerPortalSettings(db *sql.DB) gin.HandlerFunc {
 		customerID := strings.TrimSpace(c.Param("id"))
 		if customerID == "" {
 			cfg := loadCustomerPortalConfig(db)
-			pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/customer_portal_settings.pongo2", pongo2.Context{
+			getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/customer_portal_settings.pongo2", pongo2.Context{
 				"Title":           "Customer Portal Settings",
 				"ActivePage":      "admin",
 				"ActiveAdminPage": "customer-portal",

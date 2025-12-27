@@ -55,7 +55,7 @@ func HandleTemplate(c *gin.Context) {
 	}
 
 	// Use the pongo2 renderer
-	GetPongo2Renderer().HTML(c, http.StatusOK, template, data)
+	getPongo2Renderer().HTML(c, http.StatusOK, template, data)
 }
 
 // HandleStaticFiles serves static files from the static directory

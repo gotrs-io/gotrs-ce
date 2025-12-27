@@ -247,7 +247,7 @@ func main() {
 	// Configure larger multipart memory limit for large article content
 	r.MaxMultipartMemory = 128 << 20 // 128MB
 
-	// Initialize pongo2 renderer for template rendering
+	// Initialize template renderer
 	templateDir := os.Getenv("TEMPLATES_DIR")
 	if templateDir == "" {
 		candidates := []string{
@@ -267,12 +267,11 @@ func main() {
 			templateDir = "./templates"
 		}
 	}
-	api.InitPongo2Renderer(templateDir)
 	if renderer, err := shared.NewTemplateRenderer(templateDir); err != nil {
-		log.Printf("⚠️  Failed to initialize shared renderer (dir=%s): %v", templateDir, err)
+		log.Printf("⚠️  Failed to initialize template renderer (dir=%s): %v", templateDir, err)
 	} else {
 		shared.SetGlobalRenderer(renderer)
-		log.Printf("✅ Shared renderer initialized (dir=%s)", templateDir)
+		log.Printf("✅ Template renderer initialized (dir=%s)", templateDir)
 	}
 
 	// Load YAML routes using GlobalHandlerMap (handlers self-register via init())

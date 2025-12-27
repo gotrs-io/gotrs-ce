@@ -225,7 +225,7 @@ func handleCustomerDashboard(db *sql.DB) gin.HandlerFunc {
 		announcements := []map[string]interface{}{}
 		// TODO: Add announcements table/feature
 
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/customer/dashboard.pongo2", withPortalContext(pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/customer/dashboard.pongo2", withPortalContext(pongo2.Context{
 			"Title":         cfg.Title,
 			"ActivePage":    "customer",
 			"Stats":         stats,
@@ -350,7 +350,7 @@ func handleCustomerTickets(db *sql.DB) gin.HandlerFunc {
 			})
 		}
 
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/customer/tickets.pongo2", withPortalContext(pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/customer/tickets.pongo2", withPortalContext(pongo2.Context{
 			"Title":      fmt.Sprintf("%s - My Tickets", cfg.Title),
 			"ActivePage": "customer",
 			"Tickets":    tickets,
@@ -458,7 +458,7 @@ func handleCustomerNewTicket(db *sql.DB) gin.HandlerFunc {
 			customerDynamicFields = dfFields
 		}
 
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/customer/new_ticket.pongo2", withPortalContext(pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/customer/new_ticket.pongo2", withPortalContext(pongo2.Context{
 			"Title":               fmt.Sprintf("%s - Create New Ticket", cfg.Title),
 			"ActivePage":          "customer",
 			"Services":            services,
@@ -779,7 +779,7 @@ func handleCustomerTicketView(db *sql.DB) gin.HandlerFunc {
 			replyArticleDynamicFields = replyDFs
 		}
 
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/customer/ticket_view.pongo2", withPortalContext(pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/customer/ticket_view.pongo2", withPortalContext(pongo2.Context{
 			"Title":      fmt.Sprintf("%s - Ticket #%s", cfg.Title, ticket.TN),
 			"ActivePage": "customer",
 			"Ticket": map[string]interface{}{

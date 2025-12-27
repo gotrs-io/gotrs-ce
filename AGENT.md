@@ -7,7 +7,11 @@ Purpose: Provide clear, enforceable rules and a practical workflow for engineeri
 ## Golden Rules
 - **All operations in containers**: Go toolchain and database clients are not installed on host. Use `make toolbox-*` targets for Go operations and `make db-*` targets for database operations. Never attempt to run `go`, `mysql`, or `psql` commands directly on host.
 - Containers-first: Run builds, tests, and tools in containers. Use Makefile targets; do not bypass with ad‑hoc docker/podman commands unless mirroring Makefile behavior.
-- Makefile as entrypoint: Prefer `make up`, `make down`, `make logs`, `make restart`, `make test`, `make toolbox-compile`.
+- **CRITICAL - Container lifecycle**: NEVER use `make up` - it blocks the terminal forever. Always use:
+  - `make up-d` - start containers in detached mode (backgrounds immediately)
+  - `make restart` - rebuild and restart containers (for code changes)
+  - `make down` - stop containers
+  - `make logs` - view logs
 - SQL portability: Always wrap SQL strings with `database.ConvertPlaceholders(...)`. Never use raw `$n` placeholders directly.
 - Schema freeze: Do not modify existing OTRS tables and do not add new tables before v1.0. See `SCHEMA_FREEZE.md`.
 - Security first: Rootless containers, Alpine base, SELinux labels, secrets only via environment variables (generated via synthesize). Never hardcode secrets.
@@ -52,6 +56,43 @@ rows, err := db.Query(
 ```
 
 Do not write raw queries with `$n` placeholders without the conversion wrapper. Centralize queries in repositories; avoid SQL in handlers.
+
+## MariaDB CRUD Patterns (CRITICAL)
+**Unit tests mock the database - they will NOT catch these errors. Always follow these patterns.**
+
+### INSERT - Use Exec + LastInsertId (NOT QueryRow + RETURNING)
+```go
+// ❌ WRONG - PostgreSQL RETURNING doesn't work in MariaDB
+var id int
+err = db.QueryRow(database.ConvertPlaceholders(`
+    INSERT INTO table (col1, col2) VALUES ($1, $2) RETURNING id
+`), val1, val2).Scan(&id)
+
+// ✅ CORRECT - Use Exec + LastInsertId
+result, err := db.Exec(database.ConvertPlaceholders(`
+    INSERT INTO table (col1, col2) VALUES ($1, $2)
+`), val1, val2)
+id, _ := result.LastInsertId()
+```
+
+### INSERT - Include All NOT NULL Timestamp Columns
+**Most OTRS tables have NOT NULL create_time, create_by, change_time, change_by columns:**
+```go
+// ❌ WRONG - Missing timestamp columns causes "Field doesn't have default value" error
+INSERT INTO standard_attachment (name, content, valid_id)
+VALUES ($1, $2, $3)
+
+// ✅ CORRECT - Include all NOT NULL columns
+INSERT INTO standard_attachment (name, content, valid_id, create_time, create_by, change_time, change_by)
+VALUES ($1, $2, $3, NOW(), 1, NOW(), 1)
+```
+
+### Pre-Implementation Checklist (Before ANY INSERT)
+1. Run `make db-query QUERY="DESCRIBE table_name"` to see all columns
+2. Identify all NOT NULL columns without defaults
+3. Include `create_time`, `create_by`, `change_time`, `change_by` if they exist
+4. Use `db.Exec()` + `LastInsertId()`, NOT `QueryRow()` + `RETURNING`
+5. Wrap ALL queries with `database.ConvertPlaceholders()`
 
 ## Service Health Verification (After Route/Handler/Config Changes)
 - Build: `make toolbox-compile`

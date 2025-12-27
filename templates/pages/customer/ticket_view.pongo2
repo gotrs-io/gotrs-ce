@@ -187,8 +187,7 @@
                 <label for="replyEditor" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     {{ t("customer.ticket_view.your_message") }} <span class="text-red-500">{{ t("customer.common.required") }}</span>
                 </label>
-                <div id="replyEditor" class="min-h-[200px]"></div>
-                <input type="hidden" name="message" id="replyBody" required>
+                {% include "partials/rich_text_editor.pongo2" with EditorID="replyEditor" FieldName="message" Placeholder=t("customer.ticket_view.reply_placeholder") %}
             </div>
             
             <!-- Article Dynamic Fields -->
@@ -285,33 +284,6 @@ function confirmCloseTicket() {
     }
 }
 
-// Initialize Tiptap rich text editor for reply (only if reply form exists)
-document.addEventListener('DOMContentLoaded', function() {
-    const replyEditorContainer = document.getElementById('replyEditor');
-    const replyPlaceholder = '{{ t("customer.ticket_view.reply_placeholder") }}';
-    if (replyEditorContainer && window.TiptapEditor && typeof TiptapEditor.init === 'function') {
-        TiptapEditor.init('replyEditor', {
-            placeholder: replyPlaceholder,
-            onUpdate: function(content) {
-                document.getElementById('replyBody').value = content;
-            }
-        });
-    } else if (replyEditorContainer) {
-        // Fallback: Wait for TiptapEditor to be available
-        const checkTiptap = setInterval(function() {
-            if (window.TiptapEditor && typeof TiptapEditor.init === 'function') {
-                clearInterval(checkTiptap);
-                TiptapEditor.init('replyEditor', {
-                    placeholder: replyPlaceholder,
-                    onUpdate: function(content) {
-                        document.getElementById('replyBody').value = content;
-                    }
-                });
-            }
-        }, 100);
-        // Stop checking after 5 seconds
-        setTimeout(function() { clearInterval(checkTiptap); }, 5000);
-    }
-});
+// Initialize Tiptap rich text editor for reply (handled by partial include)
 </script>
 {% endblock %}

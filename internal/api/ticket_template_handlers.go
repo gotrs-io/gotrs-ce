@@ -515,7 +515,7 @@ func HandleTicketHistoryFragment(c *gin.Context) {
 		})
 	}
 
-	renderer := GetPongo2Renderer()
+	renderer := getPongo2Renderer()
 	if renderer == nil {
 		c.String(http.StatusInternalServerError, "Template renderer unavailable")
 		return
@@ -597,7 +597,7 @@ func HandleTicketLinksFragment(c *gin.Context) {
 		})
 	}
 
-	renderer := GetPongo2Renderer()
+	renderer := getPongo2Renderer()
 	if renderer == nil {
 		c.String(http.StatusInternalServerError, "Template renderer unavailable")
 		return

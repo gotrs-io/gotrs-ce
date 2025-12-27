@@ -16,6 +16,7 @@ import (
 type AuthService struct {
 	authenticator *auth.Authenticator
 	jwtManager    *auth.JWTManager
+	db            *sql.DB
 }
 
 // NewAuthService creates a new authentication service with a JWT manager
@@ -40,7 +41,7 @@ func NewAuthService(db *sql.DB, jwtManager *auth.JWTManager) *AuthService {
 		}
 	}
 	authenticator := auth.NewAuthenticator(providers...)
-	return &AuthService{authenticator: authenticator, jwtManager: jwtManager}
+	return &AuthService{authenticator: authenticator, jwtManager: jwtManager, db: db}
 }
 
 // global accessor injected from main to avoid import cycles
@@ -88,8 +89,11 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*mo
 		return nil, "", "", err
 	}
 
+	// Check if user is in admin group (for JWT claim)
+	isAdmin := s.checkAdminGroup(user.ID)
+
 	// Generate tokens using the JWT manager
-	accessToken, err := s.jwtManager.GenerateToken(user.ID, user.Email, user.Role, 0)
+	accessToken, err := s.jwtManager.GenerateTokenWithAdmin(user.ID, user.Email, user.Role, isAdmin, 0)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate access token: %w", err)
 	}
@@ -100,6 +104,25 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*mo
 	}
 
 	return user, accessToken, refreshToken, nil
+}
+
+// checkAdminGroup checks if user is in admin group
+func (s *AuthService) checkAdminGroup(userID uint) bool {
+	if s.db == nil {
+		return false
+	}
+	var isAdmin bool
+	err := s.db.QueryRow(`
+		SELECT EXISTS(
+			SELECT 1 FROM group_user gu
+			JOIN `+"`groups`"+` g ON gu.group_id = g.id
+			WHERE gu.user_id = ? AND g.name = 'admin'
+		)
+	`, userID).Scan(&isAdmin)
+	if err != nil {
+		return false
+	}
+	return isAdmin
 }
 
 // ValidateToken validates a JWT token and returns the user

@@ -59,7 +59,7 @@ var HandleAuthLogin = func(c *gin.Context) {
 		if strings.Contains(contentType, "application/json") {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "username and password required"})
 		} else {
-			pongo2Renderer.HTML(c, http.StatusBadRequest, "components/error.pongo2", pongo2.Context{"error": "Username and password are required"})
+			getPongo2Renderer().HTML(c, http.StatusBadRequest, "components/error.pongo2", pongo2.Context{"error": "Username and password are required"})
 		}
 		return
 	}

@@ -16,7 +16,7 @@ import (
 func handleDevDashboard(c *gin.Context) {
 	db, err := adapter.GetDB()
 	if err != nil {
-		pongo2Renderer.HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
 			"error": "Database connection failed",
 		})
 		return
@@ -123,7 +123,7 @@ func handleDevDashboard(c *gin.Context) {
 		},
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/dev/dashboard.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/dev/dashboard.pongo2", pongo2.Context{
 		"User":       getUserMapForTemplate(c),
 		"ActivePage": "dev",
 		"stats":      stats,
@@ -136,7 +136,7 @@ func handleDevDashboard(c *gin.Context) {
 func handleClaudeTickets(c *gin.Context) {
 	db, err := adapter.GetDB()
 	if err != nil {
-		pongo2Renderer.HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
 			"error": "Database connection failed",
 		})
 		return
@@ -161,7 +161,7 @@ func handleClaudeTickets(c *gin.Context) {
 		LIMIT 50
 	`))
 	if err != nil {
-		pongo2Renderer.HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
 			"error": "Failed to fetch tickets",
 		})
 		return
@@ -219,7 +219,7 @@ func handleClaudeTickets(c *gin.Context) {
 		tickets = append(tickets, t)
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/dev/claude_tickets.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/dev/claude_tickets.pongo2", pongo2.Context{
 		"User":       getUserFromContext(c),
 		"ActivePage": "dev",
 		"tickets":    tickets,
@@ -520,13 +520,13 @@ func handleDevLogs(c *gin.Context) {
 	cmd := exec.Command("./scripts/container-wrapper.sh", "logs", "--tail", lines, service)
 	output, err := cmd.Output()
 	if err != nil {
-		pongo2Renderer.HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
 			"error": fmt.Sprintf("Failed to get logs: %v", err),
 		})
 		return
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/dev/logs.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/dev/logs.pongo2", pongo2.Context{
 		"User":       getUserFromContext(c),
 		"ActivePage": "dev",
 		"service":    service,
@@ -539,7 +539,7 @@ func handleDevLogs(c *gin.Context) {
 func handleDevDatabase(c *gin.Context) {
 	db, err := adapter.GetDB()
 	if err != nil {
-		pongo2Renderer.HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
 			"error": "Database connection failed",
 		})
 		return
@@ -645,7 +645,7 @@ func handleDevDatabase(c *gin.Context) {
 		}
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/dev/database.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/dev/database.pongo2", pongo2.Context{
 		"User":        getUserFromContext(c),
 		"ActivePage":  "dev",
 		"tables":      tables,

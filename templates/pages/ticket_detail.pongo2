@@ -421,6 +421,8 @@ div[id^="note-content-"] :where(p):not(:where([class~="not-prose"] *)) {
                         <input type="text" id="note_subject" name="subject" value="{{ t("tickets.internal_note_default_subject")|default:"Note" }}"
                                class="mt-1 block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 dark:text-white bg-white dark:bg-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-gotrs-600 dark:focus:ring-gotrs-500 sm:text-sm" />
                     </div>
+                    <!-- Template Selection for Notes -->
+                    {% include "partials/template_selector.pongo2" with QueueID=Ticket.queue_id TicketID=Ticket.id TemplateType="Note" TargetEditorID="noteEditor" SelectID="detailNoteTemplateSelect" %}
                     <div>
                         <div class="flex items-center gap-2">
                             <input type="checkbox" id="note_visible_customer" name="is_visible_for_customer" value="1"
@@ -433,10 +435,7 @@ div[id^="note-content-"] :where(p):not(:where([class~="not-prose"] *)) {
                         <label for="note_content" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             {{ t("tickets.note_content")|default:"Note Content" }} <span class="ml-1 text-red-500">*</span>
                         </label>
-                        <div id="noteEditor" class="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus-within:border-gotrs-500 focus-within:ring-gotrs-500 min-h-[120px] p-3">
-                            <!-- Tiptap editor will be initialized here -->
-                        </div>
-                        <input type="hidden" name="body" id="note_content" required>
+                        {% include "partials/rich_text_editor.pongo2" with EditorID="noteEditor" FieldName="body" Placeholder="Add your note or update..." MinHeight="120px" %}
                     </div>
                     <div class="grid gap-4 md:grid-cols-2">
                         <div>
@@ -588,6 +587,15 @@ div[id^="note-content-"] :where(p):not(:where([class~="not-prose"] *)) {
                         </div>
                     </div>
                     {% endif %}
+                    <!-- Attachments for Note -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ t("tickets.attachments")|default:"Attachments" }}
+                        </label>
+                        <input type="file" name="attachments" multiple
+                               class="block w-full text-sm text-gray-900 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-gray-300">
+                        <div id="note-template-attachments" class="mt-2"></div>
+                    </div>
                     <div class="flex justify-end">
                         <button type="submit"
                             class="rounded-md bg-gotrs-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gotrs-500 focus:outline-none focus:ring-2 focus:ring-gotrs-500 focus:ring-offset-2">
@@ -1692,21 +1700,7 @@ if (noteForm) {
     });
 }
 
-// Initialize Tiptap editor for note content
-document.addEventListener('DOMContentLoaded', function() {
-    if (typeof window.TiptapEditor === 'undefined') {
-        console.error('TiptapEditor not loaded');
-        return;
-    }
-    
-    TiptapEditor.init('noteEditor', {
-        placeholder: 'Add your note or update...',
-        editorMode: 'richtext', // Default to rich text, users can toggle to markdown
-        onUpdate: (content) => {
-            document.getElementById('note_content').value = content;
-        }
-    });
-});
+// Note editor initialized by partial include
 
 // Initialize ticket zoom functionality
 initTicketZoom(ticketId);

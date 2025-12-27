@@ -65,7 +65,7 @@ func HandleGetTicketAPI(c *gin.Context) {
 	ticketIDStr := c.Param("id")
 	if ticketIDStr == "new" {
 		// Return HTML form for new ticket creation
-		renderer := GetPongo2Renderer()
+		renderer := getPongo2Renderer()
 		if renderer != nil {
 			renderer.HTML(c, http.StatusOK, "pages/tickets/new.pongo2", gin.H{
 				"Title": "Create New Ticket",

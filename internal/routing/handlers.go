@@ -180,6 +180,14 @@ func RegisterExistingHandlers(registry *HandlerRegistry) {
 				}
 			}
 
+			// Set isInAdminGroup from JWT claim (no DB query needed)
+			if claims.IsAdmin {
+				c.Set("isInAdminGroup", true)
+				if userObj != nil {
+					userObj.IsInAdminGroup = true
+				}
+			}
+
 			if resolvedID > 0 {
 				c.Set("user_id", uint(resolvedID))
 			} else {

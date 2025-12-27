@@ -30,7 +30,6 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/history"
 	"github.com/gotrs-io/gotrs-ce/internal/i18n"
 	"github.com/gotrs-io/gotrs-ce/internal/ldap"
-	"github.com/gotrs-io/gotrs-ce/internal/lookups"
 	"github.com/gotrs-io/gotrs-ce/internal/mailqueue"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
@@ -62,10 +61,10 @@ const autoCloseNoTimeLabel = "No auto-close time scheduled"
 const pendingReminderStateTypeID = 4
 const pendingReminderNoTimeLabel = "No reminder time scheduled"
 
-var pongo2Renderer *Pongo2Renderer
-
-type Pongo2Renderer struct {
-	templateSet *pongo2.TemplateSet
+// pongo2Renderer delegates to shared.GetGlobalRenderer() for template rendering
+// Kept for backwards compatibility - new code should use shared.GetGlobalRenderer() directly
+func getPongo2Renderer() *shared.TemplateRenderer {
+	return shared.GetGlobalRenderer()
 }
 
 type permissionDefinition struct {
@@ -146,56 +145,6 @@ func humanizeDuration(d time.Duration) string {
 		parts = append(parts, fmt.Sprintf("%ds", seconds))
 	}
 	return strings.Join(parts, " ")
-}
-
-// HTML implements gin's HTMLRender interface
-func (r *Pongo2Renderer) HTML(c *gin.Context, code int, name string, data interface{}) {
-	// Convert gin.H to pongo2.Context
-	var ctx pongo2.Context
-	switch v := data.(type) {
-	case pongo2.Context:
-		ctx = v
-	case gin.H:
-		ctx = pongo2.Context(v)
-	default:
-		ctx = pongo2.Context{"data": data}
-	}
-
-	// Language helpers injected via middleware detection
-	lang := middleware.GetLanguage(c)
-	i18nInst := i18n.GetInstance()
-	ctx["t"] = func(key string, args ...interface{}) string {
-		return translateWithFallback(i18nInst, lang, key, args...)
-	}
-	ctx["getLang"] = func() string { return lang }
-	ctx["getDirection"] = func() string { return string(i18n.GetDirection(lang)) }
-	ctx["isRTL"] = func() bool { return i18n.IsRTL(lang) }
-	ctx["Countries"] = lookups.Countries()
-
-	// Get the template (fallback for tests when templates missing)
-	if r == nil || r.templateSet == nil {
-		// Minimal safe fallback for tests: render a tiny stub
-		c.String(code, "GOTRS")
-		return
-	}
-	tmpl, err := r.templateSet.FromFile(name)
-	if err != nil {
-		// Log the error and send a 500 response
-		log.Printf("Template error for %s: %v", name, err)
-		c.String(http.StatusInternalServerError, "Template error: %v", err)
-		return
-	}
-
-	// Render the template
-	output, err := tmpl.Execute(ctx)
-	if err != nil {
-		// Log the error and send a 500 response
-		log.Printf("Template execution error for %s: %v", name, err)
-		c.String(http.StatusInternalServerError, "Template execution error: %v", err)
-		return
-	}
-
-	c.Data(code, "text/html; charset=utf-8", []byte(output))
 }
 
 func selectedAttr(current, expected string) string {
@@ -554,54 +503,6 @@ func isMarkdownContent(content string) bool {
 	return false
 }
 
-// NewPongo2Renderer creates a new Pongo2Renderer with the given template directory
-func NewPongo2Renderer(templateDir string) *Pongo2Renderer {
-	loader := pongo2.MustNewLocalFileSystemLoader(templateDir)
-	templateSet := pongo2.NewSet("gotrs", loader)
-	templateSet.Debug = gin.IsDebugging()
-
-	// Register custom filters
-	templateSet.Globals["default"] = func(value interface{}, defaultValue interface{}) interface{} {
-		if value == nil || value == "" {
-			return defaultValue
-		}
-		return value
-	}
-
-	// Provide translation helper when rendering without a request context.
-	i18nInst := i18n.GetInstance()
-	defaultLang := "en"
-	if i18nInst != nil && i18nInst.GetDefaultLanguage() != "" {
-		defaultLang = i18nInst.GetDefaultLanguage()
-	}
-
-	templateSet.Globals["t"] = func(key string, args ...interface{}) string {
-		return translateWithFallback(i18nInst, defaultLang, key, args...)
-	}
-
-	// Validate that critical templates can be loaded
-	criticalTemplates := []string{
-		"layouts/base.pongo2",
-		"pages/dashboard.pongo2",
-		"pages/login.pongo2",
-		"pages/queues.pongo2",
-		"pages/tickets.pongo2",
-	}
-
-	for _, templatePath := range criticalTemplates {
-		if _, err := templateSet.FromFile(templatePath); err != nil {
-			log.Printf("Failed to load critical template %s: %v", templatePath, err)
-			return nil
-		}
-	}
-
-	log.Printf("Successfully validated %d critical templates", len(criticalTemplates))
-
-	return &Pongo2Renderer{
-		templateSet: templateSet,
-	}
-}
-
 func translateWithFallback(i18nInst *i18n.I18n, lang, key string, args ...interface{}) string {
 	if i18nInst != nil {
 		if translated := i18nInst.Translate(lang, key, args...); translated != "" && translated != key {
@@ -873,8 +774,8 @@ func sendErrorResponse(c *gin.Context, statusCode int, message string) {
 	}
 
 	// For regular page requests, render an error page
-	if pongo2Renderer != nil {
-		pongo2Renderer.HTML(c, statusCode, "pages/error.pongo2", pongo2.Context{
+	if getPongo2Renderer() != nil {
+		getPongo2Renderer().HTML(c, statusCode, "pages/error.pongo2", pongo2.Context{
 			"StatusCode": statusCode,
 			"Message":    message,
 			"User":       getUserMapForTemplate(c),
@@ -1011,10 +912,11 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 	}
 	if templateDir != "" {
 		if _, err := os.Stat(templateDir); err == nil {
-			pongo2Renderer = NewPongo2Renderer(templateDir)
-			if pongo2Renderer == nil {
-				log.Printf("⚠️ Failed to initialize template renderer from %s (continuing without templates)", templateDir)
+			renderer, err := shared.NewTemplateRenderer(templateDir)
+			if err != nil {
+				log.Printf("⚠️ Failed to initialize template renderer from %s: %v (continuing without templates)", templateDir, err)
 			} else {
+				shared.SetGlobalRenderer(renderer)
 				log.Printf("Template renderer initialized successfully from %s", templateDir)
 			}
 		} else {
@@ -1048,7 +950,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		// Keep tickets fallback to satisfy tests; dashboard/profile/settings are provided by YAML or tests wire them explicitly.
 		protected.GET("/tickets", func(c *gin.Context) {
 			// In tests, provide a rich HTML fallback when templates or DB are unavailable
-			if pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+			if getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 				renderTicketsTestFallback(c)
 				return
 			}
@@ -1112,7 +1014,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		{
 			// Admin dashboard and main sections
 			adminRoutes.GET("", func(c *gin.Context) {
-				if os.Getenv("APP_ENV") == "test" && (pongo2Renderer == nil || pongo2Renderer.templateSet == nil) {
+				if os.Getenv("APP_ENV") == "test" && (getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil) {
 					adminHTML := `<!doctype html>
 <html lang="en" class="dark"><head>
 	<meta charset="utf-8" />
@@ -1138,7 +1040,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 				handleAdminDashboard(c)
 			})
 			adminRoutes.GET("/dashboard", func(c *gin.Context) {
-				if os.Getenv("APP_ENV") == "test" && (pongo2Renderer == nil || pongo2Renderer.templateSet == nil) {
+				if os.Getenv("APP_ENV") == "test" && (getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil) {
 					adminHTML := `<!doctype html>
 <html lang="en" class="dark"><head>
 	<meta charset="utf-8" />
@@ -1607,7 +1509,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 // Helper function to show under construction message
 func underConstruction(feature string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/under_construction.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/under_construction.pongo2", pongo2.Context{
 			"Feature":    feature,
 			"User":       getUserMapForTemplate(c),
 			"ActivePage": "admin",
@@ -1658,7 +1560,7 @@ func handleLoginPage(c *gin.Context) {
 	// Check for error in query parameter
 	errorMsg := c.Query("error")
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/login.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/login.pongo2", pongo2.Context{
 		"error": errorMsg,
 	})
 }
@@ -1678,7 +1580,7 @@ func handleCustomerLoginPage(c *gin.Context) {
 
 	errorMsg := c.Query("error")
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/customer/login.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/customer/login.pongo2", pongo2.Context{
 		"error": errorMsg,
 	})
 }
@@ -1700,7 +1602,7 @@ func handleLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 					"retry_after_sec": int(remaining.Seconds()),
 				})
 			} else {
-				pongo2Renderer.HTML(c, http.StatusTooManyRequests, "pages/login.pongo2", pongo2.Context{
+				getPongo2Renderer().HTML(c, http.StatusTooManyRequests, "pages/login.pongo2", pongo2.Context{
 					"Error": fmt.Sprintf("Too many failed attempts. Please try again in %d seconds.", int(remaining.Seconds())),
 				})
 			}
@@ -1776,7 +1678,7 @@ func handleLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 		if !validLogin {
 			auth.DefaultLoginRateLimiter.RecordFailure(clientIP, username)
 			// For API/HTMX requests, return JSON error
-			if c.GetHeader("HX-Request") == "true" || strings.Contains(c.GetHeader("Accept"), "application/json") || pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+			if c.GetHeader("HX-Request") == "true" || strings.Contains(c.GetHeader("Accept"), "application/json") || getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 				c.JSON(http.StatusUnauthorized, gin.H{
 					"success": false,
 					"error":   "Invalid credentials",
@@ -1784,7 +1686,7 @@ func handleLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 				return
 			}
 			// For regular form submission, render login page with error when templates exist
-			pongo2Renderer.HTML(c, http.StatusUnauthorized, "pages/login.pongo2", pongo2.Context{
+			getPongo2Renderer().HTML(c, http.StatusUnauthorized, "pages/login.pongo2", pongo2.Context{
 				"Error": "Invalid username or password",
 			})
 			return
@@ -1988,7 +1890,7 @@ func loginRedirectPath(c *gin.Context) string {
 // handleDashboard shows the main dashboard
 func handleDashboard(c *gin.Context) {
 	// If templates unavailable, return JSON error
-	if pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+	if getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 		if os.Getenv("APP_ENV") == "test" {
 			renderDashboardTestFallback(c)
 			return
@@ -2003,7 +1905,7 @@ func handleDashboard(c *gin.Context) {
 	// Get database connection through repository pattern (graceful fallback if unavailable)
 	db, err := database.GetDB()
 	if err != nil || db == nil {
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/dashboard.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/dashboard.pongo2", pongo2.Context{
 			"Title":         "Dashboard - GOTRS",
 			"Stats":         gin.H{"openTickets": 0, "pendingTickets": 0, "closedToday": 0},
 			"RecentTickets": []gin.H{},
@@ -2092,7 +1994,7 @@ func handleDashboard(c *gin.Context) {
 		}
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/dashboard.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/dashboard.pongo2", pongo2.Context{
 		"Stats":         stats,
 		"RecentTickets": recentTickets,
 		"User":          getUserMapForTemplate(c),
@@ -2407,7 +2309,7 @@ func handleTickets(c *gin.Context) {
 		}
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/tickets.pongo2", pongo2.Context{
 		"Tickets":             tickets,
 		"User":                getUserMapForTemplate(c),
 		"ActivePage":          "tickets",
@@ -2440,7 +2342,7 @@ func handleQueues(c *gin.Context) {
 		return
 	}
 	// If templates are unavailable in tests, return a simple HTML page with expected headers
-	if pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+	if getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 		if os.Getenv("APP_ENV") == "test" {
 			fallback := `<!doctype html><html><head><meta charset="utf-8"><title>Queues</title></head><body>
 <h1>Queues</h1>
@@ -2549,7 +2451,7 @@ func handleQueues(c *gin.Context) {
 		})
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/queues.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/queues.pongo2", pongo2.Context{
 		"Queues":     viewQueues,
 		"Search":     search,
 		"User":       getUserMapForTemplate(c),
@@ -3010,7 +2912,7 @@ func handleQueueDetail(c *gin.Context) {
 		queueMeta["TicketCount"] = result.Total
 	}
 
-	if pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+	if getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 		if hxRequest {
 			c.String(http.StatusOK, fmt.Sprintf("%s queue detail", queue.Name))
 		} else {
@@ -3037,13 +2939,13 @@ func handleQueueDetail(c *gin.Context) {
 		if queueMeta != nil {
 			queueDetail["meta"] = queueMeta
 		}
-		pongo2Renderer.HTML(c, http.StatusOK, "components/queue_detail.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusOK, "components/queue_detail.pongo2", pongo2.Context{
 			"Queue": queueDetail,
 		})
 		return
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/tickets.pongo2", pongo2.Context{
 		"Tickets":          tickets,
 		"User":             getUserMapForTemplate(c),
 		"ActivePage":       "queues",
@@ -3170,7 +3072,7 @@ func handleQueueMetaPartial(c *gin.Context) {
 		c.Header("X-Queue-Name", name)
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "components/queue_meta.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "components/queue_meta.pongo2", pongo2.Context{
 		"QueueMeta":          queueMeta,
 		"QueueMetaShowTitle": true,
 	})
@@ -3268,7 +3170,7 @@ func handleNewTicket(c *gin.Context) {
 		return
 	}
 	db, err := database.GetDB()
-	if err != nil || db == nil || pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+	if err != nil || db == nil || getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 		// Return JSON error for unavailable systems
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -3369,7 +3271,7 @@ func handleNewTicket(c *gin.Context) {
 		createFormDynamicFields = dfFields
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets/new.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/tickets/new.pongo2", pongo2.Context{
 		"User":              getUserMapForTemplate(c),
 		"IsInAdminGroup":    isInAdminGroup,
 		"ActivePage":        "tickets",
@@ -3385,7 +3287,7 @@ func handleNewTicket(c *gin.Context) {
 
 // handleNewEmailTicket shows the email ticket creation form
 func handleNewEmailTicket(c *gin.Context) {
-	if htmxHandlerSkipDB() || pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+	if htmxHandlerSkipDB() || getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 		renderTicketCreationFallback(c, "email")
 		return
 	}
@@ -3479,8 +3381,8 @@ func handleNewEmailTicket(c *gin.Context) {
 	}
 
 	// Render unified Pongo2 new ticket form
-	if pongo2Renderer != nil {
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets/new.pongo2", pongo2.Context{
+	if getPongo2Renderer() != nil {
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/tickets/new.pongo2", pongo2.Context{
 			"User":              getUserMapForTemplate(c),
 			"ActivePage":        "tickets",
 			"Queues":            queues,
@@ -3499,7 +3401,7 @@ func handleNewEmailTicket(c *gin.Context) {
 
 // handleNewPhoneTicket shows the phone ticket creation form
 func handleNewPhoneTicket(c *gin.Context) {
-	if htmxHandlerSkipDB() || pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+	if htmxHandlerSkipDB() || getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 		renderTicketCreationFallback(c, "phone")
 		return
 	}
@@ -3593,8 +3495,8 @@ func handleNewPhoneTicket(c *gin.Context) {
 	}
 
 	// Render unified Pongo2 new ticket form
-	if pongo2Renderer != nil {
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/tickets/new.pongo2", pongo2.Context{
+	if getPongo2Renderer() != nil {
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/tickets/new.pongo2", pongo2.Context{
 			"User":              getUserMapForTemplate(c),
 			"ActivePage":        "tickets",
 			"Queues":            queues,
@@ -3671,7 +3573,7 @@ func handleTicketDetail(c *gin.Context) {
 
 	// Fallback: support /tickets/new returning a minimal HTML form in tests
 	if ticketID == "new" {
-		if htmxHandlerSkipDB() || pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+		if htmxHandlerSkipDB() || getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 			renderTicketCreationFallback(c, "email")
 			return
 		}
@@ -4261,7 +4163,7 @@ func handleTicketDetail(c *gin.Context) {
 		closeArticleDynamicFields = closeArticleFields
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/ticket_detail.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/ticket_detail.pongo2", pongo2.Context{
 		"Ticket":                  ticketData,
 		"User":                    getUserMapForTemplate(c),
 		"ActivePage":                  "tickets",
@@ -4347,7 +4249,7 @@ func HandleLegacyTicketsViewRedirect(c *gin.Context) {
 func handleProfile(c *gin.Context) {
 	user := getUserMapForTemplate(c)
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/profile.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/profile.pongo2", pongo2.Context{
 		"User":       user,
 		"ActivePage": "profile",
 	})
@@ -4368,7 +4270,7 @@ func handleSettings(c *gin.Context) {
 		"timezone":           "UTC",
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/settings.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/settings.pongo2", pongo2.Context{
 		"User":       user,
 		"Settings":   settings,
 		"ActivePage": "settings",
@@ -6893,7 +6795,7 @@ func handleActivityStream(c *gin.Context) {
 
 // handleAdminDashboard shows the admin dashboard
 func handleAdminDashboard(c *gin.Context) {
-	if pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+	if getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   "System unavailable",
@@ -6913,7 +6815,7 @@ func handleAdminDashboard(c *gin.Context) {
 		_ = db.QueryRow("SELECT COUNT(*) FROM ticket WHERE ticket_state_id IN (1,2,3,4)").Scan(&activeTickets)
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/dashboard.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/dashboard.pongo2", pongo2.Context{
 		"UserCount":     userCount,
 		"GroupCount":    groupCount,
 		"ActiveTickets": activeTickets,
@@ -6925,7 +6827,7 @@ func handleAdminDashboard(c *gin.Context) {
 
 // handleSchemaDiscovery shows the schema discovery page
 func handleSchemaDiscovery(c *gin.Context) {
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/schema_discovery.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/schema_discovery.pongo2", pongo2.Context{
 		"User":       getUserMapForTemplate(c),
 		"ActivePage": "admin",
 		"Title":      "Schema Discovery",
@@ -6934,7 +6836,7 @@ func handleSchemaDiscovery(c *gin.Context) {
 
 // handleSchemaMonitoring shows the schema monitoring dashboard
 func handleSchemaMonitoring(c *gin.Context) {
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/schema_monitoring.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/schema_monitoring.pongo2", pongo2.Context{
 		"User":       getUserMapForTemplate(c),
 		"ActivePage": "admin",
 		"Title":      "Schema Discovery Monitor",
@@ -7013,7 +6915,7 @@ func handleAdminGroups(c *gin.Context) {
 		groupList = append(groupList, makeAdminGroupEntry(group, memberCount))
 	}
 
-	if pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+	if getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 		if isTest {
 			renderAdminGroupsTestFallback(c, groupList, searchTerm, statusTerm)
 			return
@@ -7022,7 +6924,7 @@ func handleAdminGroups(c *gin.Context) {
 		return
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/groups.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/groups.pongo2", pongo2.Context{
 		"Groups":     groupList,
 		"User":       getUserMapForTemplate(c),
 		"ActivePage": "admin",
@@ -7552,7 +7454,7 @@ func handleAdminQueues(c *gin.Context) {
 		}
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/queues.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/queues.pongo2", pongo2.Context{
 		"Queues":          queues,
 		"Groups":          groups,
 		"SystemAddresses": systemAddresses,
@@ -7608,7 +7510,7 @@ func handleAdminPriorities(c *gin.Context) {
 		priorities = append(priorities, priority)
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/priorities.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/priorities.pongo2", pongo2.Context{
 		"Priorities": priorities,
 		"User":       getUserMapForTemplate(c),
 		"ActivePage": "admin",
@@ -7624,7 +7526,7 @@ func handleAdminLookups(c *gin.Context) {
 	}
 
 	// Provide a minimal fallback when tests skip templates or renderer is unavailable
-	if htmxHandlerSkipDB() || pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+	if htmxHandlerSkipDB() || getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 		html := `<!doctype html><html><head><title>Manage Lookup Values</title></head><body>
 			<h1>Manage Lookup Values</h1>
 			<nav>
@@ -7768,7 +7670,7 @@ func handleAdminLookups(c *gin.Context) {
 		}
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/lookups.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/lookups.pongo2", pongo2.Context{
 		"TicketStates": ticketStates,
 		"Priorities":   priorities,
 		"TicketTypes":  types,
@@ -7837,7 +7739,7 @@ func handleAdminPermissions(c *gin.Context) {
 		}
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/permissions.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/permissions.pongo2", pongo2.Context{
 		"Users":            users,
 		"SelectedUserID":   selectedUserID,
 		"PermissionMatrix": permissionMatrix,
@@ -7929,7 +7831,7 @@ func handleAdminEmailQueue(c *gin.Context) {
 
 	processedEmails := totalEmails - pendingEmails
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/email_queue.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/email_queue.pongo2", pongo2.Context{
 		"Emails":          emails,
 		"TotalEmails":     totalEmails,
 		"PendingEmails":   pendingEmails,
@@ -8400,7 +8302,7 @@ func handleGroupPermissions(c *gin.Context) {
 		return
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/group_permissions.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/group_permissions.pongo2", pongo2.Context{
 		"Group":          data.Group,
 		"Members":        data.Members,
 		"Queues":         data.Queues,
@@ -8714,7 +8616,7 @@ func handleGetGroupAPI(c *gin.Context) {
 
 // handleClaudeChatDemo shows the Claude chat demo page
 func handleClaudeChatDemo(c *gin.Context) {
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/claude_chat_demo.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/claude_chat_demo.pongo2", pongo2.Context{
 		"User":       getUserMapForTemplate(c),
 		"ActivePage": "demo",
 		"Title":      "Claude Chat Demo",

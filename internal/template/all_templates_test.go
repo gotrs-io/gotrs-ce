@@ -431,12 +431,16 @@ var testedFormTemplates = map[string]bool{
 	"pages/customer/ticket_view.pongo2": true,
 
 	// Admin
+	"pages/admin/attachment.pongo2":              true,
 	"pages/admin/dynamic_field_form.pongo2":       true,
 	"pages/admin/dynamic_fields.pongo2":           true,
 	"pages/admin/dynamic_field_screens.pongo2":    true,
 	"pages/admin/customer_portal_settings.pongo2": true,
 	"pages/admin/customer_company_form.pongo2":    true,
 	"pages/admin/email_queue.pongo2":              true,
+	"pages/admin/template_form.pongo2":            true,
+	"pages/admin/template_queues.pongo2":          true,
+	"pages/admin/template_attachments.pongo2":     true,
 
 	// Search/Filter forms (GET only)
 	"pages/queues.pongo2":                   true,

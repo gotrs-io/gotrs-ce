@@ -90,7 +90,7 @@ func handleCustomerLogin(jwtManager *auth.JWTManager) gin.HandlerFunc {
 		auth.DefaultLoginRateLimiter.RecordSuccess(clientIP, login)
 
 		tenantID := middleware.ResolveTenantFromHost(c.Request.Host)
-		token, err := jwtManager.GenerateTokenWithLogin(user.ID, user.Login, user.Email, "Customer", tenantID)
+		token, err := jwtManager.GenerateTokenWithLogin(user.ID, user.Login, user.Email, "Customer", false, tenantID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "failed to generate token"})
 			return

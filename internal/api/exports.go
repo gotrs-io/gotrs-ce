@@ -284,13 +284,3 @@ var (
 	HandleDevLogs       = handleDevLogs
 	HandleDevDatabase   = handleDevDatabase
 )
-
-// GetPongo2Renderer returns the pongo2 renderer for template rendering
-func GetPongo2Renderer() *Pongo2Renderer {
-	return pongo2Renderer
-}
-
-// InitPongo2Renderer initializes the global pongo2 renderer
-func InitPongo2Renderer(templateDir string) {
-	pongo2Renderer = NewPongo2Renderer(templateDir)
-}

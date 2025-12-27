@@ -3,6 +3,54 @@
 # syntax=docker/dockerfile:1
 
 # ============================================
+# Stage 0: Download third-party assets
+# ============================================
+FROM docker.io/alpine:3.19 AS assets
+
+RUN apk add --no-cache curl unzip
+
+WORKDIR /assets
+
+# Create directory structure
+RUN mkdir -p js css/fontawesome css/webfonts
+
+# Download JavaScript libraries (pinned versions)
+RUN curl -sL "https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js" -o js/htmx.min.js && \
+    curl -sL "https://unpkg.com/htmx.org@1.9.12/dist/ext/json-enc.js" -o js/htmx-json-enc.js && \
+    curl -sL "https://unpkg.com/alpinejs@3.14.3/dist/cdn.min.js" -o js/alpine.min.js && \
+    curl -sL "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" -o js/chart.min.js
+
+# Download Font Awesome Free (CSS + webfonts)
+# Webfonts go in css/webfonts/ because the CSS uses relative path ../webfonts/
+RUN curl -sL "https://use.fontawesome.com/releases/v6.7.2/fontawesome-free-6.7.2-web.zip" -o /tmp/fa.zip && \
+    unzip -q /tmp/fa.zip -d /tmp && \
+    cp /tmp/fontawesome-free-6.7.2-web/css/all.min.css css/fontawesome/all.min.css && \
+    cp /tmp/fontawesome-free-6.7.2-web/webfonts/fa-brands-400.woff2 css/webfonts/ && \
+    cp /tmp/fontawesome-free-6.7.2-web/webfonts/fa-regular-400.woff2 css/webfonts/ && \
+    cp /tmp/fontawesome-free-6.7.2-web/webfonts/fa-solid-900.woff2 css/webfonts/ && \
+    rm -rf /tmp/fa.zip /tmp/fontawesome-free-6.7.2-web
+
+# ============================================
+# Stage 0b: Build frontend assets (CSS + JS)
+# ============================================
+FROM docker.io/node:22-alpine AS frontend
+
+WORKDIR /build
+
+# Copy package files and install dependencies
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
+
+# Copy source files needed for build
+COPY static/css/input.css static/css/
+COPY static/js/tiptap-bundle.js static/js/markdown-utils.js static/js/
+COPY tailwind.config.js ./
+COPY templates ./templates/
+
+# Build CSS and JS
+RUN npm run build-css && npm run build-tiptap
+
+# ============================================
 # Stage 1: Dependencies (cached separately)
 # ============================================
 FROM docker.io/golang:1.24-alpine AS deps
@@ -115,6 +163,15 @@ COPY --chown=appuser:appgroup modules ./modules/
 COPY --chown=appuser:appgroup migrations ./migrations/
 COPY --chown=appuser:appgroup config ./config/
 
+# Overlay downloaded third-party assets
+COPY --from=assets --chown=appuser:appgroup /assets/js/*.js ./static/js/
+COPY --from=assets --chown=appuser:appgroup /assets/css/fontawesome/ ./static/css/fontawesome/
+COPY --from=assets --chown=appuser:appgroup /assets/css/webfonts/ ./static/css/webfonts/
+
+# Overlay built frontend assets (CSS + TipTap bundle)
+COPY --from=frontend --chown=appuser:appgroup /build/static/css/output.css ./static/css/
+COPY --from=frontend --chown=appuser:appgroup /build/static/js/tiptap.min.js ./static/js/
+
 # ============================================
 # Stage 7b: Final minimal backend runtime
 # ============================================
@@ -124,13 +181,22 @@ FROM runtime-base AS runtime
 COPY --from=artifacts --chown=appuser:appgroup /artifacts/goats ./goats
 COPY --from=artifacts --chown=appuser:appgroup /artifacts/migrate ./migrate
 
-# Copy necessary files
+# Copy necessary files (our code)
 COPY --chown=appuser:appgroup templates ./templates/
 COPY --chown=appuser:appgroup static ./static/
 COPY --chown=appuser:appgroup routes ./routes/
 COPY --chown=appuser:appgroup modules ./modules/
 COPY --chown=appuser:appgroup migrations ./migrations/
 COPY --chown=appuser:appgroup config ./config/
+
+# Overlay downloaded third-party assets
+COPY --from=assets --chown=appuser:appgroup /assets/js/*.js ./static/js/
+COPY --from=assets --chown=appuser:appgroup /assets/css/fontawesome/ ./static/css/fontawesome/
+COPY --from=assets --chown=appuser:appgroup /assets/css/webfonts/ ./static/css/webfonts/
+
+# Overlay built frontend assets (CSS + TipTap bundle)
+COPY --from=frontend --chown=appuser:appgroup /build/static/css/output.css ./static/css/
+COPY --from=frontend --chown=appuser:appgroup /build/static/js/tiptap.min.js ./static/js/
 
 # Expose port
 EXPOSE 8080

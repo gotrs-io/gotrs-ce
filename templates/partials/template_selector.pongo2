@@ -1,0 +1,293 @@
+{# Template Selector Partial - for inserting response templates into forms #}
+{# QueueID: required - the queue ID to load templates for #}
+{# TicketID: optional - ticket ID for variable substitution #}
+{# TemplateType: optional - filter by type (Answer, Note, etc.) #}
+{# TargetEditorID: required - the TipTap editor ID to insert content into #}
+{# SelectID: optional - unique ID for the select element (default: "templateSelect") #}
+
+<div class="template-selector">
+    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        {{ t("templates.select_template")|default:"Template (optional)" }}
+    </label>
+    <div class="flex gap-2 mt-1">
+        <select id="{{ SelectID|default:"templateSelect" }}" 
+                data-queue-id="{{ QueueID }}"
+                data-ticket-id="{{ TicketID|default:"" }}"
+                data-template-type="{{ TemplateType|default:"" }}"
+                data-target-editor="{{ TargetEditorID }}"
+                data-loaded="false"
+                class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm">
+            <option value="">-- {{ t("templates.select_placeholder")|default:"Select template" }} --</option>
+        </select>
+        <button type="button" 
+                class="template-refresh-btn px-3 py-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                title="{{ t("templates.refresh")|default:"Refresh templates" }}">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+        </button>
+    </div>
+    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        {{ t("templates.help_text")|default:"Select a template to insert pre-defined content." }}
+    </p>
+</div>
+
+<script>
+// Template Selector - defined globally once
+if (typeof window.templateSelectorInit === 'undefined') {
+    window.templateSelectorInit = true;
+    
+    // Load templates for a select element
+    async function loadTemplates(select, force) {
+        if (!select) return;
+        if (!force && select.dataset.loaded === 'true') return;
+        if (select.dataset.loading === 'true') return; // Prevent concurrent loads
+        
+        const queueId = select.dataset.queueId;
+        const templateType = select.dataset.templateType;
+        
+        if (!queueId) return;
+        
+        select.dataset.loading = 'true';
+        
+        const url = '/agent/api/templates?queue_id=' + encodeURIComponent(queueId) + 
+                    (templateType ? '&type=' + encodeURIComponent(templateType) : '');
+        
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            // Only modify if not already loaded (unless forced)
+            if (force || select.dataset.loaded !== 'true') {
+                // Clear existing options except first
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+                
+                if (data.success && data.data) {
+                    data.data.forEach(function(template) {
+                        const option = document.createElement('option');
+                        option.value = template.id;
+                        option.textContent = template.name;
+                        select.appendChild(option);
+                    });
+                }
+                select.dataset.loaded = 'true';
+            }
+        } catch (err) {
+            console.error('Failed to load templates:', err);
+        } finally {
+            select.dataset.loading = 'false';
+        }
+    }
+    
+    // Apply template content to editor
+    async function applyTemplate(select) {
+        const templateId = select.value;
+        console.log('applyTemplate called, templateId:', templateId);
+        if (!templateId) return;
+        
+        const ticketId = select.dataset.ticketId;
+        const targetEditorId = select.dataset.targetEditor;
+        
+        if (!targetEditorId) {
+            console.error('No target editor specified');
+            return;
+        }
+        
+        const url = '/agent/api/templates/' + templateId + 
+                    (ticketId ? '?ticket_id=' + encodeURIComponent(ticketId) : '');
+        
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            console.log('Template data:', data);
+            
+            if (data.success && data.data) {
+                const content = data.data.text || '';
+                const contentType = data.data.content_type || 'text/html';
+                
+                // Use global TiptapEditor API
+                if (window.TiptapEditor && typeof window.TiptapEditor.setContent === 'function') {
+                    // Switch editor mode based on content type BEFORE setting content
+                    const targetMode = contentType === 'text/plain' ? 'markdown' : 'richtext';
+                    if (typeof window.TiptapEditor.setMode === 'function') {
+                        window.TiptapEditor.setMode(targetEditorId, targetMode);
+                        console.log('Editor mode set to:', targetMode);
+                    }
+                    
+                    const currentContent = window.TiptapEditor.getContent(targetEditorId) || '';
+                    
+                    if (currentContent.trim() && currentContent.trim() !== '<p></p>') {
+                        window.TiptapEditor.setContent(targetEditorId, currentContent + '\n\n' + content);
+                    } else {
+                        window.TiptapEditor.setContent(targetEditorId, content);
+                    }
+                    console.log('Content set via TiptapEditor global API');
+                } else {
+                    // Fallback to textarea
+                    const textarea = document.querySelector('textarea[name="body"]');
+                    if (textarea) {
+                        const currentContent = textarea.value || '';
+                        if (currentContent.trim()) {
+                            textarea.value = currentContent + '\n\n' + content;
+                        } else {
+                            textarea.value = content;
+                        }
+                        console.log('Content set via textarea');
+                    }
+                }
+                
+                // Handle template attachments
+                if (data.data.attachments && data.data.attachments.length > 0) {
+                    handleTemplateAttachments(data.data.attachments, select);
+                }
+            }
+        } catch (err) {
+            console.error('Failed to apply template:', err);
+        }
+        
+        // Don't reset - let user see what they selected
+        // select.value = '';
+    }
+    
+    // Use mousedown on select to load templates before the dropdown opens
+    document.addEventListener('mousedown', function(e) {
+        const select = e.target.closest('.template-selector select');
+        if (select) {
+            loadTemplates(select, false);
+        }
+    });
+    
+    document.addEventListener('change', function(e) {
+        const select = e.target.closest('.template-selector select');
+        if (select) {
+            console.log('Change event on template select, value:', select.value);
+            applyTemplate(select);
+        }
+    });
+    
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.template-refresh-btn')) {
+            const container = e.target.closest('.template-selector');
+            const select = container ? container.querySelector('select') : null;
+            if (select) {
+                loadTemplates(select, true);
+            }
+        }
+    });
+    
+    // Handle template attachments
+    function handleTemplateAttachments(attachments, selectElement) {
+        console.log('handleTemplateAttachments called with:', attachments);
+        if (!attachments || attachments.length === 0) return;
+        
+        // Find the form containing this select element
+        const form = selectElement ? selectElement.closest('form') : null;
+        console.log('Found form:', form ? form.id : 'none');
+        
+        // Find the attachment container within the same form
+        let container = null;
+        if (form) {
+            // Debug: list all divs with IDs in the form
+            const divsWithIds = form.querySelectorAll('div[id]');
+            console.log('Divs with IDs in form:', Array.from(divsWithIds).map(d => d.id));
+            
+            container = form.querySelector('#note-template-attachments') ||
+                        form.querySelector('#reply-template-attachments') ||
+                        form.querySelector('#template-attachments-pending');
+            
+            console.log('Container from querySelector:', container);
+            
+            // If no container found, look for attachment input and create one
+            if (!container) {
+                const attachmentInput = form.querySelector('input[name="attachments"]');
+                console.log('Attachment input found:', !!attachmentInput);
+                if (attachmentInput) {
+                    const parent = attachmentInput.closest('div');
+                    container = document.createElement('div');
+                    container.id = 'template-attachments-pending';
+                    container.className = 'mt-2 space-y-1';
+                    parent.appendChild(container);
+                }
+            }
+        }
+        
+        if (!container) {
+            console.log('No attachment container found, skipping attachment display');
+            return;
+        }
+        
+        console.log('Using container:', container.id);
+        
+        // Clear existing template attachments
+        container.innerHTML = '';
+        
+        // Add header
+        const header = document.createElement('div');
+        header.className = 'text-xs font-medium text-gray-600 dark:text-gray-400 mb-1';
+        header.textContent = 'Template Attachments (will be added with reply):';
+        container.appendChild(header);
+        
+        // Add each attachment
+        attachments.forEach(function(att) {
+            const item = document.createElement('div');
+            item.className = 'flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded text-sm';
+            item.dataset.attachmentId = att.id;
+            
+            const info = document.createElement('span');
+            info.className = 'flex items-center';
+            info.innerHTML = `
+                <svg class="w-4 h-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+                <span class="text-gray-700 dark:text-gray-300">${att.filename}</span>
+                <span class="text-gray-400 ml-2">(${formatFileSize(att.content_size)})</span>
+            `;
+            item.appendChild(info);
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'text-red-500 hover:text-red-700 ml-2';
+            removeBtn.innerHTML = '&times;';
+            removeBtn.onclick = function() { item.remove(); };
+            item.appendChild(removeBtn);
+            
+            container.appendChild(item);
+        });
+        
+        // Store attachment IDs in a hidden input for form submission
+        let hiddenInput = document.getElementById('template-attachment-ids');
+        if (!hiddenInput) {
+            hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.id = 'template-attachment-ids';
+            hiddenInput.name = 'template_attachment_ids';
+            container.appendChild(hiddenInput);
+        }
+        hiddenInput.value = attachments.map(a => a.id).join(',');
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+    
+    // Also load on page ready for any existing selectors
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.template-selector select').forEach(function(select) {
+            loadTemplates(select, false);
+        });
+    });
+    
+    // If already loaded, init now
+    if (document.readyState !== 'loading') {
+        document.querySelectorAll('.template-selector select').forEach(function(select) {
+            loadTemplates(select, false);
+        });
+    }
+}
+</script>

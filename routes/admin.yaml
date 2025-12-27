@@ -531,12 +531,6 @@ spec:
       template: pages/under_construction.pongo2
       description: "Display system configuration page"
 
-    - path: /templates
-      method: GET
-      handler: handleAdminTemplates
-      template: pages/under_construction.pongo2
-      description: "Display template management page"
-
     - path: /reports
       method: GET
       handler: handleAdminReports
@@ -601,6 +595,118 @@ spec:
       method: POST
       handler: handleAdminDynamicFieldScreenConfigSingle
       description: "Toggle single screen configuration for a field"
+
+    # Response templates management
+    - path: /templates
+      method: GET
+      handler: handleAdminStandardTemplates
+      template: pages/admin/templates.pongo2
+      description: "Display response templates management page"
+
+    - path: /templates/new
+      method: GET
+      handler: handleAdminStandardTemplateNew
+      template: pages/admin/template_form.pongo2
+      description: "Display new template creation form"
+
+    - path: /templates/:id/edit
+      method: GET
+      handler: handleAdminStandardTemplateEdit
+      template: pages/admin/template_form.pongo2
+      description: "Display template edit form"
+
+    - path: /templates/:id/queues
+      method: GET
+      handler: handleAdminStandardTemplateQueues
+      template: pages/admin/template_queues.pongo2
+      description: "Display template queue assignment page"
+
+    # Response templates API
+    - path: /api/templates
+      method: POST
+      handler: handleCreateStandardTemplate
+      description: "Create new response template"
+
+    - path: /api/templates/:id
+      method: PUT
+      handler: handleUpdateStandardTemplate
+      description: "Update existing response template"
+
+    - path: /api/templates/:id
+      method: DELETE
+      handler: handleDeleteStandardTemplate
+      description: "Delete response template"
+
+    - path: /api/templates/:id/queues
+      method: PUT
+      handler: handleUpdateStandardTemplateQueues
+      description: "Update template queue assignments"
+
+    - path: /templates/:id/attachments
+      method: GET
+      handler: handleAdminStandardTemplateAttachments
+      template: pages/admin/template_attachments.pongo2
+      description: "Display template attachment assignment page"
+
+    - path: /api/templates/:id/attachments
+      method: PUT
+      handler: handleUpdateStandardTemplateAttachments
+      description: "Update template attachment assignments"
+
+    # Template Import/Export
+    - path: /templates/import
+      method: GET
+      handler: handleAdminStandardTemplateImport
+      template: pages/admin/template_import.pongo2
+      description: "Display template import page"
+
+    - path: /api/templates/import
+      method: POST
+      handler: handleImportStandardTemplates
+      description: "Import templates from YAML file"
+
+    - path: /api/templates/export
+      method: GET
+      handler: handleExportAllStandardTemplates
+      description: "Export all templates as YAML"
+
+    - path: /api/templates/:id/export
+      method: GET
+      handler: handleExportStandardTemplate
+      description: "Export single template as YAML"
+
+    # Standard attachments management
+    - path: /attachments
+      method: GET
+      handler: handleAdminAttachment
+      template: pages/admin/attachment.pongo2
+      description: "Display standard attachments management page"
+
+    # Attachments API
+    - path: /api/attachments
+      method: POST
+      handler: handleAdminAttachmentCreate
+      description: "Upload/create a new standard attachment"
+
+    - path: /api/attachments/:id
+      method: PUT
+      handler: handleAdminAttachmentUpdate
+      description: "Update an existing standard attachment"
+
+    - path: /api/attachments/:id
+      method: DELETE
+      handler: handleAdminAttachmentDelete
+      description: "Delete a standard attachment"
+
+    - path: /api/attachments/:id/download
+      method: GET
+      handler: handleAdminAttachmentDownload
+      description: "Download a standard attachment file"
+
+    - path: /api/attachments/:id/preview
+      method: GET
+      handler: handleAdminAttachmentPreview
+      description: "Preview a standard attachment inline"
 
     # Dynamic module system routes
     - path: /modules

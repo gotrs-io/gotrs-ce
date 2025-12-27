@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/routing"
+	"github.com/gotrs-io/gotrs-ce/internal/shared"
 )
 
 // NewSimpleRouter creates a router with basic routes
@@ -49,8 +50,13 @@ func NewSimpleRouterWithDB(db *sql.DB) *gin.Engine {
 			// Normalize path
 			abs, _ := filepath.Abs(templateDir)
 			log.Printf("📂 Initializing pongo2 renderer with template dir: %s", abs)
-			pongo2Renderer = NewPongo2Renderer(templateDir)
-			log.Println("✅ Pongo2 template renderer initialized")
+			renderer, err := shared.NewTemplateRenderer(templateDir)
+			if err != nil {
+				log.Printf("⚠️ Failed to initialize template renderer: %v", err)
+			} else {
+				shared.SetGlobalRenderer(renderer)
+				log.Println("✅ Pongo2 template renderer initialized")
+			}
 		} else {
 			log.Printf("⚠️ Templates directory resolved but not accessible (%s): %v", templateDir, err)
 		}

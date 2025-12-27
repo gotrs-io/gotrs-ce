@@ -169,8 +169,7 @@
                     <label for="messageEditor" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         {{ t("customer.new_ticket.description") }} <span class="text-red-500">{{ t("customer.common.required") }}</span>
                     </label>
-                    <div id="messageEditor" class="min-h-[200px]"></div>
-                    <input type="hidden" name="message" id="messageBody" required>
+                    {% include "partials/rich_text_editor.pongo2" with EditorID="messageEditor" FieldName="message" Placeholder=t("customer.new_ticket.description_placeholder") %}
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                         {{ t("customer.new_ticket.description_help") }}
                     </p>
@@ -310,31 +309,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Initialize Tiptap rich text editor for message
-    const descPlaceholder = '{{ t("customer.new_ticket.description_placeholder") }}';
-    if (window.TiptapEditor && typeof TiptapEditor.init === 'function') {
-        TiptapEditor.init('messageEditor', {
-            placeholder: descPlaceholder,
-            onUpdate: function(content) {
-                document.getElementById('messageBody').value = content;
-            }
-        });
-    } else {
-        // Fallback: Wait for TiptapEditor to be available
-        const checkTiptap = setInterval(function() {
-            if (window.TiptapEditor && typeof TiptapEditor.init === 'function') {
-                clearInterval(checkTiptap);
-                TiptapEditor.init('messageEditor', {
-                    placeholder: descPlaceholder,
-                    onUpdate: function(content) {
-                        document.getElementById('messageBody').value = content;
-                    }
-                });
-            }
-        }, 100);
-        // Stop checking after 5 seconds
-        setTimeout(function() { clearInterval(checkTiptap); }, 5000);
-    }
+    // Rich text editor is initialized by the partial include
 });
 </script>
 {% endblock %}

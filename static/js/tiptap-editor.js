@@ -115,10 +115,25 @@ document.addEventListener('DOMContentLoaded', function() {
     window.TiptapEditor.insertMarkdownLiteral = function(elementId, text) {
         return insertLiteralIntoMarkdown(elementId, text);
     };
+    
+    // Global helper for inserting placeholders from HTML onclick
+    window.insertEditorPlaceholder = function(elementId, placeholder) {
+        if (typeof TiptapEditor !== 'undefined') {
+            TiptapEditor.insertText(elementId, placeholder);
+        }
+    };
 });
 
 function initTiptapEditor(elementId, options = {}) {
     console.log('initTiptapEditor called with elementId:', elementId);
+    
+    // Check if editor already exists for this element
+    const existingInstance = getTiptapInstance(elementId);
+    if (existingInstance) {
+        console.log('Editor already exists for elementId:', elementId);
+        return existingInstance;
+    }
+    
     const container = document.getElementById(elementId);
     console.log('Container element:', container);
     if (!container) {
@@ -422,7 +437,8 @@ function initTiptapEditor(elementId, options = {}) {
                 StarterKit.configure({
                     heading: {
                         levels: [1, 2, 3]
-                    }
+                    },
+                    underline: false  // Disable StarterKit's built-in underline, we add it explicitly below
                 }),
                 Placeholder.configure({
                     placeholder: config.placeholder
@@ -989,14 +1005,42 @@ function updateToolbarState(editor, toolbar) {
 
 function getEditorContent(elementId) {
     const instance = getTiptapInstance(elementId);
-    if (!instance || !instance.editor) return '';
+    if (!instance) return '';
+    
+    // Handle markdown mode - return textarea value directly
+    if (instance.getMode && instance.getMode() === 'markdown' && instance.markdownTextarea) {
+        return instance.markdownTextarea.value;
+    }
+    
+    // Handle rich text mode
+    if (!instance.editor) return '';
     return instance.editor.getHTML();
 }
 
 function setEditorContent(elementId, content, mode) {
     const instance = getTiptapInstance(elementId);
-    if (!instance || !instance.editor) return;
-    instance.editor.commands.setContent(content, mode);
+    if (!instance) return;
+    
+    // Handle markdown mode - set textarea value directly
+    if (instance.getMode && instance.getMode() === 'markdown' && instance.markdownTextarea) {
+        instance.markdownTextarea.value = content;
+        return;
+    }
+    
+    // Handle rich text mode
+    if (instance.editor) {
+        instance.editor.commands.setContent(content, mode);
+    }
+}
+
+function setEditorMode(elementId, mode) {
+    const instance = getTiptapInstance(elementId);
+    if (!instance || !instance.setMode) return;
+    instance.setMode(mode);
+}
+
+function insertText(elementId, text) {
+    return insertLiteralIntoEditor(elementId, text);
 }
 
 function destroyEditor(elementId) {
@@ -1151,5 +1195,7 @@ window.TiptapEditor = {
     init: initTiptapEditor,
     getContent: getEditorContent,
     setContent: setEditorContent,
+    setMode: setEditorMode,
+    insertText: insertText,
     destroy: destroyEditor
 };

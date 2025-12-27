@@ -136,7 +136,7 @@ func handleAdminTypes(c *gin.Context) {
 	}
 
 	// Render template or fallback if renderer not initialized
-	if pongo2Renderer == nil {
+	if getPongo2Renderer() == nil {
 		c.Header("Content-Type", "text/html; charset=utf-8")
 		c.String(http.StatusOK, `<!DOCTYPE html>
 <html>
@@ -159,7 +159,7 @@ func handleAdminTypes(c *gin.Context) {
 </html>`)
 		return
 	}
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/types.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/types.pongo2", pongo2.Context{
 		"Title":      "Ticket Type Management",
 		"User":       getUserMapForTemplate(c),
 		"Types":      types,

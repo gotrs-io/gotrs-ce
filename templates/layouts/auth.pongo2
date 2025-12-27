@@ -8,32 +8,8 @@
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        gotrs: {
-                            50: '#eff6ff',
-                            100: '#dbeafe',
-                            200: '#bfdbfe',
-                            300: '#93c5fd',
-                            400: '#60a5fa',
-                            500: '#3b82f6',
-                            600: '#2563eb',
-                            700: '#1d4ed8',
-                            800: '#1e40af',
-                            900: '#1e3a8a',
-                            950: '#172554'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- Tailwind CSS (vendored) -->
+    <link rel="stylesheet" href="/static/css/output.css">
     
     <!-- Dark mode script -->
     <script>
@@ -55,8 +31,8 @@
         }
     </script>
     
-    <!-- HTMX -->
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <!-- HTMX (vendored) -->
+    <script src="/static/js/htmx.min.js"></script>
     
     {% block head %}{% endblock %}
 </head>

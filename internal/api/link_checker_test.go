@@ -32,23 +32,38 @@ func TestAllLinksReturn200(t *testing.T) {
 		}
 
 		allowed := map[string]map[int]struct{}{
-			"/dashboard":           {http.StatusUnauthorized: {}},
-			"/tickets":             {http.StatusUnauthorized: {}},
-			"/admin":               {http.StatusInternalServerError: {}},
-			"/admin/mail-accounts": {http.StatusServiceUnavailable: {}},
-			"/queues":              {http.StatusInternalServerError: {}, http.StatusBadRequest: {}},
-			"/queues/new":          {http.StatusBadRequest: {}},
-			"/register":            {http.StatusNotFound: {}},
-			"/dev":                 {http.StatusNotFound: {}},
-			"/admin/settings":      {http.StatusNotFound: {}},
-			"/admin/reports":       {http.StatusNotFound: {}},
-			"/admin/logs":          {http.StatusNotFound: {}},
-			"/customer/profile":    {http.StatusServiceUnavailable: {}},
-			"/customer":            {http.StatusServiceUnavailable: {}},
-			"/customer/tickets":    {http.StatusServiceUnavailable: {}},
+			"/dashboard":                      {http.StatusUnauthorized: {}},
+			"/tickets":                        {http.StatusUnauthorized: {}},
+			"/admin":                          {http.StatusInternalServerError: {}},
+			"/admin/mail-accounts":            {http.StatusServiceUnavailable: {}},
+			"/admin/permissions":              {http.StatusInternalServerError: {}}, // Requires DB
+			"/admin/roles":                    {http.StatusInternalServerError: {}}, // Requires DB
+			"/admin/customer-users":           {http.StatusInternalServerError: {}}, // Requires DB
+			"/admin/customer-user-services":   {http.StatusInternalServerError: {}}, // Requires DB
+			"/admin/customer/portal/settings": {http.StatusInternalServerError: {}}, // Requires DB
+			"/admin/queues":                   {http.StatusInternalServerError: {}}, // Requires DB
+			"/admin/sla":                      {http.StatusInternalServerError: {}}, // Requires DB
+			"/admin/groups/new":               {http.StatusBadRequest: {}},          // Validation error without context
+			"/queues":                         {http.StatusInternalServerError: {}, http.StatusBadRequest: {}},
+			"/queues/new":                     {http.StatusBadRequest: {}},
+			"/register":                       {http.StatusNotFound: {}},
+			"/dev":                            {http.StatusNotFound: {}},
+			"/admin/settings":                 {http.StatusNotFound: {}},
+			"/admin/reports":                  {http.StatusNotFound: {}},
+			"/admin/logs":                     {http.StatusNotFound: {}},
+			"/admin/templates":                {http.StatusNotFound: {}}, // YAML-routed, requires full router
+			"/admin/attachments":              {http.StatusNotFound: {}}, // YAML-routed, requires full router
+			"/customer/profile":               {http.StatusServiceUnavailable: {}},
+			"/customer":                       {http.StatusServiceUnavailable: {}},
+			"/customer/tickets":               {http.StatusServiceUnavailable: {}},
 		}
 
 		if strings.HasPrefix(trimmed, "/tickets/") && status == http.StatusNotFound {
+			return true
+		}
+
+		// Admin group detail pages return 500 without DB
+		if strings.HasPrefix(trimmed, "/admin/groups/") && status == http.StatusInternalServerError {
 			return true
 		}
 

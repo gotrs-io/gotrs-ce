@@ -487,16 +487,8 @@
                     </div>
                     
                     <!-- Template Selection -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Template (optional)</label>
-                        <select name="template_id" onchange="loadTemplate(this.value)"
-                                class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
-                            <option value="">-- Select template --</option>
-                            <option value="1">Standard Response</option>
-                            <option value="2">Request More Information</option>
-                            <option value="3">Issue Resolved</option>
-                        </select>
-                    </div>
+                    <!-- Template Selection -->
+                    {% include "partials/template_selector.pongo2" with QueueID=ticket.queue_id TicketID=ticket.id TemplateType="Answer" TargetEditorID="replyEditorInner" SelectID="replyTemplateSelect" %}
                     
                     <!-- Message with Quote Option -->
                     <div>
@@ -507,8 +499,9 @@
                                 <span class="text-gray-700 dark:text-gray-300">Quote original message</span>
                             </label>
                         </div>
-                        <div id="replyEditor" class="mt-1"></div>
-                        <input type="hidden" name="body" id="replyBody" required>
+                        <div id="replyEditor" class="mt-1">
+                            {% include "partials/rich_text_editor.pongo2" with EditorID="replyEditorInner" FieldName="body" Placeholder="Write your reply here..." MinHeight="120px" %}
+                        </div>
                     </div>
                     
                     <!-- Attachments -->
@@ -516,6 +509,7 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Attachments</label>
                         <input type="file" name="attachments" multiple
                                class="mt-1 w-full text-sm text-gray-900 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-gray-300">
+                        <div id="reply-template-attachments" class="mt-2"></div>
                     </div>
                     
                     <!-- Time Accounting -->
@@ -580,10 +574,13 @@
                         <input type="text" id="noteSubject" name="subject" placeholder="Note subject" value="Internal Note" required
                                class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
                     </div>
+                    <!-- Note Template Selection -->
+                    {% include "partials/template_selector.pongo2" with QueueID=ticket.queue_id TicketID=ticket.id TemplateType="Note" TargetEditorID="noteEditorInner" SelectID="noteTemplateSelect" %}
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Note</label>
-                        <div id="noteEditor" class="mt-1"></div>
-                        <input type="hidden" name="body" id="noteBody" required>
+                        <div id="noteEditor" class="mt-1">
+                            {% include "partials/rich_text_editor.pongo2" with EditorID="noteEditorInner" FieldName="body" Placeholder="Write your note here..." MinHeight="120px" %}
+                        </div>
                     </div>
                     <div class="flex items-center">
                         <input type="checkbox" name="is_visible_for_customer" id="noteVisibility" value="1"
@@ -591,6 +588,13 @@
                         <label for="noteVisibility" class="text-sm text-gray-700 dark:text-gray-300">
                             Visible to Customer
                         </label>
+                    </div>
+                    <!-- Attachments -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Attachments</label>
+                        <input type="file" name="attachments" multiple
+                               class="mt-1 w-full text-sm text-gray-900 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-gray-300">
+                        <div id="note-template-attachments" class="mt-2"></div>
                     </div>
                 </div>
                 <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
@@ -808,79 +812,7 @@ const ticketId = {{ ticket.id }};
 // Initialize ticket zoom functionality
 initTicketZoom(ticketId);
 
-// Initialize rich text editors
-let replyEditorInstance = null;
-let noteEditorInstance = null;
-
-function initializeEditors() {
-    // Initialize reply editor when modal opens
-    const replyModal = document.getElementById('replyModal');
-    if (replyModal) {
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (!replyModal.classList.contains('hidden') && !replyEditorInstance) {
-                    replyEditorInstance = TiptapEditor.init('replyEditor', {
-                        placeholder: 'Write your reply here...',
-                        onUpdate: (content) => {
-                            document.getElementById('replyBody').value = content;
-                        }
-                    });
-                } else if (replyModal.classList.contains('hidden') && replyEditorInstance) {
-                    TiptapEditor.destroy('replyEditor');
-                    replyEditorInstance = null;
-                }
-            });
-        });
-        observer.observe(replyModal, { attributes: true, attributeFilter: ['class'] });
-    }
-    
-    // Initialize note editor when modal opens
-    const noteModal = document.getElementById('noteModal');
-    if (noteModal) {
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (!noteModal.classList.contains('hidden') && !noteEditorInstance) {
-                    noteEditorInstance = TiptapEditor.init('noteEditor', {
-                        placeholder: 'Write your note here...',
-                        onUpdate: (content) => {
-                            document.getElementById('noteBody').value = content;
-                        }
-                    });
-                } else if (noteModal.classList.contains('hidden') && noteEditorInstance) {
-                    TiptapEditor.destroy('noteEditor');
-                    noteEditorInstance = null;
-                }
-            });
-        });
-        observer.observe(noteModal, { attributes: true, attributeFilter: ['class'] });
-    }
-}
-
-// Initialize editors when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeEditors);
-} else {
-    initializeEditors();
-}
-
-// Update form submission to ensure editor content is included
-const replyForm = document.getElementById('replyForm');
-if (replyForm) {
-    replyForm.addEventListener('submit', (e) => {
-        if (replyEditorInstance) {
-            document.getElementById('replyBody').value = TiptapEditor.getContent('replyEditor');
-        }
-    });
-}
-
-const noteForm = document.getElementById('noteForm');
-if (noteForm) {
-    noteForm.addEventListener('submit', (e) => {
-        if (noteEditorInstance) {
-            document.getElementById('noteBody').value = TiptapEditor.getContent('noteEditor');
-        }
-    });
-}
+// Editors are initialized by partial includes
 
 /**
  * Toggle pending time fields based on status selection - ENHANCED VERSION

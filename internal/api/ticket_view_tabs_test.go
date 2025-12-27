@@ -14,6 +14,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +25,9 @@ func TestTicketHistoryFragmentRendersData(t *testing.T) {
 	_, file, _, ok := runtime.Caller(0)
 	require.True(t, ok)
 	templateDir := filepath.Join(filepath.Dir(file), "..", "..", "templates")
-	InitPongo2Renderer(templateDir)
+	renderer, err := shared.NewTemplateRenderer(templateDir)
+	require.NoError(t, err)
+	shared.SetGlobalRenderer(renderer)
 
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
@@ -76,7 +79,9 @@ func TestTicketLinksFragmentRendersData(t *testing.T) {
 	_, file, _, ok := runtime.Caller(0)
 	require.True(t, ok)
 	templateDir := filepath.Join(filepath.Dir(file), "..", "..", "templates")
-	InitPongo2Renderer(templateDir)
+	renderer, err := shared.NewTemplateRenderer(templateDir)
+	require.NoError(t, err)
+	shared.SetGlobalRenderer(renderer)
 
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)

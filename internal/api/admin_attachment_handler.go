@@ -104,14 +104,22 @@ func handleAdminAttachment(c *gin.Context) {
 		attachments = append(attachments, a)
 	}
 
+	// Valid options for the form dropdown
+	validOptions := []map[string]interface{}{
+		{"ID": 1, "Name": "valid"},
+		{"ID": 2, "Name": "invalid"},
+		{"ID": 3, "Name": "invalid-temporarily"},
+	}
+
 	// Render the template
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/attachment.pongo2", pongo2.Context{
-		"Title":       "Standard Attachment Management",
-		"Attachments": attachments,
-		"SearchQuery": searchQuery,
-		"ValidFilter": validFilter,
-		"User":        getUserMapForTemplate(c),
-		"ActivePage":  "admin",
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/attachment.pongo2", pongo2.Context{
+		"Title":        "Standard Attachment Management",
+		"Attachments":  attachments,
+		"SearchQuery":  searchQuery,
+		"ValidFilter":  validFilter,
+		"ValidOptions": validOptions,
+		"User":         getUserMapForTemplate(c),
+		"ActivePage":   "admin",
 	})
 }
 
@@ -197,17 +205,32 @@ func handleAdminAttachmentCreate(c *gin.Context) {
 	}
 
 	// Insert the new attachment
-	var id int
 	var commentsPtr *string
 	if comments != "" {
 		commentsPtr = &comments
 	}
 
-	err = db.QueryRow(database.ConvertPlaceholders(`
-		INSERT INTO standard_attachment (name, filename, content_type, content, comments, valid_id, create_by, change_by)
-		VALUES ($1, $2, $3, $4, $5, $6, 1, 1)
-		RETURNING id
-	`), name, header.Filename, header.Header.Get("Content-Type"), content, commentsPtr, validID).Scan(&id)
+	result, err := db.Exec(database.ConvertPlaceholders(`
+		INSERT INTO standard_attachment (name, filename, content_type, content, comments, valid_id, create_time, create_by, change_time, change_by)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), 1, NOW(), 1)
+	`), name, header.Filename, header.Header.Get("Content-Type"), content, commentsPtr, validID)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to create attachment: " + err.Error(),
+		})
+		return
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to get attachment ID",
+		})
+		return
+	}
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -217,6 +240,7 @@ func handleAdminAttachmentCreate(c *gin.Context) {
 		return
 	}
 
+	c.Header("HX-Trigger", "attachmentCreated")
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Attachment created successfully",
@@ -310,11 +334,11 @@ func handleAdminAttachmentUpdate(c *gin.Context) {
 	args = append(args, id)
 	query := fmt.Sprintf("UPDATE standard_attachment SET %s WHERE id = $%d", strings.Join(updates, ", "), argCount)
 
-	result, err := db.Exec(query, args...)
+	result, err := db.Exec(database.ConvertPlaceholders(query), args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "Failed to update attachment",
+			"error":   "Failed to update attachment: " + err.Error(),
 		})
 		return
 	}
@@ -328,6 +352,7 @@ func handleAdminAttachmentUpdate(c *gin.Context) {
 		return
 	}
 
+	c.Header("HX-Trigger", "attachmentUpdated")
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Attachment updated successfully",
@@ -379,6 +404,7 @@ func handleAdminAttachmentDelete(c *gin.Context) {
 		return
 	}
 
+	c.Header("HX-Trigger", "attachmentDeleted")
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Attachment deleted successfully",
@@ -422,6 +448,49 @@ func handleAdminAttachmentDownload(c *gin.Context) {
 	c.Header("Content-Type", contentType)
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	c.Header("Content-Length", strconv.Itoa(len(content)))
+
+	// Send the file content
+	c.Data(http.StatusOK, contentType, content)
+}
+
+// handleAdminAttachmentPreview serves an attachment inline for preview
+func handleAdminAttachmentPreview(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid attachment ID")
+		return
+	}
+
+	db, err := database.GetDB()
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Database connection failed")
+		return
+	}
+
+	var filename, contentType string
+	var content []byte
+
+	err = db.QueryRow(database.ConvertPlaceholders(`
+		SELECT filename, content_type, content 
+		FROM standard_attachment 
+		WHERE id = $1
+	`), id).Scan(&filename, &contentType, &content)
+
+	if err == sql.ErrNoRows {
+		c.String(http.StatusNotFound, "Attachment not found")
+		return
+	}
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Failed to fetch attachment")
+		return
+	}
+
+	// Set headers for inline display (preview)
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", filename))
+	c.Header("Content-Length", strconv.Itoa(len(content)))
+	c.Header("Cache-Control", "private, max-age=3600")
 
 	// Send the file content
 	c.Data(http.StatusOK, contentType, content)

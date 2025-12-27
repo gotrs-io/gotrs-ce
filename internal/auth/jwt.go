@@ -18,6 +18,7 @@ type Claims struct {
 	Email    string `json:"email"`
 	Login    string `json:"login,omitempty"`
 	Role     string `json:"role"`
+	IsAdmin  bool   `json:"is_admin,omitempty"` // User is in admin group (for nav display)
 	TenantID uint   `json:"tenant_id,omitempty"`
 	jwt.RegisteredClaims
 }
@@ -35,16 +36,22 @@ func NewJWTManager(secretKey string, tokenDuration time.Duration) *JWTManager {
 }
 
 func (m *JWTManager) GenerateToken(userID uint, email, role string, tenantID uint) (string, error) {
-	return m.GenerateTokenWithLogin(userID, email, email, role, tenantID)
+	return m.GenerateTokenWithLogin(userID, email, email, role, false, tenantID)
+}
+
+// GenerateTokenWithAdmin creates a JWT with explicit isAdmin flag
+func (m *JWTManager) GenerateTokenWithAdmin(userID uint, email, role string, isAdmin bool, tenantID uint) (string, error) {
+	return m.GenerateTokenWithLogin(userID, email, email, role, isAdmin, tenantID)
 }
 
 // GenerateTokenWithLogin creates a JWT with explicit login and email values
-func (m *JWTManager) GenerateTokenWithLogin(userID uint, login, email, role string, tenantID uint) (string, error) {
+func (m *JWTManager) GenerateTokenWithLogin(userID uint, login, email, role string, isAdmin bool, tenantID uint) (string, error) {
 	claims := Claims{
 		UserID:   userID,
 		Email:    email,
 		Login:    login,
 		Role:     role,
+		IsAdmin:  isAdmin,
 		TenantID: tenantID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.tokenDuration)),

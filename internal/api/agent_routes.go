@@ -223,7 +223,7 @@ func handleAgentDashboard(db *sql.DB) gin.HandlerFunc {
 		// Pass the isInAdminGroup flag to template
 		adminGroupFlag, _ := c.Get("isInAdminGroup")
 
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/agent/dashboard.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/agent/dashboard.pongo2", pongo2.Context{
 			"Title":          "Agent Dashboard",
 			"ActivePage":     "agent",
 			"User":           user,
@@ -563,7 +563,7 @@ func handleAgentTickets(db *sql.DB) gin.HandlerFunc {
 			currentDFFilters[key] = f.Value
 		}
 
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/agent/tickets.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/agent/tickets.pongo2", pongo2.Context{
 			"Title":                   "Ticket Management",
 			"ActivePage":              "agent",
 			"User":                    user,
@@ -1881,7 +1881,7 @@ func handleAgentQueues(db *sql.DB) gin.HandlerFunc {
 		// Pass the isInAdminGroup flag to template
 		adminGroupFlag, _ := c.Get("isInAdminGroup")
 
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/agent/queues.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/agent/queues.pongo2", pongo2.Context{
 			"Title":          "Queue Management",
 			"ActivePage":     "agent",
 			"User":           user,

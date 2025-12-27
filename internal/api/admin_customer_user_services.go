@@ -102,7 +102,7 @@ func handleAdminCustomerUserServices(db *sql.DB) gin.HandlerFunc {
 			}
 		}
 
-		if pongo2Renderer == nil {
+		if getPongo2Renderer() == nil {
 			c.Header("Content-Type", "text/html; charset=utf-8")
 			c.String(http.StatusOK, `<h1>Customer User Services</h1><p>Template renderer not available</p>`)
 			return
@@ -111,7 +111,7 @@ func handleAdminCustomerUserServices(db *sql.DB) gin.HandlerFunc {
 		// Get count of default services
 		defaultServicesCount := getDefaultServicesCount(db)
 
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/customer_user_services.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/customer_user_services.pongo2", pongo2.Context{
 			"Title":                "Customer User Services",
 			"CustomerUsers":        customerUsers,
 			"Services":             services,

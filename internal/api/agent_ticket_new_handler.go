@@ -87,7 +87,7 @@ func HandleAgentNewTicket(db *sql.DB) gin.HandlerFunc {
 		}
 
 		// Render the form with data
-		renderer := GetPongo2Renderer()
+		renderer := getPongo2Renderer()
 		if renderer != nil {
 			user := GetUserMapForTemplate(c)
 			isInAdminGroup := false

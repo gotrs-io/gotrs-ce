@@ -113,3 +113,14 @@ spec:
       handler: handleAgentDashboard
       template: pages/agent/dashboard.pongo2
       description: "Display agent dashboard with assigned tickets"
+
+    # Agent templates API - for template selection in ticket forms
+    - path: /api/templates
+      method: GET
+      handler: handleGetAgentTemplates
+      description: "Get templates available for a queue (query params: queue_id, type)"
+
+    - path: /api/templates/:id
+      method: GET
+      handler: handleGetAgentTemplate
+      description: "Get single template with variable substitution (query param: ticket_id)"

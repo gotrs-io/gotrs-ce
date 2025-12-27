@@ -129,7 +129,7 @@ func handleAdminRoles(c *gin.Context) {
 	}
 
 	// Render the template
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/roles.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/roles.pongo2", pongo2.Context{
 		"Title":       "Role Management",
 		"Roles":       roles,
 		"SearchQuery": searchQuery,
@@ -531,7 +531,7 @@ func handleAdminRoleUsers(c *gin.Context) {
 	}
 
 	// Render template for browser request
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/role_users.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/role_users.pongo2", pongo2.Context{
 		"Title":          "Role Users - " + role.Name,
 		"Role":           role,
 		"Users":          users,
@@ -740,7 +740,7 @@ func handleAdminRolePermissions(c *gin.Context) {
 		}
 
 		// Render permissions template
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/role_permissions.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/role_permissions.pongo2", pongo2.Context{
 			"Title":      "Role Permissions",
 			"Role":       role,
 			"Groups":     groups,

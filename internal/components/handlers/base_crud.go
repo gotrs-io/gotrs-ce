@@ -8,7 +8,7 @@ import (
 
 	"github.com/flosch/pongo2/v6"
 	"github.com/gin-gonic/gin"
-	"github.com/gotrs-io/gotrs-ce/internal/template"
+	"github.com/gotrs-io/gotrs-ce/internal/shared"
 )
 
 // CRUDConfig defines the configuration for a CRUD handler
@@ -60,11 +60,11 @@ const (
 type BaseCRUDHandler struct {
 	Config   CRUDConfig
 	DB       *sql.DB
-	Renderer *template.Pongo2Renderer
+	Renderer *shared.TemplateRenderer
 }
 
 // NewBaseCRUDHandler creates a new base CRUD handler
-func NewBaseCRUDHandler(config CRUDConfig, db *sql.DB, renderer *template.Pongo2Renderer) *BaseCRUDHandler {
+func NewBaseCRUDHandler(config CRUDConfig, db *sql.DB, renderer *shared.TemplateRenderer) *BaseCRUDHandler {
 	return &BaseCRUDHandler{
 		Config:   config,
 		DB:       db,

@@ -460,7 +460,7 @@ func fallbackAuthGuard() gin.HandlerFunc {
 			p := c.Request.URL.Path
 			if p == "/login" || p == "/" {
 				// Use existing login page renderer if available; otherwise simple placeholder string
-				if pongo2Renderer != nil {
+				if getPongo2Renderer() != nil {
 					handleLoginPage(c)
 				} else {
 					c.String(http.StatusOK, "login")

@@ -81,12 +81,12 @@ func friendlyPathForModule(module string) string {
 // SetupDynamicModules initializes the dynamic module system. Route registration
 // is handled via YAML; this ensures endpoints exist even before the handler is ready.
 func SetupDynamicModules(db *sql.DB) error {
-	if pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+	if getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 		log.Printf("Dynamic modules disabled: template renderer not initialized")
 		return nil
 	}
 
-	handler, err := dynamic.NewDynamicModuleHandler(db, pongo2Renderer.templateSet, "modules")
+	handler, err := dynamic.NewDynamicModuleHandler(db, getPongo2Renderer().TemplateSet(), "modules")
 	if err != nil {
 		return err
 	}
@@ -167,12 +167,12 @@ func handleAdminDynamicIndex(c *gin.Context) {
 		comparisons = append(comparisons, comparison)
 	}
 
-	if pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+	if getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 		c.JSON(http.StatusOK, gin.H{"success": true, "modules": comparisons})
 		return
 	}
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/dynamic_test.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/dynamic_test.pongo2", pongo2.Context{
 		"Modules":    comparisons,
 		"User":       getUserMapForTemplate(c),
 		"ActivePage": "admin",

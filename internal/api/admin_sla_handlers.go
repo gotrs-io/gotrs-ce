@@ -185,7 +185,7 @@ func handleAdminSLA(c *gin.Context) {
 	}
 
 	// Render the template
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/sla.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/sla.pongo2", pongo2.Context{
 		"Title":       "SLA Management",
 		"SLAs":        slas,
 		"Calendars":   calendars,

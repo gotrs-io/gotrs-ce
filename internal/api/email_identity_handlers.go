@@ -69,7 +69,7 @@ type signaturePayload struct {
 }
 
 func handleAdminEmailIdentities(c *gin.Context) {
-	if htmxHandlerSkipDB() || pongo2Renderer == nil || pongo2Renderer.templateSet == nil {
+	if htmxHandlerSkipDB() || getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
 		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte("<main>Email Identities</main>"))
 		return
 	}
@@ -106,7 +106,7 @@ func handleAdminEmailIdentities(c *gin.Context) {
 
 	tab := sanitizeEmailIdentityTab(c.Query("tab"))
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/email_identities.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/email_identities.pongo2", pongo2.Context{
 		"SystemAddresses": addresses,
 		"Salutations":     salutations,
 		"Signatures":      signatures,

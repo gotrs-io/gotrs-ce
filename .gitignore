@@ -457,6 +457,23 @@ runtime/testfile
 static/js/test_write
 
 # ============================================
+# Generated/Downloaded Assets (built in Docker)
+# ============================================
+# Third-party JS libraries (downloaded at build time)
+static/js/htmx.min.js
+static/js/htmx-json-enc.js
+static/js/alpine.min.js
+static/js/chart.min.js
+
+# Generated assets (built at build time)
+static/js/tiptap.min.js
+static/css/output.css
+
+# Font Awesome (downloaded at build time)
+static/css/fontawesome/
+static/css/webfonts/
+
+# ============================================
 # TDD ephemeral state
 # ============================================
 .tdd-state

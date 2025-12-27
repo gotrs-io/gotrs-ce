@@ -9,7 +9,10 @@ export function htmlToMarkdown(html) {
     const temp = document.createElement('div');
     temp.innerHTML = html;
 
-    return convertElementToMarkdown(temp);
+    let markdown = convertElementToMarkdown(temp);
+    // Normalize: collapse 3+ consecutive newlines to 2
+    markdown = markdown.replace(/\n{3,}/g, '\n\n');
+    return markdown;
 }
 
 // Convert Markdown to HTML
@@ -97,7 +100,8 @@ function convertElementToMarkdown(element) {
                     }
                     break;
                 case 'pre':
-                    markdown += '```\n' + convertElementToMarkdown(child) + '\n```\n\n';
+                    const codeContent = convertElementToMarkdown(child).trim();
+                    markdown += '```\n' + codeContent + '\n```\n\n';
                     break;
                 case 'a':
                     const href = child.getAttribute('href');
@@ -124,7 +128,10 @@ function convertElementToMarkdown(element) {
                     markdown += '\n';
                     break;
                 case 'p':
-                    markdown += convertElementToMarkdown(child) + '\n\n';
+                    const pContent = convertElementToMarkdown(child);
+                    if (pContent.trim()) {
+                        markdown += pContent + '\n\n';
+                    }
                     break;
                 case 'div':
                 case 'span':

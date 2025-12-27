@@ -14,7 +14,7 @@ func handleAdminRoadmap(c *gin.Context) {
 	content, err := os.ReadFile("ROADMAP.md")
 	if err != nil {
 		// If file doesn't exist, show error
-		pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/roadmap.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/roadmap.pongo2", pongo2.Context{
 			"Title":      "Development Roadmap",
 			"Error":      "Unable to load roadmap file: " + err.Error(),
 			"User":       getUserMapForTemplate(c),
@@ -26,7 +26,7 @@ func handleAdminRoadmap(c *gin.Context) {
 	// Convert Markdown to HTML using shared utility
 	htmlString := RenderMarkdown(string(content))
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/roadmap.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/roadmap.pongo2", pongo2.Context{
 		"Title":       "Development Roadmap",
 		"HTMLContent": htmlString,
 		"User":        getUserMapForTemplate(c),

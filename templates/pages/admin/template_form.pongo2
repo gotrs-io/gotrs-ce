@@ -1,0 +1,233 @@
+{% extends "layouts/base.pongo2" %}
+
+{% block title %}{% if IsNew %}{{ t("admin.modules.template.form.create_title") }}{% else %}{{ t("admin.modules.template.form.edit_title") }}{% endif %} - GOTRS Admin{% endblock %}
+
+{% block head %}
+{{ block.super }}
+<script src="/static/js/tiptap.min.js"></script>
+<script src="/static/js/tiptap-editor.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Page header -->
+    <div class="mb-8">
+        <div class="sm:flex sm:items-center sm:justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+                    {% if IsNew %}{{ t("admin.modules.template.form.create_title") }}{% else %}{{ t("admin.modules.template.form.edit_title") }}{% endif %}
+                </h1>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    {% if IsNew %}{{ t("admin.modules.template.form.create_description") }}{% else %}{{ t("admin.modules.template.form.edit_description") }}{% endif %}
+                </p>
+            </div>
+            <div class="mt-4 sm:mt-0">
+                <a href="/admin/templates"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                >
+                    <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    {{ t("admin.modules.template.actions.back_to_list") }}
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
+        <form
+            id="templateForm"
+            method="POST"
+            action="{% if IsNew %}/admin/api/templates{% else %}/admin/api/templates/{{ Template.ID }}{% endif %}"
+            {% if IsNew %}
+            hx-post="/admin/api/templates"
+            {% else %}
+            hx-put="/admin/api/templates/{{ Template.ID }}"
+            {% endif %}
+            hx-swap="none"
+            class="space-y-6 p-6"
+        >
+            <!-- Basic Information -->
+            <div class="border-b border-gray-200 dark:border-gray-700 pb-6">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">{{ t("admin.modules.template.form.basic_info") }}</h3>
+                
+                <div class="grid grid-cols-1 gap-6">
+                    <!-- Name -->
+                    <div class="max-w-lg">
+                        <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {{ t("admin.modules.template.fields.name") }} <span class="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            name="name"
+                            id="name"
+                            value="{{ Template.Name }}"
+                            required
+                            class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm"
+                            placeholder="{{ t("admin.modules.template.form.name_placeholder") }}"
+                        >
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t("admin.modules.template.form.name_help") }}</p>
+                    </div>
+
+                    <!-- Template Types -->
+                    <div class="max-w-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            {{ t("admin.modules.template.fields.template_type") }} <span class="text-red-500">*</span>
+                        </label>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">{{ t("admin.modules.template.form.template_types_help") }}</p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {% for tt in TemplateTypes %}
+                            <label class="relative flex items-start py-2">
+                                <div class="min-w-0 flex-1 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        name="template_type"
+                                        value="{{ tt.Key }}"
+                                        {% if tt.Key in Template.TemplateType %}checked{% endif %}
+                                        class="focus:ring-gotrs-500 h-4 w-4 text-gotrs-600 border-gray-300 rounded dark:border-gray-600 dark:bg-gray-700"
+                                    >
+                                    <span class="ml-2 font-medium text-gray-700 dark:text-gray-300">{{ tt.Label }}</span>
+                                </div>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Content Type -->
+                    <div class="max-w-lg">
+                        <label for="content_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {{ t("admin.modules.template.fields.content_type") }}
+                        </label>
+                        <select
+                            name="content_type"
+                            id="content_type"
+                            class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm"
+                        >
+                            <option value="text/plain" {% if Template.ContentType == "text/plain" or not Template.ContentType %}selected{% endif %}>{{ t("admin.modules.template.content_types.plain_text") }}</option>
+                            <option value="text/html" {% if Template.ContentType == "text/html" %}selected{% endif %}>{{ t("admin.modules.template.content_types.html") }}</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t("admin.modules.template.form.content_type_help") }}</p>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="max-w-lg">
+                        <label for="valid_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {{ t("admin.modules.template.filters.status") }}
+                        </label>
+                        <select
+                            name="valid_id"
+                            id="valid_id"
+                            class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm"
+                        >
+                            <option value="1" {% if Template.ValidID == 1 or not Template.ID %}selected{% endif %}>{{ t("admin.modules.template.fields.valid") }}</option>
+                            <option value="2" {% if Template.ValidID == 2 %}selected{% endif %}>{{ t("admin.modules.template.fields.invalid") }}</option>
+                            <option value="3" {% if Template.ValidID == 3 %}selected{% endif %}>{{ t("admin.modules.template.fields.invalid_temporary") }}</option>
+                        </select>
+                    </div>
+
+                    <!-- Comments -->
+                    <div class="max-w-lg">
+                        <label for="comments" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {{ t("admin.modules.template.fields.comments") }}
+                        </label>
+                        <input
+                            type="text"
+                            name="comments"
+                            id="comments"
+                            value="{{ Template.Comments }}"
+                            class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-gotrs-500 focus:ring-gotrs-500 sm:text-sm"
+                            placeholder="{{ t("admin.modules.template.form.comments_placeholder") }}"
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <!-- Template Content -->
+            <div class="pb-6">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">{{ t("admin.modules.template.form.template_content") }}</h3>
+                
+                <div>
+                    <label for="text" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        {{ t("admin.modules.template.fields.text") }}
+                    </label>
+                    
+                    <!-- Available placeholders -->
+                    <div class="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                        <p class="mb-1">{{ t("admin.modules.template.form.available_placeholders") }}:</p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 font-mono text-xs">
+                            <span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600" onclick="insertEditorPlaceholder('templateEditor', '&lt;GOTRS_OWNER_Salutation&gt;')">&lt;GOTRS_OWNER_Salutation&gt;</span>
+                            <span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600" onclick="insertEditorPlaceholder('templateEditor', '&lt;GOTRS_OWNER_FirstName&gt;')">&lt;GOTRS_OWNER_FirstName&gt;</span>
+                            <span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600" onclick="insertEditorPlaceholder('templateEditor', '&lt;GOTRS_OWNER_LastName&gt;')">&lt;GOTRS_OWNER_LastName&gt;</span>
+                            <span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600" onclick="insertEditorPlaceholder('templateEditor', '&lt;GOTRS_TICKET_TicketNumber&gt;')">&lt;GOTRS_TICKET_TicketNumber&gt;</span>
+                            <span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600" onclick="insertEditorPlaceholder('templateEditor', '&lt;GOTRS_TICKET_Title&gt;')">&lt;GOTRS_TICKET_Title&gt;</span>
+                            <span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600" onclick="insertEditorPlaceholder('templateEditor', '&lt;GOTRS_CUSTOMER_UserEmail&gt;')">&lt;GOTRS_CUSTOMER_UserEmail&gt;</span>
+                            <span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600" onclick="insertEditorPlaceholder('templateEditor', '&lt;GOTRS_CUSTOMER_UserFirstname&gt;')">&lt;GOTRS_CUSTOMER_UserFirstname&gt;</span>
+                            <span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600" onclick="insertEditorPlaceholder('templateEditor', '&lt;GOTRS_CUSTOMER_UserLastname&gt;')">&lt;GOTRS_CUSTOMER_UserLastname&gt;</span>
+                        </div>
+                        <p class="mt-2 text-xs text-gray-400">{{ t("admin.modules.template.form.placeholder_click_hint") }}</p>
+                    </div>
+                    
+                    {% include "partials/rich_text_editor.pongo2" with EditorID="templateEditor" FieldName="text" InitialContent=Template.Text Placeholder="Enter your template content here..." MinHeight="300px" EditorMode="markdown" %}
+                    
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t("admin.modules.template.form.template_text_help") }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <a href="/admin/templates"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600"
+                >
+                    {{ t("admin.modules.template.actions.cancel") }}
+                </a>
+                <button type="submit"
+                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gotrs-600 hover:bg-gotrs-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gotrs-500"
+                >
+                    <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    {% if IsNew %}{{ t("admin.modules.template.actions.create") }}{% else %}{{ t("admin.modules.template.actions.save") }}{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Handle form submission response
+    document.body.addEventListener('htmx:afterRequest', function(event) {
+        if (event.detail.xhr.status >= 400) {
+            try {
+                const response = JSON.parse(event.detail.xhr.responseText);
+                alert('Error: ' + (response.error || 'Unknown error'));
+            } catch (e) {
+                alert('Error: ' + event.detail.xhr.statusText);
+            }
+        }
+    });
+
+    // Sync editor content before HTMX sends request
+    document.getElementById('templateForm').addEventListener('htmx:configRequest', function(e) {
+        // Ensure hidden field has latest content from editor
+        if (typeof TiptapEditor !== 'undefined') {
+            const content = TiptapEditor.getContent('templateEditor');
+            document.getElementById('text').value = content;
+            // Also update the request parameters directly
+            e.detail.parameters['text'] = content;
+        }
+    });
+
+    // Validate template type selection before submit
+    document.getElementById('templateForm').addEventListener('htmx:confirm', function(e) {
+        const checkboxes = document.querySelectorAll('input[name="template_type"]:checked');
+        if (checkboxes.length === 0) {
+            e.preventDefault();
+            alert('Please select at least one template type.');
+            return false;
+        }
+    });
+</script>
+{% endblock %}

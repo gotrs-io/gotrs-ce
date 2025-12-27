@@ -14,7 +14,7 @@ import (
 func HandleAdminTickets(c *gin.Context) {
 	db, err := database.GetDB()
 	if err != nil {
-		pongo2Renderer.HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
 			"error": "Database connection failed",
 		})
 		return
@@ -109,7 +109,7 @@ func HandleAdminTickets(c *gin.Context) {
 	// Execute query
 	rows, err := db.Query(database.ConvertPlaceholders(query), args...)
 	if err != nil {
-		pongo2Renderer.HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
+		getPongo2Renderer().HTML(c, http.StatusInternalServerError, "error.pongo2", pongo2.Context{
 			"error": fmt.Sprintf("Failed to fetch tickets: %v", err),
 		})
 		return
@@ -183,7 +183,7 @@ func HandleAdminTickets(c *gin.Context) {
 	// Calculate pagination
 	totalPages := (totalCount + limit - 1) / limit
 
-	pongo2Renderer.HTML(c, http.StatusOK, "pages/admin/tickets.pongo2", pongo2.Context{
+	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/tickets.pongo2", pongo2.Context{
 		"User":         getUserFromContext(c),
 		"ActivePage":   "admin",
 		"Title":        "Ticket Management",

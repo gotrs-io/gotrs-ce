@@ -96,7 +96,7 @@ COPY . ./
 # -ldflags="-w -s" strips debug info for smaller binary
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
+    CGO_ENABLED=1 GOOS=linux \
     go build -ldflags="-w -s" -a -installsuffix cgo -o goats ./cmd/goats
 
 # ============================================

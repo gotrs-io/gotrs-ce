@@ -7,7 +7,7 @@ FROM gotrs-artifacts:latest AS artifacts
 # Build additional toolbox utilities
 FROM docker.io/golang:1.24.6-alpine AS toolbox-builder
 
-ARG TOOLCHAIN_PKGS="git gcc musl-dev ca-certificates"
+ARG TOOLCHAIN_PKGS="git gcc musl-dev ca-certificates binutils-gold"
 RUN apk add --no-cache $TOOLCHAIN_PKGS
 
 # Set working directory

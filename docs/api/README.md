@@ -58,7 +58,7 @@ https://your-domain.com/api/v1
 # Get JWT token
 curl -X POST https://your-domain.com/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"secret"}'
+  -d '{"email":"$EMAIL_ADDRESS","password":"$PASSWORD"}'
 
 # Use token in requests
 curl -X GET https://your-domain.com/api/v1/tickets \

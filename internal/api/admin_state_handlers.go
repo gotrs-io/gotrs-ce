@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -248,25 +247,6 @@ func handleAdminStateCreate(c *gin.Context) {
 		return
 	}
 
-	// Deterministic fallback in tests: avoid DB dependency
-	if os.Getenv("APP_ENV") == "test" {
-		if strings.TrimSpace(input.Name) == "" || input.TypeID == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Name is required"})
-			return
-		}
-		typeID := input.TypeID
-		validID := input.ValidID
-		if validID == 0 {
-			validID = 1
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": "State created successfully",
-			"data":    State{ID: 1, Name: input.Name, TypeID: &typeID, Comments: input.Comments, ValidID: &validID},
-		})
-		return
-	}
-
 	db, err := database.GetDB()
 	if err != nil || db == nil {
 		// Fallback: basic validation and success payload
@@ -467,12 +447,6 @@ func handleAdminStateDelete(c *gin.Context) {
 			"success": false,
 			"error":   "Invalid state ID",
 		})
-		return
-	}
-
-	// Deterministic fallback in tests
-	if os.Getenv("APP_ENV") == "test" {
-		c.JSON(http.StatusOK, gin.H{"success": true, "message": "State deleted successfully"})
 		return
 	}
 

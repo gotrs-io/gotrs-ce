@@ -74,19 +74,37 @@ func InitDB() error {
 	return InitTestDB()
 }
 
+// dbStack holds saved DB states for nested SetDB/ResetDB calls
+type dbState struct {
+	db       *sql.DB
+	override bool
+}
+
+var dbStack []dbState
+
 // SetDB allows tests to inject a mock *sql.DB for functions that call GetDB.
-// Use ResetDB to restore the previous value.
+// Use ResetDB to restore the previous value. Uses a stack to handle nested calls.
 func SetDB(db *sql.DB) {
 	testDBMu.Lock()
+	dbStack = append(dbStack, dbState{db: testDB, override: testDBOverride})
 	testDB = db
 	testDBOverride = db != nil
 	testDBMu.Unlock()
 }
 
-// ResetDB clears the test-injected DB.
+// ResetDB restores the test-injected DB to the previously saved value.
+// This allows tests that inject mocks to not interfere with other tests
+// that expect the real test database to be available.
 func ResetDB() {
 	testDBMu.Lock()
-	testDB = nil
-	testDBOverride = false
+	if len(dbStack) > 0 {
+		state := dbStack[len(dbStack)-1]
+		dbStack = dbStack[:len(dbStack)-1]
+		testDB = state.db
+		testDBOverride = state.override
+	} else {
+		testDB = nil
+		testDBOverride = false
+	}
 	testDBMu.Unlock()
 }

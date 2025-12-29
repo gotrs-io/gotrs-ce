@@ -147,12 +147,13 @@ USER_FLAGS := -u "$$(id -u):$$(id -g)"
 ifeq ($(findstring podman,$(CONTAINER_CMD)),podman)
 DB_HOST ?= host.containers.internal
 else
-DB_HOST ?= localhost
+DB_HOST ?= mariadb
 endif
-DB_PORT ?= 5432
-DB_NAME ?= gotrs
-DB_USER ?= gotrs_user
-DB_PASSWORD ?= gotrs_password
+DB_DRIVER ?= mariadb
+DB_PORT ?= 3306
+DB_NAME ?= otrs
+DB_USER ?= otrs
+DB_PASSWORD ?= CHANGEME
 DB_SCOPE ?= primary
 VALKEY_HOST ?= localhost
 VALKEY_PORT ?= 6388
@@ -168,6 +169,9 @@ TEST_DB_POSTGRES_CONTAINER_PORT ?= 5432
 TEST_DB_MYSQL_HOST ?= mariadb-test
 TEST_DB_MYSQL_PORT ?= 3308
 TEST_DB_MYSQL_CONTAINER_PORT ?= 3306
+TEST_DB_MYSQL_NAME ?= otrs_test
+TEST_DB_MYSQL_USER ?= otrs
+TEST_DB_MYSQL_PASSWORD ?= LetClaude.1n
 
 ifeq ($(TEST_DB_DRIVER),postgres)
 TEST_DB_HOST ?= $(TEST_DB_POSTGRES_HOST)
@@ -778,9 +782,9 @@ toolbox-test-all:
 		-e APP_ENV=test \
 		-e STORAGE_PATH=/tmp \
 		-e TEMPLATES_DIR=/workspace/templates \
-		-e DB_HOST=$(DB_HOST) -e DB_PORT=3306 \
-		-e DB_DRIVER=mariadb \
-		-e DB_NAME=otrs -e DB_USER=otrs -e DB_PASSWORD=CHANGEME \
+		-e DB_HOST=$(DB_HOST) -e DB_PORT=$(DB_PORT) \
+		-e DB_DRIVER=$(DB_DRIVER) \
+		-e DB_NAME=$(DB_NAME) -e DB_USER=$(DB_USER) -e DB_PASSWORD=$(DB_PASSWORD) \
 		-e GOTRS_TEST_DB_READY=$(GOTRS_TEST_DB_READY) \
 		gotrs-toolbox:latest \
 		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; set -e; \
@@ -1335,13 +1339,17 @@ test-logs:
 -include .env
 export
 
-# Sensible DB defaults for current compose (MariaDB)
-DB_DRIVER ?= mariadb
-DB_HOST   ?= mariadb
-DB_PORT   ?= 3306
-DB_NAME   ?= otrs
-DB_USER   ?= otrs
-DB_PASSWORD ?= CHANGEME
+# Migration paths (inside container)
+PG_MIGRATE_PATH     ?= /app/migrations/postgres
+MYSQL_MIGRATE_PATH  ?= /app/migrations/mysql
+PG_MIGRATIONS_DIR   ?= migrations/postgres
+MYSQL_MIGRATIONS_DIR ?= migrations/mysql
+# Active migrations dir depends on DB_DRIVER (for gen-migration target)
+ifeq ($(DB_DRIVER),postgres)
+ACTIVE_MIGRATIONS_DIR ?= $(PG_MIGRATIONS_DIR)
+else
+ACTIVE_MIGRATIONS_DIR ?= $(MYSQL_MIGRATIONS_DIR)
+endif
 
 # Database operations
 # Set this from the environment or override on the command line
@@ -1461,7 +1469,7 @@ db-seed-test:
 		$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "$$DB_URI" up; \
 		$(MAKE) db-fix-sequences-test > /dev/null 2>&1 || true; \
 	else \
-		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)"; \
+		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)?multiStatements=true"; \
 		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" up; \
 	fi
 	@printf "✅ Test database ready for testing\n"
@@ -1474,12 +1482,25 @@ db-reset-test:
 		$(COMPOSE_CMD) exec backend migrate -path $(PG_MIGRATE_PATH) -database "$$DB_URI" up; \
 		$(MAKE) db-fix-sequences-test > /dev/null 2>&1 || true; \
 	else \
-		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)"; \
+		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)?multiStatements=true"; \
 		$(COMPOSE_CMD) exec backend migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" down -all; \
 		$(COMPOSE_CMD) exec backend migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" up; \
 	fi
 	@$(MAKE) clean-storage
 	@printf "✅ Test database reset with fresh test data\n"
+
+# Quick reseed test data without full migration (faster than db-reset-test)
+db-reseed-test:
+	@$(MAKE) test-db-up >/dev/null 2>&1 || true
+	@printf "Quick reseed test database...\n"
+	@if [ "$(TEST_DB_DRIVER)" = "postgres" ]; then \
+		echo "PostgreSQL quick reseed not implemented yet - using full reset"; \
+		$(MAKE) db-reset-test; \
+	else \
+		$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml exec -T mariadb-test \
+			mariadb -u$(TEST_DB_MYSQL_USER) -p$(TEST_DB_MYSQL_PASSWORD) $(TEST_DB_MYSQL_NAME) < scripts/reset-test-data.sql; \
+	fi
+	@printf "✅ Test database reseeded\n"
 
  .PHONY: toolbox-exec
 toolbox-exec:
@@ -1539,7 +1560,7 @@ db-migrate:
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
 		$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up; \
 	else \
-		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "mysql://$(DB_USER):$(DB_PASSWORD)@tcp(mariadb:3306)/$(DB_NAME)" up; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "mysql://$(DB_USER):$(DB_PASSWORD)@tcp(mariadb:3306)/$(DB_NAME)?multiStatements=true" up; \
 	fi
 	@printf "Migrations completed successfully!\n"
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
@@ -1555,7 +1576,7 @@ db-migrate-test:
 		DB_URI="postgres://$(TEST_DB_POSTGRES_USER):$(TEST_DB_POSTGRES_PASSWORD)@$(TEST_DB_POSTGRES_HOST):$(TEST_DB_POSTGRES_CONTAINER_PORT)/$(TEST_DB_POSTGRES_NAME)?sslmode=$(TEST_DB_SSLMODE)"; \
 		$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "$$DB_URI" up; \
 	else \
-		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)"; \
+		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)?multiStatements=true"; \
 		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" up; \
 	fi
 	@printf "Test migrations completed successfully!\n"
@@ -1567,7 +1588,7 @@ db-migrate-schema-only:
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
 		$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "postgres://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable" up 3; \
 	else \
-		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "mysql://$(DB_USER):$(DB_PASSWORD)@tcp(mariadb:3306)/$(DB_NAME)" up 3; \
+		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "mysql://$(DB_USER):$(DB_PASSWORD)@tcp(mariadb:3306)/$(DB_NAME)?multiStatements=true" up 3; \
 	fi
 	@printf "Schema and initial data applied (no test data)\n"
 	@if [ "$(DB_DRIVER)" = "postgres" ]; then \
@@ -1583,7 +1604,7 @@ db-migrate-schema-only-test:
 		DB_URI="postgres://$(TEST_DB_POSTGRES_USER):$(TEST_DB_POSTGRES_PASSWORD)@$(TEST_DB_POSTGRES_HOST):$(TEST_DB_POSTGRES_CONTAINER_PORT)/$(TEST_DB_POSTGRES_NAME)?sslmode=$(TEST_DB_SSLMODE)"; \
 		$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "$$DB_URI" up 3; \
 	else \
-		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)"; \
+		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)?multiStatements=true"; \
 		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" up 3; \
 	fi
 	@printf "Test schema and initial data applied\n"
@@ -1625,7 +1646,7 @@ db-rollback-test:
 		DB_URI="postgres://$(TEST_DB_POSTGRES_USER):$(TEST_DB_POSTGRES_PASSWORD)@$(TEST_DB_POSTGRES_HOST):$(TEST_DB_POSTGRES_CONTAINER_PORT)/$(TEST_DB_POSTGRES_NAME)?sslmode=$(TEST_DB_SSLMODE)"; \
 		$(COMPOSE_CMD) exec backend migrate -path $(PG_MIGRATE_PATH) -database "$$DB_URI" down 1; \
 	else \
-		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)"; \
+		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)?multiStatements=true"; \
 		$(COMPOSE_CMD) exec backend migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" down 1; \
 	fi
 
@@ -1700,7 +1721,7 @@ db-status-test:
 		DB_URI="postgres://$(TEST_DB_POSTGRES_USER):$(TEST_DB_POSTGRES_PASSWORD)@$(TEST_DB_POSTGRES_HOST):$(TEST_DB_POSTGRES_CONTAINER_PORT)/$(TEST_DB_POSTGRES_NAME)?sslmode=$(TEST_DB_SSLMODE)"; \
 		$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "$$DB_URI" version; \
 	else \
-		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)"; \
+		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)?multiStatements=true"; \
 		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" version; \
 	fi
 
@@ -1717,7 +1738,7 @@ db-force-test:
 		DB_URI="postgres://$(TEST_DB_POSTGRES_USER):$(TEST_DB_POSTGRES_PASSWORD)@$(TEST_DB_POSTGRES_HOST):$(TEST_DB_POSTGRES_CONTAINER_PORT)/$(TEST_DB_POSTGRES_NAME)?sslmode=$(TEST_DB_SSLMODE)"; \
 		$(COMPOSE_CMD) exec backend ./migrate -path $(PG_MIGRATE_PATH) -database "$$DB_URI" force $$version; \
 	else \
-		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)"; \
+		DB_URI="mysql://$(TEST_DB_MYSQL_USER):$(TEST_DB_MYSQL_PASSWORD)@tcp($(TEST_DB_MYSQL_HOST):$(TEST_DB_MYSQL_CONTAINER_PORT))/$(TEST_DB_MYSQL_NAME)?multiStatements=true"; \
 		$(COMPOSE_CMD) exec backend ./migrate -path $(MYSQL_MIGRATE_PATH) -database "$$DB_URI" force $$version; \
 	fi
 
@@ -2915,6 +2936,12 @@ test-comprehensive:
 		export TEST_BACKEND_HOST_PORT="$(TEST_BACKEND_PORT)"; \
 		export TEST_BACKEND_PORT="$(TEST_BACKEND_PORT)"; \
 		export TEST_BACKEND_BASE_URL="$(TEST_BACKEND_BASE_URL)"; \
+		export TEST_DB_DRIVER="$(TEST_DB_DRIVER)"; \
+		export TEST_DB_HOST="$(TEST_DB_HOST)"; \
+		export TEST_DB_PORT="$(TEST_DB_PORT)"; \
+		export TEST_DB_NAME="$(TEST_DB_NAME)"; \
+		export TEST_DB_USER="$(TEST_DB_USER)"; \
+		export TEST_DB_PASSWORD="$(TEST_DB_PASSWORD)"; \
 		trap cleanup EXIT INT TERM; \
 		$(MAKE) test-stack-up; \
 		if [ -f .tdd-state ]; then \

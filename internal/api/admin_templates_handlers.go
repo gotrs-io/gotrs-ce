@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -744,14 +743,6 @@ func ImportTemplates(data []byte, overwrite bool, userID int) (imported int, ski
 
 // handleAdminStandardTemplates renders the admin templates list page
 func handleAdminStandardTemplates(c *gin.Context) {
-	if os.Getenv("APP_ENV") == "test" {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(http.StatusOK, `<h1>Templates</h1>
-			<table><thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Valid</th></tr></thead></table>
-			<a href="/admin/templates/new">New Template</a>`)
-		return
-	}
-
 	search := c.Query("search")
 	validFilter := c.DefaultQuery("valid", "all")
 	typeFilter := c.DefaultQuery("type", "all")
@@ -786,15 +777,6 @@ func handleAdminStandardTemplates(c *gin.Context) {
 
 // handleAdminStandardTemplateNew renders the new template form
 func handleAdminStandardTemplateNew(c *gin.Context) {
-	if os.Getenv("APP_ENV") == "test" {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(http.StatusOK, `<form method="post" action="/admin/api/templates">
-			<input name="name"><textarea name="text"></textarea>
-			<select name="template_type" multiple></select>
-			<button type="submit">Create</button></form>`)
-		return
-	}
-
 	renderer := shared.GetGlobalRenderer()
 	if renderer == nil {
 		c.Header("Content-Type", "text/html; charset=utf-8")
@@ -827,13 +809,6 @@ func handleAdminStandardTemplateEdit(c *gin.Context) {
 	}
 	if template == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Template not found"})
-		return
-	}
-
-	if os.Getenv("APP_ENV") == "test" {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(http.StatusOK, fmt.Sprintf(`<form method="post" action="/admin/api/templates/%d">
-			<input name="name" value="%s"></form>`, template.ID, template.Name))
 		return
 	}
 
@@ -1042,13 +1017,6 @@ func handleAdminStandardTemplateQueues(c *gin.Context) {
 		queues = append(queues, q)
 	}
 
-	if os.Getenv("APP_ENV") == "test" {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(http.StatusOK, fmt.Sprintf(`<h1>Queue Assignment: %s</h1>
-			<form method="post"><select name="queue_ids" multiple></select></form>`, template.Name))
-		return
-	}
-
 	renderer := shared.GetGlobalRenderer()
 	if renderer == nil {
 		c.Header("Content-Type", "text/html; charset=utf-8")
@@ -1168,13 +1136,6 @@ func handleAdminStandardTemplateAttachments(c *gin.Context) {
 			Comments:    comments,
 			Selected:    assignedMap[a.ID],
 		})
-	}
-
-	if os.Getenv("APP_ENV") == "test" {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(http.StatusOK, fmt.Sprintf(`<h1>Attachment Assignment: %s</h1>
-			<form method="post"><select name="attachment_ids" multiple></select></form>`, template.Name))
-		return
 	}
 
 	renderer := shared.GetGlobalRenderer()
@@ -1338,13 +1299,6 @@ func handleExportAllStandardTemplates(c *gin.Context) {
 
 // handleAdminStandardTemplateImport renders the import page
 func handleAdminStandardTemplateImport(c *gin.Context) {
-	if os.Getenv("APP_ENV") == "test" {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(http.StatusOK, `<form method="post" enctype="multipart/form-data" action="/admin/api/templates/import">
-			<input type="file" name="file"><button type="submit">Import</button></form>`)
-		return
-	}
-
 	renderer := shared.GetGlobalRenderer()
 	if renderer == nil {
 		c.Header("Content-Type", "text/html; charset=utf-8")

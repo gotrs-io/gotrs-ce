@@ -301,15 +301,7 @@ func htmxHandlerSkipDB() bool {
 	if strings.TrimSpace(os.Getenv("SKIP_DB_WAIT")) == "1" {
 		return true
 	}
-	env := strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV")))
-	switch env {
-	case "", "test", "testing", "unit", "unit-test":
-		return true
-	case "unit-real", "integration", "int", "staging", "prod", "production", "dev", "development":
-		return false
-	default:
-		return false
-	}
+	return false
 }
 
 func isPendingAutoState(stateName string, stateTypeID int) bool {
@@ -669,51 +661,49 @@ func getUserMapForTemplate(c *gin.Context) gin.H {
 		isInAdminGroup := false
 
 		// Get database connection and load user details (guard against nil)
-		if os.Getenv("APP_ENV") != "test" {
-			if db, err := database.GetDB(); err == nil && db != nil {
-				var dbFirstName, dbLastName, dbLogin sql.NullString
-				userIDVal := uint(0)
+		if db, err := database.GetDB(); err == nil && db != nil {
+			var dbFirstName, dbLastName, dbLogin sql.NullString
+			userIDVal := uint(0)
 
-				// Convert userID to uint
-				switch v := userID.(type) {
-				case uint:
-					userIDVal = v
-				case int:
-					userIDVal = uint(v)
-				case float64:
-					userIDVal = uint(v)
+			// Convert userID to uint
+			switch v := userID.(type) {
+			case uint:
+				userIDVal = v
+			case int:
+				userIDVal = uint(v)
+			case float64:
+				userIDVal = uint(v)
+			}
+
+			if userIDVal > 0 {
+				err := db.QueryRow(database.ConvertPlaceholders(`
+				SELECT login, first_name, last_name
+				FROM users
+				WHERE id = $1`),
+					userIDVal).Scan(&dbLogin, &dbFirstName, &dbLastName)
+
+				if err == nil {
+					if dbFirstName.Valid {
+						firstName = dbFirstName.String
+					}
+					if dbLastName.Valid {
+						lastName = dbLastName.String
+					}
+					if dbLogin.Valid {
+						login = dbLogin.String
+					}
 				}
 
-				if userIDVal > 0 {
-					err := db.QueryRow(database.ConvertPlaceholders(`
-					SELECT login, first_name, last_name
-					FROM users
-					WHERE id = $1`),
-						userIDVal).Scan(&dbLogin, &dbFirstName, &dbLastName)
-
-					if err == nil {
-						if dbFirstName.Valid {
-							firstName = dbFirstName.String
-						}
-						if dbLastName.Valid {
-							lastName = dbLastName.String
-						}
-						if dbLogin.Valid {
-							login = dbLogin.String
-						}
-					}
-
-					// Check if user is in admin group for Dev menu access
-					var count int
-					err = db.QueryRow(database.ConvertPlaceholders(`
-					SELECT COUNT(*)
-					FROM group_user ug
-					JOIN groups g ON ug.group_id = g.id
-					WHERE ug.user_id = $1 AND LOWER(g.name) = 'admin'`),
-						userIDVal).Scan(&count)
-					if err == nil && count > 0 {
-						isInAdminGroup = true
-					}
+				// Check if user is in admin group for Dev menu access
+				var count int
+				err = db.QueryRow(database.ConvertPlaceholders(`
+				SELECT COUNT(*)
+				FROM group_user ug
+				JOIN groups g ON ug.group_id = g.id
+				WHERE ug.user_id = $1 AND LOWER(g.name) = 'admin'`),
+					userIDVal).Scan(&count)
+				if err == nil && count > 0 {
+					isInAdminGroup = true
 				}
 			}
 		}
@@ -790,12 +780,6 @@ func sendErrorResponse(c *gin.Context, statusCode int, message string) {
 func checkAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := getUserMapForTemplate(c)
-
-		// In test environment, bypass admin check to avoid rendering full 403 HTML
-		if os.Getenv("APP_ENV") == "test" {
-			c.Next()
-			return
-		}
 
 		// Check if user is admin based on ID or login
 		if userID, ok := user["ID"].(uint); ok {
@@ -945,22 +929,9 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 	// ticket creation paths (/ticket/new*, /tickets/new), websocket chat, claude demo,
 	// and session-timeout preference endpoints. Any remaining direct registration
 	// below should represent routes not yet migrated or requiring dynamic logic.
-	// In test mode without dynamic route loader, register minimal fallbacks for critical flows only.
-	if os.Getenv("APP_ENV") == "test" {
-		// Keep tickets fallback to satisfy tests; dashboard/profile/settings are provided by YAML or tests wire them explicitly.
-		protected.GET("/tickets", func(c *gin.Context) {
-			// In tests, provide a rich HTML fallback when templates or DB are unavailable
-			if getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
-				renderTicketsTestFallback(c)
-				return
-			}
-			if db, err := database.GetDB(); err != nil || db == nil {
-				renderTicketsTestFallback(c)
-				return
-			}
-			handleTickets(c)
-		})
-	}
+
+	// Register tickets route (uses handleTickets which handles DB availability gracefully)
+	protected.GET("/tickets", handleTickets)
 	// Legacy view redirects are registered in YAML (compatibility routes)
 	protected.GET("/ticket/:id", handleTicketDetail)
 	protected.GET("/queues", handleQueues)
@@ -973,98 +944,13 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		RegisterDevRoutes(devRoutes)
 	}
 
-	// Minimal admin helpers for tests when legacy admin routes are skipped
-	if os.Getenv("APP_ENV") == "test" {
-		protected.PUT("/admin/users/:id/status", func(c *gin.Context) {
-			id, err := strconv.Atoi(c.Param("id"))
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
-				return
-			}
-
-			var payload struct {
-				ValidID int `json:"valid_id"`
-			}
-			if err := c.ShouldBindJSON(&payload); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
-				return
-			}
-
-			db, err := database.GetDB()
-			if err != nil || db == nil {
-				c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database unavailable"})
-				return
-			}
-
-			repo := repository.NewUserRepository(db)
-			if err := repo.SetValidID(uint(id), payload.ValidID, uint(1), time.Now()); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update status"})
-				return
-			}
-
-			c.JSON(http.StatusOK, gin.H{"success": true, "valid_id": payload.ValidID})
-		})
-	}
-
 	// Admin routes group - require admin privileges
-	// In test mode, we skip legacy hardcoded admin route registrations to allow YAML-only routing
-	if os.Getenv("APP_ENV") != "test" {
-		adminRoutes := protected.Group("/admin")
-		adminRoutes.Use(checkAdmin())
-		{
-			// Admin dashboard and main sections
-			adminRoutes.GET("", func(c *gin.Context) {
-				if os.Getenv("APP_ENV") == "test" && (getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil) {
-					adminHTML := `<!doctype html>
-<html lang="en" class="dark"><head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>Admin Dashboard - GOTRS</title>
-</head>
-<body class="dark bg-gray-900 text-gray-100">
-	<main role="main" aria-label="Admin Dashboard" class="container mx-auto p-4">
-		<h1 class="text-2xl font-semibold mb-4">System Administration</h1>
-		<section aria-labelledby="admin-sections" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-			<div class="p-4 rounded-lg bg-gray-800"><h2 class="text-lg font-medium">User Management</h2><p>Manage agents and customers</p></div>
-			<div class="p-4 rounded-lg bg-gray-800"><h2 class="text-lg font-medium">System Configuration</h2><p>Configure system preferences</p></div>
-			<div class="p-4 rounded-lg bg-gray-800"><h2 class="text-lg font-medium">Reports &amp; Analytics</h2><p>View system reports</p></div>
-			<div class="p-4 rounded-lg bg-gray-800"><h2 class="text-lg font-medium">Audit Logs</h2><p>Review administrative activity</p></div>
-			<div class="p-4 rounded-lg bg-gray-800"><h2 class="text-lg font-medium">System Health</h2><p>Overall system status</p></div>
-			<div class="p-4 rounded-lg bg-gray-800"><h2 class="text-lg font-medium">Recent Admin Activity</h2><p>Latest changes and events</p></div>
-		</section>
-	</main>
-</body></html>`
-					c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(adminHTML))
-					return
-				}
-				handleAdminDashboard(c)
-			})
-			adminRoutes.GET("/dashboard", func(c *gin.Context) {
-				if os.Getenv("APP_ENV") == "test" && (getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil) {
-					adminHTML := `<!doctype html>
-<html lang="en" class="dark"><head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>Admin Dashboard - GOTRS</title>
-</head>
-<body class="dark bg-gray-900 text-gray-100">
-	<main role="main" aria-label="Admin Dashboard" class="container mx-auto p-4">
-		<h1 class="text-2xl font-semibold mb-4">System Administration</h1>
-		<section aria-labelledby="admin-sections" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-			<div class="p-4 rounded-lg bg-gray-800"><h2 class="text-lg font-medium">User Management</h2><p>Manage agents and customers</p></div>
-			<div class="p-4 rounded-lg bg-gray-800"><h2 class="text-lg font-medium">System Configuration</h2><p>Configure system preferences</p></div>
-			<div class="p-4 rounded-lg bg-gray-800"><h2 class="text-lg font-medium">Reports &amp; Analytics</h2><p>View system reports</p></div>
-			<div class="p-4 rounded-lg bg-gray-800"><h2 class="text-lg font-medium">Audit Logs</h2><p>Review administrative activity</p></div>
-			<div class="p-4 rounded-lg bg-gray-800"><h2 class="text-lg font-medium">System Health</h2><p>Overall system status</p></div>
-			<div class="p-4 rounded-lg bg-gray-800"><h2 class="text-lg font-medium">Recent Admin Activity</h2><p>Latest changes and events</p></div>
-		</section>
-	</main>
-</body></html>`
-					c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(adminHTML))
-					return
-				}
-				handleAdminDashboard(c)
-			})
+	adminRoutes := protected.Group("/admin")
+	adminRoutes.Use(checkAdmin())
+	{
+		// Admin dashboard and main sections
+		adminRoutes.GET("", handleAdminDashboard)
+		adminRoutes.GET("/dashboard", handleAdminDashboard)
 			// Users now uses the dynamic module system
 			adminRoutes.GET("/users", func(c *gin.Context) {
 				c.Params = append(c.Params, gin.Param{Key: "module", Value: "users"})
@@ -1227,55 +1113,33 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 			adminRoutes.GET("/reports", underConstruction("Reports"))
 			adminRoutes.GET("/backup", underConstruction("Backup & Restore"))
 
-			// Dynamic Module System for side-by-side testing
-			if os.Getenv("APP_ENV") == "test" {
-				log.Printf("WARNING: Skipping dynamic modules in test without DB")
-			} else {
-				var (
-					dbConn *sql.DB
-					dbErr  error
-				)
-				const (
-					maxDynamicDBAttempts = 20
-					dynamicDBRetryDelay  = 500 * time.Millisecond
-				)
-				for attempt := 1; attempt <= maxDynamicDBAttempts; attempt++ {
-					dbConn, dbErr = database.GetDB()
-					if dbErr == nil && dbConn != nil {
-						break
-					}
-					log.Printf("Dynamic modules waiting for database (attempt %d/%d): %v", attempt, maxDynamicDBAttempts, dbErr)
-					time.Sleep(dynamicDBRetryDelay)
-				}
+			// Dynamic Module System
+			var (
+				dbConn *sql.DB
+				dbErr  error
+			)
+			const (
+				maxDynamicDBAttempts = 20
+				dynamicDBRetryDelay  = 500 * time.Millisecond
+			)
+			for attempt := 1; attempt <= maxDynamicDBAttempts; attempt++ {
+				dbConn, dbErr = database.GetDB()
 				if dbErr == nil && dbConn != nil {
-					if err := SetupDynamicModules(dbConn); err != nil {
-						log.Printf("WARNING: Failed to setup dynamic modules: %v", err)
-					} else {
-						log.Println("✅ Dynamic Module System integrated successfully")
-					}
-				} else {
-					log.Printf("WARNING: Cannot setup dynamic modules without database after retries: %v", dbErr)
+					break
 				}
+				log.Printf("Dynamic modules waiting for database (attempt %d/%d): %v", attempt, maxDynamicDBAttempts, dbErr)
+				time.Sleep(dynamicDBRetryDelay)
+			}
+			if dbErr == nil && dbConn != nil {
+				if err := SetupDynamicModules(dbConn); err != nil {
+					log.Printf("WARNING: Failed to setup dynamic modules: %v", err)
+				} else {
+					log.Println("✅ Dynamic Module System integrated successfully")
+				}
+			} else {
+				log.Printf("WARNING: Cannot setup dynamic modules without database after retries: %v", dbErr)
 			}
 		}
-	} else {
-		log.Printf("Test mode: skipping legacy admin route registrations; YAML routes will provide admin pages")
-		adminRoutes := protected.Group("/admin")
-		adminRoutes.Use(checkAdmin())
-		{
-			adminRoutes.GET("/groups", handleAdminGroups)
-			adminRoutes.GET("/groups/:id", handleGetGroup)
-			adminRoutes.POST("/groups", handleCreateGroup)
-			adminRoutes.PUT("/groups/:id", handleUpdateGroup)
-			adminRoutes.DELETE("/groups/:id", handleDeleteGroup)
-			adminRoutes.GET("/groups/:id/users", handleGetGroupUsers)
-			adminRoutes.POST("/groups/:id/users", handleAddUserToGroup)
-			adminRoutes.DELETE("/groups/:id/users/:userId", handleRemoveUserFromGroup)
-			adminRoutes.GET("/groups/:id/permissions", handleGroupPermissions)
-			adminRoutes.PUT("/groups/:id/permissions", handleSaveGroupPermissions)
-			adminRoutes.POST("/groups/:id/permissions", handleSaveGroupPermissions)
-		}
-	}
 
 	// HTMX API endpoints (return HTML fragments)
 	api := r.Group("/api")
@@ -1342,10 +1206,8 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 	agentRoutes := protected.Group("/agent")
 	{
 		// Get database connection for agent routes
-		if os.Getenv("APP_ENV") != "test" {
-			if db, err := database.GetDB(); err == nil && db != nil {
-				RegisterAgentRoutes(agentRoutes, db)
-			}
+		if db, err := database.GetDB(); err == nil && db != nil {
+			RegisterAgentRoutes(agentRoutes, db)
 		}
 	}
 
@@ -1354,29 +1216,14 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 	customerRoutes.Use(middleware.RequireRole("Customer"))
 	{
 		// Get database connection for customer routes
-		if os.Getenv("APP_ENV") != "test" {
-			if db, err := database.GetDB(); err == nil && db != nil {
-				RegisterCustomerRoutes(customerRoutes, db)
-			}
+		if db, err := database.GetDB(); err == nil && db != nil {
+			RegisterCustomerRoutes(customerRoutes, db)
 		}
 	}
 
 	// Ticket endpoints
 	{
-		protectedAPI.GET("/tickets", func(c *gin.Context) {
-			// In tests, allow DB-less fallback to avoid hard 500s
-			if os.Getenv("APP_ENV") == "test" {
-				handleAPITickets(c)
-				return
-			}
-			// Outside tests, require DB
-			if db, err := database.GetDB(); err != nil || db == nil {
-				sendErrorResponse(c, http.StatusInternalServerError, "Database connection unavailable")
-				return
-			}
-			// Use the full handler
-			handleAPITickets(c)
-		})
+		protectedAPI.GET("/tickets", handleAPITickets)
 		protectedAPI.POST("/tickets", handleCreateTicket)
 		protectedAPI.GET("/tickets/:id", handleGetTicket)
 		protectedAPI.PUT("/tickets/:id", handleUpdateTicket)
@@ -1384,9 +1231,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		protectedAPI.POST("/tickets/:id/notes", handleAddTicketNote)
 		protectedAPI.GET("/tickets/:id/history", handleGetTicketHistory)
 		protectedAPI.GET("/tickets/:id/available-agents", handleGetAvailableAgents)
-		if os.Getenv("APP_ENV") != "test" {
-			protectedAPI.POST("/tickets/:id/assign", handleAssignTicket)
-		}
+		protectedAPI.POST("/tickets/:id/assign", handleAssignTicket)
 		protectedAPI.POST("/tickets/:id/close", handleCloseTicket)
 		protectedAPI.POST("/tickets/:id/reopen", handleReopenTicket)
 		protectedAPI.GET("/tickets/search", handleSearchTickets)
@@ -1443,7 +1288,7 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		}
 	}
 
-	// Lookup data endpoints (enable minimal handlers for tests)
+	// Lookup data endpoints
 	{
 		apiGroup := r.Group("/api")
 		apiGroup.GET("/lookups/queues", HandleGetQueues)
@@ -1455,20 +1300,6 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		apiGroup.GET("/lookups/form-data", HandleGetFormData)
 		apiGroup.POST("/lookups/cache/invalidate", HandleInvalidateLookupCache)
 
-		// Minimal endpoints required by unit tests (DB-less friendly)
-		// NOTE: Do not register /auth/login here as it's already defined earlier
-		// via api.POST("/auth/login", handleLogin(jwtManager)). Registering it
-		// twice causes a Gin panic in tests. Likewise, the canonical POST /tickets
-		// handler already lives on protectedAPI above; keep it single-sourced to
-		// avoid duplicate route panics when tests wrap SetupHTMXRoutes.
-		// Fallback assign route only if not already registered (when protectedAPI assign skipped in test mode)
-		if os.Getenv("APP_ENV") == "test" {
-			apiGroup.POST("/tickets/:id/assign", func(c *gin.Context) {
-				id := c.Param("id")
-				c.Header("HX-Trigger", `{"showMessage":{"type":"success","text":"Assigned"}}`)
-				c.JSON(http.StatusOK, gin.H{"message": "Assigned to agent", "agent_id": 1, "ticket_id": id})
-			})
-		}
 		apiGroup.POST("/tickets/:id/reply", handleTicketReply)
 		apiGroup.POST("/tickets/:id/priority", handleUpdateTicketPriority)
 		apiGroup.POST("/tickets/:id/queue", handleUpdateTicketQueue)
@@ -1891,10 +1722,6 @@ func loginRedirectPath(c *gin.Context) string {
 func handleDashboard(c *gin.Context) {
 	// If templates unavailable, return JSON error
 	if getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
-		if os.Getenv("APP_ENV") == "test" {
-			renderDashboardTestFallback(c)
-			return
-		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   "Template system unavailable",
@@ -2341,42 +2168,14 @@ func handleQueues(c *gin.Context) {
 		renderQueuesTestFallback(c)
 		return
 	}
-	// If templates are unavailable in tests, return a simple HTML page with expected headers
+	// If templates are unavailable, return error
 	if getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
-		if os.Getenv("APP_ENV") == "test" {
-			fallback := `<!doctype html><html><head><meta charset="utf-8"><title>Queues</title></head><body>
-<h1>Queues</h1>
-<div class="queue-stats-headers">
-  <span>New</span>
-  <span>Open</span>
-  <span>Pending</span>
-  <span>Closed</span>
-  <span>Total</span>
-</div>
-</body></html>`
-			c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(fallback))
-			return
-		}
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Template system unavailable"})
 		return
 	}
 
 	db, err := database.GetDB()
 	if err != nil || db == nil {
-		if os.Getenv("APP_ENV") == "test" {
-			fallback := `<!doctype html><html><head><meta charset="utf-8"><title>Queues</title></head><body>
-<h1>Queues</h1>
-<div class="queue-stats-headers">
-  <span>New</span>
-  <span>Open</span>
-  <span>Pending</span>
-  <span>Closed</span>
-  <span>Total</span>
-</div>
-</body></html>`
-			c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(fallback))
-			return
-		}
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database unavailable"})
 		return
 	}
@@ -4283,28 +4082,6 @@ func handleSettings(c *gin.Context) {
 func handleDashboardStats(c *gin.Context) {
 	db, err := database.GetDB()
 	if err != nil || db == nil {
-		// In test mode, return a minimal HTML snippet instead of 500 to satisfy HTMX fragment tests
-		if os.Getenv("APP_ENV") == "test" {
-			c.Header("Content-Type", "text/html")
-			c.String(http.StatusOK, `
-		<div class="overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 py-5 shadow sm:p-6">
-			<dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">Open Tickets</dt>
-			<dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">0</dd>
-		</div>
-		<div class="overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 py-5 shadow sm:p-6">
-			<dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">New Today</dt>
-			<dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">0</dd>
-		</div>
-		<div class="overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 py-5 shadow sm:p-6">
-			<dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">Pending</dt>
-			<dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">0</dd>
-		</div>
-		<div class="overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 py-5 shadow sm:p-6">
-			<dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">Overdue</dt>
-			<dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">0</dd>
-		</div>`)
-			return
-		}
 		// Return JSON error when database is unavailable
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -4367,22 +4144,6 @@ func handleDashboardStats(c *gin.Context) {
 func handleRecentTickets(c *gin.Context) {
 	db, err := database.GetDB()
 	if err != nil || db == nil {
-		// In test mode, return a minimal "No recent tickets" list instead of 500
-		if os.Getenv("APP_ENV") == "test" {
-			c.Header("Content-Type", "text/html")
-			c.String(http.StatusOK, `
-<ul role="list" class="-my-5 divide-y divide-gray-200 dark:divide-gray-700">
-	<li class="py-4">
-		<div class="flex items-center space-x-4">
-			<div class="min-w-0 flex-1">
-				<p class="truncate text-sm font-medium text-gray-900 dark:text-white">No recent tickets</p>
-				<p class="truncate text-sm text-gray-500 dark:text-gray-400">No tickets found in the system</p>
-			</div>
-		</div>
-	</li>
-</ul>`)
-			return
-		}
 		// Return JSON error when database is unavailable
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -4983,12 +4744,6 @@ func renderTicketsAPITestFallback(c *gin.Context) {
 	}
 
 	renderHTML := htmxHandlerSkipDB()
-	if !renderHTML {
-		env := strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV")))
-		if env == "test" || env == "testing" || env == "unit" || env == "unit-test" || env == "" {
-			renderHTML = true
-		}
-	}
 	wantsJSON := strings.Contains(strings.ToLower(c.GetHeader("Accept")), "application/json")
 	if renderHTML && !wantsJSON {
 		title := "Tickets"
@@ -5663,24 +5418,15 @@ func handleAssignTicket(c *gin.Context) {
 	// Get agent ID from form data
 	userID := c.PostForm("user_id")
 	if userID == "" {
-		// In unit tests, default to agent 1 when no agent is provided
-		if os.Getenv("APP_ENV") == "test" {
-			userID = "1"
-		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "No agent selected"})
-			return
-		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No agent selected"})
+		return
 	}
 
 	// Convert userID to int
 	agentID, err := strconv.Atoi(userID)
 	if err != nil || agentID <= 0 {
-		if os.Getenv("APP_ENV") == "test" {
-			agentID = 1
-		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid agent ID"})
-			return
-		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid agent ID"})
+		return
 	}
 
 	// Convert ticket ID to int
@@ -5730,11 +5476,8 @@ func handleAssignTicket(c *gin.Context) {
 	            WHERE id = $4
 	        `), agentID, agentID, changeByUserID, ticketIDInt)
 		if updateErr != nil {
-			// In tests, still return success to satisfy handler contract
-			if os.Getenv("APP_ENV") != "test" {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign ticket"})
-				return
-			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign ticket"})
+			return
 		}
 	}
 
@@ -5871,15 +5614,7 @@ func handleUpdateTicketPriority(c *gin.Context) {
 
 	db, err := database.GetDB()
 	if err != nil || db == nil {
-		if os.Getenv("APP_ENV") != "test" {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"message":     fmt.Sprintf("Ticket %s priority updated", ticketID),
-			"priority":    priorityInput,
-			"priority_id": pid,
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"})
 		return
 	}
 
@@ -5948,14 +5683,7 @@ func handleUpdateTicketQueue(c *gin.Context) {
 
 	db, err := database.GetDB()
 	if err != nil || db == nil {
-		if os.Getenv("APP_ENV") != "test" {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"message":  fmt.Sprintf("Ticket %s moved to queue %d", ticketID, qid),
-			"queue_id": qid,
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"})
 		return
 	}
 
@@ -6845,15 +6573,6 @@ func handleSchemaMonitoring(c *gin.Context) {
 
 // handleAdminGroups shows the admin groups page
 func handleAdminGroups(c *gin.Context) {
-	isTest := os.Getenv("APP_ENV") == "test"
-	if isTest && strings.Contains(strings.ToLower(c.GetHeader("Accept")), "application/json") {
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": "Group management available",
-		})
-		return
-	}
-
 	saveState := strings.EqualFold(strings.TrimSpace(c.Query("save_state")), "true") || strings.TrimSpace(c.Query("save_state")) == "1"
 	searchTerm := strings.TrimSpace(c.Query("search"))
 	statusTerm := strings.TrimSpace(c.Query("status"))
@@ -6887,10 +6606,6 @@ func handleAdminGroups(c *gin.Context) {
 
 	db, err := database.GetDB()
 	if err != nil || db == nil {
-		if isTest {
-			renderAdminGroupsTestFallback(c, nil, searchTerm, statusTerm)
-			return
-		}
 		sendErrorResponse(c, http.StatusInternalServerError, "Database connection failed")
 		return
 	}
@@ -6898,10 +6613,6 @@ func handleAdminGroups(c *gin.Context) {
 	groupRepo := repository.NewGroupRepository(db)
 	groups, err := groupRepo.List()
 	if err != nil {
-		if isTest {
-			renderAdminGroupsTestFallback(c, nil, searchTerm, statusTerm)
-			return
-		}
 		sendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch groups")
 		return
 	}
@@ -6916,10 +6627,6 @@ func handleAdminGroups(c *gin.Context) {
 	}
 
 	if getPongo2Renderer() == nil || getPongo2Renderer().TemplateSet() == nil {
-		if isTest {
-			renderAdminGroupsTestFallback(c, groupList, searchTerm, statusTerm)
-			return
-		}
 		sendErrorResponse(c, http.StatusInternalServerError, "Template renderer unavailable")
 		return
 	}
@@ -7141,16 +6848,6 @@ func handleCreateGroup(c *gin.Context) {
 
 	if err := c.ShouldBind(&groupForm); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if os.Getenv("APP_ENV") == "test" {
-		// Simulate duplicate name handling for common system group 'admin'
-		if strings.EqualFold(groupForm.Name, "admin") {
-			c.JSON(http.StatusOK, gin.H{"success": false, "error": "Group with this name already exists"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "group": gin.H{"id": 0, "name": groupForm.Name}})
 		return
 	}
 
@@ -8201,10 +7898,6 @@ func handleAddUserToGroup(c *gin.Context) {
 
 	db, err := database.GetDB()
 	if err != nil || db == nil {
-		if os.Getenv("APP_ENV") == "test" {
-			c.JSON(http.StatusOK, gin.H{"success": true, "message": "User assigned to group successfully"})
-			return
-		}
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
 		return
 	}
@@ -8243,10 +7936,6 @@ func handleRemoveUserFromGroup(c *gin.Context) {
 
 	db, err := database.GetDB()
 	if err != nil || db == nil {
-		if os.Getenv("APP_ENV") == "test" {
-			c.JSON(http.StatusOK, gin.H{"success": true, "message": "User removed from group successfully"})
-			return
-		}
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database connection failed"})
 		return
 	}
@@ -8496,15 +8185,6 @@ func handleGetGroupMembers(c *gin.Context) {
 	// Get database connection
 	db, err := database.GetDB()
 	if err != nil {
-		if os.Getenv("APP_ENV") == "test" {
-			c.JSON(http.StatusOK, gin.H{
-				"success": true,
-				"data":    []map[string]interface{}{},
-				"members": []map[string]interface{}{},
-				"count":   0,
-			})
-			return
-		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   "Database connection failed",
@@ -8522,15 +8202,6 @@ func handleGetGroupMembers(c *gin.Context) {
 
 	rows, err := db.Query(query, groupID)
 	if err != nil {
-		if os.Getenv("APP_ENV") == "test" {
-			c.JSON(http.StatusOK, gin.H{
-				"success": true,
-				"data":    []map[string]interface{}{},
-				"members": []map[string]interface{}{},
-				"count":   0,
-			})
-			return
-		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   "Failed to fetch group members",

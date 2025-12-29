@@ -1,4 +1,3 @@
-//go:build db
 
 package api
 
@@ -235,86 +234,98 @@ func TestCreateTicketWithAttachments(t *testing.T) {
 
 func TestTicketCreationWithAttachmentsErrorHandling(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	WithCleanDB(t)
 
-	tests := []struct {
-		name         string
-		formData     map[string]string
-		setupRequest func(req *http.Request)
-		wantStatus   int
-		wantError    string
-	}{
-		{
-			name: "Missing required fields with attachment",
-			formData: map[string]string{
-				"title": "Incomplete ticket",
-				// Missing customer_email and body
-			},
-			wantStatus: http.StatusBadRequest,
-			wantError:  "required",
-		},
-		{
-			name: "Corrupted multipart form",
-			formData: map[string]string{
-				"title":          "Test ticket",
-				"customer_email": "user@example.com",
-				"body":           "Test body",
-			},
-			setupRequest: func(req *http.Request) {
-				// Corrupt the multipart boundary
-				req.Header.Set("Content-Type", "multipart/form-data; boundary=corrupted")
-			},
-			wantStatus: http.StatusBadRequest,
-			wantError:  "multipart",
-		},
-		{
-			name: "File too large",
-			formData: map[string]string{
-				"title":          "Large file test",
-				"customer_email": "user@example.com",
-				"body":           "Testing file size limits",
-			},
-			// File size limit testing would be done in actual implementation
-			wantStatus: http.StatusBadRequest,
-			wantError:  "file too large",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			router := gin.New()
-			router.POST("/api/tickets", func(c *gin.Context) {
-				c.Set("user_role", "Agent")
-				c.Set("user_id", uint(1))
-				c.Set("user_email", "test@example.com")
-				handleCreateTicket(c)
-			})
-
-			// Create request body
-			body := &bytes.Buffer{}
-			writer := multipart.NewWriter(body)
-			for key, value := range tt.formData {
-				writer.WriteField(key, value)
-			}
-			writer.Close()
-
-			req := httptest.NewRequest("POST", "/api/tickets", body)
-			req.Header.Set("Content-Type", writer.FormDataContentType())
-
-			if tt.setupRequest != nil {
-				tt.setupRequest(req)
-			}
-
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
-
-			assert.Equal(t, tt.wantStatus, w.Code)
-			if tt.wantError != "" {
-				var resp map[string]interface{}
-				json.Unmarshal(w.Body.Bytes(), &resp)
-				assert.Contains(t, resp["error"], tt.wantError)
-			}
+	t.Run("Missing required fields with attachment", func(t *testing.T) {
+		router := gin.New()
+		router.POST("/api/tickets", func(c *gin.Context) {
+			c.Set("user_role", "Agent")
+			c.Set("user_id", uint(1))
+			c.Set("user_email", "test@example.com")
+			handleCreateTicket(c)
 		})
-	}
+
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+		writer.WriteField("title", "Incomplete ticket")
+		// Missing customer_email and body
+		writer.Close()
+
+		req := httptest.NewRequest("POST", "/api/tickets", body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		var resp map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.Contains(t, resp["error"], "required")
+	})
+
+	t.Run("Corrupted multipart form", func(t *testing.T) {
+		router := gin.New()
+		router.POST("/api/tickets", func(c *gin.Context) {
+			c.Set("user_role", "Agent")
+			c.Set("user_id", uint(1))
+			c.Set("user_email", "test@example.com")
+			handleCreateTicket(c)
+		})
+
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+		writer.WriteField("title", "Test ticket")
+		writer.WriteField("customer_email", "user@example.com")
+		writer.WriteField("body", "Test body")
+		writer.Close()
+
+		req := httptest.NewRequest("POST", "/api/tickets", body)
+		// Corrupt the multipart boundary
+		req.Header.Set("Content-Type", "multipart/form-data; boundary=corrupted")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		var resp map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.Contains(t, resp["error"], "multipart")
+	})
+
+	t.Run("File too large", func(t *testing.T) {
+		router := gin.New()
+		router.POST("/api/tickets", func(c *gin.Context) {
+			c.Set("user_role", "Agent")
+			c.Set("user_id", uint(1))
+			c.Set("user_email", "test@example.com")
+			handleCreateTicket(c)
+		})
+
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+		writer.WriteField("title", "Large file test")
+		writer.WriteField("customer_email", "user@example.com")
+		writer.WriteField("body", "Testing file size limits")
+
+		// Create a file larger than 10MB limit using random data
+		part, _ := writer.CreateFormFile("attachment", "largefile.bin")
+		// Write 11MB of data (exceeds 10MB limit)
+		largeData := make([]byte, 11*1024*1024)
+		// Fill with pattern instead of random to be faster
+		for i := range largeData {
+			largeData[i] = byte(i % 256)
+		}
+		part.Write(largeData)
+		writer.Close()
+
+		req := httptest.NewRequest("POST", "/api/tickets", body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		var resp map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.Contains(t, resp["error"], "file too large")
+	})
 }
 
 // Test to verify the exact 500 error user reported is fixed

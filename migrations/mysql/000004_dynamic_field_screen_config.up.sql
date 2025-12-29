@@ -1,6 +1,8 @@
 -- Dynamic Field Screen Configuration
 -- Maps dynamic fields to screens with visibility settings (0=disabled, 1=enabled, 2=required)
 
+SET FOREIGN_KEY_CHECKS = 0;
+
 CREATE TABLE IF NOT EXISTS dynamic_field_screen_config (
     id INT AUTO_INCREMENT PRIMARY KEY,
     field_id INT NOT NULL,
@@ -16,3 +18,5 @@ CREATE TABLE IF NOT EXISTS dynamic_field_screen_config (
     CONSTRAINT fk_dfsc_create_by FOREIGN KEY (create_by) REFERENCES users(id),
     CONSTRAINT fk_dfsc_change_by FOREIGN KEY (change_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET FOREIGN_KEY_CHECKS = 1;

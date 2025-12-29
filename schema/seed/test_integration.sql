@@ -73,6 +73,38 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- Seed queue statistics: Raw queue (2 tickets) and Junk queue (1 ticket)
+-- Also seed ticket IDs 1-2 explicitly for API tests that expect them
+INSERT INTO ticket (
+    id,
+    tn,
+    title,
+    queue_id,
+    ticket_lock_id,
+    type_id,
+    service_id,
+    sla_id,
+    user_id,
+    responsible_user_id,
+    ticket_priority_id,
+    ticket_state_id,
+    customer_id,
+    customer_user_id,
+    timeout,
+    until_time,
+    escalation_time,
+    escalation_update_time,
+    escalation_response_time,
+    escalation_solution_time,
+    archive_flag,
+    create_time,
+    create_by,
+    change_time,
+    change_by
+) VALUES
+    (1, 'TEST-0001', 'Test ticket for API tests', 2, 1, 1, NULL, NULL, 1, 1, 3, 2, 'COMP1', 'john.customer', 0, 0, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+    (2, 'TEST-0002', 'Another test ticket', 2, 1, 1, NULL, NULL, 1, 1, 3, 2, 'COMP1', 'john.customer', 0, 0, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)
+ON CONFLICT (id) DO NOTHING;
+
 INSERT INTO ticket (
     tn,
     title,
@@ -104,9 +136,48 @@ INSERT INTO ticket (
     ('JUNK-0001', 'Junk queue ticket', 3, 1, 1, NULL, NULL, 1, 1, 2, 5, 'COMP2', 'jane.customer', 0, 0, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)
 ON CONFLICT (tn) DO NOTHING;
 
+-- Seed dynamic fields for integration tests (various types for Ticket and Article objects)
+INSERT INTO dynamic_field (id, internal_field, name, label, field_order, field_type, object_type, config, valid_id, create_time, create_by, change_time, change_by)
+VALUES
+    (1, 0, 'TestTextField', 'Test Text Field', 1, 'Text', 'Ticket', '---
+DefaultValue: 
+', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+    (2, 0, 'TestDropdown', 'Test Dropdown', 2, 'Dropdown', 'Ticket', '---
+PossibleValues:
+  option1: Option 1
+  option2: Option 2
+  option3: Option 3
+DefaultValue: option1
+', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+    (3, 0, 'TestCheckbox', 'Test Checkbox', 3, 'Checkbox', 'Ticket', '---
+DefaultValue: 0
+', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+    (4, 0, 'TestDate', 'Test Date Field', 4, 'Date', 'Ticket', '---
+DefaultValue: 
+YearsInFuture: 5
+YearsInPast: 5
+', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+    (5, 0, 'TestTextArea', 'Test Text Area', 5, 'TextArea', 'Ticket', '---
+DefaultValue: 
+Rows: 5
+Cols: 60
+', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+    (6, 0, 'ArticleNote', 'Article Note Field', 1, 'Text', 'Article', '---
+DefaultValue: 
+', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1),
+    (7, 0, 'ArticleCategory', 'Article Category', 2, 'Dropdown', 'Article', '---
+PossibleValues:
+  internal: Internal
+  external: External
+  escalation: Escalation
+DefaultValue: internal
+', 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)
+ON CONFLICT (id) DO NOTHING;
+
 -- Keep sequences aligned with the inserted fixtures
 SELECT setval('groups_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM groups), 4));
 SELECT setval('queue_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM queue), 6));
 SELECT setval('users_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM users), 15));
+SELECT setval('dynamic_field_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM dynamic_field), 7));
 
 COMMIT;

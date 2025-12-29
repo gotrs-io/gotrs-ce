@@ -3,7 +3,6 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -13,21 +12,21 @@ import (
 )
 
 func handleAdminDynamicFields(c *gin.Context) {
-	if os.Getenv("APP_ENV") == "test" {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(http.StatusOK, "<h1>Dynamic Fields</h1><table><tr><th>ID</th><th>Name</th></tr></table><div>Ticket</div><div>Article</div>")
-		return
-	}
+	renderer := shared.GetGlobalRenderer()
 
 	fieldsGrouped, err := GetDynamicFieldsGroupedByObjectType()
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{
-			"Error": "Failed to load dynamic fields",
-		})
+		if renderer != nil {
+			renderer.HTML(c, http.StatusInternalServerError, "error.html", gin.H{
+				"Error": "Failed to load dynamic fields",
+			})
+		} else {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			c.String(http.StatusInternalServerError, "<h1>Error</h1><p>Failed to load dynamic fields</p>")
+		}
 		return
 	}
 
-	renderer := shared.GetGlobalRenderer()
 	if renderer == nil {
 		c.Header("Content-Type", "text/html; charset=utf-8")
 		c.String(http.StatusOK, "<h1>Dynamic Fields</h1>")
@@ -45,17 +44,6 @@ func handleAdminDynamicFields(c *gin.Context) {
 }
 
 func handleAdminDynamicFieldNew(c *gin.Context) {
-	if os.Getenv("APP_ENV") == "test" {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		html := "<form><input name='name'><select name='field_type'>"
-		for _, ft := range ValidFieldTypes() {
-			html += fmt.Sprintf("<option>%s</option>", ft)
-		}
-		html += "</select></form>"
-		c.String(http.StatusOK, html)
-		return
-	}
-
 	renderer := shared.GetGlobalRenderer()
 	if renderer == nil {
 		c.Header("Content-Type", "text/html; charset=utf-8")
@@ -88,12 +76,6 @@ func handleAdminDynamicFieldEdit(c *gin.Context) {
 	}
 	if field == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Field not found"})
-		return
-	}
-
-	if os.Getenv("APP_ENV") == "test" {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(http.StatusOK, fmt.Sprintf("<form><input name='name' value='%s'></form>", field.Name))
 		return
 	}
 
@@ -446,12 +428,6 @@ func GetDynamicFieldsForScreen(objectType, screenKey string) ([]DynamicField, er
 
 // handleAdminDynamicFieldScreenConfig shows the screen configuration page
 func handleAdminDynamicFieldScreenConfig(c *gin.Context) {
-	if os.Getenv("APP_ENV") == "test" {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(http.StatusOK, "<h1>Screen Configuration</h1><table><th>Field</th></table>")
-		return
-	}
-
 	objectType := c.DefaultQuery("object_type", "Ticket")
 
 	matrix, err := GetScreenConfigMatrix(objectType)

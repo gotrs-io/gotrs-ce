@@ -1,4 +1,3 @@
-//go:build db
 
 package api
 
@@ -219,7 +218,11 @@ func TestAssignTicketHandler_Logic(t *testing.T) {
 	c, _ := gin.CreateTestContext(w)
 
 	c.Params = []gin.Param{{Key: "id", Value: "456"}}
-	c.Request = httptest.NewRequest("POST", "/api/tickets/456/assign", nil)
+	// Provide form data with user_id
+	formData := url.Values{}
+	formData.Set("user_id", "1")
+	c.Request = httptest.NewRequest("POST", "/api/tickets/456/assign", strings.NewReader(formData.Encode()))
+	c.Request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	handleAssignTicket(c)
 

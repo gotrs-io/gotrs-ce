@@ -1,4 +1,3 @@
-//go:build db
 
 package api
 

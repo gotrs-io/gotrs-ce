@@ -627,34 +627,6 @@ func handleAgentTicketReply(db *sql.DB) gin.HandlerFunc {
 		subject := c.PostForm("subject")
 		body := c.PostForm("body")
 
-		// Test-mode, DB-less fallback with validation
-		if os.Getenv("APP_ENV") == "test" && db == nil {
-			// Validate ticket id
-			if _, parseErr := strconv.Atoi(ticketID); parseErr != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ticket id"})
-				return
-			}
-			idVal, _ := strconv.Atoi(ticketID)
-			if idVal >= 99999 {
-				c.JSON(http.StatusNotFound, gin.H{"error": "ticket not found"})
-				return
-			}
-			// Validate recipient email
-			if strings.TrimSpace(to) == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "recipient required"})
-				return
-			}
-			if !strings.Contains(to, "@") {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid email"})
-				return
-			}
-			// Minimal validation for body/subject is optional here
-			_ = subject
-			_ = body
-			c.JSON(http.StatusOK, gin.H{"success": true, "article_id": 1})
-			return
-		}
-
 		if strings.TrimSpace(to) == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "recipient required"})
 			return
@@ -889,28 +861,6 @@ func handleAgentTicketNote(db *sql.DB) gin.HandlerFunc {
 		nextStateIDRaw := strings.TrimSpace(c.PostForm("next_state_id"))
 		pendingUntilRaw := strings.TrimSpace(c.PostForm("pending_until"))
 
-		// Test-mode, DB-less fallback with validation
-		if os.Getenv("APP_ENV") == "test" && db == nil {
-			if _, parseErr := strconv.Atoi(ticketID); parseErr != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ticket id"})
-				return
-			}
-			idVal, _ := strconv.Atoi(ticketID)
-			if idVal >= 99999 {
-				c.JSON(http.StatusNotFound, gin.H{"error": "ticket not found"})
-				return
-			}
-			if strings.TrimSpace(body) == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "body required"})
-				return
-			}
-			// Use subject defaulting rules but no DB writes
-			if subject == "" {
-				subject = "Internal Note"
-			}
-			c.JSON(http.StatusOK, gin.H{"success": true, "article_id": 1})
-			return
-		}
 		if db == nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 			return
@@ -1312,21 +1262,6 @@ func handleAgentTicketPhone(db *sql.DB) gin.HandlerFunc {
 		// Filter Unicode characters if Unicode support is disabled (OTRS compatibility mode)
 		if os.Getenv("UNICODE_SUPPORT") != "true" && os.Getenv("UNICODE_SUPPORT") != "1" && os.Getenv("UNICODE_SUPPORT") != "enabled" {
 			body = utils.FilterUnicode(body)
-		}
-
-		// Test-mode, DB-less fallback
-		if os.Getenv("APP_ENV") == "test" && db == nil {
-			if _, parseErr := strconv.Atoi(ticketID); parseErr != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ticket id"})
-				return
-			}
-			idVal, _ := strconv.Atoi(ticketID)
-			if idVal >= 99999 {
-				c.JSON(http.StatusNotFound, gin.H{"error": "ticket not found"})
-				return
-			}
-			c.JSON(http.StatusOK, gin.H{"success": true, "article_id": 1})
-			return
 		}
 
 		if db == nil {

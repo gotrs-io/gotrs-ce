@@ -5,13 +5,11 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/middleware"
-	"github.com/gotrs-io/gotrs-ce/internal/models"
 )
 
 // handleAdminLookups is already defined in htmx_routes.go for templates
@@ -20,42 +18,10 @@ import (
 func HandleGetQueues(c *gin.Context) {
 	isHTMX := c.GetHeader("HX-Request") == "true"
 
-	// In test mode, always return predictable default data
-	if os.Getenv("APP_ENV") == "test" {
-		if isHTMX {
-			c.Header("Content-Type", "text/html")
-			c.String(http.StatusOK, `<option value="">Select queue</option>
-<option value="1">Test Queue</option>`)
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"data":    []models.QueueInfo{{ID: 1, Name: "Test Queue", Description: "Test", Active: true}},
-		})
-		return
-	}
-	// If DB not available, still return a minimal default queue
-	if err := database.InitTestDB(); err != nil {
-		if isHTMX {
-			c.Header("Content-Type", "text/html")
-			c.String(http.StatusOK, `<option value="">Select queue</option>
-<option value="1">Test Queue</option>`)
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"data":    []models.QueueInfo{{ID: 1, Name: "Test Queue", Description: "Test", Active: true}},
-		})
-		return
-	}
-	// Use service to fetch queues, with safe fallback
 	lookupService := GetLookupService()
 	lang := middleware.GetLanguage(c)
 	formData := lookupService.GetTicketFormDataWithLang(lang)
 	queues := formData.Queues
-	if len(queues) == 0 {
-		queues = []models.QueueInfo{{ID: 1, Name: "Test Queue", Description: "Test", Active: true}}
-	}
 
 	if isHTMX {
 		c.Header("Content-Type", "text/html")
@@ -75,26 +41,6 @@ func HandleGetQueues(c *gin.Context) {
 func HandleGetPriorities(c *gin.Context) {
 	isHTMX := c.GetHeader("HX-Request") == "true"
 
-	// Explicit default priorities when running DB-less tests
-	if os.Getenv("APP_ENV") == "test" {
-		if isHTMX {
-			c.Header("Content-Type", "text/html")
-			c.String(http.StatusOK, `<option value="">Select priority</option>
-<option value="low">Low</option>
-<option value="normal" selected>Normal</option>
-<option value="high">High</option>
-<option value="urgent">Urgent</option>`)
-			return
-		}
-		priorities := []models.LookupItem{
-			{ID: 1, Value: "low", Label: "Low", Order: 1, Active: true},
-			{ID: 2, Value: "normal", Label: "Normal", Order: 2, Active: true},
-			{ID: 3, Value: "high", Label: "High", Order: 3, Active: true},
-			{ID: 4, Value: "urgent", Label: "Urgent", Order: 4, Active: true},
-		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": priorities})
-		return
-	}
 	lookupService := GetLookupService()
 	lang := middleware.GetLanguage(c)
 
@@ -256,38 +202,11 @@ func scanTypeRow(scanner sqlRowScanner, id *int, name *string, comments *sqlNull
 
 // HandleGetStatuses returns list of ticket statuses as JSON
 func HandleGetStatuses(c *gin.Context) {
-	// In test mode, return a fixed 5-status workflow list
-	if os.Getenv("APP_ENV") == "test" {
-		statuses := []models.LookupItem{
-			{ID: 1, Value: "new", Label: "New", Order: 1, Active: true},
-			{ID: 2, Value: "open", Label: "Open", Order: 2, Active: true},
-			{ID: 3, Value: "pending", Label: "Pending", Order: 3, Active: true},
-			{ID: 4, Value: "resolved", Label: "Resolved", Order: 4, Active: true},
-			{ID: 5, Value: "closed", Label: "Closed", Order: 5, Active: true},
-		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": statuses})
-		return
-	}
-	// Otherwise, normalize DB-provided list to 5 expected statuses
 	lookupService := GetLookupService()
 	lang := middleware.GetLanguage(c)
 	formData := lookupService.GetTicketFormDataWithLang(lang)
 	statuses := formData.Statuses
-	if len(statuses) >= 5 {
-		// Normalize to common workflow: new, open, pending, resolved, closed
-		normalized := make([]models.LookupItem, 0, 5)
-		pick := map[string]bool{"new": true, "open": true, "pending": true, "resolved": true, "closed": true}
-		for _, s := range statuses {
-			if pick[s.Value] && len(normalized) < 5 {
-				normalized = append(normalized, s)
-			}
-		}
-		// Fallback if matching names not found: take first 5
-		if len(normalized) < 5 && len(statuses) >= 5 {
-			normalized = statuses[:5]
-		}
-		statuses = normalized
-	}
+
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": statuses})
 }
 

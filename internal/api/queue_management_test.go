@@ -1,4 +1,3 @@
-//go:build db
 
 package api
 
@@ -16,6 +15,7 @@ import (
 
 func TestCreateQueueAPI(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	WithCleanDB(t)
 
 	tests := []struct {
 		name           string
@@ -47,9 +47,9 @@ func TestCreateQueueAPI(t *testing.T) {
 				var response struct {
 					Success bool `json:"success"`
 					Data    struct {
-						ID      int    `json:"id"`
-						Name    string `json:"name"`
-						Comment string `json:"comment"`
+						ID       int    `json:"id"`
+						Name     string `json:"name"`
+						Comments string `json:"comments"`
 					} `json:"data"`
 				}
 
@@ -58,7 +58,7 @@ func TestCreateQueueAPI(t *testing.T) {
 				assert.True(t, response.Success)
 				assert.Greater(t, response.Data.ID, 0)
 				assert.Equal(t, "Customer Support", response.Data.Name)
-				assert.Equal(t, "High-priority customer issues", response.Data.Comment)
+				assert.Equal(t, "High-priority customer issues", response.Data.Comments)
 			},
 		},
 		{
@@ -116,6 +116,7 @@ func TestCreateQueueAPI(t *testing.T) {
 
 func TestUpdateQueueAPI(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	WithCleanDB(t)
 
 	tests := []struct {
 		name           string
@@ -128,17 +129,17 @@ func TestUpdateQueueAPI(t *testing.T) {
 			name:    "should update existing queue",
 			queueID: "1",
 			requestBody: `{
-				"name": "Raw - Updated",
-				"comment": "Updated description for raw tickets"
+				"name": "Postmaster - Updated",
+				"comments": "Updated description for postmaster"
 			}`,
 			expectedStatus: http.StatusOK,
 			checkResponse: func(t *testing.T, body string) {
 				var response struct {
 					Success bool `json:"success"`
 					Data    struct {
-						ID      int    `json:"id"`
-						Name    string `json:"name"`
-						Comment string `json:"comment"`
+						ID       int    `json:"id"`
+						Name     string `json:"name"`
+						Comments string `json:"comments"`
 					} `json:"data"`
 				}
 
@@ -146,8 +147,8 @@ func TestUpdateQueueAPI(t *testing.T) {
 				assert.NoError(t, err)
 				assert.True(t, response.Success)
 				assert.Equal(t, 1, response.Data.ID)
-				assert.Equal(t, "Raw - Updated", response.Data.Name)
-				assert.Contains(t, response.Data.Comment, "Updated description")
+				assert.Equal(t, "Postmaster - Updated", response.Data.Name)
+				assert.Contains(t, response.Data.Comments, "Updated description")
 			},
 		},
 		{
@@ -155,7 +156,7 @@ func TestUpdateQueueAPI(t *testing.T) {
 			queueID: "999",
 			requestBody: `{
 				"name": "Non-existent Queue",
-				"comment": "This should fail"
+				"comments": "This should fail"
 			}`,
 			expectedStatus: http.StatusNotFound,
 			checkResponse: func(t *testing.T, body string) {
@@ -175,7 +176,7 @@ func TestUpdateQueueAPI(t *testing.T) {
 		},
 		{
 			name:    "should validate name uniqueness on update",
-			queueID: "2",
+			queueID: "3",
 			requestBody: `{
 				"name": "Raw"
 			}`,
@@ -206,6 +207,7 @@ func TestUpdateQueueAPI(t *testing.T) {
 
 func TestDeleteQueueAPI(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	WithCleanDB(t)
 
 	tests := []struct {
 		name           string
@@ -215,7 +217,7 @@ func TestDeleteQueueAPI(t *testing.T) {
 	}{
 		{
 			name:           "should soft delete queue with no tickets",
-			queueID:        "3", // Misc queue has no tickets
+			queueID:        "4", // Misc queue has no tickets
 			expectedStatus: http.StatusOK,
 			checkResponse: func(t *testing.T, body string) {
 				var response struct {
@@ -231,7 +233,7 @@ func TestDeleteQueueAPI(t *testing.T) {
 		},
 		{
 			name:           "should return 409 when trying to delete queue with tickets",
-			queueID:        "1", // Raw queue has tickets
+			queueID:        "2", // Raw queue has tickets
 			expectedStatus: http.StatusConflict,
 			checkResponse: func(t *testing.T, body string) {
 				assert.Contains(t, body, "Cannot delete queue with existing tickets")
@@ -255,7 +257,7 @@ func TestDeleteQueueAPI(t *testing.T) {
 		},
 		{
 			name:           "should return 409 when trying to delete queue with tickets (system protection)",
-			queueID:        "1", // Raw queue has tickets (acting as system queue protection)
+			queueID:        "2", // Raw queue has tickets (acting as system queue protection)
 			expectedStatus: http.StatusConflict,
 			checkResponse: func(t *testing.T, body string) {
 				// In our current implementation, ticket check comes first

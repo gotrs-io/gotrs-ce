@@ -402,18 +402,10 @@ func handleAdminSignatures(c *gin.Context) {
 
 // handleAdminSignatureNew renders the new signature form
 func handleAdminSignatureNew(c *gin.Context) {
-	if os.Getenv("APP_ENV") == "test" {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(http.StatusOK, `<form method="post" action="/admin/api/signatures">
-			<input name="name"><textarea name="text"></textarea>
-			<button type="submit">Create</button></form>`)
-		return
-	}
-
 	renderer := shared.GetGlobalRenderer()
 	if renderer == nil {
 		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(http.StatusOK, "<h1>New Signature</h1>")
+		c.String(http.StatusOK, `<h1>New Signature</h1><form action="/admin/api/signatures" method="POST"></form>`)
 		return
 	}
 
@@ -437,13 +429,6 @@ func handleAdminSignatureEdit(c *gin.Context) {
 	signature, err := GetSignature(id)
 	if err != nil || signature == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Signature not found"})
-		return
-	}
-
-	if os.Getenv("APP_ENV") == "test" {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(http.StatusOK, fmt.Sprintf(`<form method="post" action="/admin/api/signatures/%d">
-			<input name="name" value="%s"></form>`, signature.ID, signature.Name))
 		return
 	}
 

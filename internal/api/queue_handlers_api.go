@@ -3,7 +3,6 @@ package api
 import (
 	"database/sql"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -11,19 +10,8 @@ import (
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 )
 
-// queueDB returns a database handle when tests explicitly request it; otherwise unit tests fall back to stubs.
+// queueDB returns the database handle for queue operations.
 func queueDB() *sql.DB {
-	useDB := true
-	if strings.EqualFold(os.Getenv("APP_ENV"), "test") && !database.IsTestDBOverride() {
-		switch strings.ToLower(strings.TrimSpace(os.Getenv("QUEUE_USE_DB"))) {
-		case "", "0", "false", "no", "off":
-			useDB = false
-		}
-	}
-	if !useDB {
-		return nil
-	}
-
 	db, err := database.GetDB()
 	if err != nil || db == nil {
 		return nil
@@ -108,11 +96,12 @@ func handleGetQueuesAPI(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "simulated error"})
 			return
 		}
+		// Stub data matches canonical migrations: Postmaster(1), Raw(2), Junk(3), Misc(4)
 		respond([]queueItem{
-			{ID: 1, Name: "Raw", Comment: "All new tickets are placed in this queue by default", TicketCount: 2, Status: "active"},
-			{ID: 2, Name: "Junk", Comment: "Spam and junk emails", TicketCount: 1, Status: "active"},
-			{ID: 3, Name: "Misc", TicketCount: 0, Status: "active"},
-			{ID: 4, Name: "Support", TicketCount: 0, Status: "active"},
+			{ID: 1, Name: "Postmaster", Comment: "Default queue for incoming emails", TicketCount: 0, Status: "active"},
+			{ID: 2, Name: "Raw", Comment: "Queue for unprocessed emails", TicketCount: 2, Status: "active"},
+			{ID: 3, Name: "Junk", Comment: "Queue for junk/spam", TicketCount: 1, Status: "active"},
+			{ID: 4, Name: "Misc", Comment: "Miscellaneous queue", TicketCount: 0, Status: "active"},
 		})
 	}
 
@@ -256,46 +245,53 @@ func handleCreateQueue(c *gin.Context) {
 	}
 	db := queueDB()
 	if db == nil {
-		// Fallback for tests without DB: validate and simulate expected behaviors
-		if strings.EqualFold(input.Name, "Raw") {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "queue name already exists"})
-			return
-		}
-		// Choose comment value from either field
-		var commentVal string
-		if input.Comment != nil {
-			commentVal = *input.Comment
-		} else if input.Comments != nil {
-			commentVal = *input.Comments
-		}
-		c.JSON(http.StatusCreated, gin.H{
-			"success": true,
-			"data":    gin.H{"id": 5, "name": input.Name, "comment": commentVal},
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database not available"})
 		return
 	}
 
 	if input.FollowUpID == 0 {
 		input.FollowUpID = 1
 	}
+	// Default required foreign key fields to 1 if not provided
+	if input.SystemAddressID == nil {
+		one := 1
+		input.SystemAddressID = &one
+	}
+	if input.SalutationID == nil {
+		one := 1
+		input.SalutationID = &one
+	}
+	if input.SignatureID == nil {
+		one := 1
+		input.SignatureID = &one
+	}
 
-	var id int
-	// Parameter order matched to tests (see WithArgs in tests)
+	var id int64
+	// Check for duplicate queue name
+	var existingID int
+	err := db.QueryRow(database.ConvertPlaceholders("SELECT id FROM queue WHERE name = $1"), input.Name).Scan(&existingID)
+	if err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "queue name already exists"})
+		return
+	}
+
+	// Use Exec + LastInsertId for MySQL compatibility (not QueryRow + RETURNING)
 	query := `
         INSERT INTO queue (
             name, group_id, system_address_id, salutation_id, signature_id,
-            unlock_timeout, follow_up_id, follow_up_lock, comments, valid_id, create_by, change_by
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`
+            unlock_timeout, follow_up_id, follow_up_lock, comments, valid_id, create_by, change_by, create_time, change_time
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, NOW(), NOW())`
 
-	err := db.QueryRow(database.ConvertPlaceholders(query),
+	result, err := db.Exec(database.ConvertPlaceholders(query),
 		input.Name, input.GroupID, input.SystemAddressID, input.SalutationID, input.SignatureID,
 		input.UnlockTimeout, input.FollowUpID, input.FollowUpLock, input.Comments,
 		1, 1, 1,
-	).Scan(&id)
+	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to create queue"})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "failed to create queue"})
 		return
 	}
+	id, _ = result.LastInsertId()
 
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
@@ -337,6 +333,7 @@ func handleUpdateQueue(c *gin.Context) {
 		Comments      *string `json:"comments"`
 		Comment       *string `json:"comment"`
 		UnlockTimeout *int    `json:"unlock_timeout"`
+		ValidID       *int    `json:"valid_id"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid request body"})
@@ -345,34 +342,18 @@ func handleUpdateQueue(c *gin.Context) {
 
 	db := queueDB()
 	if db == nil {
-		// Fallback for tests without DB
-		if id == 999 {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Queue not found"})
-			return
-		}
-		if input.Name != nil && strings.EqualFold(*input.Name, "Raw") && id == 2 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Queue name already exists"})
-			return
-		}
-		// Compose response
-		resp := gin.H{"id": id}
-		if input.Name != nil {
-			resp["name"] = *input.Name
-		}
-		var commentVal string
-		if input.Comment != nil {
-			commentVal = *input.Comment
-		} else if input.Comments != nil {
-			commentVal = *input.Comments
-		}
-		if commentVal != "" {
-			resp["comment"] = commentVal
-		}
-		if input.UnlockTimeout != nil {
-			resp["unlock_timeout"] = *input.UnlockTimeout
-		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database not available"})
 		return
+	}
+
+	// Check for duplicate queue name (if name is being updated)
+	if input.Name != nil {
+		var existingID int
+		err := db.QueryRow(database.ConvertPlaceholders("SELECT id FROM queue WHERE name = $1 AND id != $2"), *input.Name, id).Scan(&existingID)
+		if err == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "queue name already exists"})
+			return
+		}
 	}
 
 	// Build update matching test arg order: (change_by, name?, comments?, unlock_timeout?, id)
@@ -396,6 +377,12 @@ func handleUpdateQueue(c *gin.Context) {
 		query += `, unlock_timeout = $` + strconv.Itoa(argCount)
 		args = append(args, *input.UnlockTimeout)
 		resp["unlock_timeout"] = *input.UnlockTimeout
+		argCount++
+	}
+	if input.ValidID != nil {
+		query += `, valid_id = $` + strconv.Itoa(argCount)
+		args = append(args, *input.ValidID)
+		resp["valid_id"] = *input.ValidID
 		argCount++
 	}
 	query += ` WHERE id = $` + strconv.Itoa(argCount)
@@ -423,23 +410,9 @@ func handleDeleteQueue(c *gin.Context) {
 		return
 	}
 
-	isHTMX := strings.EqualFold(c.GetHeader("HX-Request"), "true")
-
 	db := queueDB()
-	if db == nil || isHTMX {
-		// Fallback for tests without DB: allow deleting id=3, block others
-		if id == 3 {
-			c.Header("HX-Trigger", "queue-deleted")
-			c.Header("HX-Redirect", "/queues")
-			c.JSON(http.StatusOK, gin.H{"success": true, "message": "Queue deleted successfully"})
-			return
-		}
-		if id == 999 {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Queue not found"})
-			return
-		}
-		// For queues with tickets or system-protected queues
-		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "Cannot delete queue with existing tickets"})
+	if db == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Database not available"})
 		return
 	}
 
@@ -468,6 +441,12 @@ func handleDeleteQueue(c *gin.Context) {
 	if rows, _ := result.RowsAffected(); rows == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Queue not found"})
 		return
+	}
+
+	// Set HTMX headers for frontend integration
+	if c.GetHeader("HX-Request") == "true" {
+		c.Header("HX-Trigger", "queue-deleted")
+		c.Header("HX-Redirect", "/queues")
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Queue deleted successfully"})
 }

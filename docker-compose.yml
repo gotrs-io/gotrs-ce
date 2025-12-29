@@ -88,6 +88,14 @@ services:
           openssl req -x509 -newkey rsa:4096 -keyout /app/certs/server.key -out /app/certs/server.crt -days 365 -nodes -subj '/CN=gotrs-backend'
           echo '✅ TLS certificates generated'
         fi
+        # Run database migrations automatically
+        echo '📦 Running database migrations...'
+        if [ \"\$DB_DRIVER\" = 'postgres' ]; then
+          ./migrate -path /app/migrations/postgres -database \"postgres://\$DB_USER:\$DB_PASSWORD@\$DB_HOST:\$DB_PORT/\$DB_NAME?sslmode=disable\" up
+        else
+          ./migrate -path /app/migrations/mysql -database \"mysql://\$DB_USER:\$DB_PASSWORD@tcp(\$DB_HOST:\$DB_PORT)/\$DB_NAME?multiStatements=true\" up
+        fi
+        echo '✅ Database migrations complete'
         # Start the application
         ./goats
       "
@@ -122,8 +130,8 @@ services:
       - ./storage:${STORAGE_PATH:-/app/storage}:Z
       - ./certs:/app/certs:Z
     depends_on:
-      # postgres:
-      #   condition: service_healthy
+      mariadb:
+        condition: service_healthy
       valkey:
         condition: service_healthy
     networks:
@@ -310,18 +318,18 @@ services:
       ROUTES_DIR: /app/routes
       APP_ENV: test
       APP_PORT: ${APP_PORT:-8080}
-      # Test database configuration
-      DB_DRIVER: ${TEST_DB_DRIVER:-mysql}
-      DB_HOST: ${TEST_DB_MYSQL_HOST:-mariadb-test}
+      # Test database configuration - credentials must be in .env
+      DB_DRIVER: ${TEST_DB_DRIVER}
+      DB_HOST: ${TEST_DB_MYSQL_HOST}
       DB_PORT: ${TEST_DB_MYSQL_PORT:-3308}
-      DB_NAME: ${TEST_DB_MYSQL_NAME:-otrs_test}
-      DB_USER: ${TEST_DB_MYSQL_USER:-otrs}
-      DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD:-LetClaude.1n}
+      DB_NAME: ${TEST_DB_MYSQL_NAME}
+      DB_USER: ${TEST_DB_MYSQL_USER}
+      DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD}
       # Test cache configuration
       VALKEY_HOST: valkey-test
       VALKEY_PORT: 6379
-      # JWT secret must be provided via environment (.env or shell); no unsafe default here
-      JWT_SECRET: ${JWT_SECRET:-test-secret-key}
+      # JWT secret must be provided via environment (.env or shell)
+      JWT_SECRET: ${JWT_SECRET}
       PASSWORD_HASH_TYPE: ${PASSWORD_HASH_TYPE:-sha256}
       MIGRATE_PASSWORD_HASHES: ${MIGRATE_PASSWORD_HASHES:-false}
       STORAGE_PATH: ${STORAGE_PATH:-/app/storage}
@@ -353,13 +361,13 @@ services:
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     command: ["./goats", "-mode", "runner"]
     environment:
-      # Test database configuration
-      DB_DRIVER: ${TEST_DB_DRIVER:-mysql}
-      DB_HOST: ${TEST_DB_MYSQL_HOST:-mariadb-test}
+      # Test database configuration - credentials must be in .env
+      DB_DRIVER: ${TEST_DB_DRIVER}
+      DB_HOST: ${TEST_DB_MYSQL_HOST}
       DB_PORT: ${TEST_DB_MYSQL_PORT:-3308}
-      DB_NAME: ${TEST_DB_MYSQL_NAME:-otrs_test}
-      DB_USER: ${TEST_DB_MYSQL_USER:-otrs}
-      DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD:-LetClaude.1n}
+      DB_NAME: ${TEST_DB_MYSQL_NAME}
+      DB_USER: ${TEST_DB_MYSQL_USER}
+      DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD}
       # Email configuration for queue processing
       GOTRS_EMAIL_SMTP_HOST: ${SMTP_HOST:-smtp4dev}
       GOTRS_EMAIL_SMTP_PORT: ${SMTP_PORT:-25}
@@ -404,15 +412,16 @@ services:
       APP_PORT: ${CUSTOMER_FE_TEST_APP_PORT:-8080}
       ROOT_REDIRECT_PATH: /customer
       CUSTOMER_FE_ONLY: "true"
-      DB_DRIVER: ${TEST_DB_DRIVER:-mysql}
-      DB_HOST: ${TEST_DB_MYSQL_HOST:-mariadb-test}
+      # Test database configuration - credentials must be in .env
+      DB_DRIVER: ${TEST_DB_DRIVER}
+      DB_HOST: ${TEST_DB_MYSQL_HOST}
       DB_PORT: ${TEST_DB_MYSQL_PORT:-3308}
-      DB_NAME: ${TEST_DB_MYSQL_NAME:-otrs_test}
-      DB_USER: ${TEST_DB_MYSQL_USER:-otrs}
-      DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD:-LetClaude.1n}
+      DB_NAME: ${TEST_DB_MYSQL_NAME}
+      DB_USER: ${TEST_DB_MYSQL_USER}
+      DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD}
       VALKEY_HOST: valkey-test
       VALKEY_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:-test-secret-key}
+      JWT_SECRET: ${JWT_SECRET}
       PASSWORD_HASH_TYPE: ${PASSWORD_HASH_TYPE:-sha256}
       MIGRATE_PASSWORD_HASHES: ${MIGRATE_PASSWORD_HASHES:-false}
       STORAGE_PATH: ${STORAGE_PATH:-/app/storage}
@@ -599,6 +608,21 @@ services:
       XDG_CACHE_HOME: /workspace/.cache/xdg
       GOTOOLCHAIN: local
       PATH: /usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
+      # Test database environment for integration tests - credentials must be in .env
+      APP_ENV: test
+      DB_DRIVER: ${TEST_DB_DRIVER}
+      DB_HOST: ${TEST_DB_MYSQL_HOST}
+      DB_PORT: 3306
+      DB_NAME: ${TEST_DB_MYSQL_NAME}
+      DB_USER: ${TEST_DB_MYSQL_USER}
+      DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD}
+      TEST_DB_DRIVER: ${TEST_DB_DRIVER}
+      TEST_DB_HOST: ${TEST_DB_MYSQL_HOST}
+      TEST_DB_PORT: 3306
+      TEST_DB_NAME: ${TEST_DB_MYSQL_NAME}
+      TEST_DB_USER: ${TEST_DB_MYSQL_USER}
+      TEST_DB_PASSWORD: ${TEST_DB_MYSQL_PASSWORD}
+      GOTRS_TEST_DB_READY: "1"
     volumes:
       - .:/workspace:Z
       - gotrs_cache:/workspace/.cache

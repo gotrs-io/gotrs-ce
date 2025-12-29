@@ -492,8 +492,8 @@ func HandleAdminUserUpdate(c *gin.Context) {
 		if _, insertErr := db.Exec(database.ConvertPlaceholders(`
 			INSERT INTO users (id, login, pw, first_name, last_name, valid_id, create_time, create_by, change_time, change_by)
 			SELECT $1, $2, '', $3, $4, $5, NOW(), 1, NOW(), 1
-			WHERE NOT EXISTS (SELECT 1 FROM users WHERE id = $1)`),
-			id, login, firstName, lastName, validID,
+			WHERE NOT EXISTS (SELECT 1 FROM users WHERE id = $6)`),
+			id, login, firstName, lastName, validID, id,
 		); insertErr != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,

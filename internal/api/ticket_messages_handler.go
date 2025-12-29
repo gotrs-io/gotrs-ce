@@ -3,7 +3,6 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -40,27 +39,6 @@ func handleGetTicketMessages(c *gin.Context) {
 	// For now, basic role checking
 	if userRole != string(models.RoleAdmin) && userRole != string(models.RoleAgent) && userRole != string(models.RoleCustomer) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permissions"})
-		return
-	}
-
-	// Test-mode, DB-less fallback to avoid background DB openers
-	if os.Getenv("APP_ENV") == "test" && os.Getenv("DB_HOST") == "" && os.Getenv("DATABASE_URL") == "" {
-		if ticketID != 1 {
-			c.JSON(http.StatusNotFound, gin.H{"error": "ticket not found"})
-			return
-		}
-		messages := []*service.SimpleTicketMessage{}
-		if c.GetHeader("HX-Request") != "" {
-			c.Header("Content-Type", "text/html")
-			c.String(http.StatusOK, renderSimpleMessagesHTML(messages))
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"success":    true,
-			"messages":   messages,
-			"total":      len(messages),
-			"pagination": gin.H{"page": 1, "per_page": 50, "has_more": false},
-		})
 		return
 	}
 
@@ -188,22 +166,6 @@ func handleAddTicketMessage(c *gin.Context) {
 	}
 	if roleLower == "customer" {
 		newMessage.SenderTypeID = models.SenderTypeCustomer
-	}
-
-	// Test-mode, DB-less fallback: simulate success without touching DB/services
-	if os.Getenv("APP_ENV") == "test" && os.Getenv("DB_HOST") == "" && os.Getenv("DATABASE_URL") == "" {
-		if ticketID != 1 {
-			c.JSON(http.StatusNotFound, gin.H{"error": "ticket not found"})
-			return
-		}
-		// Return minimal created response
-		c.JSON(http.StatusCreated, gin.H{
-			"success":    true,
-			"message":    "Message added successfully",
-			"message_id": 1,
-			"article":    newMessage,
-		})
-		return
 	}
 
 	// Create new article/message using the service (real path)

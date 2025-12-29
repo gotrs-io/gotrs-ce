@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -89,138 +88,19 @@ func HandleCreateArticleAPI(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		if os.Getenv("APP_ENV") == "test" {
-			// Accept minimal body in tests; subject may be empty
-			req.Subject = c.PostForm("subject")
-			req.Body = c.PostForm("body")
-			if req.Body == "" {
-				// fallback to generic field name sometimes used in tests
-				req.Body = c.PostForm("content")
-			}
-			if req.Body == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid request body: subject and body required"})
-				return
-			}
-		} else {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": false,
-				"error":   "Invalid request body: " + err.Error(),
-			})
-			return
-		}
-	}
-
-	// If in tests or DB unavailable in tests, return stubbed success matching expected schema
-	if os.Getenv("APP_ENV") == "test" {
-		// Non-existent ticket simulation for tests
-		if ticketID == 999999 {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Ticket not found"})
-			return
-		}
-
-		// Validate body presence
-		if strings.TrimSpace(req.Body) == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Article body is required"})
-			return
-		}
-
-		// Validate sender type if provided
-		if req.ArticleSenderTypeID != 0 {
-			if req.ArticleSenderTypeID != 1 && req.ArticleSenderTypeID != 2 && req.ArticleSenderTypeID != 3 {
-				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid sender type"})
-				return
-			}
-		}
-
-		// Validate communication channel if provided
-		if req.CommunicationChannelID != 0 {
-			if req.CommunicationChannelID != 1 && req.CommunicationChannelID != 2 && req.CommunicationChannelID != 3 {
-				c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid communication channel"})
-				return
-			}
-		}
-		// Determine user id already normalized to userID
-		// Compute visibility from any of the accepted keys
-		var visiblePtr *bool
-		if req.IsVisible != nil {
-			visiblePtr = req.IsVisible
-		} else if req.IsVisibleToCustomer != nil {
-			visiblePtr = req.IsVisibleToCustomer
-		} else if req.IsVisibleForCustomer != nil {
-			visiblePtr = req.IsVisibleForCustomer
-		}
-		visible := false
-		if visiblePtr != nil {
-			visible = *visiblePtr
-		}
-		// Permission check for customers adding to not-their ticket in tests
-		if isCustomer, _ := c.Get("is_customer"); isCustomer == true {
-			if ce, ok := c.Get("customer_email"); ok && ce.(string) != "customer@example.com" {
-				c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "Access denied"})
-				return
-			}
-		}
-		// Sender type: prefer payload id, else string, else infer from role
-		senderTypeID := req.ArticleSenderTypeID
-		if senderTypeID == 0 && req.SenderType != "" {
-			switch strings.ToLower(req.SenderType) {
-			case "agent":
-				senderTypeID = 1
-			case "system":
-				senderTypeID = 2
-			case "customer":
-				senderTypeID = 3
-			}
-		}
-		if senderTypeID == 0 {
-			if isCustomer, _ := c.Get("is_customer"); isCustomer == true {
-				senderTypeID = 3
-			} else {
-				senderTypeID = 1
-			}
-		}
-		// Communication channel: prefer payload; default email(1)
-		channelID := req.CommunicationChannelID
-		if channelID == 0 {
-			channelID = 1
-		}
-		// Content type default
-		ct := req.ContentType
-		if strings.TrimSpace(ct) == "" {
-			ct = "text/plain"
-		}
-		c.JSON(http.StatusCreated, gin.H{
-			"success": true,
-			"data": gin.H{
-				"id":                       1,
-				"ticket_id":                ticketID,
-				"subject":                  req.Subject,
-				"body":                     req.Body,
-				"content_type":             ct,
-				"article_sender_type_id":   senderTypeID,
-				"communication_channel_id": channelID,
-				"is_visible_for_customer":  visible,
-				"from":                     req.From,
-				"to":                       req.To,
-				"cc":                       req.Cc,
-				"reply_to":                 req.ReplyTo,
-				"message_id":               req.MessageID,
-				"in_reply_to":              req.InReplyTo,
-				"create_by":                userID,
-				"ticket_updated":           true,
-			},
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid request body: " + err.Error(),
 		})
 		return
 	}
 
-	// Get database connection (non-test path)
+	// Get database connection
 	db, err := database.GetDB()
 	if err != nil || db == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"success": false, "error": "Database connection failed"})
 		return
 	}
-
-	// (test mode handled above)
 
 	// Check if ticket exists and get current data
 	var customerUserID sql.NullString
@@ -229,16 +109,11 @@ func HandleCreateArticleAPI(c *gin.Context) {
 	), ticketID).Scan(&customerUserID)
 
 	if err == sql.ErrNoRows {
-		if os.Getenv("APP_ENV") == "test" {
-			// In test mode, allow creating against non-existent ticket for stubbed responses
-			customerUserID.Valid = false
-		} else {
-			c.JSON(http.StatusNotFound, gin.H{
-				"success": false,
-				"error":   "Ticket not found",
-			})
-			return
-		}
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Ticket not found",
+		})
+		return
 	} else if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -42,30 +41,6 @@ func HandleGetArticleAPI(c *gin.Context) {
 
 	db, err := database.GetDB()
 	if err != nil || db == nil {
-		if os.Getenv("APP_ENV") == "test" {
-			// DB-less fallback
-			if articleID == 1 || articleID > 0 {
-				resp := gin.H{
-					"id":         articleID,
-					"ticket_id":  ticketID,
-					"subject":    "Get Test",
-					"body":       "Get Test Body",
-					"from_email": "from@test.com",
-				}
-				if c.Query("include_attachments") == "true" {
-					resp["attachments"] = []gin.H{{
-						"id":           1,
-						"filename":     "test.pdf",
-						"content_type": "application/pdf",
-						"size":         1024,
-					}}
-				}
-				c.JSON(http.StatusOK, resp)
-				return
-			}
-			c.JSON(http.StatusNotFound, gin.H{"error": "Article not found"})
-			return
-		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
@@ -101,30 +76,6 @@ func HandleGetArticleAPI(c *gin.Context) {
 		&article.CreateTime, &article.CreateBy, &article.ChangeTime, &article.ChangeBy,
 	)
 	if err != nil {
-		if os.Getenv("APP_ENV") == "test" {
-			// For test mode: return 404 for obviously non-existent ID, otherwise provide stub
-			if articleID >= 99999 {
-				c.JSON(http.StatusNotFound, gin.H{"error": "Article not found"})
-				return
-			}
-			resp := gin.H{
-				"id":         articleID,
-				"ticket_id":  ticketID,
-				"subject":    "Get Test",
-				"body":       "Get Test Body",
-				"from_email": "from@test.com",
-			}
-			if c.Query("include_attachments") == "true" {
-				resp["attachments"] = []gin.H{{
-					"id":           1,
-					"filename":     "test.pdf",
-					"content_type": "application/pdf",
-					"size":         1024,
-				}}
-			}
-			c.JSON(http.StatusOK, resp)
-			return
-		}
 		c.JSON(http.StatusNotFound, gin.H{"error": "Article not found"})
 		return
 	}

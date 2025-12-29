@@ -1,4 +1,3 @@
-//go:build db
 
 package api
 
@@ -15,6 +14,7 @@ import (
 
 func TestQueueListAPI(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	WithCleanDB(t)
 
 	tests := []struct {
 		name           string
@@ -25,16 +25,16 @@ func TestQueueListAPI(t *testing.T) {
 			name:           "should return all active queues",
 			expectedStatus: http.StatusOK,
 			checkResponse: func(t *testing.T, body string) {
-				// Should contain HTML with queue list
+				// Should contain HTML with queue list (canonical queues from migrations)
+				assert.Contains(t, body, "Postmaster")
 				assert.Contains(t, body, "Raw")
-				assert.Contains(t, body, "Support")
-				assert.Contains(t, body, "Misc")
 				assert.Contains(t, body, "Junk")
+				assert.Contains(t, body, "Misc")
 
 				// Should show ticket counts (HTML formatted)
 				assert.Contains(t, body, ">2</span> tickets") // Raw queue has 2 tickets
 				assert.Contains(t, body, ">1</span> ticket")  // Junk queue has 1 ticket
-				assert.Contains(t, body, ">0</span> tickets") // Misc and Support have 0
+				assert.Contains(t, body, ">0</span> tickets") // Misc and Postmaster have 0
 			},
 		},
 	}
@@ -57,6 +57,7 @@ func TestQueueListAPI(t *testing.T) {
 
 func TestQueueListJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	WithCleanDB(t)
 
 	tests := []struct {
 		name           string
@@ -86,7 +87,7 @@ func TestQueueListJSON(t *testing.T) {
 				assert.True(t, response.Success)
 				assert.Equal(t, 4, len(response.Data))
 
-				// Check specific queue data
+				// Check specific queue data (Raw is id=2 in migrations)
 				foundRaw := false
 				for _, queue := range response.Data {
 					if queue.Name == "Raw" {
@@ -178,17 +179,17 @@ func TestQueueListFiltering(t *testing.T) {
 			queryParams:    "?status=active",
 			expectedStatus: http.StatusOK,
 			checkResponse: func(t *testing.T, body string) {
-				// Should only contain active queues
+				// Should only contain active queues (canonical: Postmaster, Raw, Junk, Misc)
 				assert.Contains(t, body, "Raw")
-				assert.Contains(t, body, "Support")
+				assert.Contains(t, body, "Misc")
 			},
 		},
 		{
 			name:           "should search by name",
-			queryParams:    "?search=support",
+			queryParams:    "?search=misc",
 			expectedStatus: http.StatusOK,
 			checkResponse: func(t *testing.T, body string) {
-				assert.Contains(t, body, "Support")
+				assert.Contains(t, body, "Misc")
 				assert.NotContains(t, body, "Raw")
 			},
 		},

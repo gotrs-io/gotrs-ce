@@ -1,4 +1,3 @@
-//go:build db
 
 package api
 
@@ -415,7 +414,7 @@ func TestAdminServiceUpdate(t *testing.T) {
 			t.Fatal("database not available for admin service toggle test")
 		}
 		database.SetDB(db)
-		t.Cleanup(func() { database.SetDB(nil) })
+		t.Cleanup(func() { database.ResetDB() })
 
 		router := setupServiceTestRouter()
 
@@ -456,7 +455,7 @@ func TestAdminServiceDelete(t *testing.T) {
 			t.Fatal("database not available for admin service delete test")
 		}
 		database.SetDB(db)
-		t.Cleanup(func() { database.SetDB(nil) })
+		t.Cleanup(func() { database.ResetDB() })
 
 		router := setupServiceTestRouter()
 
@@ -571,7 +570,7 @@ func TestAdminServiceWithDBIntegration(t *testing.T) {
 
 	// Inject DB so handlers see it via GetDB()
 	database.SetDB(db)
-	t.Cleanup(func() { database.SetDB(nil) })
+	t.Cleanup(func() { database.ResetDB() })
 
 	t.Run("Admin services list shows test service", func(t *testing.T) {
 		testName := fmt.Sprintf("IntegrationTestService_%d", time.Now().UnixNano())

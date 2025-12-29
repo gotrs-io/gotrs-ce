@@ -1,5 +1,7 @@
 -- Seed customer portal sysconfig entries (reuses existing sysconfig_* tables; no new schema).
-START TRANSACTION;
+-- Note: golang-migrate manages transactions, so we don't use START TRANSACTION/COMMIT here.
+
+SET FOREIGN_KEY_CHECKS = 0;
 
 SET @cfg_navigation := 'Frontend::Customer::Portal';
 SET @cfg_file := 'CustomerPortal.xml';
@@ -183,4 +185,5 @@ ON DUPLICATE KEY UPDATE
     change_time = @now,
     change_by = @author;
 
-COMMIT;
+SET FOREIGN_KEY_CHECKS = 1;
+-- Migration complete (transaction managed by golang-migrate)

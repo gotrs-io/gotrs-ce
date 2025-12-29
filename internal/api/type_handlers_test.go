@@ -1,4 +1,3 @@
-//go:build db
 
 package api
 
@@ -120,6 +119,7 @@ func TestGetTypes(t *testing.T) {
 
 func TestCreateType(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	t.Setenv("APP_ENV", "test")
 
 	tests := []struct {
 		name           string
@@ -222,6 +222,7 @@ func TestCreateType(t *testing.T) {
 
 func TestUpdateType(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	t.Setenv("APP_ENV", "test")
 
 	tests := []struct {
 		name           string
@@ -332,6 +333,7 @@ func TestUpdateType(t *testing.T) {
 
 func TestDeleteType(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	t.Setenv("APP_ENV", "test")
 
 	tests := []struct {
 		name           string

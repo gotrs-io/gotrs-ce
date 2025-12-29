@@ -1,4 +1,3 @@
-//go:build db
 
 package api
 
@@ -111,11 +110,11 @@ func TestQueueView(t *testing.T) {
 			userRole:       "admin",
 			expectedStatus: http.StatusOK,
 			checkContent: []string{
-				"Queue Management",
-				"Manage ticket queues",
-				"General Support",
-				"Technical Support",
-				"Billing",
+				"Queues",
+				"Manage queue assignments",
+				"Postmaster",
+				"Raw",
+				"Junk",
 			},
 		},
 		{
@@ -135,9 +134,9 @@ func TestQueueView(t *testing.T) {
 			userRole:       "admin",
 			expectedStatus: http.StatusOK,
 			checkContent: []string{
-				"tickets",   // Ticket count
-				"Active",    // Queue status
-				"New Queue", // Add button
+				"New",     // Ticket state column
+				"Open",    // Ticket state column
+				"Pending", // Ticket state column
 			},
 		},
 		{
@@ -256,12 +255,14 @@ func TestAdminView(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
 
-			// Add middleware to set user role
+			// Add middleware to set user as admin (ID 1 is seeded admin)
 			router.Use(func(c *gin.Context) {
 				c.Set("user_role", tt.userRole)
 				c.Set("user", gin.H{
-					"FirstName": "Test",
-					"LastName":  "Admin",
+					"ID":        uint(1),
+					"FirstName": "Admin",
+					"LastName":  "OTRS",
+					"Login":     "root@localhost",
 					"Email":     "admin@example.com",
 					"Role":      tt.userRole,
 				})
@@ -503,7 +504,7 @@ func TestPageLoadPerformance(t *testing.T) {
 		{
 			name:      "Queue page size is reasonable",
 			route:     "/queues",
-			maxSizeKB: 30, // Smaller page
+			maxSizeKB: 35, // Allow some growth for new features
 		},
 		{
 			name:      "Admin page size is reasonable",

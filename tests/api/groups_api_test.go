@@ -46,6 +46,10 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *repository.GroupSQLRepository)
 	admin.PUT("/groups/:id", api.HandleUpdateGroup)
 	admin.DELETE("/groups/:id", api.HandleDeleteGroup)
 
+	// API routes for testing without template rendering
+	apiGroup := router.Group("/api/v1")
+	apiGroup.GET("/groups", api.HandleListGroupsAPI)
+
 	return router, groupRepo
 }
 
@@ -134,16 +138,20 @@ func TestGroupsCRUDAPI(t *testing.T) {
 
 	t.Run("Read Group - List with search", func(t *testing.T) {
 		t.Setenv("APP_ENV", "test")
-		// Make request with search parameter
+		// Make request with search parameter using API endpoint
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", fmt.Sprintf("/admin/groups?search=%s", testGroupName), nil)
-		req.Header.Set("HX-Request", "true")
-		router.ServeHTTP(w, req)
+		req, _ := http.NewRequest("GET", fmt.Sprintf("/api/v1/groups?search=%s", testGroupName), nil)
+		req.Header.Set("Accept", "application/json")
+		// Create a new context with user_id set (simulating authenticated request)
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+		c.Set("user_id", 1)
+		api.HandleListGroupsAPI(c)
 
 		// Check response
 		assert.Equal(t, http.StatusOK, w.Code, "Should list groups successfully")
 
-		// Parse response body to check if our group is in the list
+		// Parse JSON response
 		bodyStr := w.Body.String()
 		assert.Contains(t, bodyStr, testGroupName, "Should find test group in list")
 		assert.Contains(t, bodyStr, testGroupDesc, "Should find test group description")

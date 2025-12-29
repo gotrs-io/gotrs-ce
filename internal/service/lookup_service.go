@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"log"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -194,20 +193,17 @@ func (s *LookupService) buildFormDataWithLang(lang string) *models.TicketFormDat
 
 // normalizeStatuses reduces a potentially large OTRS state list to the common 5-state workflow
 func (s *LookupService) normalizeStatuses(states []models.LookupItem) []models.LookupItem {
-	// For deterministic tests, always provide the standard 5-state workflow
-	if os.Getenv("APP_ENV") == "test" {
-		return []models.LookupItem{
-			{ID: 1, Value: "new", Label: "New", Order: 1, Active: true},
-			{ID: 2, Value: "open", Label: "Open", Order: 2, Active: true},
-			{ID: 3, Value: "pending", Label: "Pending", Order: 3, Active: true},
-			{ID: 4, Value: "resolved", Label: "Resolved", Order: 4, Active: true},
-			{ID: 5, Value: "closed", Label: "Closed", Order: 5, Active: true},
-		}
-	}
 	if len(states) <= 5 {
 		return states
 	}
-	wanted := map[string]int{"new": 1, "open": 2, "pending": 3, "resolved": 4, "closed": 5}
+	// OTRS standard workflow states in order
+	wanted := map[string]int{
+		"new":                 1,
+		"open":                2,
+		"closed successful":   3,
+		"closed unsuccessful": 4,
+		"pending reminder":    5,
+	}
 	out := make([]models.LookupItem, 0, 5)
 	for _, st := range states {
 		if ord, ok := wanted[st.Value]; ok {
@@ -223,28 +219,7 @@ func (s *LookupService) normalizeStatuses(states []models.LookupItem) []models.L
 }
 
 func (s *LookupService) normalizePriorities(priorities []models.LookupItem) []models.LookupItem {
-	if os.Getenv("APP_ENV") != "test" {
-		return priorities
-	}
-	defaults := []models.LookupItem{
-		{ID: 1, Value: "low", Label: "Low", Order: 1, Active: true},
-		{ID: 2, Value: "normal", Label: "Normal", Order: 2, Active: true},
-		{ID: 3, Value: "high", Label: "High", Order: 3, Active: true},
-		{ID: 4, Value: "urgent", Label: "Urgent", Order: 4, Active: true},
-	}
-	for i := range defaults {
-		for _, p := range priorities {
-			if strings.EqualFold(p.Value, defaults[i].Value) {
-				p.Order = defaults[i].Order
-				if p.Label == "" {
-					p.Label = defaults[i].Label
-				}
-				defaults[i] = p
-				break
-			}
-		}
-	}
-	return defaults
+	return priorities
 }
 
 // GetQueues returns available queues

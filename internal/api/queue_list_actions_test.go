@@ -1,4 +1,3 @@
-//go:build db
 
 package api
 
@@ -263,7 +262,7 @@ func TestQueueListRefreshAfterActions(t *testing.T) {
 		{
 			name:           "should refresh queue list after successful deletion",
 			method:         "DELETE",
-			endpoint:       "/api/queues/3", // Empty queue that can be deleted
+			endpoint:       "/api/queues/4", // Misc queue has no tickets, can be deleted
 			formData:       "",
 			expectedStatus: http.StatusOK,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {

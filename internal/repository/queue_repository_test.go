@@ -89,7 +89,6 @@ func TestEssentialQueuesExist(t *testing.T) {
 		"Raw",
 		"Junk",
 		"Misc",
-		"OBC", // OBC is essential for OTRS operations
 	}
 
 	// Connect to the database

@@ -1,4 +1,3 @@
-//go:build db
 
 package api
 
@@ -30,7 +29,7 @@ func TestHandleUpdateTicketStatus_PendingRequiresUntil(t *testing.T) {
 	defer mockDB.Close()
 
 	database.SetDB(mockDB)
-	t.Cleanup(func() { database.SetDB(nil) })
+	t.Cleanup(func() { database.ResetDB() })
 
 	stateRows := sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
 		AddRow(7, "pending auto close+", 5, 1, time.Now(), 1, time.Now(), 1)
@@ -72,7 +71,7 @@ func TestHandleUpdateTicketStatus_PendingReminderRequiresUntil(t *testing.T) {
 	defer mockDB.Close()
 
 	database.SetDB(mockDB)
-	t.Cleanup(func() { database.SetDB(nil) })
+	t.Cleanup(func() { database.ResetDB() })
 
 	stateRows := sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
 		AddRow(4, "pending reminder", 4, 1, time.Now(), 1, time.Now(), 1)
@@ -115,7 +114,7 @@ func TestHandleUpdateTicketStatus_PendingSetsUntil(t *testing.T) {
 	defer mockDB.Close()
 
 	database.SetDB(mockDB)
-	t.Cleanup(func() { database.SetDB(nil) })
+	t.Cleanup(func() { database.ResetDB() })
 
 	stateRows := sqlmock.NewRows([]string{"id", "name", "type_id", "valid_id", "create_time", "create_by", "change_time", "change_by"}).
 		AddRow(7, "pending auto close+", 5, 1, time.Now(), 1, time.Now(), 1)

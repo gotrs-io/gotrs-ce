@@ -1,5 +1,7 @@
 -- Minimal upstream-compatible seed data for MySQL deployments.
-START TRANSACTION;
+-- Note: golang-migrate manages transactions, so we don't use START TRANSACTION/COMMIT here.
+
+SET FOREIGN_KEY_CHECKS = 0;
 
 INSERT IGNORE INTO valid (id, name, create_time, create_by, change_time, change_by) VALUES
 (1, 'valid', NOW(), 1, NOW(), 1),
@@ -102,4 +104,4 @@ INSERT IGNORE INTO group_user (user_id, group_id, permission_key, create_time, c
 (1, 2, 'rw', NOW(), 1, NOW(), 1),
 (1, 3, 'rw', NOW(), 1, NOW(), 1);
 
-COMMIT;
+SET FOREIGN_KEY_CHECKS = 1;

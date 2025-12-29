@@ -1,3 +1,6 @@
+-- Disable foreign key checks during schema creation to handle circular dependencies
+SET FOREIGN_KEY_CHECKS = 0;
+
 CREATE TABLE `acl` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(200) NOT NULL,
@@ -2205,4 +2208,7 @@ CREATE TABLE `xml_storage` (
   KEY `xml_storage_key_type` (`xml_key`(10),`xml_type`(10)),
   KEY `xml_storage_xml_content_key` (`xml_content_key`(100))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Re-enable foreign key checks after schema creation
+SET FOREIGN_KEY_CHECKS = 1;
 

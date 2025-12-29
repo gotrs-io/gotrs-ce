@@ -1,4 +1,3 @@
-//go:build db
 
 package api
 
@@ -10,6 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -17,11 +18,24 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gotrs-io/gotrs-ce/internal/database"
+	"github.com/gotrs-io/gotrs-ce/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // Note: getTestDB is defined in admin_customer_company_test.go (same package)
+
+// setupTemplateRenderer ensures templates are available for tests that render HTML
+func setupTemplateRenderer(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	templateDir := filepath.Join(filepath.Dir(file), "..", "..", "templates")
+	renderer, err := shared.NewTemplateRenderer(templateDir)
+	if err != nil {
+		t.Skipf("Templates not available: %v", err)
+	}
+	shared.SetGlobalRenderer(renderer)
+}
 
 // setupQueueTestRouter creates a minimal router with the admin queues handlers
 func setupQueueTestRouter() *gin.Engine {
@@ -103,6 +117,7 @@ func verifyQueueStatus(t *testing.T, db *sql.DB, queueID int64, expectedValidID 
 }
 
 func TestAdminQueuesPage(t *testing.T) {
+	setupTemplateRenderer(t)
 	router := setupQueueTestRouter()
 
 	t.Run("GET /admin/queues renders page", func(t *testing.T) {
@@ -146,6 +161,7 @@ func TestAdminQueuesPage(t *testing.T) {
 }
 
 func TestAdminQueuesListWithDB(t *testing.T) {
+	setupTemplateRenderer(t)
 	db := getTestDB(t)
 
 	testQueueName := fmt.Sprintf("TestAdminQueue_%d", time.Now().UnixNano())
@@ -214,6 +230,7 @@ func TestAdminQueuesCRUDWithDB(t *testing.T) {
 	t.Run("Update queue via API", func(t *testing.T) {
 		testName := fmt.Sprintf("UpdateTestQueue_%d", time.Now().UnixNano())
 		queueID := createTestQueue(t, db, testName)
+		t.Logf("Created test queue with ID=%d for name=%s", queueID, testName)
 		defer cleanupTestQueue(t, db, queueID)
 
 		router := setupQueueTestRouter()
@@ -224,12 +241,15 @@ func TestAdminQueuesCRUDWithDB(t *testing.T) {
 		}
 		jsonBody, _ := json.Marshal(body)
 
-		req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/queues/%d", queueID), bytes.NewBuffer(jsonBody))
+		url := fmt.Sprintf("/api/queues/%d", queueID)
+		t.Logf("Making PUT request to %s", url)
+		req := httptest.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBody))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
 		router.ServeHTTP(w, req)
 
+		t.Logf("Response code: %d, body: %s", w.Code, w.Body.String())
 		// Accept 200 OK or other codes - handler may or may not have DB access
 		assert.True(t, w.Code == http.StatusOK || w.Code == http.StatusInternalServerError,
 			"Update request should return 200 OK or 500, got %d", w.Code)
@@ -238,6 +258,7 @@ func TestAdminQueuesCRUDWithDB(t *testing.T) {
 	t.Run("Toggle queue status via API", func(t *testing.T) {
 		testName := fmt.Sprintf("ToggleTestQueue_%d", time.Now().UnixNano())
 		queueID := createTestQueue(t, db, testName)
+		t.Logf("Created test queue with ID=%d for name=%s", queueID, testName)
 		defer cleanupTestQueue(t, db, queueID)
 
 		router := setupQueueTestRouter()
@@ -248,12 +269,15 @@ func TestAdminQueuesCRUDWithDB(t *testing.T) {
 		}
 		jsonBody, _ := json.Marshal(body)
 
-		req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/queues/%d", queueID), bytes.NewBuffer(jsonBody))
+		url := fmt.Sprintf("/api/queues/%d", queueID)
+		t.Logf("Making PUT request to %s", url)
+		req := httptest.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBody))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
 		router.ServeHTTP(w, req)
 
+		t.Logf("Response code: %d, body: %s", w.Code, w.Body.String())
 		// Accept 200 OK or other codes - handler may or may not have DB access
 		assert.True(t, w.Code == http.StatusOK || w.Code == http.StatusInternalServerError,
 			"Toggle status request should return 200 OK or 500, got %d", w.Code)
@@ -455,6 +479,7 @@ func TestAdminQueuesRelatedOperations(t *testing.T) {
 }
 
 func TestAdminQueuesDropdownsPopulated(t *testing.T) {
+	setupTemplateRenderer(t)
 	router := setupQueueTestRouter()
 
 	t.Run("Admin queues page loads dropdown data", func(t *testing.T) {

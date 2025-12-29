@@ -273,8 +273,9 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 		for _, fileHeader := range files {
 			// Validate file size (10MB max)
 			if fileHeader.Size > 10*1024*1024 {
-				log.Printf("WARNING: File %s too large (%d bytes), skipping", fileHeader.Filename, fileHeader.Size)
-				continue
+				log.Printf("ERROR: File %s too large (%d bytes)", fileHeader.Filename, fileHeader.Size)
+				c.JSON(http.StatusBadRequest, gin.H{"error": "file too large"})
+				return
 			}
 
 			// Validate file type (basic security check)
@@ -285,8 +286,9 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 			}
 
 			if blockedExtensions[ext] {
-				log.Printf("WARNING: File type %s not allowed, skipping %s", ext, fileHeader.Filename)
-				continue
+				log.Printf("ERROR: File type %s not allowed for %s", ext, fileHeader.Filename)
+				c.JSON(http.StatusBadRequest, gin.H{"error": "file type not allowed: " + ext})
+				return
 			}
 
 			// Open the uploaded file
@@ -409,6 +411,7 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 
 	// Prepare response
 	response := gin.H{
+		"success":       true,
 		"id":            ticket.ID,
 		"ticket_number": ticket.TicketNumber,
 		"message":       "Ticket created successfully",

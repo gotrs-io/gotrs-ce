@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -51,10 +50,6 @@ func HandleUpdateArticleAPI(c *gin.Context) {
 
 	db, err := database.GetDB()
 	if err != nil || db == nil {
-		if os.Getenv("APP_ENV") == "test" {
-			c.JSON(http.StatusOK, gin.H{"id": articleID, "ticket_id": ticketID, "subject": req.Subject, "body": req.Body})
-			return
-		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
@@ -67,10 +62,6 @@ func HandleUpdateArticleAPI(c *gin.Context) {
 	`)
 	db.QueryRow(checkQuery, articleID, ticketID).Scan(&count)
 	if count != 1 {
-		if os.Getenv("APP_ENV") == "test" {
-			c.JSON(http.StatusOK, gin.H{"id": articleID, "ticket_id": ticketID, "subject": req.Subject, "body": req.Body})
-			return
-		}
 		c.JSON(http.StatusNotFound, gin.H{"error": "Article not found"})
 		return
 	}

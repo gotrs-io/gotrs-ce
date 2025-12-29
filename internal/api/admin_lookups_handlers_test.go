@@ -1,4 +1,3 @@
-//go:build db
 
 package api
 
@@ -14,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gotrs-io/gotrs-ce/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -222,6 +222,10 @@ func TestAdminPrioritiesPage(t *testing.T) {
 // =============================================================================
 
 func TestAdminLookupsPageCombined(t *testing.T) {
+	// Clear global renderer and set test mode to ensure fallback HTML is used
+	shared.SetGlobalRenderer(nil)
+	t.Setenv("HTMX_HANDLER_TEST_MODE", "1")
+
 	router := setupLookupsTestRouter()
 
 	t.Run("GET /admin/lookups renders page", func(t *testing.T) {
@@ -305,7 +309,7 @@ func TestLookupAPIEndpointsExtended(t *testing.T) {
 		assert.True(t, response["success"].(bool))
 	})
 
-	t.Run("GET /api/lookups/priorities returns 4 items", func(t *testing.T) {
+	t.Run("GET /api/lookups/priorities returns 5 items", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/lookups/priorities", nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
@@ -318,7 +322,7 @@ func TestLookupAPIEndpointsExtended(t *testing.T) {
 
 		data, ok := response["data"].([]interface{})
 		require.True(t, ok)
-		assert.Equal(t, 4, len(data))
+		assert.Equal(t, 5, len(data))
 	})
 
 	t.Run("GET /api/lookups/types returns 5 items", func(t *testing.T) {
@@ -460,7 +464,7 @@ func TestPriorityStructureValidationExtended(t *testing.T) {
 		require.NoError(t, err)
 
 		data := response["data"].([]interface{})
-		expectedOrder := []string{"low", "normal", "high", "urgent"}
+		expectedOrder := []string{"1 very low", "2 low", "3 normal", "4 high", "5 very high"}
 
 		for i, item := range data {
 			priority := item.(map[string]interface{})
@@ -496,7 +500,7 @@ func TestStatusStructureValidationExtended(t *testing.T) {
 		}
 	})
 
-	t.Run("Statuses follow workflow order", func(t *testing.T) {
+	t.Run("Statuses contain expected OTRS values", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/lookups/statuses", nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
@@ -506,11 +510,22 @@ func TestStatusStructureValidationExtended(t *testing.T) {
 		require.NoError(t, err)
 
 		data := response["data"].([]interface{})
-		expectedOrder := []string{"new", "open", "pending", "resolved", "closed"}
+		// OTRS standard state names (order may vary)
+		expectedStates := map[string]bool{
+			"new": false, "open": false, "pending reminder": false,
+			"closed successful": false, "closed unsuccessful": false,
+		}
 
-		for i, item := range data {
+		for _, item := range data {
 			status := item.(map[string]interface{})
-			assert.Equal(t, expectedOrder[i], status["value"])
+			value := status["value"].(string)
+			if _, ok := expectedStates[value]; ok {
+				expectedStates[value] = true
+			}
+		}
+
+		for name, found := range expectedStates {
+			assert.True(t, found, "Status '%s' should be present", name)
 		}
 	})
 }
@@ -608,6 +623,10 @@ func TestLookupConcurrentAccessExtended(t *testing.T) {
 // =============================================================================
 
 func TestAdminLookupsPage(t *testing.T) {
+	// Clear global renderer and set test mode to ensure fallback HTML is used
+	shared.SetGlobalRenderer(nil)
+	t.Setenv("HTMX_HANDLER_TEST_MODE", "1")
+
 	router := setupLookupsTestRouter()
 
 	t.Run("GET /admin/lookups renders page", func(t *testing.T) {
@@ -691,7 +710,7 @@ func TestLookupAPIEndpoints(t *testing.T) {
 		assert.True(t, response["success"].(bool))
 	})
 
-	t.Run("GET /api/lookups/priorities returns 4 items", func(t *testing.T) {
+	t.Run("GET /api/lookups/priorities returns 5 items", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/lookups/priorities", nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
@@ -704,7 +723,7 @@ func TestLookupAPIEndpoints(t *testing.T) {
 
 		data, ok := response["data"].([]interface{})
 		require.True(t, ok)
-		assert.Equal(t, 4, len(data))
+		assert.Equal(t, 5, len(data))
 	})
 
 	t.Run("GET /api/lookups/types returns 5 items", func(t *testing.T) {
@@ -846,7 +865,7 @@ func TestPriorityStructureValidation(t *testing.T) {
 		require.NoError(t, err)
 
 		data := response["data"].([]interface{})
-		expectedOrder := []string{"low", "normal", "high", "urgent"}
+		expectedOrder := []string{"1 very low", "2 low", "3 normal", "4 high", "5 very high"}
 
 		for i, item := range data {
 			priority := item.(map[string]interface{})
@@ -882,7 +901,7 @@ func TestStatusStructureValidation(t *testing.T) {
 		}
 	})
 
-	t.Run("Statuses follow workflow order", func(t *testing.T) {
+	t.Run("Statuses contain expected OTRS values", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/lookups/statuses", nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
@@ -892,11 +911,22 @@ func TestStatusStructureValidation(t *testing.T) {
 		require.NoError(t, err)
 
 		data := response["data"].([]interface{})
-		expectedOrder := []string{"new", "open", "pending", "resolved", "closed"}
+		// OTRS standard state names (order may vary)
+		expectedStates := map[string]bool{
+			"new": false, "open": false, "pending reminder": false,
+			"closed successful": false, "closed unsuccessful": false,
+		}
 
-		for i, item := range data {
+		for _, item := range data {
 			status := item.(map[string]interface{})
-			assert.Equal(t, expectedOrder[i], status["value"])
+			value := status["value"].(string)
+			if _, ok := expectedStates[value]; ok {
+				expectedStates[value] = true
+			}
+		}
+
+		for name, found := range expectedStates {
+			assert.True(t, found, "Status '%s' should be present", name)
 		}
 	})
 }

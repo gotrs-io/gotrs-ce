@@ -1,4 +1,3 @@
-//go:build db
 
 package api
 
@@ -59,6 +58,7 @@ func TestCreateTicketAPI_HappyPath(t *testing.T) {
 	}
 	defer mockDB.Close()
 	database.SetDB(mockDB)
+	t.Cleanup(func() { database.ResetDB() })
 	database.ResetAdapterForTest()
 	injectGenerator()
 
@@ -151,6 +151,7 @@ func TestCreateTicketAPI_PersistsCustomerIdentifiers(t *testing.T) {
 	}
 	defer mockDB.Close()
 	database.SetDB(mockDB)
+	t.Cleanup(func() { database.ResetDB() })
 	database.ResetAdapterForTest()
 	injectGenerator()
 
@@ -242,6 +243,7 @@ func TestCreateTicketAPI_InvalidQueue(t *testing.T) {
 	mockDB, mock, _ := sqlmock.New()
 	defer mockDB.Close()
 	database.SetDB(mockDB)
+	t.Cleanup(func() { database.ResetDB() })
 	injectGenerator()
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT EXISTS(SELECT 1 FROM queue")).
 		WithArgs(999).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
@@ -264,6 +266,7 @@ func TestCreateTicketAPI_MissingTitle(t *testing.T) {
 	mockDB, _, _ := sqlmock.New()
 	defer mockDB.Close()
 	database.SetDB(mockDB)
+	t.Cleanup(func() { database.ResetDB() })
 	injectGenerator()
 	payload := map[string]interface{}{"queue_id": 1}
 	b, _ := json.Marshal(payload)
@@ -284,6 +287,7 @@ func TestCreateTicketAPI_TitleTooLong(t *testing.T) {
 	mockDB, _, _ := sqlmock.New()
 	defer mockDB.Close()
 	database.SetDB(mockDB)
+	t.Cleanup(func() { database.ResetDB() })
 	injectGenerator()
 	long := make([]byte, 256)
 	for i := range long {
@@ -310,6 +314,7 @@ func TestCreateTicketAPI_DBUnavailable(t *testing.T) {
 		t.Fatalf("sqlmock: %v", err)
 	}
 	database.SetDB(mockDB)
+	t.Cleanup(func() { database.ResetDB() })
 	t.Cleanup(func() {
 		mockDB.Close()
 		database.ResetDB()

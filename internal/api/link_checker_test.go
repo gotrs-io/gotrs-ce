@@ -1,4 +1,3 @@
-//go:build db
 
 package api
 
@@ -59,6 +58,11 @@ func TestAllLinksReturn200(t *testing.T) {
 		}
 
 		if strings.HasPrefix(trimmed, "/tickets/") && status == http.StatusNotFound {
+			return true
+		}
+
+		// Agent ticket detail pages and subpages (links, etc.) return 404 without actual ticket data
+		if strings.HasPrefix(trimmed, "/agent/tickets/") && status == http.StatusNotFound {
 			return true
 		}
 
@@ -150,12 +154,18 @@ func TestAllLinksReturn200(t *testing.T) {
 		}
 
 		formMatches := formPattern.FindAllStringSubmatch(html, -1)
+		htmxOverridePattern := regexp.MustCompile(`(?i)hx-(?:post|put|patch|delete)=`)
 		for _, match := range formMatches {
 			if len(match) < 2 {
 				continue
 			}
 			block := match[0]
 			link := match[1]
+			// Skip form action if HTMX attributes will override the method
+			// In HTMX apps, hx-* attributes take over form submission
+			if htmxOverridePattern.MatchString(block) {
+				continue
+			}
 			method := http.MethodPost
 			if m := formMethodPattern.FindStringSubmatch(block); len(m) > 1 {
 				method = strings.ToUpper(strings.TrimSpace(m[1]))

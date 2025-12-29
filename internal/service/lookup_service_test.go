@@ -168,12 +168,12 @@ func TestGetStatuses(t *testing.T) {
 	statuses := service.GetStatuses()
 
 	assert.NotEmpty(t, statuses)
-	assert.Equal(t, 5, len(statuses)) // new, open, pending, resolved, closed
+	assert.Equal(t, 5, len(statuses)) // OTRS statuses in workflow order (by type_id)
 
-	// Verify status workflow order
-	expectedValues := []string{"new", "open", "pending", "resolved", "closed"}
+	// Verify statuses returned in workflow order: new (type 1), open (type 2), closed (type 5), pending (type 3)
+	expectedValues := []string{"new", "open", "closed successful", "closed unsuccessful", "pending reminder"}
 	for i, status := range statuses {
-		assert.Equal(t, expectedValues[i], status.Value)
+		assert.Equal(t, expectedValues[i], status.Value, "status at index %d should be %s", i, expectedValues[i])
 		assert.NotEmpty(t, status.Label)
 		assert.Equal(t, i+1, status.Order)
 		assert.True(t, status.Active)
@@ -321,9 +321,9 @@ func TestGetStatusByValue(t *testing.T) {
 	}{
 		{"New status", "new", true},
 		{"Open status", "open", true},
-		{"Pending status", "pending", true},
-		{"Resolved status", "resolved", true},
-		{"Closed status", "closed", true},
+		{"Pending reminder status", "pending reminder", true},
+		{"Closed successful status", "closed successful", true},
+		{"Closed unsuccessful status", "closed unsuccessful", true},
 		{"Invalid status", "cancelled", false},
 		{"Empty value", "", false},
 	}

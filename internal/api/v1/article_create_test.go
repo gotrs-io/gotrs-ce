@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	. "github.com/gotrs-io/gotrs-ce/internal/api"
+	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -350,6 +352,39 @@ func TestAddArticle_Permissions(t *testing.T) {
 	requireDatabase(t)
 	gin.SetMode(gin.TestMode)
 
+	// Create a test ticket with a known customer_user_id for permission testing
+	db, err := database.GetDB()
+	require.NoError(t, err)
+	require.NotNil(t, db)
+
+	// Insert test ticket owned by test.customer
+	_, err = db.Exec(database.ConvertPlaceholders(`
+		INSERT INTO ticket (tn, title, queue_id, ticket_state_id, ticket_priority_id, 
+			user_id, responsible_user_id, ticket_lock_id, type_id, customer_user_id, 
+			timeout, until_time, escalation_time, escalation_update_time, 
+			escalation_response_time, escalation_solution_time,
+			create_time, create_by, change_time, change_by)
+		VALUES ('PERM-TEST-001', 'Permission test ticket', 1, 1, 3, 
+			1, 1, 1, 1, 'test.customer',
+			0, 0, 0, 0, 0, 0,
+			NOW(), 1, NOW(), 1)
+	`))
+	require.NoError(t, err)
+
+	// Get the ID of the ticket we just created
+	var testTicketID int
+	err = db.QueryRow(database.ConvertPlaceholders(
+		"SELECT id FROM ticket WHERE tn = 'PERM-TEST-001'",
+	)).Scan(&testTicketID)
+	require.NoError(t, err)
+	testTicketIDStr := strconv.Itoa(testTicketID)
+
+	// Clean up after test
+	t.Cleanup(func() {
+		db.Exec(database.ConvertPlaceholders("DELETE FROM article WHERE ticket_id = $1"), testTicketID)
+		db.Exec(database.ConvertPlaceholders("DELETE FROM ticket WHERE id = $1"), testTicketID)
+	})
+
 	tests := []struct {
 		name       string
 		setupAuth  func(c *gin.Context)
@@ -363,7 +398,7 @@ func TestAddArticle_Permissions(t *testing.T) {
 				c.Set("user_id", 1)
 				c.Set("is_authenticated", true)
 			},
-			ticketID: "1",
+			ticketID: testTicketIDStr,
 			payload: map[string]interface{}{
 				"body": "Agent response",
 			},
@@ -374,7 +409,7 @@ func TestAddArticle_Permissions(t *testing.T) {
 			setupAuth: func(c *gin.Context) {
 				// No auth set
 			},
-			ticketID: "1",
+			ticketID: testTicketIDStr,
 			payload: map[string]interface{}{
 				"body": "Should fail",
 			},
@@ -383,12 +418,12 @@ func TestAddArticle_Permissions(t *testing.T) {
 		{
 			name: "customer can add to own ticket",
 			setupAuth: func(c *gin.Context) {
-				c.Set("user_id", 100)
+				c.Set("user_id", 3)
 				c.Set("is_customer", true)
-				c.Set("customer_email", "customer@example.com")
+				c.Set("customer_email", "test.customer") // Matches ticket.customer_user_id
 				c.Set("is_authenticated", true)
 			},
-			ticketID: "1", // Assumes ticket 1 belongs to this customer
+			ticketID: testTicketIDStr,
 			payload: map[string]interface{}{
 				"body": "Customer response",
 			},
@@ -402,7 +437,7 @@ func TestAddArticle_Permissions(t *testing.T) {
 				c.Set("customer_email", "other@example.com")
 				c.Set("is_authenticated", true)
 			},
-			ticketID: "1",
+			ticketID: testTicketIDStr,
 			payload: map[string]interface{}{
 				"body": "Should fail",
 			},
@@ -485,7 +520,7 @@ func TestAddArticle_UpdatesTicketChangeTime(t *testing.T) {
 	router := gin.New()
 
 	router.POST("/api/v1/tickets/:id/articles", func(c *gin.Context) {
-		c.Set("user_id", 5)
+		c.Set("user_id", 15) // testuser agent
 		c.Set("is_authenticated", true)
 		HandleCreateArticleAPI(c)
 	})
@@ -513,7 +548,7 @@ func TestAddArticle_UpdatesTicketChangeTime(t *testing.T) {
 	data := response["data"].(map[string]interface{})
 
 	// Check that the creator is set correctly
-	assert.Equal(t, float64(5), data["create_by"])
+	assert.Equal(t, float64(15), data["create_by"])
 
 	// The ticket's change_time should be updated (verified in handler)
 	assert.NotNil(t, data["ticket_updated"])

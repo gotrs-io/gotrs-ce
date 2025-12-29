@@ -1,4 +1,3 @@
-//go:build db
 
 package api
 
@@ -45,7 +44,7 @@ func TestAdminPriorityHandlers(t *testing.T) {
 
 		data, ok := response["data"].([]interface{})
 		require.True(t, ok)
-		assert.Equal(t, 4, len(data))
+		assert.Equal(t, 5, len(data))
 	})
 
 	t.Run("Priorities response has correct structure", func(t *testing.T) {
@@ -116,7 +115,7 @@ func TestAdminPriorityHandlers(t *testing.T) {
 		hasNormal := false
 		for _, item := range data {
 			priority := item.(map[string]interface{})
-			if priority["value"] == "normal" {
+			if priority["value"] == "3 normal" {
 				hasNormal = true
 				break
 			}
@@ -135,7 +134,7 @@ func TestAdminPriorityHandlers(t *testing.T) {
 		require.NoError(t, err)
 
 		data := response["data"].([]interface{})
-		expectedOrder := []string{"low", "normal", "high", "urgent"}
+		expectedOrder := []string{"1 very low", "2 low", "3 normal", "4 high", "5 very high"}
 
 		for i, item := range data {
 			priority := item.(map[string]interface{})
@@ -185,7 +184,7 @@ func TestAdminPriorityValidation(t *testing.T) {
 	router := gin.New()
 	router.GET("/api/lookups/priorities", HandleGetPriorities)
 
-	t.Run("Low priority is first", func(t *testing.T) {
+	t.Run("Lowest priority is first", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/lookups/priorities", nil)
 		w := httptest.NewRecorder()
 
@@ -197,11 +196,11 @@ func TestAdminPriorityValidation(t *testing.T) {
 
 		data := response["data"].([]interface{})
 		first := data[0].(map[string]interface{})
-		assert.Equal(t, "low", first["value"])
+		assert.Equal(t, "1 very low", first["value"])
 		assert.Equal(t, float64(1), first["order"])
 	})
 
-	t.Run("Urgent priority is last", func(t *testing.T) {
+	t.Run("Highest priority is last", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/lookups/priorities", nil)
 		w := httptest.NewRecorder()
 
@@ -213,8 +212,8 @@ func TestAdminPriorityValidation(t *testing.T) {
 
 		data := response["data"].([]interface{})
 		last := data[len(data)-1].(map[string]interface{})
-		assert.Equal(t, "urgent", last["value"])
-		assert.Equal(t, float64(4), last["order"])
+		assert.Equal(t, "5 very high", last["value"])
+		assert.Equal(t, float64(5), last["order"])
 	})
 
 	t.Run("Priorities are active", func(t *testing.T) {

@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -32,13 +31,6 @@ func HandleListArticlesAPI(c *gin.Context) {
 
 	db, err := database.GetDB()
 	if err != nil || db == nil {
-		if os.Getenv("APP_ENV") == "test" {
-			c.JSON(http.StatusOK, gin.H{
-				"articles": []gin.H{},
-				"total":    0,
-			})
-			return
-		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
@@ -50,22 +42,6 @@ func HandleListArticlesAPI(c *gin.Context) {
 	`)
 	db.QueryRow(checkQuery, ticketID).Scan(&ticketExists)
 	if ticketExists != 1 {
-		// In tests, fall back to stub response if ticket not present
-		if os.Getenv("APP_ENV") == "test" {
-			c.JSON(http.StatusOK, gin.H{
-				"articles": []gin.H{{
-					"id":          1,
-					"ticket_id":   ticketID,
-					"subject":     "Test Subject",
-					"body":        "Test Body",
-					"from_email":  "sender@example.com",
-					"to_email":    "recipient@example.com",
-					"create_time": "2025-01-01T00:00:00Z",
-				}},
-				"total": 1,
-			})
-			return
-		}
 		c.JSON(http.StatusNotFound, gin.H{"error": "Ticket not found"})
 		return
 	}

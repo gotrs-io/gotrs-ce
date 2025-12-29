@@ -7,13 +7,8 @@ import (
 )
 
 func init() {
-	// Register dev/misc handlers that are exported in exports.go
+	// Register misc handlers that are exported in exports.go
 	// These handlers are referenced in YAML routes
-	routing.RegisterHandler("HandleDevDashboard", HandleDevDashboard)
-	routing.RegisterHandler("HandleClaudeTickets", HandleClaudeTickets)
-	routing.RegisterHandler("HandleDevAction", HandleDevAction)
-	routing.RegisterHandler("HandleDevLogs", HandleDevLogs)
-	routing.RegisterHandler("HandleDevDatabase", HandleDevDatabase)
 	routing.RegisterHandler("HandleLegacyAgentTicketViewRedirect", HandleLegacyAgentTicketViewRedirect)
 	routing.RegisterHandler("HandleLegacyTicketsViewRedirect", HandleLegacyTicketsViewRedirect)
 	routing.RegisterHandler("handleUpdateTicketStatus", handleUpdateTicketStatus)

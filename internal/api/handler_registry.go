@@ -97,8 +97,6 @@ func ensureCoreHandlers() {
 		"HandleCustomerInfoPanel":     func(c *gin.Context) { c.String(200, "") },
 		"handleSettings":              handleSettings,
 		"handleProfile":               handleProfile,
-		"HandleWebSocketChat":         HandleWebSocketChat,
-		"handleClaudeChatDemo":        handleClaudeChatDemo,
 		"HandleGetSessionTimeout":     HandleGetSessionTimeout,
 		"HandleSetSessionTimeout":     HandleSetSessionTimeout,
 		"handleAdminSettings":         handleAdminSettings,

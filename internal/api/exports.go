@@ -275,12 +275,3 @@ var (
 	HandleGetThumbnail       = handleGetThumbnail
 	HandleViewAttachment     = handleViewAttachment
 )
-
-// Dev handlers
-var (
-	HandleDevDashboard  = handleDevDashboard
-	HandleClaudeTickets = handleClaudeTickets
-	HandleDevAction     = handleDevAction
-	HandleDevLogs       = handleDevLogs
-	HandleDevDatabase   = handleDevDatabase
-)

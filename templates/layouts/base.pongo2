@@ -126,10 +126,6 @@
     {% if not navAdmin or navAdmin == "navigation.admin" %}
         {% set navAdmin = "Admin" %}
     {% endif %}
-    {% set navDev = t("navigation.dev") %}
-    {% if not navDev or navDev == "navigation.dev" %}
-        {% set navDev = "Dev" %}
-    {% endif %}
 
     {% set dashboardHref = "/dashboard" %}
     {% set ticketsHref = "/tickets" %}
@@ -169,11 +165,6 @@
                             {% if not isCustomer and (User and (User.Role == "Admin" or User.IsInAdminGroup or IsInAdminGroup)) %}
                             <a href="/admin" class="{% if ActivePage == 'admin' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
                                 {{ navAdmin }}
-                            </a>
-                            {% endif %}
-                            {% if not isCustomer and (IsInAdminGroup or (User and (User.IsInAdminGroup or User.Role == "Admin"))) %}
-                            <a href="/dev" class="{% if ActivePage == 'dev' %}border-gotrs-500 text-gray-900 dark:text-white{% else %}border-transparent text-gray-500 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
-                                {{ navDev }}
                             </a>
                             {% endif %}
                         </div>
@@ -230,11 +221,6 @@
                         {% if not isCustomer and (User and (User.Role == "Admin" or User.IsInAdminGroup or IsInAdminGroup)) %}
                         <a href="/admin" class="block border-l-4 px-3 py-2 text-base font-medium {% if ActivePage == 'admin' %}bg-gray-100 border-gotrs-500 text-gray-900 dark:bg-gray-900 dark:text-white{% else %}border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white{% endif %}">
                                     {{ navAdmin }}
-                        </a>
-                        {% endif %}
-                        {% if not isCustomer and (IsInAdminGroup or (User and (User.IsInAdminGroup or User.Role == "Admin"))) %}
-                        <a href="/dev" class="block border-l-4 px-3 py-2 text-base font-medium {% if ActivePage == 'dev' %}bg-gray-100 border-gotrs-500 text-gray-900 dark:bg-gray-900 dark:text-white{% else %}border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white{% endif %}">
-                                    {{ navDev }}
                         </a>
                         {% endif %}
                     </div>

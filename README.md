@@ -8,13 +8,13 @@
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://go.dev/)
 [![SLSA 2](https://slsa.dev/images/gh-badge-level2.svg)](https://slsa.dev)
 
-GOTRS (Go Open Ticket Request System) is a modern, secure, cloud-native ticketing and service management platform built as a next-generation replacement for OTRS. Written in Go with a microservices architecture, GOTRS provides enterprise-grade support ticketing, ITSM capabilities, and extensive customization options.
+GOTRS (Go Open Ticket Request System) is a modern, secure, cloud-native ticketing and service management platform built as a next-generation replacement for OTRS. Written in Go with a modular monolith architecture, GOTRS provides enterprise-grade support ticketing, ITSM capabilities, and extensive customization options.
 
 ## Key Features
 
 - 🔒 **Security-First Design** - Built with zero-trust principles, comprehensive audit logging, and enterprise security standards
 - 🚀 **High Performance** - Go-based backend with optimized database queries and caching
-- 🌐 **Cloud Native** - Containerized microservices supporting Docker, Podman, and Kubernetes
+- 🌐 **Cloud Native** - Containerized deployment supporting Docker, Podman, and Kubernetes
 - 📱 **Responsive UI** - Modern HTMX-powered interface with progressive enhancement
 - 🔄 **OTRS Compatible** - Database schema superset enables seamless migration
   - ⚠️ **Unicode Support**: Configure with `UNICODE_SUPPORT=true` for full Unicode support (requires utf8mb4 migration)
@@ -334,7 +334,7 @@ See [i18n Contributing Guide](docs/i18n/CONTRIBUTING.md) for detailed instructio
 | Modern UI | ✅ | ❌ | ✅ | ✅ |
 | REST API | ✅ | ✅ | ✅ | ✅ |
 | GraphQL API | ✅ | ❌ | ❌ | ✅ |
-| Microservices | ✅ | ❌ | ✅ | ✅ |
+| Microservices | 📋 (Future) | ❌ | ✅ | ✅ |
 | Plugin System | ✅ | ✅ | ✅ | ✅ |
 | ITSM Modules | ✅ | ✅ | ❌ | ✅ |
 | Multi-Language | ✅ (100% DE) | ✅ | ✅ | ✅ |

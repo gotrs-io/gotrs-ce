@@ -186,6 +186,10 @@ endif
 ifeq ($(strip $(TEST_BACKEND_PORT)),)
 override TEST_BACKEND_PORT := 18081
 endif
+# Default TEST_BACKEND_BASE_URL for health checks
+ifndef TEST_BACKEND_BASE_URL
+TEST_BACKEND_BASE_URL := http://localhost:$(TEST_BACKEND_PORT)
+endif
 TEST_COMPOSE_FILE := $(CURDIR)/docker-compose.yml:$(CURDIR)/docker-compose.testdb.yml:$(CURDIR)/docker-compose.test.yaml
 
 help:

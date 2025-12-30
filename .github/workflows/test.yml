@@ -77,11 +77,11 @@ jobs:
         uses: codecov/codecov-action@v5
         if: always()
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./generated/coverage.out
           flags: unittests
           fail_ci_if_error: false
           verbose: true
-          use_oidc: true
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4

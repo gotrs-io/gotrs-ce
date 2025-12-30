@@ -7,7 +7,6 @@ run:
   tests: true
   build-tags:
     - integration
-  modules-download-mode: readonly
 
 output:
   formats:
@@ -104,9 +103,15 @@ issues:
     - vendor
     - node_modules
     - scripts
+    - tests
+    - tests/e2e
   exclude-files:
     - ".*archived.*\\.go$"
+    - "tests/e2e/.*\\.go$"
   exclude-rules:
+    - path: tests/
+      linters:
+        - typecheck
     - path: _test\.go
       linters:
         - gocyclo

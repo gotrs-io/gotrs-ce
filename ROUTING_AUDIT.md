@@ -31,19 +31,20 @@ Code (`htmx_routes.go`) may only register:
 ## Enforcement Mechanisms
 1. **Pre-build hook** (`make build`):
    * `generate-route-map` – static scan of templates & JS → `generated/api-map/api-map.json|dot|mmd`
-   * `validate-routes` – extracts code-defined routes from `internal/api/htmx_routes.go` and compares against baseline.
-2. **Baseline File**: `routing/static_routes_baseline.txt`
-   * Created automatically if absent when static routes still exist.
-   * Acts as an allowlist during migration.
-3. **Failure Condition**: Adding a new hard-coded route (not in baseline) fails the build.
+   * `validate-routes` – compares generated route manifest against baseline (`generated/routes-manifest.baseline.json`).
+2. **Route Manifest Baseline**: `generated/routes-manifest.baseline.json`
+   * Machine-readable JSON of all YAML-defined routes.
+   * Update with `make routes-baseline-update` after intentional changes.
+3. **Failure Condition**: Route drift (added/removed/changed routes vs baseline) fails the build unless baseline is updated.
 
-## Migration Workflow
+## Migration Status: ✅ Complete
+All business routes have been migrated to YAML. The migration workflow below is preserved for reference.
+
+### Historical Migration Workflow
 1. Identify a hard-coded route in `htmx_routes.go`.
 2. Create / update appropriate YAML file in `routes/` with method, path, handler name.
 3. Remove the code registration.
 4. Run `make build`.
-   * If route was the last of its kind, remove it from `routing/static_routes_baseline.txt` manually and commit.
-5. Repeat until baseline is empty (ideal end state).
 
 ## Visual Map Generation
 Artifacts generated each build:

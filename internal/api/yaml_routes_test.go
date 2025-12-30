@@ -33,7 +33,7 @@ func TestYAMLRoutesBasicAvailability(t *testing.T) {
 func TestYAMLRouteManifestGenerated(t *testing.T) {
 	t.Setenv("APP_ENV", "test")
 	_ = NewSimpleRouter()
-	if _, err := os.Stat("runtime/routes-manifest.json"); err != nil {
+	if _, err := os.Stat("generated/routes-manifest.json"); err != nil {
 		t.Skipf("routes-manifest.json not generated in minimal test env: %v", err)
 	}
 }

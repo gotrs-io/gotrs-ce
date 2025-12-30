@@ -627,9 +627,7 @@ services:
       - .:/workspace:Z
       - gotrs_cache:/workspace/.cache
       # Subdirs under /workspace/.cache will be created as-needed by non-root user
-      # Keeping node_modules and runtime as dedicated volumes
       - gotrs_node_modules:/workspace/node_modules
-      - gotrs_runtime:/workspace/runtime
     working_dir: /workspace
     networks:
       - gotrs-network
@@ -650,7 +648,6 @@ volumes:
   valkey_test_data:
   gotrs_node_modules:
   gotrs_cache:
-  gotrs_runtime:
   smtp4dev_data:
   # zinc_data:         # Commented out - zinc service disabled
   # temporal_data:     # Commented out - temporal service disabled

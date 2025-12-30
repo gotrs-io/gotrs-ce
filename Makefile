@@ -1179,10 +1179,22 @@ test-stack-wait:
 		echo "Please install the required compose tool and try again."; \
 		exit 1; \
 	fi
-	@COMPOSE_PROFILES="toolbox,testdb" $(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml -f docker-compose.test.yaml run --rm -T \
-		-e TEST_BACKEND_BASE_URL=$(TEST_BACKEND_BASE_URL) \
-		toolbox \
-		bash -lc 'set -e; for i in $$(seq 1 60); do if curl -fsS -o /dev/null "$${TEST_BACKEND_BASE_URL%/}/health"; then exit 0; fi; sleep 1; done; echo "Timed out waiting for test backend at $$TEST_BACKEND_BASE_URL"; exit 1'
+	@# Use host curl if available (CI), otherwise use toolbox container
+	@if command -v curl > /dev/null 2>&1; then \
+		for i in $$(seq 1 60); do \
+			if curl -fsS -o /dev/null "$(TEST_BACKEND_BASE_URL)/health" 2>/dev/null; then \
+				exit 0; \
+			fi; \
+			sleep 1; \
+		done; \
+		echo "Timed out waiting for test backend at $(TEST_BACKEND_BASE_URL)"; \
+		exit 1; \
+	else \
+		COMPOSE_PROFILES="toolbox,testdb" $(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.testdb.yml -f docker-compose.test.yaml run --rm -T \
+			-e TEST_BACKEND_BASE_URL=$(TEST_BACKEND_BASE_URL) \
+			toolbox \
+			bash -lc 'set -e; for i in $$(seq 1 60); do if curl -fsS -o /dev/null "$${TEST_BACKEND_BASE_URL%/}/health"; then exit 0; fi; sleep 1; done; echo "Timed out waiting for test backend at $$TEST_BACKEND_BASE_URL"; exit 1'; \
+	fi
 
 test-stack-teardown:
 	@if echo "$(COMPOSE_CMD)" | grep -q '^MISSING:'; then \

@@ -207,10 +207,11 @@ GOTRS maintains high code quality and security standards through comprehensive a
 - **Manual Builds**: On-demand builds without registry pushing
 
 ### 📊 Quality Metrics
-- All pipelines complete in under 5 minutes
+- All pipelines complete in under 10 minutes
 - Zero-cost (GitHub Actions free tier + open source tools)
-- Comprehensive security scanning (10+ tools)
+- Comprehensive security scanning (8+ tools)
 - SLSA Level 2 compliant build process
+- Coverage reporting via Codecov
 
 ## Installation
 

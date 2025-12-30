@@ -7,6 +7,12 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 ## [Unreleased]
 
 ### Added
+- **CI/CD Pipeline Overhaul**: Complete rewrite of GitHub Actions workflows for containerized testing approach.
+  - Security workflow: Go security scanning (gosec, govulncheck), Semgrep SAST, Hadolint for Dockerfiles, GitLeaks secret detection, license compliance checking, golangci-lint static analysis.
+  - Build workflow: Single multi-stage Docker image build with GHCR publishing.
+  - Test workflow: Containerized test execution via `make test`, coverage generation and upload to Codecov.
+  - All workflows now use correct Dockerfile targets and container-first approach.
+- **Codecov Integration**: Coverage reporting with OIDC authentication for private repositories.
 - **Admin Templates Module**: Full CRUD functionality for standard response templates (Znuny AdminTemplate equivalent). Supports 8 template types (Answer, Create, Email, Forward, Note, PhoneCall, ProcessManagement, Snippet). Queue assignment UI for associating templates with specific queues. Attachment assignment UI for associating standard attachments with templates. Admin list page with search, filter by type/status, and sortable columns. Create/edit form with multi-select template type checkboxes, content type selector (HTML/Markdown). YAML import/export for template backup and migration. Agent integration with template selector in ticket reply/note modals with variable substitution (customer name, ticket number, queue, etc.). Template attachments auto-populate when template selected. 18 unit tests (type parsing, variable substitution, struct validation). Playwright E2E tests for admin UI. Self-registering handlers via init() pattern.
 - **Admin Roles Module**: Full CRUD functionality for role management with database abstraction layer support. Includes role listing, create, update, soft delete, user-role assignments (add/remove users), and group permissions management. All queries use `database.ConvertPlaceholders()` for MySQL/PostgreSQL compatibility and `database.GetAdapter().InsertWithReturning()` for cross-database INSERT operations.
 - **Self-Registering Handler Architecture**: Handlers now register via `init()` calls to `routing.RegisterHandler()`, eliminating manual registration in main.go. Test validates all YAML handlers are registered.
@@ -60,6 +66,9 @@ The format is based on Keep a Changelog and this project (currently) does not ye
 - Documentation updated for inbound email IMAP aliases, folder metadata, and integration coverage notes.
 
 ### Fixed
+- **CI Workflow Failures**: Rewrote security.yml and build.yml workflows that referenced non-existent files (Dockerfile.dev, Dockerfile.frontend, web/ directory). Project is a monolithic Go+HTMX app, not separate frontend/backend.
+- **golangci-lint v1.64+ Compatibility**: Updated .golangci.yml to use `issues.exclude-dirs` instead of deprecated `run.skip-dirs`, removed other deprecated options.
+- **Coverage Generation in CI**: Added git safe.directory configuration and GOFLAGS for VCS stamping to fix coverage generation in containerized CI environment.
 - **Customer User Typeahead JSON Escaping**: Fixed JSON parsing issues in customer user autocomplete seed data where HTML entities (e.g., `&amp;`) were causing parse errors. Added `|escapejs` filter to properly escape strings for JSON context.
 - **Admin Navigation Bar**: Fixed navigation showing customer portal links on admin pages (e.g., `/admin/customer/companies/*/edit`) when `PortalConfig` was passed for portal settings tab. Added `isAdmin` flag check in `base.pongo2` to prevent `isCustomer` detection on admin pages.
 - SLA admin update handler now converts PostgreSQL placeholders to MySQL (`ConvertPlaceholders`).

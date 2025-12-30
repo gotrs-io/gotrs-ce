@@ -1,6 +1,6 @@
 # GOTRS Development Roadmap
 
-*Last updated: December 27, 2025*
+*Last updated: December 30, 2025*
 
 ## 🚀 Current Status
 
@@ -15,6 +15,7 @@ GOTRS is a modern, open-source ticketing system built with Go and HTMX, designed
 - ✅ **Database**: Full MySQL/MariaDB and PostgreSQL compatibility
 - ✅ **Search**: Ticket search by number or title with pagination
 - ✅ **Queue Management**: Real-time statistics and ticket filtering
+- ✅ **CI/CD**: All GitHub Actions workflows passing (Security, Tests, Build)
 
 ### What's Missing for MVP
 - ⏳ 48-hour stability burn-in test
@@ -22,7 +23,7 @@ GOTRS is a modern, open-source ticketing system built with Go and HTMX, designed
 
 ---
 
-## 📊 Metrics (December 23, 2025)
+## 📊 Metrics (December 30, 2025)
 
 | Metric | Status | Target |
 |--------|--------|--------|
@@ -31,8 +32,9 @@ GOTRS is a modern, open-source ticketing system built with Go and HTMX, designed
 | Email Integration | **80%** | Basic |
 | Admin Modules | ~60% | 80% |
 | Test Coverage | ~65% | 50% |
-| Production Readiness | **60%** | 70% |
-| Days to MVP | **26** | - |
+| CI/CD Pipelines | **100%** | All passing |
+| Production Readiness | **65%** | 70% |
+| Days to MVP | **19** | - |
 
 ---
 
@@ -84,6 +86,14 @@ GOTRS is a modern, open-source ticketing system built with Go and HTMX, designed
 - Comprehensive API/HTMX test suites
 - DB-less fallbacks for CI
 - Playwright E2E harness
+
+### CI/CD Infrastructure (December 2025)
+- GitHub Actions workflows fully operational (Security, Tests, Build)
+- Containerized test execution via `make test`
+- Codecov integration for coverage reporting
+- golangci-lint static analysis (non-blocking, reports issues)
+- Multi-arch Docker image builds (AMD64/ARM64)
+- SLSA Level 2 supply chain security
 
 ---
 

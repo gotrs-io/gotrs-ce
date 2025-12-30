@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
-MANIFEST=runtime/routes-manifest.json
-BASE=runtime/routes-manifest.baseline.json
+MANIFEST=generated/routes-manifest.json
+BASE=generated/routes-manifest.baseline.json
 if [ ! -f "$MANIFEST" ]; then
   echo "routes-manifest.json not found (run make routes-generate)" >&2
   exit 1

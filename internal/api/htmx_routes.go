@@ -910,399 +910,16 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		log.Printf("⚠️ Templates directory not available; continuing without renderer")
 	}
 
-	// Static files are served via YAML routes (handleStaticFiles)
-
 	// Optional routes watcher (dev only)
 	startRoutesWatcher()
 
-	// Health, liveness, and root are governed by YAML routes now
-
-	// Public login/logout now handled via YAML routes
-
-	// Protected routes - require authentication
+	// Create auth middleware for YAML routes
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
-	protected := r.Group("")
-	protected.Use(authMiddleware.RequireAuth())
 
-	// Dashboard & other UI routes now registered via YAML configuration.
-	// Removed legacy hard-coded registrations: /dashboard, /tickets, /profile, /settings,
-	// ticket creation paths (/ticket/new*, /tickets/new), websocket chat, claude demo,
-	// and session-timeout preference endpoints. Any remaining direct registration
-	// below should represent routes not yet migrated or requiring dynamic logic.
+	// Initialize Dynamic Module System (requires database)
+	initDynamicModules()
 
-	// Register tickets route (uses handleTickets which handles DB availability gracefully)
-	protected.GET("/tickets", handleTickets)
-	// Legacy view redirects are registered in YAML (compatibility routes)
-	protected.GET("/ticket/:id", handleTicketDetail)
-	protected.GET("/queues", handleQueues)
-	protected.GET("/queues/:id", handleQueueDetail)
-
-	// Admin routes group - require admin privileges
-	adminRoutes := protected.Group("/admin")
-	adminRoutes.Use(checkAdmin())
-	{
-		// Admin dashboard and main sections
-		adminRoutes.GET("", handleAdminDashboard)
-		adminRoutes.GET("/dashboard", handleAdminDashboard)
-			// Users now uses the dynamic module system
-			adminRoutes.GET("/users", func(c *gin.Context) {
-				c.Params = append(c.Params, gin.Param{Key: "module", Value: "users"})
-				if dynamicHandler != nil {
-					dynamicHandler.ServeModule(c)
-				} else {
-					c.JSON(500, gin.H{"error": "Dynamic module system not initialized"})
-				}
-			})
-			adminRoutes.GET("/queues", handleAdminQueues)
-			adminRoutes.GET("/priorities", handleAdminPriorities)
-			adminRoutes.GET("/lookups", handleAdminLookups)
-			adminRoutes.GET("/roadmap", handleAdminRoadmap)
-			adminRoutes.GET("/schema-discovery", handleSchemaDiscovery)
-			adminRoutes.GET("/schema-monitoring", handleSchemaMonitoring)
-
-			// User management routes - now handled by dynamic module
-			adminRoutes.GET("/users/new", func(c *gin.Context) {
-				c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: "new"}}
-				if dynamicHandler != nil {
-					dynamicHandler.ServeModule(c)
-				} else {
-					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-				}
-			})
-			adminRoutes.POST("/users", func(c *gin.Context) {
-				c.Params = append(c.Params, gin.Param{Key: "module", Value: "users"})
-				if dynamicHandler != nil {
-					dynamicHandler.ServeModule(c)
-				} else {
-					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-				}
-			})
-			adminRoutes.GET("/users/:id", func(c *gin.Context) {
-				id := c.Param("id")
-				c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}}
-				if dynamicHandler != nil {
-					dynamicHandler.ServeModule(c)
-				} else {
-					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-				}
-			})
-			adminRoutes.GET("/users/:id/edit", func(c *gin.Context) {
-				id := c.Param("id")
-				c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}, {Key: "action", Value: "edit"}}
-				if dynamicHandler != nil {
-					dynamicHandler.ServeModule(c)
-				} else {
-					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-				}
-			})
-			adminRoutes.PUT("/users/:id", func(c *gin.Context) {
-				id := c.Param("id")
-				c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}}
-				if dynamicHandler != nil {
-					dynamicHandler.ServeModule(c)
-				} else {
-					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-				}
-			})
-			adminRoutes.DELETE("/users/:id", func(c *gin.Context) {
-				id := c.Param("id")
-				c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}}
-				if dynamicHandler != nil {
-					dynamicHandler.ServeModule(c)
-				} else {
-					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-				}
-			})
-			adminRoutes.PUT("/users/:id/status", func(c *gin.Context) {
-				id := c.Param("id")
-				c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}, {Key: "action", Value: "status"}}
-				if dynamicHandler != nil {
-					dynamicHandler.ServeModule(c)
-				} else {
-					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-				}
-			})
-			adminRoutes.POST("/users/:id/reset-password", func(c *gin.Context) {
-				id := c.Param("id")
-				c.Params = []gin.Param{{Key: "module", Value: "users"}, {Key: "id", Value: id}, {Key: "action", Value: "reset-password"}}
-				if dynamicHandler != nil {
-					dynamicHandler.ServeModule(c)
-				} else {
-					c.JSON(500, gin.H{"success": false, "error": "Dynamic module system not initialized"})
-				}
-			})
-
-			// Permission management routes (OTRS Role equivalent)
-			adminRoutes.GET("/permissions", handleAdminPermissions)
-			adminRoutes.GET("/permissions/user/:userId", handleGetUserPermissionMatrix)
-			adminRoutes.PUT("/permissions/user/:userId", handleUpdateUserPermissions)
-			adminRoutes.POST("/permissions/user/:userId", handleUpdateUserPermissions) // HTML form support
-			adminRoutes.GET("/permissions/group/:groupId", handleGetGroupPermissionMatrix)
-			adminRoutes.GET("/groups/:id/permissions", handleGroupPermissions)
-			adminRoutes.PUT("/groups/:id/permissions", handleSaveGroupPermissions)
-			adminRoutes.POST("/groups/:id/permissions", handleSaveGroupPermissions)
-			adminRoutes.POST("/permissions/clone", handleCloneUserPermissions)
-
-			// Group Management (OTRS AdminGroup)
-			adminRoutes.GET("/groups", handleAdminGroups)
-			adminRoutes.GET("/groups/:id", handleGetGroup)
-			adminRoutes.POST("/groups", handleCreateGroup)
-			adminRoutes.PUT("/groups/:id", handleUpdateGroup)
-			adminRoutes.DELETE("/groups/:id", handleDeleteGroup)
-			adminRoutes.GET("/groups/:id/users", handleGetGroupUsers)
-			adminRoutes.POST("/groups/:id/users", handleAddUserToGroup)
-			adminRoutes.DELETE("/groups/:id/users/:userId", handleRemoveUserFromGroup)
-
-			// Role Management - uses canonical route definitions from test_router_registry.go
-			// to prevent test/production route divergence
-			RegisterAdminRoutes(adminRoutes, GetAdminRolesRoutes())
-
-			// Dynamic Fields Management - uses canonical route definitions
-			RegisterAdminRoutes(adminRoutes, GetAdminDynamicFieldsRoutes())
-
-			// Customer management routes
-			adminRoutes.GET("/customer-users", underConstruction("Customer Users"))
-			adminRoutes.GET("/customer-user-group", underConstruction("Customer User Groups"))
-			adminRoutes.GET("/customers", underConstruction("Customer Management"))
-
-			// Customer Companies - handled by YAML routing
-
-			// Ticket configuration routes
-			adminRoutes.GET("/states", handleAdminStates)
-			adminRoutes.POST("/states/create", handleAdminStateCreate)
-			adminRoutes.PUT("/states/:id/update", handleAdminStateUpdate)
-			adminRoutes.DELETE("/states/:id/delete", handleAdminStateDelete)
-			adminRoutes.GET("/states/types", handleGetStateTypes)
-
-			adminRoutes.GET("/types", handleAdminTypes)
-			adminRoutes.POST("/types/create", handleAdminTypeCreate)
-			adminRoutes.POST("/types/:id/update", handleAdminTypeUpdate)
-			adminRoutes.POST("/types/:id/delete", handleAdminTypeDelete)
-			adminRoutes.GET("/services", handleAdminServices)
-			adminRoutes.POST("/services/create", handleAdminServiceCreate)
-			adminRoutes.PUT("/services/:id/update", handleAdminServiceUpdate)
-			adminRoutes.DELETE("/services/:id/delete", handleAdminServiceDelete)
-			adminRoutes.GET("/sla", handleAdminSLA)
-			adminRoutes.POST("/sla/create", handleAdminSLACreate)
-			adminRoutes.PUT("/sla/:id/update", handleAdminSLAUpdate)
-			adminRoutes.DELETE("/sla/:id/delete", handleAdminSLADelete)
-
-			// Attachment management
-			adminRoutes.GET("/attachments", handleAdminAttachment)
-			adminRoutes.POST("/attachments/create", handleAdminAttachmentCreate)
-			adminRoutes.PUT("/attachments/:id/update", handleAdminAttachmentUpdate)
-			adminRoutes.DELETE("/attachments/:id/delete", handleAdminAttachmentDelete)
-			adminRoutes.GET("/attachments/:id/download", handleAdminAttachmentDownload)
-			adminRoutes.PUT("/attachments/:id/toggle", handleAdminAttachmentToggle)
-
-			// Communication templates
-			adminRoutes.GET("/signatures", underConstruction("Email Signatures"))
-			adminRoutes.GET("/salutations", underConstruction("Email Salutations"))
-			adminRoutes.GET("/notifications", underConstruction("Notification Templates"))
-
-			// System configuration
-			adminRoutes.GET("/settings", underConstruction("System Settings"))
-			adminRoutes.GET("/templates", underConstruction("Template Management"))
-			adminRoutes.GET("/reports", underConstruction("Reports"))
-			adminRoutes.GET("/backup", underConstruction("Backup & Restore"))
-
-			// Dynamic Module System
-			var (
-				dbConn *sql.DB
-				dbErr  error
-			)
-			const (
-				maxDynamicDBAttempts = 20
-				dynamicDBRetryDelay  = 500 * time.Millisecond
-			)
-			for attempt := 1; attempt <= maxDynamicDBAttempts; attempt++ {
-				dbConn, dbErr = database.GetDB()
-				if dbErr == nil && dbConn != nil {
-					break
-				}
-				log.Printf("Dynamic modules waiting for database (attempt %d/%d): %v", attempt, maxDynamicDBAttempts, dbErr)
-				time.Sleep(dynamicDBRetryDelay)
-			}
-			if dbErr == nil && dbConn != nil {
-				if err := SetupDynamicModules(dbConn); err != nil {
-					log.Printf("WARNING: Failed to setup dynamic modules: %v", err)
-				} else {
-					log.Println("✅ Dynamic Module System integrated successfully")
-				}
-			} else {
-				log.Printf("WARNING: Cannot setup dynamic modules without database after retries: %v", dbErr)
-			}
-		}
-
-	// HTMX API endpoints (return HTML fragments)
-	api := r.Group("/api")
-
-	// Authentication endpoints (no auth required)
-	{
-		api.GET("/auth/login", handleHTMXLogin) // Also support GET for the form
-		api.GET("/auth/customer", handleCustomerLoginPage)
-		api.POST("/auth/login", handleLogin(jwtManager))
-		api.POST("/auth/customer/login", handleCustomerLogin(jwtManager))
-		api.POST("/auth/logout", handleHTMXLogout)
-		api.GET("/auth/refresh", handleAuthRefresh)
-		api.POST("/auth/refresh", handleAuthRefresh)
-		api.GET("/auth/register", handleAuthRegister)
-		api.POST("/auth/register", handleAuthRegister)
-	}
-
-	// Get database connection for handlers that need it
-	// db, _ := database.GetDB()
-
-	// Protected API endpoints - require authentication (inject auth in tests/dev)
-	protectedAPI := api.Group("")
-	protectedAPI.Use(authMiddleware.RequireAuth())
-
-	// Dashboard endpoints
-	{
-		protectedAPI.GET("/dashboard/stats", handleDashboardStats)
-		protectedAPI.GET("/dashboard/recent-tickets", handleRecentTickets)
-		protectedAPI.GET("/dashboard/notifications", handleNotifications)
-		protectedAPI.GET("/dashboard/quick-actions", handleQuickActions)
-		protectedAPI.GET("/dashboard/activity", handleActivity)
-		protectedAPI.GET("/dashboard/performance", handlePerformance)
-	}
-
-	// Queue management endpoints
-	{
-		// Queues API for UI (accept both JSON and form submissions)
-		protectedAPI.GET("/queues", handleGetQueuesAPI)
-		protectedAPI.POST("/queues", func(c *gin.Context) {
-			// If form-encoded submission from modal, translate to JSON shape expected by handler
-			if strings.Contains(strings.ToLower(c.GetHeader("Content-Type")), "application/x-www-form-urlencoded") {
-				name := c.PostForm("name")
-				groupIDStr := c.PostForm("group_id")
-				comments := c.PostForm("comments")
-				var groupID int
-				if v, err := strconv.Atoi(groupIDStr); err == nil {
-					groupID = v
-				}
-				payload := gin.H{"name": name, "group_id": groupID}
-				if comments != "" {
-					payload["comments"] = comments
-				}
-				c.Request.Header.Set("Content-Type", "application/json")
-				c.Set("__json_body__", payload)
-			}
-			handleCreateQueue(c)
-		})
-		protectedAPI.GET("/queues/:id", HandleAPIQueueGet)
-		protectedAPI.GET("/queues/:id/details", HandleAPIQueueDetails)
-		protectedAPI.PUT("/queues/:id/status", HandleAPIQueueStatus)
-	}
-
-	// Agent Interface Routes
-	agentRoutes := protected.Group("/agent")
-	{
-		// Get database connection for agent routes
-		if db, err := database.GetDB(); err == nil && db != nil {
-			RegisterAgentRoutes(agentRoutes, db)
-		}
-	}
-
-	// Customer Portal Routes
-	customerRoutes := protected.Group("/customer")
-	customerRoutes.Use(middleware.RequireRole("Customer"))
-	{
-		// Get database connection for customer routes
-		if db, err := database.GetDB(); err == nil && db != nil {
-			RegisterCustomerRoutes(customerRoutes, db)
-		}
-	}
-
-	// Ticket endpoints
-	{
-		protectedAPI.GET("/tickets", handleAPITickets)
-		protectedAPI.POST("/tickets", handleCreateTicket)
-		protectedAPI.GET("/tickets/:id", handleGetTicket)
-		protectedAPI.PUT("/tickets/:id", handleUpdateTicket)
-		protectedAPI.DELETE("/tickets/:id", handleDeleteTicket)
-		protectedAPI.POST("/tickets/:id/notes", handleAddTicketNote)
-		protectedAPI.GET("/tickets/:id/history", handleGetTicketHistory)
-		protectedAPI.GET("/tickets/:id/available-agents", handleGetAvailableAgents)
-		protectedAPI.POST("/tickets/:id/assign", handleAssignTicket)
-		protectedAPI.POST("/tickets/:id/close", handleCloseTicket)
-		protectedAPI.POST("/tickets/:id/reopen", handleReopenTicket)
-		protectedAPI.GET("/tickets/search", handleSearchTickets)
-		protectedAPI.GET("/tickets/filter", handleFilterTickets)
-		protectedAPI.GET("/files/*path", handleServeFile)
-
-		// Group management API endpoints
-		protectedAPI.GET("/groups", handleGetGroups)
-		protectedAPI.GET("/groups/:id/members", handleGetGroupMembers)
-		protectedAPI.GET("/groups/:id", handleGetGroupAPI)
-
-		// Ticket Advanced Search endpoints
-		protectedAPI.GET("/tickets/advanced-search", handleAdvancedTicketSearch)
-		protectedAPI.GET("/tickets/search/suggestions", handleSearchSuggestions)
-		protectedAPI.GET("/tickets/search/export", handleExportSearchResults)
-		protectedAPI.POST("/tickets/search/history", handleSaveSearchHistory)
-		protectedAPI.GET("/tickets/search/history", handleGetSearchHistory)
-		protectedAPI.DELETE("/tickets/search/history/:id", handleDeleteSearchHistory)
-		protectedAPI.POST("/tickets/search/saved", handleCreateSavedSearch)
-		protectedAPI.GET("/tickets/search/saved", handleGetSavedSearches)
-		protectedAPI.GET("/tickets/search/saved/:id/execute", handleExecuteSavedSearch)
-		protectedAPI.PUT("/tickets/search/saved/:id", handleUpdateSavedSearch)
-		protectedAPI.DELETE("/tickets/search/saved/:id", handleDeleteSavedSearch)
-
-		// Canned responses endpoints
-		cannedResponseHandlers := NewCannedResponseHandlers()
-		protectedAPI.GET("/canned-responses", cannedResponseHandlers.GetResponses)
-		protectedAPI.GET("/canned-responses/quick", cannedResponseHandlers.GetQuickResponses)
-		protectedAPI.GET("/canned-responses/popular", cannedResponseHandlers.GetPopularResponses)
-		protectedAPI.GET("/canned-responses/categories", cannedResponseHandlers.GetCategories)
-		protectedAPI.GET("/canned-responses/category/:category", cannedResponseHandlers.GetResponsesByCategory)
-		protectedAPI.GET("/canned-responses/search", cannedResponseHandlers.SearchResponses)
-		protectedAPI.GET("/canned-responses/user", cannedResponseHandlers.GetResponsesForUser)
-		protectedAPI.GET("/canned-responses/:id", cannedResponseHandlers.GetResponseByID)
-
-		// Ticket merge endpoints
-		protectedAPI.POST("/tickets/:id/merge", handleMergeTickets)
-		protectedAPI.POST("/tickets/:id/unmerge", handleUnmergeTicket)
-		protectedAPI.GET("/tickets/:id/merge-history", handleGetMergeHistory)
-
-		// Admin only canned response operations
-		adminAPI := protectedAPI.Group("")
-		adminAPI.Use(checkAdmin())
-		{
-			adminAPI.POST("/canned-responses", cannedResponseHandlers.CreateResponse)
-			adminAPI.PUT("/canned-responses/:id", cannedResponseHandlers.UpdateResponse)
-			adminAPI.DELETE("/canned-responses/:id", cannedResponseHandlers.DeleteResponse)
-			adminAPI.POST("/canned-responses/apply", cannedResponseHandlers.ApplyResponse)
-			adminAPI.GET("/canned-responses/export", cannedResponseHandlers.ExportResponses)
-			adminAPI.POST("/canned-responses/import", cannedResponseHandlers.ImportResponses)
-		}
-	}
-
-	// Lookup data endpoints
-	{
-		apiGroup := r.Group("/api")
-		apiGroup.GET("/lookups/queues", HandleGetQueues)
-		apiGroup.GET("/lookups/priorities", HandleGetPriorities)
-		apiGroup.GET("/lookups/types", HandleGetTypes)
-		apiGroup.GET("/lookups/statuses", HandleGetStatuses)
-		// Legacy/state list endpoint used by ticket-zoom.js
-		apiGroup.GET("/v1/states", HandleListStatesAPI)
-		apiGroup.GET("/lookups/form-data", HandleGetFormData)
-		apiGroup.POST("/lookups/cache/invalidate", HandleInvalidateLookupCache)
-
-		apiGroup.POST("/tickets/:id/reply", handleTicketReply)
-		apiGroup.POST("/tickets/:id/priority", handleUpdateTicketPriority)
-		apiGroup.POST("/tickets/:id/queue", handleUpdateTicketQueue)
-		apiGroup.POST("/tickets/:id/status", handleUpdateTicketStatus)
-
-		protectedAPI.POST("/types", handleCreateType)
-		protectedAPI.PUT("/types/:id", handleUpdateType)
-		protectedAPI.DELETE("/types/:id", handleDeleteType)
-
-		// Customer search endpoint for autocomplete
-		protectedAPI.GET("/customers/search", handleCustomerSearch)
-	}
-
+	// Setup API v1 routes (OpenAPI-compliant endpoints)
 	SetupAPIv1Routes(r, jwtManager, ldapProvider, i18nSvc)
 
 	// Catch-all for undefined routes
@@ -1310,7 +927,8 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		sendErrorResponse(c, http.StatusNotFound, "Page not found")
 	})
 
-	// Register YAML-based routes (after legacy/manual to allow override warnings)
+	// Register YAML-based routes - ALL routes are now defined in YAML files
+	// See routes/*.yaml for route definitions
 	registerYAMLRoutes(r, authMiddleware)
 
 	// Selective sub-engine mode (keeps static + YAML separated for targeted reload)
@@ -1324,6 +942,35 @@ func setupHTMXRoutesWithAuth(r *gin.Engine, jwtManager *auth.JWTManager, ldapPro
 		hotReloadableEngine.Store(r)
 		// Mount a top-level handler that always delegates to latest engine (routes registered above)
 		r.Any("/*path", engineHandlerMiddleware(r))
+	}
+}
+
+// initDynamicModules initializes the dynamic module system with database connection
+func initDynamicModules() {
+	var (
+		dbConn *sql.DB
+		dbErr  error
+	)
+	const (
+		maxDynamicDBAttempts = 20
+		dynamicDBRetryDelay  = 500 * time.Millisecond
+	)
+	for attempt := 1; attempt <= maxDynamicDBAttempts; attempt++ {
+		dbConn, dbErr = database.GetDB()
+		if dbErr == nil && dbConn != nil {
+			break
+		}
+		log.Printf("Dynamic modules waiting for database (attempt %d/%d): %v", attempt, maxDynamicDBAttempts, dbErr)
+		time.Sleep(dynamicDBRetryDelay)
+	}
+	if dbErr == nil && dbConn != nil {
+		if err := SetupDynamicModules(dbConn); err != nil {
+			log.Printf("WARNING: Failed to setup dynamic modules: %v", err)
+		} else {
+			log.Println("✅ Dynamic Module System integrated successfully")
+		}
+	} else {
+		log.Printf("WARNING: Cannot setup dynamic modules without database after retries: %v", dbErr)
 	}
 }
 

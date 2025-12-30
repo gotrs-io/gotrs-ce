@@ -210,12 +210,12 @@ const createTicketScript = `async ({subject, body, queueID, typeID, customerEmai
 	const requestBody = {
 		subject,
 		title: subject,
-		queue_id: queueID,
-		priority_id: 3,
-		state_id: 1,
+		queue_id: String(queueID),
+		priority_id: "3",
+		state_id: "1",
 		body,
 		customer_email: customerEmail,
-		type_id: typeID
+		type_id: String(typeID)
 	};
 	const response = await fetch('/api/tickets', {
 		method: 'POST',

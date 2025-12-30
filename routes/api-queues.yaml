@@ -1,4 +1,4 @@
-# Queue API Routes Configuration
+# Queue API Routes Configuration - Migrated from protectedAPI code routes
 apiVersion: v1
 kind: RouteGroup
 metadata:
@@ -7,22 +7,31 @@ metadata:
   namespace: default
   enabled: true
 spec:
-  prefix: /api
+  prefix: /api/queues
   middleware:
-    - auth # Require authentication
+    - auth
   routes:
-  # Queue endpoints
-  - path: /queues/:id
-    method: GET
-    handler: HandleAPIQueueGet
-    description: "Get queue by ID"
-    
-  - path: /queues/:id/details
-    method: GET
-    handler: HandleAPIQueueDetails
-    description: "Get queue details"
-    
-  - path: /queues/:id/status
-    method: PUT
-    handler: HandleAPIQueueStatus
-    description: "Update queue status"
+    - path: /
+      method: GET
+      handler: handleGetQueuesAPI
+      description: "List all queues"
+
+    - path: /
+      method: POST
+      handler: handleCreateQueueWrapper
+      description: "Create new queue"
+
+    - path: /:id
+      method: GET
+      handler: HandleAPIQueueGet
+      description: "Get queue by ID"
+
+    - path: /:id/details
+      method: GET
+      handler: HandleAPIQueueDetails
+      description: "Get queue details"
+
+    - path: /:id/status
+      method: PUT
+      handler: HandleAPIQueueStatus
+      description: "Update queue status"

@@ -456,9 +456,6 @@ import-otrs
 
 # Generated artifacts (built in containers)
 generated/
-runtime/routes-manifest.json
-runtime/.manifest.tmp
-runtime/testfile
 static/js/test_write
 
 # ============================================

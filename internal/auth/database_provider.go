@@ -36,15 +36,12 @@ func (p *DatabaseAuthProvider) Authenticate(ctx context.Context, username, passw
 
 	// In OTRS, agents use login (which can contain @), not separate email field
 	// Always try GetByLogin first for agents
-	fmt.Printf("DatabaseAuthProvider: Looking up user '%s'\n", username)
 	user, err = p.userRepo.GetByLogin(username)
 
 	// If agent lookup fails, try customer_user table
 	if err != nil {
-		fmt.Printf("DatabaseAuthProvider: Agent lookup failed, trying customer_user table: %v\n", err)
 		user, err = p.authenticateCustomerUser(ctx, username, password)
 		if err != nil {
-			fmt.Printf("DatabaseAuthProvider: Customer lookup also failed: %v\n", err)
 			return nil, ErrUserNotFound
 		}
 		isCustomer = true
@@ -52,22 +49,15 @@ func (p *DatabaseAuthProvider) Authenticate(ctx context.Context, username, passw
 
 	// Check if user is active (valid_id = 1 in OTRS)
 	if !user.IsActive() {
-		fmt.Printf("DatabaseAuthProvider: User %s is not active (valid_id=%d)\n", user.Login, user.ValidID)
 		return nil, ErrUserDisabled
 	}
 
 	// Verify password using our configurable hasher
 	if !isCustomer {
-		fmt.Printf("DatabaseAuthProvider: Verifying password for user %s\n", user.Login)
-		fmt.Printf("DatabaseAuthProvider: Password hash from DB: %s\n", user.Password)
-		fmt.Printf("DatabaseAuthProvider: Password length from user: %d\n", len(password))
-
 		// Use our hasher which auto-detects hash type (SHA256 for OTRS, bcrypt for GOTRS)
 		if !p.hasher.VerifyPassword(password, user.Password) {
-			fmt.Printf("DatabaseAuthProvider: Password verification failed\n")
 			return nil, ErrInvalidCredentials
 		}
-		fmt.Printf("DatabaseAuthProvider: Password verification successful\n")
 	}
 
 	// Clear password from user object before returning
@@ -167,7 +157,6 @@ func (p *DatabaseAuthProvider) authenticateCustomerUser(ctx context.Context, use
 		Password:  "",         // Clear password
 	}
 
-	fmt.Printf("DatabaseAuthProvider: Customer authentication successful for %s\n", login)
 	return user, nil
 }
 

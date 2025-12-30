@@ -1,46 +1,24 @@
 #!/bin/sh
 set -eu
 
+# Validate that NO static routes exist in htmx_routes.go.
+# ALL routes must be defined in YAML files (routes/*.yaml).
+
 SRC_FILE=internal/api/htmx_routes.go
-BASELINE_FILE=routing/static_routes_baseline.txt
-TMP_DIR=tmp
-mkdir -p "$TMP_DIR" routing
-chmod 777 "$TMP_DIR" || true
 
-CURRENT="$TMP_DIR/static_routes_current.txt"
+# Find hardcoded route patterns like .GET("/path", .POST("/admin/users"
+# Excludes generic helper functions that use variables (path, handlers...)
+ROUTES=$(grep -E '\.(GET|POST|PUT|DELETE|PATCH)\s*\(\s*"/' "$SRC_FILE" 2>/dev/null | grep -v '^\s*//' || true)
 
-# Extract code-defined routes (protected/protectedAPI groups) ignoring obvious infra
-grep -E 'protected(API)?\.(GET|POST|PUT|DELETE|PATCH)\("/[^" ]*' "$SRC_FILE" 2>/dev/null \
-  | sed -E 's/.*\("(\/[^"]*)".*/\1/' \
-  | grep -v -E '^(/health|/static/|/favicon\.ico)$' \
-  | sort -u > "$CURRENT" || true
-
-if [ ! -s "$CURRENT" ]; then
-  echo "No static business routes detected (good)."
-  # If baseline exists and had entries previously, we keep it until migration done
+if [ -z "$ROUTES" ]; then
+  echo "✓ No static routes in htmx_routes.go. All routes defined in YAML."
   exit 0
 fi
 
-if [ ! -f "$BASELINE_FILE" ]; then
-  cp "$CURRENT" "$BASELINE_FILE"
-  echo "# Baseline created: $BASELINE_FILE" >&2
-  echo "# Commit this file. Future static additions will fail." >&2
-  exit 0
-fi
-
-# Strip comments and empty lines from baseline before comparison
-BASELINE_CLEAN="$TMP_DIR/baseline_clean.txt"
-grep -v '^#' "$BASELINE_FILE" | grep -v '^$' | sort -u > "$BASELINE_CLEAN" || true
-
-NEW=$(comm -13 "$BASELINE_CLEAN" "$CURRENT" || true)
-
-if [ -n "$NEW" ]; then
-  echo "ERROR: New hard-coded routes detected (should move to YAML):" >&2
-  echo "$NEW" >&2
-  echo "---" >&2
-  echo "To accept temporarily (not recommended), append to baseline: $BASELINE_FILE" >&2
-  exit 1
-fi
-
-echo "Static route audit passed."
-exit 0
+COUNT=$(echo "$ROUTES" | wc -l | tr -d ' ')
+echo "ERROR: Found $COUNT hard-coded route(s) in htmx_routes.go:" >&2
+echo "$ROUTES" >&2
+echo "" >&2
+echo "ALL routes must be defined in routes/*.yaml files." >&2
+echo "htmx_routes.go should only contain initialization logic." >&2
+exit 1

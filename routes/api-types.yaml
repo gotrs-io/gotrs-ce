@@ -1,0 +1,27 @@
+# Types API Routes - Migrated from protectedAPI code routes
+apiVersion: v1
+kind: RouteGroup
+metadata:
+  name: api-types-protected
+  description: "Ticket type management API endpoints (protected)"
+  namespace: default
+  enabled: true
+spec:
+  prefix: /api/types
+  middleware:
+    - auth
+  routes:
+    - path: /
+      method: POST
+      handler: handleCreateType
+      description: "Create new ticket type"
+
+    - path: /:id
+      method: PUT
+      handler: handleUpdateType
+      description: "Update ticket type"
+
+    - path: /:id
+      method: DELETE
+      handler: handleDeleteType
+      description: "Delete ticket type"

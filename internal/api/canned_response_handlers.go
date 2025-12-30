@@ -16,6 +16,9 @@ type CannedResponseHandlers struct {
 	service *service.CannedResponseService
 }
 
+// CannedResponseHandlerExports provides singleton access for YAML route registration
+var CannedResponseHandlerExports = NewCannedResponseHandlers()
+
 // NewCannedResponseHandlers creates a new canned response handlers instance
 func NewCannedResponseHandlers() *CannedResponseHandlers {
 	repo := repository.NewMemoryCannedResponseRepository()

@@ -1,0 +1,52 @@
+# Canned Responses API Routes - Migrated from protectedAPI code routes
+apiVersion: v1
+kind: RouteGroup
+metadata:
+  name: api-canned-responses-protected
+  description: "Canned response management API endpoints (protected)"
+  namespace: default
+  enabled: true
+spec:
+  prefix: /api/canned-responses
+  middleware:
+    - auth
+  routes:
+    - path: /
+      method: GET
+      handler: cannedResponses_GetResponses
+      description: "List all canned responses"
+
+    - path: /quick
+      method: GET
+      handler: cannedResponses_GetQuickResponses
+      description: "Get quick access responses"
+
+    - path: /popular
+      method: GET
+      handler: cannedResponses_GetPopularResponses
+      description: "Get popular responses"
+
+    - path: /categories
+      method: GET
+      handler: cannedResponses_GetCategories
+      description: "List response categories"
+
+    - path: /category/:category
+      method: GET
+      handler: cannedResponses_GetResponsesByCategory
+      description: "Get responses by category"
+
+    - path: /search
+      method: GET
+      handler: cannedResponses_SearchResponses
+      description: "Search canned responses"
+
+    - path: /user
+      method: GET
+      handler: cannedResponses_GetResponsesForUser
+      description: "Get responses for current user"
+
+    - path: /:id
+      method: GET
+      handler: cannedResponses_GetResponseByID
+      description: "Get response by ID"

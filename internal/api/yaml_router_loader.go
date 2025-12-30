@@ -301,15 +301,15 @@ func registerYAMLRoutes(r *gin.Engine, authMW interface{}) {
 	// Write manifest
 	if len(manifest) > 0 {
 		log.Printf("writing routes manifest with %d entries", len(manifest))
-		if err := os.MkdirAll("runtime", 0o755); err != nil {
-			log.Printf("failed to create runtime dir: %v", err)
+		if err := os.MkdirAll("generated", 0o755); err != nil {
+			log.Printf("failed to create generated dir: %v", err)
 		}
 		mf := struct {
 			GeneratedAt time.Time       `json:"generatedAt"`
 			Routes      []manifestRoute `json:"routes"`
 		}{GeneratedAt: time.Now().UTC(), Routes: manifest}
 		if b, err := json.MarshalIndent(mf, "", "  "); err == nil {
-			if err := os.WriteFile("runtime/routes-manifest.json", b, 0o644); err != nil {
+			if err := os.WriteFile("generated/routes-manifest.json", b, 0o644); err != nil {
 				log.Printf("failed writing routes manifest: %v", err)
 			}
 		} else {
@@ -371,15 +371,15 @@ func GenerateRoutesManifest() error {
 	r := gin.New()
 	// minimal middleware similar to gin.Default without logger/recovery spam for tooling
 	r.Use(gin.Recovery())
-	if err := os.MkdirAll("runtime", 0o755); err != nil {
-		log.Printf("failed to pre-create runtime dir: %v", err)
+	if err := os.MkdirAll("generated", 0o755); err != nil {
+		log.Printf("failed to pre-create generated dir: %v", err)
 	} else {
-		if fi, err := os.Stat("runtime"); err == nil && fi.IsDir() {
-			log.Printf("runtime dir ready for manifest output")
+		if fi, err := os.Stat("generated"); err == nil && fi.IsDir() {
+			log.Printf("generated dir ready for manifest output")
 		}
 	}
 	registerYAMLRoutes(r, nil)
-	if _, err := os.Stat("runtime/routes-manifest.json"); err != nil {
+	if _, err := os.Stat("generated/routes-manifest.json"); err != nil {
 		return err
 	}
 	return nil

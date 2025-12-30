@@ -176,6 +176,26 @@ func handleGetQueuesAPI(c *gin.Context) {
 // handleQueuesAPI is an alias expected by tests; routes to handleGetQueuesAPI
 func handleQueuesAPI(c *gin.Context) { handleGetQueuesAPI(c) }
 
+// handleCreateQueueWrapper wraps handleCreateQueue with form-to-JSON conversion for YAML routes
+func handleCreateQueueWrapper(c *gin.Context) {
+	if strings.Contains(strings.ToLower(c.GetHeader("Content-Type")), "application/x-www-form-urlencoded") {
+		name := c.PostForm("name")
+		groupIDStr := c.PostForm("group_id")
+		comments := c.PostForm("comments")
+		var groupID int
+		if v, err := strconv.Atoi(groupIDStr); err == nil {
+			groupID = v
+		}
+		payload := gin.H{"name": name, "group_id": groupID}
+		if comments != "" {
+			payload["comments"] = comments
+		}
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Set("__json_body__", payload)
+	}
+	handleCreateQueue(c)
+}
+
 // handleCreateQueue creates a new queue (API)
 func handleCreateQueue(c *gin.Context) {
 	var input struct {

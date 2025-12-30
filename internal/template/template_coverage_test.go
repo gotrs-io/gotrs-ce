@@ -75,7 +75,6 @@ var AllPageTemplates = map[string]bool{
 	// Agent templates
 	"pages/agent/dashboard.pongo2":           true,
 	"pages/agent/queues.pongo2":              true,
-	"pages/agent/ticket_view.backup.pongo2":  true,
 	"pages/agent/ticket_view.pongo2":         true,
 	"pages/agent/tickets.pongo2":             true,
 
@@ -98,13 +97,6 @@ var AllPageTemplates = map[string]bool{
 	"pages/dashboard-simple.pongo2":   true,
 	"pages/dashboard/realtime.pongo2": true,
 
-	// Dev templates
-	"pages/dev/claude_tickets.pongo2":    true,
-	"pages/dev/dashboard.pongo2":         true,
-	"pages/dev/dashboard_dynamic.pongo2": true,
-	"pages/dev/database.pongo2":          true,
-	"pages/dev/logs.pongo2":              true,
-
 	// Queue templates
 	"pages/queue_detail.pongo2":  true,
 	"pages/queues.pongo2":        true,
@@ -119,7 +111,6 @@ var AllPageTemplates = map[string]bool{
 	"pages/tickets/new.pongo2":    true,
 
 	// Auth/Misc templates
-	"pages/claude_chat_demo.pongo2":   true,
 	"pages/error.pongo2":              true,
 	"pages/login.pongo2":              true,
 	"pages/profile.pongo2":            true,
@@ -962,19 +953,6 @@ func TestAllAgentTemplatesRender(t *testing.T) {
 			}(),
 		},
 		{
-			name:     "agent/ticket_view.backup",
-			template: "pages/agent/ticket_view.backup.pongo2",
-			ctx: func() pongo2.Context {
-				ctx := agentContext()
-				ctx["Ticket"] = sampleTicket()
-				ctx["Articles"] = []map[string]interface{}{sampleArticle()}
-				ctx["DynamicFields"] = emptySlice()
-				ctx["ArticleTypes"] = []map[string]interface{}{{"ID": 1, "Name": "note-internal"}}
-				ctx["CanEdit"] = true
-				return ctx
-			}(),
-		},
-		{
 			name:     "agent/ticket_view",
 			template: "pages/agent/ticket_view.pongo2",
 			ctx: func() pongo2.Context {
@@ -1212,53 +1190,7 @@ func TestAllDashboardTemplatesRender(t *testing.T) {
 // DEV TEMPLATE TESTS
 // =============================================================================
 
-func TestAllDevTemplatesRender(t *testing.T) {
-	helper := NewTemplateTestHelper(t)
-
-	tests := []struct {
-		name     string
-		template string
-		ctx      pongo2.Context
-	}{
-		{
-			name:     "dev/claude_tickets",
-			template: "pages/dev/claude_tickets.pongo2",
-			ctx:      adminContext(),
-		},
-		{
-			name:     "dev/dashboard",
-			template: "pages/dev/dashboard.pongo2",
-			ctx:      adminContext(),
-		},
-		{
-			name:     "dev/dashboard_dynamic",
-			template: "pages/dev/dashboard_dynamic.pongo2",
-			ctx:      adminContext(),
-		},
-		{
-			name:     "dev/database",
-			template: "pages/dev/database.pongo2",
-			ctx:      adminContext(),
-		},
-		{
-			name:     "dev/logs",
-			template: "pages/dev/logs.pongo2",
-			ctx: func() pongo2.Context {
-				ctx := adminContext()
-				ctx["Logs"] = emptySlice()
-				return ctx
-			}(),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			html, err := helper.RenderTemplate(tt.template, tt.ctx)
-			require.NoError(t, err, "Template %s should render without error", tt.template)
-			require.NotEmpty(t, html, "Template %s should produce output", tt.template)
-		})
-	}
-}
+// Dev templates have been removed from the codebase
 
 // =============================================================================
 // QUEUE TEMPLATE TESTS
@@ -1413,11 +1345,6 @@ func TestAllMiscTemplatesRender(t *testing.T) {
 		template string
 		ctx      pongo2.Context
 	}{
-		{
-			name:     "claude_chat_demo",
-			template: "pages/claude_chat_demo.pongo2",
-			ctx:      baseContext(),
-		},
 		{
 			name:     "error",
 			template: "pages/error.pongo2",

@@ -1,65 +1,19 @@
-## Temporary backward-compatible API aliases (without version prefix)
-## Purpose: Serve legacy /api/... paths while frontend migrates to /api/v1
-## Remove after frontend updated and clients switched.
+## Legacy API aliases (backward compatibility)
+## Purpose: Serve legacy paths while frontend migrates
+## NOTE: Most routes moved to dedicated YAML files:
+##   - Dashboard: routes/api-dashboard.yaml
+##   - Tickets: routes/api-tickets.yaml
+##   - etc.
 apiVersion: v1
 kind: RouteGroup
 metadata:
   name: api-aliases-protected
-  description: "Legacy /api alias routes mapping to v1 handlers"
+  description: "Legacy /api alias routes - most moved to dedicated files"
   namespace: default
-  enabled: true
+  enabled: false
 spec:
   prefix: /api
   middleware:
     - auth
-  routes:
-  - path: /tickets/:id/reopen
-    method: POST
-    handler: HandleReopenTicketAPI
-    description: "Alias reopen ticket (maps to /api/v1/tickets/:id/reopen)"
-
-  - path: /tickets/:id/status
-    method: POST
-    handler: handleUpdateTicketStatus
-    description: "Alias ticket status update (supports pending reminders)"
-
-  - path: /tickets/:id/time
-    method: POST
-    handler: handleAddTicketTime
-    description: "Alias time accounting (maps to /api/v1/tickets/:id/time)"
-
-  - path: /tickets
-    method: POST
-    handler: HandleCreateTicketAPI
-    description: "Alias ticket creation (maps to /api/v1/tickets)"
-
-  - path: /tickets
-    method: GET
-    handler: HandleListTicketsAPI
-    description: "Alias ticket list (maps to /api/v1/tickets)"
-
-  - path: /dashboard/stats
-    method: GET
-    handler: dashboard_stats
-    description: "Alias dashboard stats fragment"
-
-  - path: /dashboard/recent-tickets
-    method: GET
-    handler: dashboard_recent_tickets
-    description: "Alias recent tickets fragment"
-
-  - path: /dashboard/activity
-    method: GET
-    handler: dashboard_activity
-    description: "Alias dashboard activity fragment"
-
-  - path: /dashboard/activity-stream
-    method: GET
-    handler: dashboard_activity_stream
-    description: "Alias dashboard activity stream endpoint"
-
-  # (Optional future) Add other needed aliases if more 404s appear
-  # - path: /tickets
-  #   method: GET
-  #   handler: HandleListTicketsAPI
-  #   description: "Alias list tickets"
+  routes: []
+  # All routes migrated to dedicated YAML files

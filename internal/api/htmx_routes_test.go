@@ -621,14 +621,6 @@ func BenchmarkDashboardPage(b *testing.B) {
 	}
 }
 
-// getEnvDefault returns the environment variable or the default value
-func getEnvDefault(key, defaultVal string) string {
-	if val := os.Getenv(key); val != "" {
-		return val
-	}
-	return defaultVal
-}
-
 func BenchmarkTemplateLoading(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

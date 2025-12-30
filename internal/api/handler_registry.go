@@ -441,9 +441,13 @@ func ensureCoreHandlers() {
 			c.Data(http.StatusOK, "text/html; charset=utf-8", []byte("<main>Agent Dashboard</main>"))
 		},
 		"handleAgentSearch": AgentHandlerExports.HandleAgentSearch,
-		// Time accounting API (YAML route)
-		"handleAddTicketTime":        handleAddTicketTime,
-		"HandleAPIQueueGet":          HandleAPIQueueGet,
+		// Ticket action APIs (YAML routes)
+		"handleAddTicketTime":         handleAddTicketTime,
+		"handleUpdateTicketStatus":    handleUpdateTicketStatus,
+		"handleTicketReply":           handleTicketReply,
+		"handleUpdateTicketPriority":  handleUpdateTicketPriority,
+		"handleUpdateTicketQueue":     handleUpdateTicketQueue,
+		"HandleAPIQueueGet":           HandleAPIQueueGet,
 		"HandleAPIQueueDetails":      HandleAPIQueueDetails,
 		"HandleAPIQueueStatus":       HandleAPIQueueStatus,
 		"HandleLoginAPI":             HandleLoginAPI,
@@ -486,6 +490,74 @@ func ensureCoreHandlers() {
 		"HandleSearchSuggestionsAPI": HandleSearchSuggestionsAPI,
 		"HandleReindexAPI":           HandleReindexAPI,
 		"HandleSearchHealthAPI":      HandleSearchHealthAPI,
+
+		// Ticket API handlers (migrated from protectedAPI routes)
+		"handleAPITickets":           handleAPITickets,
+		"handleCreateTicket":         handleCreateTicket,
+		"handleGetTicket":            handleGetTicket,
+		"handleUpdateTicket":         handleUpdateTicket,
+		"handleDeleteTicket":         handleDeleteTicket,
+		"handleAddTicketNote":        handleAddTicketNote,
+		"handleGetTicketHistory":     handleGetTicketHistory,
+		"handleGetAvailableAgents":   handleGetAvailableAgents,
+		"handleAssignTicket":         handleAssignTicket,
+		"handleCloseTicket":          handleCloseTicket,
+		"handleReopenTicket":         handleReopenTicket,
+		"handleSearchTickets":        handleSearchTickets,
+		"handleFilterTickets":        handleFilterTickets,
+		"handleAdvancedTicketSearch": handleAdvancedTicketSearch,
+		"handleSearchSuggestions":    handleSearchSuggestions,
+		"handleExportSearchResults":  handleExportSearchResults,
+		"handleSaveSearchHistory":    handleSaveSearchHistory,
+		"handleGetSearchHistory":     handleGetSearchHistory,
+		"handleDeleteSearchHistory":  handleDeleteSearchHistory,
+		"handleCreateSavedSearch":    handleCreateSavedSearch,
+		"handleGetSavedSearches":     handleGetSavedSearches,
+		"handleExecuteSavedSearch":   handleExecuteSavedSearch,
+		"handleUpdateSavedSearch":    handleUpdateSavedSearch,
+		"handleDeleteSavedSearch":    handleDeleteSavedSearch,
+		"handleMergeTickets":         handleMergeTickets,
+		"handleUnmergeTicket":        handleUnmergeTicket,
+		"handleGetMergeHistory":      handleGetMergeHistory,
+
+		// Dashboard API handlers (migrated from protectedAPI routes)
+		"handleDashboardStats":  handleDashboardStats,
+		"handleRecentTickets":   handleRecentTickets,
+		"handleNotifications":   handleNotifications,
+		"handleQuickActions":    handleQuickActions,
+		"handleActivity":        handleActivity,
+		"handleActivityStream":  handleActivityStream,
+		"handlePerformance":     handlePerformance,
+
+		// Queue API handlers (migrated from protectedAPI routes)
+		"handleGetQueuesAPI":        handleGetQueuesAPI,
+		"handleCreateQueueWrapper":  handleCreateQueueWrapper,
+
+		// Group API handlers (migrated from protectedAPI routes)
+		"handleGetGroups":       handleGetGroups,
+		"handleGetGroupAPI":     handleGetGroupAPI,
+		"handleGetGroupMembers": handleGetGroupMembers,
+
+		// Type API handlers (migrated from protectedAPI routes)
+		"handleCreateType": handleCreateType,
+		"handleUpdateType": handleUpdateType,
+		"handleDeleteType": handleDeleteType,
+
+		// File handler (migrated from protectedAPI routes)
+		"handleServeFile": handleServeFile,
+
+		// Customer handler (migrated from protectedAPI routes)
+		"handleCustomerSearch": handleCustomerSearch,
+
+		// Canned response handlers (migrated from protectedAPI routes)
+		"cannedResponses_GetResponses":           CannedResponseHandlerExports.GetResponses,
+		"cannedResponses_GetQuickResponses":      CannedResponseHandlerExports.GetQuickResponses,
+		"cannedResponses_GetPopularResponses":    CannedResponseHandlerExports.GetPopularResponses,
+		"cannedResponses_GetCategories":          CannedResponseHandlerExports.GetCategories,
+		"cannedResponses_GetResponsesByCategory": CannedResponseHandlerExports.GetResponsesByCategory,
+		"cannedResponses_SearchResponses":        CannedResponseHandlerExports.SearchResponses,
+		"cannedResponses_GetResponsesForUser":    CannedResponseHandlerExports.GetResponsesForUser,
+		"cannedResponses_GetResponseByID":        CannedResponseHandlerExports.GetResponseByID,
 	}
 	for n, h := range pairs {
 		if _, ok := GetHandler(n); !ok {

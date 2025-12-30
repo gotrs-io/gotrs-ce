@@ -40,8 +40,8 @@ func load(path string) (map[string]route, error) {
 }
 
 func main() {
-	basePath := "runtime/routes-manifest.baseline.json"
-	curPath := "runtime/routes-manifest.json"
+	basePath := "generated/routes-manifest.baseline.json"
+	curPath := "generated/routes-manifest.json"
 	if len(os.Args) > 1 {
 		basePath = os.Args[1]
 	}

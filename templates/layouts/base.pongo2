@@ -341,8 +341,6 @@
     
     {% block scripts %}{% endblock %}
     
-    <!-- Claude Code Chat Assistant -->
-    <script src="/static/js/claude-chat.js"></script>
     {% block script %}{% endblock %}
 </body>
 </html>

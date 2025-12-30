@@ -1,0 +1,17 @@
+# Customer API Routes - Migrated from protectedAPI code routes
+apiVersion: v1
+kind: RouteGroup
+metadata:
+  name: api-customers-protected
+  description: "Customer management API endpoints (protected)"
+  namespace: default
+  enabled: true
+spec:
+  prefix: /api/customers
+  middleware:
+    - auth
+  routes:
+    - path: /search
+      method: GET
+      handler: handleCustomerSearch
+      description: "Search customers (autocomplete)"

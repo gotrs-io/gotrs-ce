@@ -72,9 +72,22 @@ echo "  Log dir:   $LOG_DIR"
 echo ""
 
 #########################################
+# 0. STATIC VALIDATION (FAIL FAST)
+#########################################
+step "1/6  Static Validation"
+
+# Validate no hardcoded routes in htmx_routes.go
+if sh scripts/validate_routes.sh >> "$MAIN_LOG" 2>&1; then
+    success "No hardcoded routes (all routes in YAML)"
+else
+    fail "Hardcoded routes detected - run ./scripts/validate_routes.sh for details"
+    exit 1
+fi
+
+#########################################
 # 1. ENVIRONMENT CHECK
 #########################################
-step "1/5  Environment Setup"
+step "2/6  Environment Setup"
 
 # Check compose command
 if command -v docker &> /dev/null; then
@@ -98,7 +111,7 @@ fi
 #########################################
 # 2. START TEST STACK
 #########################################
-step "2/5  Starting Test Stack"
+step "3/6  Starting Test Stack"
 
 log "Starting test containers..."
 make test-stack-up >> "$MAIN_LOG" 2>&1
@@ -115,7 +128,7 @@ sleep 2
 #########################################
 # 3. UNIT TESTS
 #########################################
-step "3/5  Unit Tests"
+step "4/6  Unit Tests"
 
 log "Running Go unit tests..."
 if make toolbox-test > "$UNIT_LOG" 2>&1; then
@@ -139,7 +152,7 @@ fi
 #########################################
 # 4. E2E PLAYWRIGHT TESTS
 #########################################
-step "4/5  E2E Playwright Tests"
+step "5/6  E2E Playwright Tests"
 
 log "Running Playwright browser tests..."
 if make test-e2e-playwright-go \
@@ -171,7 +184,7 @@ fi
 #########################################
 # 5. LOG ANALYSIS
 #########################################
-step "5/5  Log Analysis"
+step "6/6  Log Analysis"
 
 # Stop container log capture
 if [ -n "$CONTAINER_LOG_PID" ]; then

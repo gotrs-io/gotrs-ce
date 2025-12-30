@@ -1,0 +1,27 @@
+# Groups API Routes - Migrated from protectedAPI code routes
+apiVersion: v1
+kind: RouteGroup
+metadata:
+  name: api-groups-protected
+  description: "Group management API endpoints (protected)"
+  namespace: default
+  enabled: true
+spec:
+  prefix: /api/groups
+  middleware:
+    - auth
+  routes:
+    - path: /
+      method: GET
+      handler: handleGetGroups
+      description: "List all groups"
+
+    - path: /:id
+      method: GET
+      handler: handleGetGroupAPI
+      description: "Get group by ID"
+
+    - path: /:id/members
+      method: GET
+      handler: handleGetGroupMembers
+      description: "Get group members"

@@ -9,7 +9,7 @@ import (
 func main() {
 	// Try full generation (register + write)
 	if err := api.GenerateRoutesManifest(); err == nil {
-		log.Println("routes manifest generated at runtime/routes-manifest.json")
+		log.Println("routes manifest generated at generated/routes-manifest.json")
 		return
 	}
 	// Fallback: build JSON and print to stdout (CI can redirect)

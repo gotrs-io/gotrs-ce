@@ -11,20 +11,20 @@ endif
 .PHONY: routes-verify routes-baseline-update routes-generate
 routes-generate:
 	@echo "Generating routes manifest..."
-	@mkdir -p runtime && chmod 777 runtime 2>/dev/null || true
+	@mkdir -p generated && chmod 777 generated 2>/dev/null || true
 	@chmod +x scripts/generate_routes_manifest.sh
 	@$(MAKE) toolbox-exec ARGS='bash scripts/generate_routes_manifest.sh'
-	@[ -f runtime/routes-manifest.json ] && echo "routes-manifest.json generated." || (echo "Failed to generate routes manifest" && exit 1)
+	@[ -f generated/routes-manifest.json ] && echo "routes-manifest.json generated." || (echo "Failed to generate routes manifest" && exit 1)
 
 routes-verify:
-	@if [ ! -f runtime/routes-manifest.json ]; then \
+	@if [ ! -f generated/routes-manifest.json ]; then \
 		$(MAKE) routes-generate; \
 	fi
 	@sh ./scripts/check_routes_manifest.sh
 
 routes-baseline-update:
-	@[ -f runtime/routes-manifest.json ] || (echo "manifest missing; run server/tests first" && exit 1)
-	cp runtime/routes-manifest.json runtime/routes-manifest.baseline.json
+	@[ -f generated/routes-manifest.json ] || (echo "manifest missing; run server/tests first" && exit 1)
+	cp generated/routes-manifest.json generated/routes-manifest.baseline.json
 	@echo "Updated route manifest baseline."
 # GOTRS Makefile - Docker/Podman compatible development
 
@@ -152,64 +152,37 @@ define check_required_env
 		exit 1; \
 	fi
 endef
-# Default DB host: prefer host.containers.internal on Podman
-ifeq ($(findstring podman,$(CONTAINER_CMD)),podman)
-DB_HOST ?= host.containers.internal
-else
-DB_HOST ?= mariadb
-endif
-DB_DRIVER ?= mariadb
-DB_PORT ?= 3306
-DB_NAME ?= otrs
-DB_USER ?= otrs
-# DB_PASSWORD - MUST be set in .env, no default
-DB_SCOPE ?= primary
-VALKEY_HOST ?= localhost
-VALKEY_PORT ?= 6388
+# All variables below MUST be set in .env - no defaults
+# DB_HOST, DB_DRIVER, DB_PORT, DB_NAME, DB_USER, DB_SCOPE
+# VALKEY_HOST, VALKEY_PORT  
+# TEST_DB_* variables
 
-TEST_DB_DRIVER ?= mysql
-TEST_DB_SSLMODE ?= disable
-TEST_DB_POSTGRES_HOST ?= postgres-test
-TEST_DB_POSTGRES_PORT ?= 5433
-TEST_DB_POSTGRES_NAME ?= gotrs_test
-TEST_DB_POSTGRES_USER ?= gotrs_user
-# TEST_DB_POSTGRES_PASSWORD - MUST be set in .env, no default
-TEST_DB_POSTGRES_CONTAINER_PORT ?= 5432
-TEST_DB_MYSQL_HOST ?= mariadb-test
-TEST_DB_MYSQL_PORT ?= 3308
-TEST_DB_MYSQL_CONTAINER_PORT ?= 3306
-TEST_DB_MYSQL_NAME ?= otrs_test
-TEST_DB_MYSQL_USER ?= otrs
-# TEST_DB_MYSQL_PASSWORD - MUST be set in .env, no default
-
+# Derived test DB variables based on driver
 ifeq ($(TEST_DB_DRIVER),postgres)
-TEST_DB_HOST ?= $(TEST_DB_POSTGRES_HOST)
-TEST_DB_PORT ?= $(TEST_DB_POSTGRES_PORT)
-TEST_DB_NAME ?= $(TEST_DB_POSTGRES_NAME)
-TEST_DB_USER ?= $(TEST_DB_POSTGRES_USER)
-# TEST_DB_PASSWORD derived from driver-specific var
+TEST_DB_HOST := $(TEST_DB_POSTGRES_HOST)
+TEST_DB_PORT := $(TEST_DB_POSTGRES_PORT)
+TEST_DB_NAME := $(TEST_DB_POSTGRES_NAME)
+TEST_DB_USER := $(TEST_DB_POSTGRES_USER)
+TEST_DB_PASSWORD := $(TEST_DB_POSTGRES_PASSWORD)
 else
-TEST_DB_HOST ?= $(TEST_DB_MYSQL_HOST)
-TEST_DB_PORT ?= $(TEST_DB_MYSQL_PORT)
-TEST_DB_NAME ?= $(TEST_DB_MYSQL_NAME)
-TEST_DB_USER ?= $(TEST_DB_MYSQL_USER)
-# TEST_DB_PASSWORD derived from driver-specific var
+TEST_DB_HOST := $(TEST_DB_MYSQL_HOST)
+TEST_DB_PORT := $(TEST_DB_MYSQL_PORT)
+TEST_DB_NAME := $(TEST_DB_MYSQL_NAME)
+TEST_DB_USER := $(TEST_DB_MYSQL_USER)
+TEST_DB_PASSWORD := $(TEST_DB_MYSQL_PASSWORD)
 endif
 
-TOOLBOX_TEST_DB_HOST ?= 127.0.0.1
-TOOLBOX_TEST_DB_PORT ?= $(TEST_DB_PORT)
-GOTRS_TEST_DB_READY ?= 1
+# Toolbox uses host network, so point to localhost with mapped port
+TOOLBOX_TEST_DB_HOST := 127.0.0.1
+TOOLBOX_TEST_DB_PORT := $(TEST_DB_PORT)
 
-TEST_BACKEND_SERVICE_HOST ?= backend-test
-TEST_BACKEND_CONTAINER_PORT ?= 8080
-TEST_BACKEND_HOST ?= $(TEST_BACKEND_SERVICE_HOST)
+TEST_BACKEND_HOST := $(TEST_BACKEND_SERVICE_HOST)
 ifndef TEST_BACKEND_PORT
 TEST_BACKEND_PORT := 18081
 endif
 ifeq ($(strip $(TEST_BACKEND_PORT)),)
 override TEST_BACKEND_PORT := 18081
 endif
-TEST_BACKEND_BASE_URL ?= http://$(TEST_BACKEND_SERVICE_HOST):$(TEST_BACKEND_CONTAINER_PORT)
 TEST_COMPOSE_FILE := $(CURDIR)/docker-compose.yml:$(CURDIR)/docker-compose.testdb.yml:$(CURDIR)/docker-compose.test.yaml
 
 help:
@@ -642,6 +615,7 @@ toolbox-test-api-host: toolbox-build
 		-e TEST_DB_DRIVER=$(TEST_DB_DRIVER) \
 		-e TEST_DB_HOST=$(TOOLBOX_TEST_DB_HOST) \
 		-e TEST_DB_PORT=$(TOOLBOX_TEST_DB_PORT) \
+		-e TEST_DB_PASSWORD=$(TEST_DB_PASSWORD) \
 		-e GOTRS_TEST_DB_READY=$(GOTRS_TEST_DB_READY) \
 		gotrs-toolbox:latest \
 		bash -lc 'export PATH=/usr/local/go/bin:$$PATH; go test -buildvcs=false -v ./internal/api -run ^Test\(BuildRoutesManifest\|Queue\|Article\|Search\|Priority\|User\|AdminCustomerCompan\)'
@@ -679,6 +653,7 @@ toolbox-test:
 		-e TEST_DB_DRIVER=$(TEST_DB_DRIVER) \
 		-e TEST_DB_HOST=$(TOOLBOX_TEST_DB_HOST) \
 		-e TEST_DB_PORT=$(TOOLBOX_TEST_DB_PORT) \
+		-e TEST_DB_PASSWORD=$(TEST_DB_PASSWORD) \
 		-e GOTRS_TEST_DB_READY=$(GOTRS_TEST_DB_READY) \
 		-e VALKEY_HOST=$(VALKEY_HOST) -e VALKEY_PORT=$(VALKEY_PORT) \
 		gotrs-toolbox:latest \
@@ -2708,8 +2683,6 @@ frontend-perms-fix:
 css-watch: css-deps
 	@printf "👁️  Watching for CSS changes...\n"
 	@$(CONTAINER_CMD) run --rm -it --security-opt label=disable -u $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app node:20-alpine npm run watch-css
-
-# Add these commands after the existing TDD section around line 178:
 
 #########################################
 # TEST TARGETS

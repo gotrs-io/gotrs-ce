@@ -71,29 +71,6 @@ GROUPS: List[Dict[str, object]] = [
         ],
     },
     {
-        "title": "TDD Workflow",
-        "emoji": "🧪",
-        "entries": [
-            {"name": "tdd-init", "description": "Initialize local TDD automation state"},
-            {"name": "tdd-test-first", "usage": "make tdd-test-first FEATURE=name", "description": "Record a failing test before implementation"},
-            {"name": "tdd-implement", "description": "Work phase once the failing test exists"},
-            {"name": "tdd-verify", "description": "Run all TDD quality gates"},
-            {"name": "tdd-refactor", "description": "Refactor step while guards stay green"},
-            {"name": "tdd-status", "description": "Show current TDD workflow status"},
-            {"name": "quality-gates", "description": "Run the full quality gate suite"},
-            {"name": "evidence-report", "description": "Generate compliance evidence bundle"},
-            {
-                "name": "tdd-comprehensive-quick",
-                "description": "Quick version of comprehensive TDD suite",
-            },
-            {"name": "tdd-diff", "description": "Diff the last two comprehensive evidence runs"},
-            {
-                "name": "tdd-diff-serve",
-                "description": "Serve evidence diffs on http://localhost:3456/",
-            },
-        ],
-    },
-    {
         "title": "CSS & Frontend Build",
         "emoji": "🎨",
         "entries": [

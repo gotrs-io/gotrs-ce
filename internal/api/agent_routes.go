@@ -565,7 +565,7 @@ func handleAgentTickets(db *sql.DB) gin.HandlerFunc {
 
 		getPongo2Renderer().HTML(c, http.StatusOK, "pages/agent/tickets.pongo2", pongo2.Context{
 			"Title":                   "Ticket Management",
-			"ActivePage":              "agent",
+			"ActivePage":              "tickets",
 			"User":                    user,
 			"IsInAdminGroup":          adminGroupFlag,
 			"Tickets":                 tickets,

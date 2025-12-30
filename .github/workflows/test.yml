@@ -38,6 +38,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Prepare cache directories
+        run: |
+          # Create cache directories with proper permissions for container user (uid 1000)
+          mkdir -p .cache tmp
+          chmod 777 .cache tmp
+
       - name: Run containerized tests
         run: make test
 

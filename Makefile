@@ -2689,14 +2689,14 @@ frontend-build: css-build js-build
 
 .PHONY: frontend-clean-cache
 frontend-clean-cache:
-	@printf "🧹 Removing node_modules named volume (gotrs_node_modules)...\n"
-	@$(CONTAINER_CMD) volume rm -f gotrs_node_modules >/dev/null 2>&1 || true
+	@printf "🧹 Removing node_modules directory...\n"
+	@rm -rf node_modules 2>/dev/null || true
 	@rm -f .frontend_deps_installed 2>/dev/null || true
-	@printf "✅ Volume removed. Next build will reinstall dependencies.\n"
+	@printf "✅ node_modules removed. Next build will reinstall dependencies.\n"
 
 .PHONY: frontend-reset-deps
 frontend-reset-deps: frontend-clean-cache
-	@printf "🔄 Forcing fresh dependency install next build (volume + sentinel cleared)\\n"
+	@printf "🔄 Forcing fresh dependency install next build\\n"
 
 .PHONY: frontend-perms-fix
 frontend-perms-fix:

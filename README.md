@@ -3,16 +3,12 @@
 [![Security & Code Quality](https://github.com/gotrs-io/gotrs-ce/actions/workflows/security.yml/badge.svg)](https://github.com/gotrs-io/gotrs-ce/actions/workflows/security.yml)
 [![Tests](https://github.com/gotrs-io/gotrs-ce/actions/workflows/test.yml/badge.svg)](https://github.com/gotrs-io/gotrs-ce/actions/workflows/test.yml)
 [![Build & Release](https://github.com/gotrs-io/gotrs-ce/actions/workflows/build.yml/badge.svg)](https://github.com/gotrs-io/gotrs-ce/actions/workflows/build.yml)
-[![codecov](https://codecov.io/gh/gotrs-io/gotrs-ce/branch/main/graph/badge.svg)](https://codecov.io/gh/gotrs-io/gotrs-ce)
+[![codecov](https://codecov.io/github/gotrs-io/gotrs-ce/branch/main/graph/badge.svg)](https://app.codecov.io/github/gotrs-io/gotrs-ce)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://go.dev/)
 [![SLSA 2](https://slsa.dev/images/gh-badge-level2.svg)](https://slsa.dev)
 
 GOTRS (Go Open Ticket Request System) is a modern, secure, cloud-native ticketing and service management platform built as a next-generation replacement for OTRS. Written in Go with a microservices architecture, GOTRS provides enterprise-grade support ticketing, ITSM capabilities, and extensive customization options.
-
-## Legal and Compatibility Notice
-
-GOTRS-CE is an **independent, original implementation** of a ticket management system. While we maintain database compatibility for interoperability purposes, all code is originally written. We are not affiliated with OTRS AG. See [LEGAL.md](LEGAL.md) for important legal information.
 
 ## Key Features
 
@@ -25,6 +21,10 @@ GOTRS-CE is an **independent, original implementation** of a ticket management s
 - 🌍 **Multi-Language** - Full i18n with German 100% complete, even supports Klingon! 🖖
 - 🎨 **Themeable** - Customizable UI with dark/light modes and branding options
 - 🔌 **Extensible** - Plugin framework for custom modules and integrations
+
+## Screenshot
+
+![Screenshot 1](/docs/images/ticket_dark_1.png?raw=true "Ticket")
 
 ## Quick Start
 
@@ -404,6 +404,11 @@ Contact: support@gotrs.io
 Security is our top priority. Please report security vulnerabilities to security@gotrs.io.
 
 See [SECURITY.md](docs/SECURITY.md) for our security policies and practices.
+
+
+## Legal and Compatibility Notice
+
+GOTRS-CE is an **independent, original implementation** of a ticket management system. While we maintain database compatibility for interoperability purposes, all code is originally written. We are not affiliated with OTRS AG. See [LEGAL.md](LEGAL.md) for important legal information.
 
 ## Acknowledgments
 

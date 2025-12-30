@@ -38,11 +38,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Prepare cache directories
+      - name: Prepare directories and volumes
         run: |
-          # Create cache directories with proper permissions for container user (uid 1000)
-          mkdir -p .cache tmp
-          chmod 777 .cache tmp
+          # Create local directories with proper permissions for container user (uid 1000)
+          mkdir -p .cache tmp generated/api-map
+          chmod 777 .cache tmp generated generated/api-map
+          
+          # Pre-create Docker volumes and initialize with correct ownership
+          # The volumes need to be initialized with uid 1000 (appuser in container)
+          docker volume create gotrs-ce_gotrs_cache
+          docker volume create gotrs-ce_gotrs_runtime  
+          docker volume create gotrs-ce_gotrs_node_modules
+          
+          # Initialize volumes with correct permissions using a helper container
+          docker run --rm -v gotrs-ce_gotrs_cache:/vol alpine:3.19 sh -c "chown -R 1000:1000 /vol && chmod 775 /vol"
+          docker run --rm -v gotrs-ce_gotrs_runtime:/vol alpine:3.19 sh -c "chown -R 1000:1000 /vol && chmod 775 /vol"
+          docker run --rm -v gotrs-ce_gotrs_node_modules:/vol alpine:3.19 sh -c "chown -R 1000:1000 /vol && chmod 775 /vol"
 
       - name: Run containerized tests
         run: make test

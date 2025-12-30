@@ -16,30 +16,25 @@ jobs:
     name: Container Tests
     runs-on: ubuntu-latest
     environment: Development
+    env:
+      # Required secrets from GitHub
+      TEST_DB_MYSQL_PASSWORD: ${{ secrets.TEST_DB_MYSQL_PASSWORD }}
+      TEST_DB_ROOT_PASSWORD: ${{ secrets.TEST_DB_ROOT_PASSWORD }}
+      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      SESSION_SECRET: ${{ secrets.JWT_SECRET }}
+      # Defaults
+      TEST_DB_DRIVER: mysql
+      TEST_DB_MYSQL_HOST: mariadb-test
+      TEST_DB_MYSQL_PORT: "3308"
+      TEST_DB_MYSQL_NAME: otrs_test
+      TEST_DB_MYSQL_USER: otrs
+      TEST_BACKEND_PORT: "18081"
+      VALKEY_TEST_PORT: "6389"
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Create .env from secrets
-        run: |
-          cat > .env << 'EOF'
-          # Required secrets
-          TEST_DB_MYSQL_PASSWORD=${{ secrets.TEST_DB_MYSQL_PASSWORD }}
-          TEST_DB_ROOT_PASSWORD=${{ secrets.TEST_DB_ROOT_PASSWORD }}
-          TEST_PASSWORD=${{ secrets.TEST_PASSWORD }}
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          SESSION_SECRET=${{ secrets.JWT_SECRET }}
-          
-          # Defaults
-          TEST_DB_DRIVER=mysql
-          TEST_DB_MYSQL_HOST=mariadb-test
-          TEST_DB_MYSQL_PORT=3308
-          TEST_DB_MYSQL_NAME=otrs_test
-          TEST_DB_MYSQL_USER=otrs
-          TEST_BACKEND_PORT=18081
-          VALKEY_TEST_PORT=6389
-          EOF
 
       - name: Run containerized tests
         run: make test

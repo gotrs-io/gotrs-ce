@@ -6,157 +6,14 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
-    inputs:
-      run_integration_tests:
-        description: 'Run integration tests'
-        type: boolean
-        default: false
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  go-tests:
-    name: Go Tests
-    runs-on: ubuntu-latest
-    environment: Development
-    services:
-      mariadb:
-        image: mariadb:10.11
-        env:
-          MYSQL_ROOT_PASSWORD: ${{ secrets.TEST_DB_ROOT_PASSWORD }}
-          MYSQL_DATABASE: otrs_test
-          MYSQL_USER: otrs
-          MYSQL_PASSWORD: ${{ secrets.TEST_DB_MYSQL_PASSWORD }}
-        ports:
-          - 3308:3306
-        options: >-
-          --health-cmd "healthcheck.sh --connect --innodb_initialized"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      valkey:
-        image: valkey/valkey:7-alpine
-        ports:
-          - 6389:6379
-        options: >-
-          --health-cmd "valkey-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          cache: true
-
-      - name: Install dependencies
-        run: |
-          go mod tidy
-          go mod download
-
-      - name: Install MySQL client tools
-        run: sudo apt-get update && sudo apt-get install -y mysql-client
-
-      - name: Set up test database
-        env:
-          MYSQL_PWD: ${{ secrets.TEST_DB_ROOT_PASSWORD }}
-        run: |
-          # Wait for MariaDB to be ready
-          until mysql -h 127.0.0.1 -P 3308 -u root -e "SELECT 1" > /dev/null 2>&1; do
-            echo "Waiting for MariaDB..."
-            sleep 2
-          done
-          
-          # Run all migrations with FK checks disabled (re-enable at the end)
-          mysql -h 127.0.0.1 -P 3308 -u root otrs_test <<'EOF'
-          SET FOREIGN_KEY_CHECKS=0;
-          SOURCE migrations/mysql/000001_schema_alignment.up.sql;
-          SOURCE migrations/mysql/000002_minimal_data.up.sql;
-          SOURCE migrations/mysql/000003_customer_portal_sysconfig.up.sql;
-          SET FOREIGN_KEY_CHECKS=1;
-          EOF
-
-      - name: Generate secure test configuration
-        run: |
-          # Use the synthesize binary directly for faster CI
-          go run cmd/gotrs/main.go synthesize
-          
-      - name: Run tests with coverage
-        env:
-          # Test database configuration (MariaDB) - use TEST_DB_* which tests expect
-          TEST_DB_DRIVER: mysql
-          TEST_DB_HOST: 127.0.0.1
-          TEST_DB_PORT: 3308
-          TEST_DB_NAME: otrs_test
-          TEST_DB_USER: otrs
-          TEST_DB_PASSWORD: ${{ secrets.TEST_DB_MYSQL_PASSWORD }}
-          # Legacy env vars some tests may use
-          DB_DRIVER: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3308
-          DB_NAME: otrs_test
-          DB_USER: otrs
-          DB_PASSWORD: ${{ secrets.TEST_DB_MYSQL_PASSWORD }}
-          # Valkey/Redis
-          REDIS_HOST: 127.0.0.1
-          REDIS_PORT: 6389
-          VALKEY_HOST: 127.0.0.1
-          VALKEY_PORT: 6389
-          TEST_REDIS_PORT: 6389
-          VALKEY_TEST_PORT: 6389
-          # App config
-          APP_ENV: test
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        run: |
-          # Exclude:
-          # - tests/e2e: requires Playwright browsers not available in CI
-          # - admin_users_bugs_test.go tests: intentionally failing bug-tracking tests  
-          # - TestAdminRoleUsers: flaky in CI due to role table differences
-          # - TestUserRepositoryWithGroups: flaky in CI
-          go test -v -short -race -coverprofile=coverage.out -covermode=atomic \
-            -skip "TestGroupAssignmentNotPersisting|TestXlatsNotWorking|TestNoWayToRemoveUserFromAllGroups|TestUserWorkflowEndToEnd|TestFormDataBindingIssues|TestAdminRoleUsers|TestUserRepositoryWithGroups" \
-            $(go list ./... | grep -v '/tests/e2e')
-
-      - name: Run API contract tests
-        run: |
-          echo "Running API contract tests..."
-          go test -v ./internal/testing/contracts/... -tags=contracts
-          echo "✅ Contract tests passed"
-
-      - name: Generate coverage report
-        run: |
-          go tool cover -html=coverage.out -o coverage.html
-          go tool cover -func=coverage.out
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage.out
-          flags: backend
-          name: backend-coverage
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
-        # Token is optional if Codecov is configured for tokenless uploads
-
-      - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: go-coverage-report
-          path: |
-            coverage.out
-            coverage.html
-          retention-days: 30
-
-  frontend-tests:
-    name: Frontend Asset Build
+  test:
+    name: Container Tests
     runs-on: ubuntu-latest
     environment: Development
 
@@ -164,362 +21,44 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Tailwind CSS and TipTap bundle
-        run: npm run build
-
-      - name: Verify build artifacts
+      - name: Create .env from secrets
         run: |
-          echo "Verifying CSS and JS assets were built..."
-          ls -la static/css/*.css || echo "Note: CSS output location may vary"
-          ls -la static/js/*.js || echo "Note: JS output location may vary"
-          echo "✓ Frontend asset build completed"
-
-  integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: [go-tests]
-    if: github.event.inputs.run_integration_tests == 'true'
-    environment: Development
-
-    services:
-      mariadb:
-        image: mariadb:10.11
-        env:
-          MYSQL_ROOT_PASSWORD: ${{ secrets.TEST_DB_ROOT_PASSWORD }}
-          MYSQL_DATABASE: otrs_integration
-          MYSQL_USER: otrs
-          MYSQL_PASSWORD: ${{ secrets.TEST_DB_MYSQL_PASSWORD }}
-        ports:
-          - 3308:3306
-        options: >-
-          --health-cmd "healthcheck.sh --connect --innodb_initialized"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      valkey:
-        image: valkey/valkey:7-alpine
-        ports:
-          - 6389:6379
-        options: >-
-          --health-cmd "valkey-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          cache: true
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
-
-      - name: Install Go dependencies
-        run: |
-          go mod tidy
-          go mod download
-
-      - name: Install frontend dependencies
-        run: |
-          cd web
-          npm ci
-
-      - name: Build frontend
-        run: |
-          cd web
-          npm run build
-
-      - name: Install MySQL client tools
-        run: sudo apt-get update && sudo apt-get install -y mysql-client
-
-      - name: Set up integration test database
-        env:
-          MYSQL_PWD: ${{ secrets.TEST_DB_ROOT_PASSWORD }}
-        run: |
-          # Wait for MariaDB to be ready
-          until mysql -h 127.0.0.1 -P 3308 -u root -e "SELECT 1" > /dev/null 2>&1; do
-            echo "Waiting for MariaDB..."
-            sleep 2
-          done
+          cat > .env << 'EOF'
+          # Required secrets
+          TEST_DB_MYSQL_PASSWORD=${{ secrets.TEST_DB_MYSQL_PASSWORD }}
+          TEST_DB_ROOT_PASSWORD=${{ secrets.TEST_DB_ROOT_PASSWORD }}
+          TEST_PASSWORD=${{ secrets.TEST_PASSWORD }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          SESSION_SECRET=${{ secrets.JWT_SECRET }}
           
-          # Run all migrations with FK checks disabled (re-enable at the end)
-          mysql -h 127.0.0.1 -P 3308 -u root otrs_integration <<'EOF'
-          SET FOREIGN_KEY_CHECKS=0;
-          SOURCE migrations/mysql/000001_schema_alignment.up.sql;
-          SOURCE migrations/mysql/000002_minimal_data.up.sql;
-          SOURCE migrations/mysql/000003_customer_portal_sysconfig.up.sql;
-          SET FOREIGN_KEY_CHECKS=1;
-          EOF
-          mysql -h 127.0.0.1 -P 3308 -u root otrs_integration < migrations/mysql/000004_dynamic_field_screen_config.up.sql
-
-      - name: Run integration tests
-        env:
-          TEST_DB_DRIVER: mysql
-          TEST_DB_HOST: 127.0.0.1
-          TEST_DB_PORT: 3308
-          TEST_DB_NAME: otrs_integration
-          TEST_DB_USER: otrs
-          TEST_DB_PASSWORD: ${{ secrets.TEST_DB_MYSQL_PASSWORD }}
-          DB_DRIVER: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3308
-          DB_NAME: otrs_integration
-          DB_USER: otrs
-          DB_PASSWORD: ${{ secrets.TEST_DB_MYSQL_PASSWORD }}
-          REDIS_HOST: 127.0.0.1
-          REDIS_PORT: 6389
-          VALKEY_HOST: 127.0.0.1
-          VALKEY_PORT: 6389
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          APP_ENV: integration
-        run: |
-          # Note: Add actual integration tests when implemented
-          echo "Integration tests would run here - placeholder for MVP phase"
-          echo "Database connectivity test:"
-          
-          # Start server in background
-          go run -tags integration cmd/server/main.go &
-          SERVER_PID=$!
-          
-          # Wait for server to be ready with retry loop (30 second timeout)
-          echo "Waiting for server to be ready..."
-          MAX_ATTEMPTS=30
-          ATTEMPT=0
-          
-          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            if curl -sf http://localhost:8080/health >/dev/null 2>&1; then
-              echo "Server is ready after $((ATTEMPT + 1)) attempts"
-              break
-            fi
-            
-            if [ $ATTEMPT -eq $((MAX_ATTEMPTS - 1)) ]; then
-              echo "Server failed to start within 30 seconds"
-              kill $SERVER_PID 2>/dev/null || true
-              exit 1
-            fi
-            
-            echo -n "."
-            sleep 1
-            ATTEMPT=$((ATTEMPT + 1))
-          done
-          
-          # Run actual tests once server is ready
-          echo ""
-          echo "Testing health endpoint:"
-          curl -f http://localhost:8080/health || exit 1
-          
-          echo "Testing API status endpoint:"
-          curl -f http://localhost:8080/api/v1/status || exit 1
-          
-          # Clean shutdown
-          kill $SERVER_PID
-          wait $SERVER_PID 2>/dev/null || true
-          echo "Basic integration tests passed ✓"
-
-  e2e-tests:
-    name: E2E Playwright Tests
-    runs-on: ubuntu-latest
-    needs: [go-tests]
-    environment: Development
-    services:
-      mariadb:
-        image: mariadb:10.11
-        env:
-          MYSQL_ROOT_PASSWORD: ${{ secrets.TEST_DB_ROOT_PASSWORD }}
-          MYSQL_DATABASE: otrs_test
-          MYSQL_USER: otrs
-          MYSQL_PASSWORD: ${{ secrets.TEST_DB_MYSQL_PASSWORD }}
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd "healthcheck.sh --connect --innodb_initialized"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      valkey:
-        image: valkey/valkey:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "valkey-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          cache: true
-
-      - name: Install MySQL client tools
-        run: sudo apt-get update && sudo apt-get install -y mysql-client
-
-      - name: Set up test database
-        env:
-          MYSQL_PWD: ${{ secrets.TEST_DB_ROOT_PASSWORD }}
-        run: |
-          # Wait for MariaDB to be ready
-          until mysql -h 127.0.0.1 -P 3306 -u root -e "SELECT 1" > /dev/null 2>&1; do
-            echo "Waiting for MariaDB..."
-            sleep 2
-          done
-          
-          # Run all migrations with FK checks disabled
-          mysql -h 127.0.0.1 -P 3306 -u root otrs_test <<'EOF'
-          SET FOREIGN_KEY_CHECKS=0;
-          SOURCE migrations/mysql/000001_schema_alignment.up.sql;
-          SOURCE migrations/mysql/000002_minimal_data.up.sql;
-          SOURCE migrations/mysql/000003_customer_portal_sysconfig.up.sql;
-          SET FOREIGN_KEY_CHECKS=1;
-          EOF
-          
-          # Set the test admin password (SHA256 hash of TEST_PASSWORD)
-          TEST_PASSWORD_HASH=$(echo -n "${{ secrets.TEST_PASSWORD }}" | sha256sum | cut -d' ' -f1)
-          mysql -h 127.0.0.1 -P 3306 -u root otrs_test -e "UPDATE users SET pw='${TEST_PASSWORD_HASH}', valid_id=1 WHERE login='root@localhost';"
-          
-          # Add test templates for E2E tests
-          mysql -h 127.0.0.1 -P 3306 -u root otrs_test <<'EOF'
-          INSERT INTO standard_template (name, text, content_type, template_type, valid_id, create_time, create_by, change_time, change_by)
-          VALUES 
-            ('Test Template', 'Test template content', 'text/plain', 'Answer', 1, NOW(), 1, NOW(), 1),
-            ('Test Answer Template', 'Answer template content', 'text/plain', 'Answer', 1, NOW(), 1, NOW(), 1),
-            ('Test Note Template', 'Note template content', 'text/plain', 'Note', 1, NOW(), 1, NOW(), 1);
+          # Defaults
+          TEST_DB_DRIVER=mysql
+          TEST_DB_MYSQL_HOST=mariadb-test
+          TEST_DB_MYSQL_PORT=3308
+          TEST_DB_MYSQL_NAME=otrs_test
+          TEST_DB_MYSQL_USER=otrs
+          TEST_BACKEND_PORT=18081
+          VALKEY_TEST_PORT=6389
           EOF
 
-      - name: Generate secure test configuration
-        run: go run cmd/gotrs/main.go synthesize
-
-      - name: Build and start backend
-        env:
-          DB_DRIVER: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_NAME: otrs_test
-          DB_USER: otrs
-          DB_PASSWORD: ${{ secrets.TEST_DB_MYSQL_PASSWORD }}
-          VALKEY_HOST: 127.0.0.1
-          VALKEY_PORT: 6379
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          APP_ENV: test
-        run: |
-          # Build the backend
-          go build -o gotrs-backend ./cmd/gotrs
-          
-          # Start the backend in background
-          ./gotrs-backend &
-          BACKEND_PID=$!
-          echo "BACKEND_PID=$BACKEND_PID" >> $GITHUB_ENV
-          
-          # Wait for backend to be ready
-          echo "Waiting for backend to be ready..."
-          MAX_ATTEMPTS=60
-          ATTEMPT=0
-          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            if curl -sf http://localhost:8080/health >/dev/null 2>&1; then
-              echo "Backend is ready after $((ATTEMPT + 1)) attempts"
-              break
-            fi
-            if [ $ATTEMPT -eq $((MAX_ATTEMPTS - 1)) ]; then
-              echo "Backend failed to start within 60 seconds"
-              kill $BACKEND_PID 2>/dev/null || true
-              exit 1
-            fi
-            echo -n "."
-            sleep 1
-            ATTEMPT=$((ATTEMPT + 1))
-          done
-          echo ""
-
-      - name: Build Playwright test container
-        run: docker build -f Dockerfile.playwright-go -t gotrs-playwright-go:latest .
-
-      - name: Run E2E tests
-        env:
-          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-        run: |
-          docker run --rm \
-            --network host \
-            -v "$PWD:/workspace" \
-            -w /workspace \
-            -e BASE_URL=http://localhost:8080 \
-            -e RAW_BASE_URL=http://localhost:8080 \
-            -e TEST_USERNAME="${TEST_USERNAME:-root@localhost}" \
-            -e TEST_PASSWORD="${TEST_PASSWORD}" \
-            -e PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
-            gotrs-playwright-go:latest \
-            bash -lc "go test -tags e2e -v ./tests/e2e/playwright"
-
-      - name: Stop backend
-        if: always()
-        run: |
-          if [ -n "$BACKEND_PID" ]; then
-            kill $BACKEND_PID 2>/dev/null || true
-          fi
+      - name: Run containerized tests
+        run: make test
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: e2e-test-artifacts
+          name: test-artifacts
           path: |
+            /tmp/gotrs-test-*/
             tests/e2e/playwright/screenshots/
             tests/e2e/playwright/videos/
           retention-days: 7
 
-  test-summary:
-    name: Test Summary
-    runs-on: ubuntu-latest
-    needs: [go-tests, frontend-tests, e2e-tests]
-    if: always()
-    environment: Development
-    steps:
-      - name: Test Results Summary
-        run: |
-          echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
-          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Go Tests | ${{ needs.go-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend Tests | ${{ needs.frontend-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| E2E Tests | ${{ needs.e2e-tests.result == 'success' && '✅ Passed' || (needs.e2e-tests.result == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> $GITHUB_STEP_SUMMARY
-          
-          if [[ "${{ needs.go-tests.result }}" != "success" || "${{ needs.frontend-tests.result }}" != "success" || "${{ needs.e2e-tests.result }}" == "failure" ]]; then
-            echo "❌ Some tests failed"
-            exit 1
-          else
-            echo "✅ All tests passed"
-          fi
-
   docker-build-push:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
-    needs: [go-tests, frontend-tests, e2e-tests]
+    needs: [test]
     if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     environment: Development
     steps:

@@ -2157,6 +2157,7 @@ test-e2e-playwright-go:
 		-v gotrs_cache:/workspace/.cache \
 		-w /workspace \
 		$$( [ -n "$(PLAYWRIGHT_NETWORK)" ] && printf -- "--network $(PLAYWRIGHT_NETWORK)" || printf -- "--network host" ) \
+		-e HOME=/workspace \
 		-e BASE_URL=$(BASE_URL) \
 		-e RAW_BASE_URL=$(BASE_URL) \
 		-e TEST_USERNAME=$(TEST_USERNAME) \
@@ -2182,6 +2183,7 @@ test-e2e-go:
 		-v gotrs_cache:/workspace/.cache \
 		-w /workspace \
 		--network host \
+		-e HOME=/workspace \
 		-e BASE_URL=$(BASE_URL) \
 		-e RAW_BASE_URL=$(BASE_URL) \
 		-e TEST_USERNAME=$(TEST_USERNAME) \

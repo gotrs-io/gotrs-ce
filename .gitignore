@@ -496,3 +496,7 @@ internal/api/runtime/
 
 # Legacy runtime directory (no longer used)
 runtime/
+
+# Directories created by containers (use named volumes instead)
+certs/
+routing/

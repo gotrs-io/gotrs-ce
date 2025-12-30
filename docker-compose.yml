@@ -128,7 +128,7 @@ services:
       - "${BACKEND_PORT:-8081}:8080"
     volumes:
       - ./storage:${STORAGE_PATH:-/app/storage}:Z
-      - ./certs:/app/certs:Z
+      - gotrs_certs:/app/certs
     depends_on:
       mariadb:
         condition: service_healthy
@@ -187,7 +187,7 @@ services:
       - "${CUSTOMER_FE_PORT:-8083}:${CUSTOMER_FE_APP_PORT:-8080}"
     volumes:
       - ./storage:${STORAGE_PATH:-/app/storage}:Z
-      - ./certs:/app/certs:Z
+      - gotrs_certs:/app/certs
     depends_on:
       mariadb:
         condition: service_healthy
@@ -342,7 +342,7 @@ services:
       - "${BACKEND_TEST_PORT:-8082}:8080"
     volumes:
       - ./storage:${STORAGE_PATH:-/app/storage}:Z
-      - ./certs:/app/certs:Z
+      - gotrs_certs:/app/certs
     depends_on:
       mariadb-test:
         condition: service_healthy
@@ -433,7 +433,7 @@ services:
       - "${CUSTOMER_FE_TEST_PORT:-8084}:${CUSTOMER_FE_TEST_APP_PORT:-8080}"
     volumes:
       - ./storage:${STORAGE_PATH:-/app/storage}:Z
-      - ./certs:/app/certs:Z
+      - gotrs_certs:/app/certs
     depends_on:
       valkey-test:
         condition: service_healthy
@@ -646,6 +646,7 @@ volumes:
   valkey_data:
   valkey_test_data:
   gotrs_cache:
+  gotrs_certs:
   smtp4dev_data:
   # zinc_data:         # Commented out - zinc service disabled
   # temporal_data:     # Commented out - temporal service disabled

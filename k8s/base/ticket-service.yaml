@@ -217,7 +217,7 @@ data:
     service:
       name: ticket-service
       version: 1.0.0
-      
+
     server:
       grpc:
         port: 50051
@@ -229,26 +229,26 @@ data:
         port: 8080
         read_timeout: 30s
         write_timeout: 30s
-        
+
     database:
       max_connections: 20
       max_idle_connections: 5
       connection_max_lifetime: 1h
-      
+
     cache:
       default_ttl: 5m
       max_size: 1000
-      
+
     events:
       buffer_size: 1000
       workers: 5
       retry_attempts: 3
       retry_delay: 1s
-      
+
     metrics:
       enabled: true
       path: /metrics
-      
+
     tracing:
       enabled: true
       sample_rate: 0.1

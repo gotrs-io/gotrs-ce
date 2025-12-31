@@ -34,7 +34,7 @@ spec:
     min:
       cpu: "50m"
       memory: "32Mi"
-  
+
   # Container limits
   - type: Container
     default:
@@ -49,7 +49,7 @@ spec:
     min:
       cpu: "50m"
       memory: "32Mi"
-  
+
   # PVC limits
   - type: PersistentVolumeClaim
     max:

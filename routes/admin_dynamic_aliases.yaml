@@ -1,3 +1,4 @@
+---
 # Admin Dynamic Module Friendly Routes
 apiVersion: v1
 kind: RouteGroup

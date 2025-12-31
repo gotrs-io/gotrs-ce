@@ -16,7 +16,7 @@ frontend.rps:
   - value: 2400
     constraints: {}
 
-# Namespace creation rate limiting  
+# Namespace creation rate limiting
 frontend.namespaceRPS:
   - value: 100
     constraints: {}

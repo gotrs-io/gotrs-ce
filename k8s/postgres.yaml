@@ -211,11 +211,11 @@ spec:
             echo "Waiting for primary..."
             sleep 2
           done
-          
+
           # Set up streaming replication
           export PGPASSWORD=$POSTGRES_REPLICATION_PASSWORD
           pg_basebackup -h $POSTGRES_MASTER_SERVICE -D /var/lib/postgresql/data -U $POSTGRES_REPLICATION_USER -v -P -W -R
-          
+
           # Start PostgreSQL in recovery mode
           postgres -D /var/lib/postgresql/data
         ports:
@@ -276,28 +276,28 @@ data:
     listen_addresses = '*'
     port = 5432
     max_connections = 200
-    
+
     # Memory settings
     shared_buffers = 512MB
     effective_cache_size = 2GB
     maintenance_work_mem = 128MB
     work_mem = 8MB
-    
+
     # Checkpoint settings
     checkpoint_completion_target = 0.9
     wal_buffers = 16MB
-    
+
     # Query planner
     default_statistics_target = 100
     random_page_cost = 1.1
     effective_io_concurrency = 200
-    
+
     # Write Ahead Log
     wal_level = replica
     max_wal_senders = 3
     max_replication_slots = 3
     hot_standby = on
-    
+
     # Logging
     log_destination = 'stderr'
     logging_collector = on
@@ -309,7 +309,7 @@ data:
     log_disconnections = on
     log_lock_waits = on
     log_temp_files = 0
-    
+
     # Performance
     synchronous_commit = on
     wal_sync_method = fdatasync
@@ -327,16 +327,16 @@ data:
   01-replication.sql: |
     -- Create replication user
     CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD 'replicator-password';
-    
+
     -- Create gotrs database if it doesn't exist
     CREATE DATABASE gotrs OWNER gotrs;
-    
+
     -- Grant necessary permissions
     GRANT ALL PRIVILEGES ON DATABASE gotrs TO gotrs;
-  
+
   02-extensions.sql: |
     \c gotrs;
-    
+
     -- Create necessary extensions
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
     CREATE EXTENSION IF NOT EXISTS "pg_stat_statements";
@@ -353,25 +353,25 @@ metadata:
 data:
   pg_hba.conf: |
     # TYPE  DATABASE        USER            ADDRESS                 METHOD
-    
+
     # "local" is for Unix domain socket connections only
     local   all             all                                     trust
-    
+
     # IPv4 local connections:
     host    all             all             127.0.0.1/32            md5
-    
+
     # IPv6 local connections:
     host    all             all             ::1/128                 md5
-    
+
     # Allow replication connections from localhost, by a user with the
     # replication privilege.
     local   replication     all                                     trust
     host    replication     replicator      127.0.0.1/32            md5
     host    replication     replicator      ::1/128                 md5
-    
+
     # Kubernetes cluster connections
     host    all             all             10.0.0.0/8              md5
     host    replication     replicator      10.0.0.0/8              md5
-    
+
     # Allow connections from pods in the same namespace
     host    all             all             0.0.0.0/0               md5

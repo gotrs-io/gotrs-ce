@@ -97,7 +97,7 @@ spec:
             configMapKeyRef:
               name: gotrs-config
               key: DB_CONN_MAX_LIFETIME
-        
+
         # Redis configuration
         - name: REDIS_HOST
           valueFrom:
@@ -129,7 +129,7 @@ spec:
             configMapKeyRef:
               name: gotrs-config
               key: CACHE_ENABLED
-        
+
         # Authentication
         - name: JWT_SECRET
           valueFrom:
@@ -161,7 +161,7 @@ spec:
             configMapKeyRef:
               name: gotrs-config
               key: SESSION_TIMEOUT
-        
+
         # Application configuration
         - name: APP_ENV
           valueFrom:
@@ -183,7 +183,7 @@ spec:
             configMapKeyRef:
               name: gotrs-config
               key: LOG_FORMAT
-        
+
         # Server configuration
         - name: SERVER_HOST
           valueFrom:
@@ -210,7 +210,7 @@ spec:
             configMapKeyRef:
               name: gotrs-config
               key: SERVER_IDLE_TIMEOUT
-        
+
         # Storage configuration
         - name: STORAGE_TYPE
           valueFrom:
@@ -237,7 +237,7 @@ spec:
             secretKeyRef:
               name: gotrs-secrets
               key: ENCRYPTION_KEY
-        
+
         # Search configuration
         - name: SEARCH_ENABLED
           valueFrom:
@@ -269,7 +269,7 @@ spec:
             configMapKeyRef:
               name: gotrs-config
               key: ZINC_INDEX
-        
+
         # Temporal workflow
         - name: TEMPORAL_HOST
           valueFrom:
@@ -286,7 +286,7 @@ spec:
             configMapKeyRef:
               name: gotrs-config
               key: TEMPORAL_NAMESPACE
-        
+
         # Monitoring
         - name: METRICS_ENABLED
           valueFrom:
@@ -313,7 +313,7 @@ spec:
             configMapKeyRef:
               name: gotrs-config
               key: JAEGER_ENDPOINT
-        
+
         # Rate limiting
         - name: RATE_LIMIT_ENABLED
           valueFrom:
@@ -330,7 +330,7 @@ spec:
             configMapKeyRef:
               name: gotrs-config
               key: RATE_LIMIT_BURST
-        
+
         # Security
         - name: CORS_ALLOWED_ORIGINS
           valueFrom:
@@ -357,7 +357,7 @@ spec:
             configMapKeyRef:
               name: gotrs-config
               key: SECURITY_HEADERS_ENABLED
-        
+
         # Kubernetes-specific
         - name: POD_NAME
           valueFrom:
@@ -375,7 +375,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        
+
         ports:
         - containerPort: 8080
           name: http
@@ -383,13 +383,13 @@ spec:
         - containerPort: 9090
           name: metrics
           protocol: TCP
-        
+
         volumeMounts:
         - name: storage-volume
           mountPath: /app/storage
         - name: tmp-volume
           mountPath: /tmp
-        
+
         resources:
           requests:
             memory: "512Mi"
@@ -397,7 +397,7 @@ spec:
           limits:
             memory: "2Gi"
             cpu: "2"
-        
+
         livenessProbe:
           httpGet:
             path: /health
@@ -407,7 +407,7 @@ spec:
           timeoutSeconds: 5
           failureThreshold: 3
           successThreshold: 1
-        
+
         readinessProbe:
           httpGet:
             path: /ready
@@ -417,7 +417,7 @@ spec:
           timeoutSeconds: 3
           failureThreshold: 3
           successThreshold: 1
-        
+
         startupProbe:
           httpGet:
             path: /health
@@ -427,20 +427,20 @@ spec:
           timeoutSeconds: 5
           failureThreshold: 30
           successThreshold: 1
-      
+
       volumes:
       - name: storage-volume
         persistentVolumeClaim:
           claimName: gotrs-storage-pvc
       - name: tmp-volume
         emptyDir: {}
-      
+
       # Security context
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 1000
-      
+
       # Pod disruption budget
       terminationGracePeriodSeconds: 30
 ---

@@ -1,9 +1,10 @@
+---
 # Static File Routes Configuration
 apiVersion: v1
 kind: RouteGroup
 metadata:
   name: static
-  description: "Static file serving routes for CSS, JS, images, and other assets"
+  description: "Static routes for CSS, JS, images, and web assets"
   namespace: default
   enabled: true
 spec:
@@ -26,4 +27,3 @@ spec:
       method: GET
       handler: handleStaticFiles
       description: "Serve all static files including css, js, images, webfonts"
-

@@ -64,12 +64,12 @@ computed_fields:
       if (!item.create_time) {
         return '<span class="text-gray-400">Unknown</span>';
       }
-      
+
       var date = new Date(item.create_time);
       var now = new Date();
       var diffMs = now - date;
       var diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      
+
       var relativeTime = '';
       if (diffDays === 0) {
         relativeTime = 'Today';
@@ -84,7 +84,7 @@ computed_fields:
         var years = Math.floor(diffDays / 365);
         relativeTime = years + ' year' + (years > 1 ? 's' : '') + ' ago';
       }
-      
+
       return '<span title="' + formatDate(item.create_time) + '">' + relativeTime + '</span>';
 
   # Name with custom styling
@@ -96,7 +96,7 @@ computed_fields:
       var name = item.name || 'Unnamed';
       var length = name.length;
       var color = '';
-      
+
       if (length <= 5) {
         color = 'text-red-600';
       } else if (length <= 10) {
@@ -104,14 +104,14 @@ computed_fields:
       } else {
         color = 'text-green-600';
       }
-      
+
       return '<span class="' + color + ' font-medium">' + name + '</span>';
 
   # Database query example (ticket count for this priority)
   - name: usage_stats
     label: Usage
     show_in_list: true
-    show_in_form: false  
+    show_in_form: false
     lambda: |
       try {
         var count = db.queryRow("SELECT COUNT(*) as count FROM ticket WHERE ticket_priority_id = $1", item.id.toString());
@@ -140,7 +140,7 @@ computed_fields:
       var priority = Math.min(Math.max(id, 1), 5); // Clamp to 1-5
       var width = priority * 20; // 20% per priority level
       var color = '';
-      
+
       if (priority <= 2) {
         color = 'bg-green-500';
       } else if (priority <= 3) {
@@ -148,7 +148,7 @@ computed_fields:
       } else {
         color = 'bg-red-500';
       }
-      
+
       return '<div class="w-full bg-gray-200 rounded-full h-2">' +
              '<div class="' + color + ' h-2 rounded-full" style="width: ' + width + '%"></div>' +
              '</div>';

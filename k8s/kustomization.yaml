@@ -31,18 +31,18 @@ resources:
   - namespace.yaml
   - configmap.yaml
   - secrets.yaml
-  
+
   # Database layer
   - postgres.yaml
   - redis.yaml
-  
+
   # Application layer
   - gotrs-backend.yaml
   - nginx-frontend.yaml
-  
+
   # Networking
   - ingress.yaml
-  
+
   # Monitoring (optional - can be disabled)
   - monitoring.yaml
 

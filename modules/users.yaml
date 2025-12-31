@@ -128,7 +128,7 @@ computed_fields:
       var lastName = item.last_name || '';
       var fullName = (firstName + ' ' + lastName).trim();
       return fullName || item.login || 'Unknown';
-    
+
   - name: group_names
     label: Groups
     show_in_list: true
@@ -149,7 +149,7 @@ computed_fields:
       } catch (error) {
         return '<span class="text-gray-400">-</span>';
       }
-    
+
   - name: status_badge
     label: Status
     show_in_list: true
@@ -160,7 +160,7 @@ computed_fields:
       } else {
         return '<span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">Inactive</span>';
       }
-      
+
   - name: last_login_formatted
     label: Last Activity
     show_in_list: true
@@ -224,7 +224,7 @@ ui:
     - group_names     # Groups
     - valid_id        # Status (Active/Inactive)
     - change_time     # Last Login/Activity
-  
+
   form_sections:
     - title: "Basic Information"
       fields:
@@ -232,11 +232,11 @@ ui:
         - first_name
         - last_name
         - login
-    
+
     - title: "Security"
       fields:
         - pw
-    
+
     - title: "Groups & Roles"
       type: "custom"  # Handler will inject group/role management UI
 
@@ -245,7 +245,7 @@ ui:
       icon: "key"
       endpoint: "/admin/dynamic/users/{id}/reset-password"
       confirm: "Reset password for this user?"
-    
+
     - name: "Manage Groups"
       icon: "users"
       modal: true

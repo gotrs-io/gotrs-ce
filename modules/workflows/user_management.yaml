@@ -153,7 +153,7 @@ workflows:
         order: 3
         config:
           action: disable  # or delete
-          
+
   # Role permission changes notification
   - id: permission_change_alert
     name: Permission Change Alert

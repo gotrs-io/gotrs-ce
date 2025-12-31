@@ -9,17 +9,17 @@ data:
         log stdout local0
         maxconn 4096
         daemon
-        
+
         # Performance tuning
         tune.ssl.default-dh-param 2048
         tune.bufsize 32768
         tune.maxrewrite 1024
-        
+
         # Enable multi-threading
         nbproc 1
         nbthread 4
         cpu-map auto:1/1-4 0-3
-        
+
     defaults
         log     global
         mode    http
@@ -36,7 +36,7 @@ data:
         timeout queue   1m
         timeout check   10s
         maxconn 3000
-        
+
     # Statistics and health check
     frontend stats
         bind *:8404
@@ -46,161 +46,161 @@ data:
         stats show-node
         stats show-legends
         stats auth admin:admin
-        
+
     # Health check endpoint
     frontend health
         bind *:8081
         mode http
         monitor-uri /health
-        
+
     # Main HTTP frontend with rate limiting
     frontend http_front
         bind *:80
         mode http
-        
+
         # Rate limiting by source IP
         stick-table type ip size 100k expire 30s store http_req_rate(10s)
         http-request track-sc0 src
         http-request deny if { sc_http_req_rate(0) gt 100 }
-        
+
         # ACL definitions
         acl is_api path_beg /api/
         acl is_auth path_beg /api/v1/auth/
         acl is_websocket hdr(Upgrade) -i WebSocket
         acl is_static path_beg /static/
-        
+
         # Request routing
         use_backend api_servers if is_api !is_auth
         use_backend auth_servers if is_auth
         use_backend websocket_servers if is_websocket
         use_backend static_servers if is_static
         default_backend web_servers
-        
+
     # gRPC frontend
     frontend grpc_front
         bind *:9090 proto h2
         mode tcp
         option tcplog
-        
+
         # ACL for different services
         acl is_ticket_service req.ssl_sni -i ticket.gotrs.local
         acl is_user_service req.ssl_sni -i user.gotrs.local
-        
+
         use_backend grpc_ticket_servers if is_ticket_service
         use_backend grpc_user_servers if is_user_service
         default_backend grpc_default_servers
-        
+
     # API backend with health checks
     backend api_servers
         mode http
         balance leastconn
         option httpchk GET /health/ready HTTP/1.1\r\nHost:\ api
-        
+
         # Circuit breaker settings
         option allbackups
         option httpclose
         option abortonclose
-        
+
         # Session stickiness
         cookie SERVERID insert indirect nocache
-        
+
         # Dynamic server discovery via DNS
         server-template api 10 api-gateway.default.svc.cluster.local:8080 \
             check inter 2s rise 2 fall 3 \
             cookie api \
             maxconn 100 \
             weight 100
-            
+
     # Auth backend with stricter rate limiting
     backend auth_servers
         mode http
         balance roundrobin
         option httpchk GET /health/ready HTTP/1.1\r\nHost:\ auth
-        
+
         # Stricter rate limiting for auth
         stick-table type ip size 10k expire 60s store http_req_rate(60s)
         http-request track-sc1 src
         http-request deny if { sc_http_req_rate(1) gt 10 }
-        
+
         server-template auth 3 auth-service.default.svc.cluster.local:8080 \
             check inter 2s rise 2 fall 3 \
             maxconn 50
-            
+
     # WebSocket backend
     backend websocket_servers
         mode http
         balance source
         option http-server-close
         option forceclose
-        
+
         # WebSocket specific settings
         timeout tunnel 1h
         timeout client-fin 30s
-        
+
         server-template ws 5 websocket-service.default.svc.cluster.local:8080 \
             check inter 5s rise 2 fall 3 \
             maxconn 200
-            
+
     # Static file backend with caching headers
     backend static_servers
         mode http
         balance roundrobin
-        
+
         # Add cache headers
         http-response set-header Cache-Control "public, max-age=2592000"
         http-response set-header Expires %[date(2592000),http_date]
-        
+
         server-template static 2 static-service.default.svc.cluster.local:80 \
             check inter 10s rise 2 fall 3 \
             maxconn 500
-            
+
     # Web application backend
     backend web_servers
         mode http
         balance roundrobin
         option httpchk GET / HTTP/1.1\r\nHost:\ web
-        
+
         # Compression
         compression algo gzip
         compression type text/html text/plain text/css text/javascript application/javascript application/json
-        
+
         server-template web 5 web-service.default.svc.cluster.local:3000 \
             check inter 2s rise 2 fall 3 \
             cookie web \
             maxconn 200
-            
+
     # gRPC ticket service backend
     backend grpc_ticket_servers
         mode tcp
         balance leastconn
-        
+
         # gRPC health check
         option tcp-check
         tcp-check connect
         tcp-check send-binary 00000000 # gRPC magic
         tcp-check expect binary 00000000
-        
+
         server-template ticket-grpc 10 ticket-service.default.svc.cluster.local:50051 \
             check inter 2s rise 2 fall 3 \
             maxconn 100
-            
+
     # gRPC user service backend
     backend grpc_user_servers
         mode tcp
         balance leastconn
-        
+
         option tcp-check
         tcp-check connect
-        
+
         server-template user-grpc 10 user-service.default.svc.cluster.local:50051 \
             check inter 2s rise 2 fall 3 \
             maxconn 100
-            
+
     # Default gRPC backend
     backend grpc_default_servers
         mode tcp
         balance roundrobin
-        
+
         server-template grpc-default 5 api-gateway.default.svc.cluster.local:50051 \
             check inter 5s rise 2 fall 3 \
             maxconn 50

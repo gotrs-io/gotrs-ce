@@ -1,3 +1,4 @@
+---
 # Authentication Routes Configuration
 apiVersion: v1
 kind: RouteGroup
@@ -28,7 +29,7 @@ spec:
       method: POST
       handler: handleLogout
       middleware:
-        - auth # Require authentication for logout
+        - auth  # Require authentication for logout
       description: "Process logout request"
 
     # GET logout route for frontend redirects
@@ -74,8 +75,9 @@ spec:
       handler: handleCustomerLogin
       description: "Process customer login form"
 
-    # Customer logout (no auth middleware - must clear cookies before middleware runs)
+    # Customer logout (no auth middleware)
+    # Must clear cookies before middleware runs
     - path: /customer/logout
       method: GET
       handler: handleCustomerLogout
-      description: "Customer logout route - clears cookies and redirects to customer login"
+      description: "Customer logout - clears cookies and redirects"

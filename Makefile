@@ -1023,8 +1023,7 @@ yaml-lint:
 		-w /workspace \
 		-u "$$(id -u):$$(id -g)" \
 		gotrs-toolbox:latest \
-		yamllint routes/*.yaml config/*.yaml docker-compose*.yml .github/**/*.yaml 2>/dev/null || echo "⚠️  yamllint found issues or no YAML files found"
-
+		bash -lc 'tmpr=$$(mktemp -u); tmpr=$$(mktemp "$$tmpr.XXXXXX"); (find routes -type f -name "*.yaml" -print0; find config -type f -name "*.yaml" -print0; find .github -type f -name "*.yaml" -print0) > "$$tmpr"; if [ ! -s "$$tmpr" ]; then echo "⚠️  no YAML files found"; rm -f "$$tmpr"; exit 0; fi; echo "🔧 Linting YAML files with .yamllint"; rc=0; xargs -0 yamllint -c .yamllint < "$$tmpr" || rc=$$?; rm -f "$$tmpr"; if [ $$rc -ne 0 ]; then echo "⚠️  yamllint found issues"; exit $$rc; fi'
 # Run security scan with toolbox
 toolbox-security:
 	@$(MAKE) toolbox-build

@@ -1,3 +1,4 @@
+---
 ## Legacy API aliases (backward compatibility)
 ## Purpose: Serve legacy paths while frontend migrates
 ## NOTE: Most routes moved to dedicated YAML files:

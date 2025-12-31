@@ -1,15 +1,16 @@
+---
 # Customer Routes Configuration
 apiVersion: v1
 kind: RouteGroup
 metadata:
   name: customer
-  description: "Customer-specific routes for ticket management and self-service"
+  description: "Customer routes for ticket management and self-service"
   namespace: default
   enabled: true
 spec:
   prefix: /customer
   middleware:
-    - customer-portal # Loads portal config; handles auth requirement per config
+    - customer-portal  # Loads portal config; handles auth per config
   routes:
     # Customer dashboard
     - path: /

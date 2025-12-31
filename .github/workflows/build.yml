@@ -127,7 +127,7 @@ jobs:
           ```bash
           # Install cosign
           go install github.com/sigstore/cosign/v2/cmd/cosign@latest
-          
+
           # Verify image
           cosign verify ${{ needs.build.outputs.image }}:${{ steps.version.outputs.VERSION }} \
             --certificate-identity=https://github.com/${{ github.repository }}/.github/workflows/build.yml@refs/tags/${{ steps.version.outputs.VERSION }} \

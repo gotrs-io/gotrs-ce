@@ -1,3 +1,4 @@
+---
 # Ticket Attachments API Routes Configuration
 apiVersion: v1
 kind: RouteGroup

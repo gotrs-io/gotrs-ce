@@ -1,3 +1,4 @@
+---
 # Agent Routes Configuration
 apiVersion: v1
 kind: RouteGroup
@@ -9,7 +10,7 @@ metadata:
 spec:
   prefix: /agent
   middleware:
-    - auth # Require authentication for agent access
+    - auth  # Require authentication for agent access
   routes:
     # Agent tickets list page
     - path: /tickets
@@ -19,9 +20,9 @@ spec:
       description: "Display agent tickets list with full functionality"
 
     # Agent ticket zoom view - shows full ticket with S/MIME articles
-    # Note: GET /agent/tickets/:id is handled as a legacy redirect in routes/compatibility.yaml
-    # to unify ticket detail navigation. Do not register a direct GET handler here to avoid
-    # duplicate route conflicts.
+    # GET /agent/tickets/:id is a legacy redirect.
+    # See routes/compatibility.yaml for redirect logic
+    # Do not register a direct GET handler here to avoid duplicates.
 
     # Agent ticket reply (customer reply)
     - path: /tickets/:id/reply
@@ -75,7 +76,7 @@ spec:
     - path: /tickets/:id/split
       method: POST
       handler: handleAgentTicketNote
-      description: "Split ticket into multiple tickets (using note handler temporarily)"
+      description: "Split ticket into multiple tickets (temporary)"
 
     # Customer users for ticket
     - path: /tickets/:id/customer-users
@@ -118,15 +119,15 @@ spec:
     - path: /api/templates
       method: GET
       handler: handleGetAgentTemplates
-      description: "Get templates available for a queue (query params: queue_id, type)"
+      description: "Get templates for a queue (query params: queue_id, type)"
 
     - path: /api/templates/:id
       method: GET
       handler: handleGetAgentTemplate
-      description: "Get single template with variable substitution (query param: ticket_id)"
+      description: "Get a single template with variable substitution"
 
     # Agent signatures API - for automatic signature loading
     - path: /api/signatures/queue/:queue_id
       method: GET
       handler: handleGetQueueSignature
-      description: "Get signature for a queue with variable substitution (query param: ticket_id)"
+      description: "Get a queue signature with variable substitution"

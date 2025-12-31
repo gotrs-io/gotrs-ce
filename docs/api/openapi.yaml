@@ -3,9 +3,9 @@ info:
   title: GOTRS API
   description: |
     GOTRS (GO Ticket Request System) is a modern, cloud-native ticketing system built with Go and HTMX.
-    
+
     This API provides comprehensive ticket management, user authentication, queue management, and enterprise integrations including LDAP/Active Directory.
-    
+
     ## Features
     - 🎫 Complete ticket lifecycle management
     - 👥 User and role management with RBAC
@@ -16,14 +16,14 @@ info:
     - 🔍 Advanced search and filtering
     - 📈 SLA management and escalation
     - 🔐 OAuth2 and API token authentication
-    
+
     ## Authentication
     The API supports multiple authentication methods:
     - Session-based authentication for web UI
     - JWT tokens for API access
     - OAuth2 for third-party integrations
     - LDAP/Active Directory for enterprise SSO
-    
+
   version: 1.0.0
   contact:
     name: GOTRS Support
@@ -692,13 +692,13 @@ components:
       in: cookie
       name: gotrs_session
       description: Session-based authentication using cookies
-    
+
     jwtAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
       description: JWT token authentication
-    
+
     oauth2:
       type: oauth2
       flows:

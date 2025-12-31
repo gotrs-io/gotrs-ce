@@ -1,3 +1,4 @@
+---
 # Ticket Management Routes Configuration
 apiVersion: v1
 kind: RouteGroup
@@ -9,7 +10,7 @@ metadata:
 spec:
   prefix: /tickets
   middleware:
-    - auth # Require authentication for ticket access
+    - auth  # Require authentication for ticket access
   routes:
     # Tickets list page - shows all tickets with filtering
     - path: /
@@ -18,7 +19,8 @@ spec:
       template: pages/tickets/list.pongo2
       description: "Display tickets list with search and filtering"
 
-    # Note: ticket detail is served from unified /ticket/:id route (see basic.yaml; compatibility.yaml keeps legacy redirects).
+    # Note: ticket detail is served from unified /ticket/:id route.
+    # See basic.yaml; compatibility.yaml keeps legacy redirects.
     # Do not register a duplicate /tickets/:id handler here to avoid conflicts.
 
     # New ticket creation form

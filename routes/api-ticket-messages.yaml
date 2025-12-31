@@ -1,3 +1,4 @@
+---
 # Ticket Messages API Routes Configuration
 apiVersion: v1
 kind: RouteGroup

@@ -1,3 +1,4 @@
+---
 # Basic Routes Configuration
 apiVersion: v1
 kind: RouteGroup
@@ -39,7 +40,7 @@ spec:
       method: GET
       handler: handleQueuesRedirect
       middleware:
-        - auth # Require authentication to determine role
+        - auth  # Require authentication to determine role
       description: "Role-aware redirect/render for queues"
 
     # Queue detail page - shows tickets filtered by queue

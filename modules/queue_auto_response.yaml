@@ -6,7 +6,7 @@ module:
     description: Manage Queue Auto Response mappings
     route_prefix: /admin/dynamic/queue_auto_response
     # Uses a view to provide synthetic ID for composite key table
-      
+
 fields:
     - name: id
       type: integer
@@ -75,7 +75,7 @@ fields:
       label: Modified By
       show_in_list: false
       show_in_form: false
-      
+
 features:
     soft_delete: false  # No valid_id field
     search: true
@@ -83,13 +83,13 @@ features:
     export_csv: true
     status_toggle: false
     color_picker: false
-    
+
 permissions:
     - view
     - create
     - update
     - delete
-    
+
 validation:
     unique_fields: []
     required_fields:

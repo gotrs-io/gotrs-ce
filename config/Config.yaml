@@ -1,3 +1,4 @@
+---
 # GoTRS Master Configuration Definition
 # This file defines all available configuration settings for the system
 # Similar to OTRS's XML configuration files but in YAML format
@@ -13,7 +14,7 @@ settings:
   # ============================================
   # Core System Settings
   # ============================================
-  
+
   - name: "SystemID"
     navigation: "Core::System"
     description: "The system ID used for ticket number generation (1-99)"
@@ -40,7 +41,8 @@ settings:
     invisible: false
     has_config_level: 100
     user_modification_possible: true
-    validation: "^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])*$"
+    validation: >-
+      ^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])*$
 
   - name: "Organization"
     navigation: "Core::System"
@@ -70,7 +72,7 @@ settings:
   # ============================================
   # Ticket Settings
   # ============================================
-  
+
   - name: "Ticket::NumberGenerator"
     navigation: "Core::Ticket"
     description: "Ticket number generator module"
@@ -146,7 +148,7 @@ settings:
   # ============================================
   # Email Settings
   # ============================================
-  
+
   - name: "SendmailModule"
     navigation: "Core::Email"
     description: "Email sending backend module"
@@ -223,7 +225,7 @@ settings:
   # ============================================
   # Session Settings
   # ============================================
-  
+
   - name: "SessionMaxTime"
     navigation: "Core::Session"
     description: "Max session time in seconds (default 4 hours)"
@@ -270,7 +272,7 @@ settings:
 
   - name: "Auth::Providers"
     navigation: "Core::Auth"
-    description: "Ordered list of auth providers to attempt (database, ldap, static)"
+    description: "Ordered list of auth providers to attempt"
     group: "Framework"
     type: "array"
     default:
@@ -284,7 +286,7 @@ settings:
   # ============================================
   # Frontend Settings
   # ============================================
-  
+
   - name: "Frontend::WebPath"
     navigation: "Frontend::Base"
     description: "Web path for static assets"
@@ -350,7 +352,7 @@ settings:
   # ============================================
   # Agent Interface Settings
   # ============================================
-  
+
   - name: "Agent::DefaultTicketView"
     navigation: "Frontend::Agent"
     description: "Default ticket view for agents"
@@ -374,7 +376,7 @@ settings:
 
   - name: "Agent::TicketViewRefreshTime"
     navigation: "Frontend::Agent"
-    description: "Auto-refresh interval for ticket views (seconds, 0 = disabled)"
+    description: "Auto-refresh interval for ticket views (seconds)"
     group: "Frontend"
     type: "integer"
     default: 0
@@ -389,7 +391,7 @@ settings:
   # ============================================
   # Customer Interface Settings
   # ============================================
-  
+
   - name: "Customer::DefaultTicketView"
     navigation: "Frontend::Customer"
     description: "Default ticket view for customers"
@@ -428,7 +430,7 @@ settings:
   # ============================================
   # Performance Settings
   # ============================================
-  
+
   - name: "Cache::Module"
     navigation: "Core::Cache"
     description: "Cache backend module"
@@ -465,7 +467,7 @@ settings:
   # ============================================
   # Database Settings (readonly - set via env)
   # ============================================
-  
+
   - name: "DatabaseHost"
     navigation: "Core::Database"
     description: "Database server hostname"
@@ -493,7 +495,7 @@ settings:
   # ============================================
   # Log Settings
   # ============================================
-  
+
   - name: "LogModule"
     navigation: "Core::Log"
     description: "Logging backend module"
@@ -537,7 +539,7 @@ settings:
   # ============================================
   # Security Settings
   # ============================================
-  
+
   - name: "SecureMode"
     navigation: "Core::Security"
     description: "Enable secure mode (HTTPS only)"
@@ -617,15 +619,15 @@ groups:
   - name: "Framework"
     description: "Core framework settings"
     priority: 100
-  
+
   - name: "Ticket"
     description: "Ticket system settings"
     priority: 200
-  
+
   - name: "Frontend"
     description: "User interface settings"
     priority: 300
-  
+
   - name: "Backend"
     description: "Backend service settings"
     priority: 400

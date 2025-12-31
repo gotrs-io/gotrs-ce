@@ -1,6 +1,8 @@
+---
 # GOTRS Default Configuration
 # Non-secret baseline defaults shipped with the project.
-# Precedence (low→high): default.yaml < config/config.yaml (gitignored) < environment vars.
+# Precedence (low→high): default.yaml < config/config.yaml (gitignored)
+# < environment vars.
 # Do not put real passwords, tokens, or production secrets here.
 # Example local override (config/config.yaml):
 #   app:
@@ -46,7 +48,7 @@ database:
   port: 5432
   name: gotrs
   user: gotrs            # Non-secret default username
-  password: ""           # Blank: supply via config/config.yaml or env DB_PASSWORD
+  password: ""  # Blank; set in config/config.yaml or via DB_PASSWORD env
   ssl_mode: disable
   max_open_conns: 25
   max_idle_conns: 25
@@ -128,7 +130,8 @@ storage:
   local:
     path: /app/storage
     public_path: /app/storage/public
-    # Layout is fixed to OTRS: var/article/YYYY/MM/DD/<ticket>/<article>/<filename>
+    # Layout fixed to OTRS:
+    #   var/article/YYYY/MM/DD/<ticket>/<article>/<filename>
   s3:
     bucket: ""
     region: ""
@@ -165,19 +168,19 @@ ticket:
   default_queue: 1           # 1 = Raw (OTRS queue IDs)
   default_lock: 1            # 1 = unlock (OTRS lock IDs)
   auto_assign: false
-  
+
   # Service settings (Znuny-compatible)
   service:
     # Enable default services for customers without explicit assignments
     # Uses <DEFAULT> pseudo-user in service_customer_user table (Znuny pattern)
     default_unknown_customer: true
-  
+
   # SLA configuration
   sla:
     enabled: false
     first_response: 4h
     resolution: 24h
-    
+
   # Notification settings
   notifications:
     customer_create: true

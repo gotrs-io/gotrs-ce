@@ -1,3 +1,4 @@
+---
 # Queue API Routes Configuration - Migrated from protectedAPI code routes
 apiVersion: v1
 kind: RouteGroup

@@ -56,7 +56,7 @@ spec:
   policyTypes:
   - Ingress
   - Egress
-  
+
   ingress:
   # Only allow traffic from nginx frontend
   - from:
@@ -68,7 +68,7 @@ spec:
       port: 8080
     - protocol: TCP
       port: 9090  # metrics
-  
+
   # Allow monitoring
   - from:
     - namespaceSelector:
@@ -77,7 +77,7 @@ spec:
     ports:
     - protocol: TCP
       port: 9090
-  
+
   egress:
   # Database access
   - to:
@@ -87,7 +87,7 @@ spec:
     ports:
     - protocol: TCP
       port: 5432
-  
+
   # Redis access
   - to:
     - podSelector:
@@ -96,7 +96,7 @@ spec:
     ports:
     - protocol: TCP
       port: 6379
-  
+
   # DNS
   - to: []
     ports:
@@ -104,7 +104,7 @@ spec:
       port: 53
     - protocol: TCP
       port: 53
-  
+
   # HTTPS for external APIs (restricted)
   - to: []
     ports:
@@ -124,7 +124,7 @@ spec:
   policyTypes:
   - Ingress
   - Egress
-  
+
   ingress:
   # Only allow backend and monitoring
   - from:
@@ -134,7 +134,7 @@ spec:
     ports:
     - protocol: TCP
       port: 5432
-  
+
   - from:
     - podSelector:
         matchLabels:
@@ -142,7 +142,7 @@ spec:
     ports:
     - protocol: TCP
       port: 5432
-  
+
   # Replication traffic
   - from:
     - podSelector:
@@ -151,14 +151,14 @@ spec:
     ports:
     - protocol: TCP
       port: 5432
-  
+
   egress:
   # DNS only
   - to: []
     ports:
     - protocol: UDP
       port: 53
-  
+
   # Replication
   - to:
     - podSelector:
@@ -181,7 +181,7 @@ spec:
   policyTypes:
   - Ingress
   - Egress
-  
+
   ingress:
   # Backend access
   - from:
@@ -191,7 +191,7 @@ spec:
     ports:
     - protocol: TCP
       port: 6379
-  
+
   # Monitoring
   - from:
     - podSelector:
@@ -200,7 +200,7 @@ spec:
     ports:
     - protocol: TCP
       port: 6379
-  
+
   # Sentinel traffic
   - from:
     - podSelector:
@@ -209,7 +209,7 @@ spec:
     ports:
     - protocol: TCP
       port: 6379
-  
+
   # Inter-redis communication
   - from:
     - podSelector:
@@ -218,14 +218,14 @@ spec:
     ports:
     - protocol: TCP
       port: 6379
-  
+
   egress:
   # DNS
   - to: []
     ports:
     - protocol: UDP
       port: 53
-  
+
   # Redis replication
   - to:
     - podSelector:

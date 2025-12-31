@@ -12,30 +12,30 @@ data:
     cluster-node-timeout 5000
     appendonly yes
     appendfsync everysec
-    
+
     # Performance tuning
     maxmemory 2gb
     maxmemory-policy allkeys-lru
-    
+
     # Persistence
     save 900 1
     save 300 10
     save 60 10000
-    
+
     # Network
     tcp-backlog 511
     tcp-keepalive 300
     timeout 0
-    
+
     # Slow log
     slowlog-log-slower-than 10000
     slowlog-max-len 128
-    
+
     # Client output buffer limits
     client-output-buffer-limit normal 0 0 0
     client-output-buffer-limit replica 256mb 64mb 60
     client-output-buffer-limit pubsub 32mb 8mb 60
-    
+
     # Security
     protected-mode no
     requirepass ${REDIS_PASSWORD}
@@ -187,7 +187,7 @@ spec:
               sleep 5
             done
           done
-          
+
           # Create cluster
           echo "Creating Redis cluster..."
           redis-cli -a ${REDIS_PASSWORD} --cluster create \
@@ -198,7 +198,7 @@ spec:
             redis-cluster-4.redis-cluster:6379 \
             redis-cluster-5.redis-cluster:6379 \
             --cluster-replicas 1 --cluster-yes
-          
+
           echo "Redis cluster created successfully"
         env:
         - name: REDIS_PASSWORD

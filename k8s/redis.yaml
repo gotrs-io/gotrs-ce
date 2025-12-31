@@ -315,15 +315,15 @@ data:
   sentinel.conf: |
     # Sentinel configuration for Redis HA
     port 26379
-    
+
     # Monitor the master
     sentinel monitor gotrs-master redis-master-service 6379 2
     sentinel down-after-milliseconds gotrs-master 5000
     sentinel failover-timeout gotrs-master 10000
     sentinel parallel-syncs gotrs-master 1
-    
+
     # Authentication
     sentinel auth-pass gotrs-master ${REDIS_PASSWORD}
-    
+
     # Logging
     loglevel notice

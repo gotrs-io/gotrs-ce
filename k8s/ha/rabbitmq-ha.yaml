@@ -6,7 +6,7 @@ metadata:
 spec:
   replicas: 3
   image: rabbitmq:3.12-management-alpine
-  
+
   rabbitmq:
     additionalConfig: |
       cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s
@@ -24,14 +24,14 @@ spec:
       default_permissions.write = .*
       disk_free_limit.absolute = 2GB
       vm_memory_high_watermark.relative = 0.6
-      
+
     additionalPlugins:
     - rabbitmq_management
     - rabbitmq_prometheus
     - rabbitmq_shovel
     - rabbitmq_federation
     - rabbitmq_consistent_hash_exchange
-    
+
   resources:
     requests:
       cpu: 500m
@@ -39,11 +39,11 @@ spec:
     limits:
       cpu: 2
       memory: 2Gi
-      
+
   persistence:
     storageClassName: fast-ssd
     storage: 10Gi
-    
+
   affinity:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -54,7 +54,7 @@ spec:
             values:
             - rabbitmq-cluster
         topologyKey: kubernetes.io/hostname
-        
+
   override:
     service:
       spec:

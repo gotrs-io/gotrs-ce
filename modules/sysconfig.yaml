@@ -114,7 +114,7 @@ computed_fields:
     list_position: 7
     lambda: |
       var html = '<div class="flex items-center space-x-2">';
-      
+
       // Show edit button only if modification is possible
       if (item.user_modification_possible && !item.is_readonly) {
         html += '<button onclick="editConfig(\'' + item.name + '\')" ';
@@ -123,14 +123,14 @@ computed_fields:
         html += '<i class="fas fa-edit"></i>';
         html += '</button>';
       }
-      
+
       // View details button
       html += '<button onclick="viewConfigDetails(\'' + item.name + '\')" ';
       html += 'class="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300" ';
       html += 'title="View Details">';
       html += '<i class="fas fa-info-circle"></i>';
       html += '</button>';
-      
+
       // Reset to default button (if modified)
       if (item.user_modification_possible && !item.is_readonly) {
         html += '<button onclick="resetToDefault(\'' + item.name + '\')" ';
@@ -139,7 +139,7 @@ computed_fields:
         html += '<i class="fas fa-undo"></i>';
         html += '</button>';
       }
-      
+
       html += '</div>';
       return html;
 
@@ -149,10 +149,10 @@ computed_fields:
     list_position: 8
     lambda: |
       var html = '';
-      
+
       // Check if this setting has been modified
       // This would need to be joined with sysconfig_modified table in a real implementation
-      
+
       if (item.user_modification_possible) {
         if (item.is_readonly) {
           html += '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">';
@@ -168,7 +168,7 @@ computed_fields:
         html += '<i class="fas fa-cog mr-1"></i>System';
         html += '</span>';
       }
-      
+
       return html;
 
 features:
@@ -186,7 +186,7 @@ filters:
     label: Category
     source: database
     query: "SELECT DISTINCT navigation, navigation FROM sysconfig_default ORDER BY navigation"
-  
+
   - field: user_modification_possible
     type: select
     label: Modifiable
@@ -197,7 +197,7 @@ filters:
         label: "User Modifiable"
       - value: "0"
         label: "System Only"
-  
+
   - field: is_readonly
     type: select
     label: Access

@@ -182,10 +182,10 @@ computed_fields:
     list_position: 4
     lambda: |
       var html = '<div class="flex items-center space-x-2">';
-      
+
       // Feature indicators
       var hasFeatures = false;
-      
+
       // Check for unlock timeout
       if (item.unlock_timeout && item.unlock_timeout > 0) {
         html += '<span class="inline-flex items-center" title="Auto-unlock after ' + item.unlock_timeout + ' minutes">';
@@ -193,7 +193,7 @@ computed_fields:
         html += '</span>';
         hasFeatures = true;
       }
-      
+
       // Check for follow-up lock
       if (item.follow_up_lock && item.follow_up_lock == 1) {
         html += '<span class="inline-flex items-center" title="Follow-up locked">';
@@ -201,7 +201,7 @@ computed_fields:
         html += '</span>';
         hasFeatures = true;
       }
-      
+
       // Check for email configuration
       if (item.system_address_id) {
         html += '<span class="inline-flex items-center" title="Email configured">';
@@ -209,25 +209,25 @@ computed_fields:
         html += '</span>';
         hasFeatures = true;
       }
-      
+
       // Add divider if we have features
       if (hasFeatures) {
         html += '<span class="text-gray-300 dark:text-gray-600">|</span>';
       }
-      
+
       // Action buttons
       html += '<a href="/admin/dynamic/queue/' + item.id + '/edit" ';
       html += 'class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300" ';
       html += 'title="Edit Queue">';
       html += '<i class="fas fa-pen"></i>';
       html += '</a>';
-      
+
       html += '<button onclick="viewDetails(\'queue\', ' + item.id + ')" ';
       html += 'class="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300" ';
       html += 'title="View Details">';
       html += '<i class="fas fa-eye"></i>';
       html += '</button>';
-      
+
       // Enable/Disable toggle based on valid_id
       if (item.valid_id == 1) {
         html += '<button onclick="toggleStatus(\'queue\', ' + item.id + ', 2)" ';
@@ -242,15 +242,15 @@ computed_fields:
         html += '<i class="fas fa-toggle-off"></i>';
         html += '</button>';
       }
-      
+
       html += '<button onclick="confirmDelete(\'queue\', ' + item.id + ')" ';
       html += 'class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300" ';
       html += 'title="Delete Queue">';
       html += '<i class="fas fa-trash-alt"></i>';
       html += '</button>';
-      
+
       html += '</div>';
-      
+
       return html;
 
 features:

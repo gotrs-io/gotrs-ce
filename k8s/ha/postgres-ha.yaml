@@ -6,7 +6,7 @@ metadata:
 spec:
   instances: 3
   primaryUpdateStrategy: unsupervised
-  
+
   postgresql:
     parameters:
       max_connections: "200"
@@ -25,7 +25,7 @@ spec:
       max_parallel_workers_per_gather: "4"
       max_parallel_workers: "8"
       max_parallel_maintenance_workers: "4"
-      
+
   bootstrap:
     initdb:
       database: gotrs
@@ -36,17 +36,17 @@ spec:
       encoding: UTF8
       localeCollate: en_US.UTF-8
       localeCType: en_US.UTF-8
-      
+
   storage:
     size: 10Gi
     storageClass: fast-ssd
-    
+
   monitoring:
     enabled: true
     customQueriesConfigMap:
       - name: postgres-monitoring-queries
         key: queries.yaml
-        
+
   backup:
     enabled: true
     retentionPolicy: "30d"
@@ -67,7 +67,7 @@ spec:
         encryption: AES256
         immediateCheckpoint: false
         jobs: 2
-        
+
   resources:
     requests:
       memory: "512Mi"
@@ -75,11 +75,11 @@ spec:
     limits:
       memory: "2Gi"
       cpu: "2"
-      
+
   affinity:
     enablePodAntiAffinity: true
     topologyKey: kubernetes.io/hostname
-    
+
   nodeMaintenanceWindow:
     inProgress: false
     reusePVC: true
@@ -159,7 +159,7 @@ data:
       - lag_bytes:
           usage: GAUGE
           description: Replication lag in bytes
-          
+
     - name: database_size
       query: |
         SELECT
@@ -171,7 +171,7 @@ data:
       - size_bytes:
           usage: GAUGE
           description: Database size in bytes
-          
+
     - name: connection_stats
       query: |
         SELECT

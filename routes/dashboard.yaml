@@ -1,3 +1,4 @@
+---
 # Dashboard Routes Configuration
 apiVersion: v1
 kind: RouteGroup
@@ -9,7 +10,7 @@ metadata:
 spec:
   prefix: /dashboard
   middleware:
-    - auth # Require authentication for dashboard access
+    - auth  # Require authentication for dashboard access
   routes:
     # Main dashboard page - shows overview and activity
     - path: /
@@ -22,7 +23,7 @@ spec:
     - path: /api/activity-stream
       method: GET
       handler: dashboard_activity_stream
-      description: "Server-sent events for real-time dashboard activity updates"
+      description: "Server-sent events for dashboard activity updates"
 
     # Dashboard statistics API
     - path: /api/stats

@@ -7,7 +7,7 @@ data:
   cdn.conf: |
     # CDN configuration for static assets
     # This config can be used with CloudFront, Cloudflare, or any CDN
-    
+
     # Cache Control Headers
     cache_control:
       # Images - cache for 1 year
@@ -16,7 +16,7 @@ data:
         max_age: 31536000
         s_maxage: 31536000
         immutable: true
-        
+
       # CSS/JS - cache for 1 month with revalidation
       assets:
         pattern: '\.(css|js)$'
@@ -24,21 +24,21 @@ data:
         s_maxage: 2592000
         must_revalidate: true
         stale_while_revalidate: 86400
-        
+
       # Fonts - cache for 1 year
       fonts:
         pattern: '\.(woff|woff2|ttf|eot|otf)$'
         max_age: 31536000
         s_maxage: 31536000
         immutable: true
-        
+
       # Documents - cache for 1 day
       documents:
         pattern: '\.(pdf|doc|docx|xls|xlsx)$'
         max_age: 86400
         s_maxage: 86400
         must_revalidate: true
-    
+
     # CORS Configuration
     cors:
       enabled: true
@@ -56,7 +56,7 @@ data:
         - Content-Length
         - Content-Range
       max_age: 86400
-    
+
     # Compression
     compression:
       enabled: true
@@ -69,7 +69,7 @@ data:
         - application/xml
         - image/svg+xml
       min_length: 1024
-      
+
     # Security Headers
     security:
       x_content_type_options: nosniff
@@ -77,18 +77,18 @@ data:
       x_xss_protection: "1; mode=block"
       referrer_policy: strict-origin-when-cross-origin
       content_security_policy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
-    
+
     # URL Rewriting
     rewrites:
       # Version assets with query strings
       - pattern: '/static/v([0-9]+)/(.*)'
         replacement: '/static/$2?v=$1'
-        
+
       # WebP fallback
       - pattern: '(.*)\.webp$'
         replacement: '$1.jpg'
         condition: 'no_webp_support'
-    
+
     # Edge Functions
     edge_functions:
       # Image optimization
@@ -107,7 +107,7 @@ data:
             suffix: "-lg"
           - width: 1920
             suffix: "-xl"
-      
+
       # Geolocation-based routing
       geo_routing:
         enabled: false
@@ -296,10 +296,10 @@ metadata:
 data:
   default.vcl: |
     vcl 4.1;
-    
+
     import std;
     import directors;
-    
+
     # Backend configuration
     backend default {
         .host = "nginx-lb.default.svc.cluster.local";
@@ -312,18 +312,18 @@ data:
             .threshold = 3;
         }
     }
-    
+
     # Additional backends for load balancing
     backend backend1 {
         .host = "nginx-lb-1.default.svc.cluster.local";
         .port = "80";
     }
-    
+
     backend backend2 {
         .host = "nginx-lb-2.default.svc.cluster.local";
         .port = "80";
     }
-    
+
     # Initialize directors for load balancing
     sub vcl_init {
         new vdir = directors.round_robin();
@@ -331,90 +331,90 @@ data:
         vdir.add_backend(backend1);
         vdir.add_backend(backend2);
     }
-    
+
     # Client request handling
     sub vcl_recv {
         # Set backend
         set req.backend_hint = vdir.backend();
-        
+
         # Normalize URL
         set req.url = std.querysort(req.url);
-        
+
         # Remove tracking parameters
         if (req.url ~ "(\?|&)(utm_source|utm_medium|utm_campaign|utm_content|gclid|fbclid)=") {
             set req.url = regsuball(req.url, "(utm_source|utm_medium|utm_campaign|utm_content|gclid|fbclid)=[^&]+&?", "");
             set req.url = regsub(req.url, "(\?|&)$", "");
         }
-        
+
         # Handle WebSocket upgrades
         if (req.http.Upgrade ~ "(?i)websocket") {
             return (pipe);
         }
-        
+
         # Bypass cache for authenticated requests
         if (req.http.Authorization || req.http.Cookie ~ "session=") {
             return (pass);
         }
-        
+
         # Bypass cache for POST, PUT, DELETE
         if (req.method != "GET" && req.method != "HEAD") {
             return (pass);
         }
-        
+
         # Cache static files
         if (req.url ~ "\.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot|otf)(\?|$)") {
             unset req.http.Cookie;
             return (hash);
         }
-        
+
         # Cache API responses for GET requests
         if (req.url ~ "^/api/v1/(queues|templates|config)") {
             return (hash);
         }
-        
+
         # Pass everything else
         return (pass);
     }
-    
+
     # Backend response handling
     sub vcl_backend_response {
         # Enable grace mode
         set beresp.grace = 6h;
-        
+
         # Set cache times for static content
         if (bereq.url ~ "\.(jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot|otf)(\?|$)") {
             unset beresp.http.Set-Cookie;
             set beresp.ttl = 365d;
             set beresp.http.Cache-Control = "public, max-age=31536000, immutable";
         }
-        
+
         # CSS and JS with version strings
         if (bereq.url ~ "\.(css|js)(\?v=|$)") {
             unset beresp.http.Set-Cookie;
             set beresp.ttl = 30d;
             set beresp.http.Cache-Control = "public, max-age=2592000";
         }
-        
+
         # Cache successful API responses
         if (bereq.url ~ "^/api/v1/" && beresp.status == 200) {
             set beresp.ttl = 60s;
             set beresp.http.Cache-Control = "public, max-age=60, s-maxage=60";
         }
-        
+
         # Don't cache error responses
         if (beresp.status >= 400) {
             set beresp.ttl = 0s;
             set beresp.uncacheable = true;
             return (deliver);
         }
-        
+
         # Enable ESI processing
         if (beresp.http.Surrogate-Control ~ "ESI/1.0") {
             unset beresp.http.Surrogate-Control;
             set beresp.do_esi = true;
         }
     }
-    
+
     # Delivery
     sub vcl_deliver {
         # Add cache hit/miss header
@@ -424,50 +424,50 @@ data:
         } else {
             set resp.http.X-Cache = "MISS";
         }
-        
+
         # Security headers
         set resp.http.X-Frame-Options = "SAMEORIGIN";
         set resp.http.X-Content-Type-Options = "nosniff";
         set resp.http.X-XSS-Protection = "1; mode=block";
         set resp.http.Referrer-Policy = "strict-origin-when-cross-origin";
-        
+
         # Remove internal headers
         unset resp.http.X-Powered-By;
         unset resp.http.Server;
         unset resp.http.Via;
         unset resp.http.X-Varnish;
     }
-    
+
     # Hash calculation
     sub vcl_hash {
         hash_data(req.url);
-        
+
         if (req.http.host) {
             hash_data(req.http.host);
         } else {
             hash_data(server.ip);
         }
-        
+
         # Vary cache by device type for responsive content
         if (req.http.User-Agent ~ "Mobile|Android|iPhone") {
             hash_data("mobile");
         } else {
             hash_data("desktop");
         }
-        
+
         return (lookup);
     }
-    
+
     # Purge handling
     sub vcl_purge {
         return (synth(200, "Purged"));
     }
-    
+
     # Error handling
     sub vcl_backend_error {
         set beresp.http.Content-Type = "text/html; charset=utf-8";
         set beresp.ttl = 10s;
-        
+
         synthetic({"
             <!DOCTYPE html>
             <html>
@@ -480,7 +480,7 @@ data:
             </body>
             </html>
         "});
-        
+
         return (deliver);
     }
 ---

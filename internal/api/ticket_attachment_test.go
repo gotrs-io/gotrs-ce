@@ -70,6 +70,8 @@ func createTestTicketWithAttachment(t *testing.T, db *sql.DB) (ticketID int, art
 }
 
 // setupAttachmentTestDB initializes the test database and returns a cleanup function.
+//
+//nolint:unparam // articleID is used internally for cleanup but not needed by callers
 func setupAttachmentTestDB(t *testing.T) (ticketID int, articleID int, attachmentID int, cleanup func()) {
 	t.Helper()
 

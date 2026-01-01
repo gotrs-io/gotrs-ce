@@ -203,7 +203,7 @@ func handleGetCannedResponses(c *gin.Context) {
 	search := c.Query("search")
 	tags := c.Query("tags")
 
-	var results []CannedResponse
+	results := make([]CannedResponse, 0, len(cannedResponses))
 
 	for _, resp := range cannedResponses {
 		// Check access permissions
@@ -439,7 +439,7 @@ func handleGetCannedResponseCategories(c *gin.Context) {
 		}
 	}
 
-	var categories []map[string]interface{}
+	categories := make([]map[string]interface{}, 0, len(categoryMap))
 	for name, count := range categoryMap {
 		color := colorMap[name]
 		if color == "" {

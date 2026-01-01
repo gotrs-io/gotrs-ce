@@ -79,9 +79,7 @@ func (e *Engine) ExecuteLambda(code string, execCtx ExecutionContext, config Lam
 	defer cancel()
 
 	// Inject safe global objects
-	if err := e.injectGlobals(runtime, execCtx); err != nil {
-		return "", fmt.Errorf("failed to inject globals: %w", err)
-	}
+	e.injectGlobals(runtime, execCtx)
 
 	// Wrap the code in a function to ensure return value
 	wrappedCode := fmt.Sprintf(`
@@ -118,7 +116,7 @@ func (e *Engine) ExecuteLambda(code string, execCtx ExecutionContext, config Lam
 }
 
 // injectGlobals provides safe access to data and utilities in the JavaScript context.
-func (e *Engine) injectGlobals(runtime *goja.Runtime, execCtx ExecutionContext) error {
+func (e *Engine) injectGlobals(runtime *goja.Runtime, execCtx ExecutionContext) {
 	// Set item data directly as JavaScript object
 	runtime.Set("item", execCtx.Item)
 
@@ -138,15 +136,11 @@ func (e *Engine) injectGlobals(runtime *goja.Runtime, execCtx ExecutionContext) 
 	runtime.Set("db", dbObj)
 
 	// Inject safe utility functions
-	if err := e.injectUtilities(runtime); err != nil {
-		return fmt.Errorf("failed to inject utilities: %w", err)
-	}
-
-	return nil
+	e.injectUtilities(runtime)
 }
 
 // injectUtilities provides safe utility functions.
-func (e *Engine) injectUtilities(runtime *goja.Runtime) error {
+func (e *Engine) injectUtilities(runtime *goja.Runtime) {
 	// Add formatDate utility
 	runtime.Set("formatDate", func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) < 1 {
@@ -167,8 +161,6 @@ func (e *Engine) injectUtilities(runtime *goja.Runtime) error {
 		// Return original if parsing fails
 		return runtime.ToValue(dateStr)
 	})
-
-	return nil
 }
 
 // handleQueryRow executes a single-row query safely.

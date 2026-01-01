@@ -242,6 +242,7 @@ func allowTestBypass() bool {
 	return false
 }
 
+//nolint:unparam // email is constant by design for test setup
 func (m *AuthMiddleware) setTestContext(c *gin.Context, email, role string) {
 	claims := &auth.Claims{
 		UserID: 1,

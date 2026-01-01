@@ -73,7 +73,7 @@ func handleMergeTickets(c *gin.Context) {
 	}
 
 	ticketIDStrs := strings.Split(req.TicketIDs, ",")
-	var ticketIDs []int
+	ticketIDs := make([]int, 0, len(ticketIDStrs))
 	for _, idStr := range ticketIDStrs {
 		idStr = strings.TrimSpace(idStr)
 		if idStr == "" {
@@ -121,7 +121,7 @@ func handleMergeTickets(c *gin.Context) {
 	}
 
 	// Validate each ticket to merge
-	var mergeTicketList []map[string]interface{}
+	mergeTicketList := make([]map[string]interface{}, 0, len(ticketIDs))
 	for _, id := range ticketIDs {
 		ticket := getMockTicket(id)
 		if ticket == nil {

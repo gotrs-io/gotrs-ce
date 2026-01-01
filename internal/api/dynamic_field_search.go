@@ -110,8 +110,8 @@ func BuildDynamicFieldFilterSQL(filters []DynamicFieldFilter, startArgNum int) (
 		return "", nil, err
 	}
 
-	var conditions []string
-	var args []interface{}
+	conditions := make([]string, 0, len(filters))
+	args := make([]interface{}, 0, len(filters)*2)
 	argNum := startArgNum
 
 	for i, filter := range filters {
@@ -226,7 +226,7 @@ func BuildDynamicFieldFilterSQL(filters []DynamicFieldFilter, startArgNum int) (
 
 // Expected format: df_FieldName=value or df_FieldName_op=value (e.g., df_CustomerType=VIP, df_Amount_gt=1000).
 func ParseDynamicFieldFiltersFromQuery(queryParams map[string][]string) []DynamicFieldFilter {
-	var filters []DynamicFieldFilter
+	filters := make([]DynamicFieldFilter, 0, len(queryParams))
 
 	for key, values := range queryParams {
 		if !strings.HasPrefix(key, "df_") || len(values) == 0 || values[0] == "" {

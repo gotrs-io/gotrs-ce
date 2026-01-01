@@ -364,7 +364,7 @@ func (s *InternalNoteService) detectMentions(content string) []string {
 		}
 	}
 
-	var mentions []string
+	mentions := make([]string, 0, len(mentionMap))
 	for mention := range mentionMap {
 		mentions = append(mentions, mention)
 	}
@@ -388,7 +388,7 @@ func (s *InternalNoteService) detectTicketReferences(content string) []uint {
 		}
 	}
 
-	var tickets []uint
+	tickets := make([]uint, 0, len(ticketMap))
 	for ticketID := range ticketMap {
 		tickets = append(tickets, ticketID)
 	}
@@ -417,7 +417,7 @@ func (s *InternalNoteService) extractTemplateVariables(content string) []string 
 		}
 	}
 
-	var variables []string
+	variables := make([]string, 0, len(varMap))
 	for variable := range varMap {
 		variables = append(variables, variable)
 	}

@@ -143,6 +143,7 @@ func (s *Service) startEmailPollRun(activeAccounts int) func() {
 	return s.metrics.recordRun(activeAccounts)
 }
 
+//nolint:unparam // processed is passed but currently always 0, used in status map
 func (s *Service) recordEmailPollResult(ctx context.Context, account connector.Account, processed int, success bool, err error) {
 	s.markAccountPolled(account.ID, s.now())
 	if s.metrics != nil {

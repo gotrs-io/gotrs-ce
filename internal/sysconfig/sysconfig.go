@@ -317,13 +317,13 @@ func (m *Manager) getModifiedValue(name string) (interface{}, error) {
 	err := m.db.QueryRow(query, name).Scan(&value)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil // No modified value
+			return nil, nil //nolint:nilnil // No modified value
 		}
 		return nil, err
 	}
 
 	if !value.Valid {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	return value.String, nil

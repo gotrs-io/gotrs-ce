@@ -64,7 +64,7 @@ func (d *SQLiteDriver) Ping(ctx context.Context) error {
 
 // CreateTable generates and returns a CREATE TABLE query for SQLite.
 func (d *SQLiteDriver) CreateTable(schema database.TableSchema) (database.Query, error) {
-	var parts []string
+	parts := make([]string, 0, len(schema.Columns))
 
 	// Determine primary key field
 	pkField := schema.PK

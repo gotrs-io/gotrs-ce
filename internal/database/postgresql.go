@@ -373,7 +373,7 @@ func (p *PostgreSQLDatabase) buildDSN() string {
 
 // buildCreateTableSQL builds CREATE TABLE SQL for PostgreSQL.
 func (p *PostgreSQLDatabase) buildCreateTableSQL(def *TableDefinition) string {
-	var parts []string
+	parts := make([]string, 0, len(def.Columns))
 
 	// Columns
 	for _, col := range def.Columns {

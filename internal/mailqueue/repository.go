@@ -199,7 +199,7 @@ func BuildTextEmailMessage(from, to, subject, textBody string) []byte {
 
 // BuildEmailMessageWithHeaders builds an email message with optional headers for threading.
 func BuildEmailMessageWithHeaders(from, to, subject, body string, headers map[string]string) []byte {
-	var headerLines []string
+	headerLines := make([]string, 0, 3+len(headers))
 
 	// Add standard headers
 	headerLines = append(headerLines, fmt.Sprintf("From: %s", from))

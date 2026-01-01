@@ -401,7 +401,7 @@ func handleDeleteSearchHistory(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
 	// Remove from history
-	var newHistory []SearchHistory
+	newHistory := make([]SearchHistory, 0, len(searchHistory))
 	found := false
 	for _, h := range searchHistory {
 		if h.ID == id && h.UserID == userID.(int) {

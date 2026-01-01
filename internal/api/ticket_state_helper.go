@@ -127,7 +127,7 @@ func isPendingState(state *models.TicketState) bool {
 
 func loadTicketState(repo *repository.TicketRepository, stateID int) (*models.TicketState, error) {
 	if repo == nil || stateID <= 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 	st, err := repo.GetTicketStateByID(stateID)
 	if err != nil {

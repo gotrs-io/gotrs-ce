@@ -159,7 +159,7 @@ func GetSignature(id int) (*Signature, error) {
 		&s.CreateTime, &s.CreateBy, &s.ChangeTime, &s.ChangeBy,
 	)
 	if err == sql.ErrNoRows {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 	if err != nil {
 		return nil, err

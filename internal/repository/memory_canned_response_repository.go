@@ -265,7 +265,7 @@ func (r *MemoryCannedResponseRepository) SearchResponses(ctx context.Context, fi
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	var results []models.CannedResponse
+	results := make([]models.CannedResponse, 0, len(r.responses))
 	query := strings.ToLower(filter.Query)
 
 	for _, resp := range r.responses {
@@ -402,7 +402,7 @@ func (r *MemoryCannedResponseRepository) GetCategories(ctx context.Context) ([]m
 	}
 
 	// Convert to slice of CannedResponseCategory
-	var categories []models.CannedResponseCategory
+	categories := make([]models.CannedResponseCategory, 0, len(categoryMap))
 	order := 1
 	for name, count := range categoryMap {
 		categories = append(categories, models.CannedResponseCategory{

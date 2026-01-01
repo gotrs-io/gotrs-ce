@@ -57,7 +57,7 @@ type externalTicketRuleEntry struct {
 }
 
 func (cfg externalTicketRuleConfig) compile() []ExternalTicketRule {
-	var rules []ExternalTicketRule
+	rules := make([]ExternalTicketRule, 0, len(cfg.Rules))
 	for _, entry := range cfg.Rules {
 		pattern := strings.TrimSpace(entry.Pattern)
 		if pattern == "" {

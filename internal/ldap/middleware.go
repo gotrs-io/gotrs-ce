@@ -33,7 +33,7 @@ func NewAuthMiddleware(config *Config, enabled, fallbackAuth bool) *AuthMiddlewa
 // AuthenticateUser authenticates a user with LDAP.
 func (m *AuthMiddleware) AuthenticateUser(username, password string) (*User, error) {
 	if !m.enabled || m.provider == nil {
-		return nil, nil // Not enabled, fall back to local auth
+		return nil, nil //nolint:nilnil // Not enabled, fall back to local auth
 	}
 
 	result := m.provider.Authenticate(username, password)
@@ -41,7 +41,7 @@ func (m *AuthMiddleware) AuthenticateUser(username, password string) (*User, err
 		if m.fallbackAuth {
 			log.Printf("LDAP authentication failed for %s: %s, falling back to local auth",
 				username, result.ErrorMessage)
-			return nil, nil // Allow fallback to local auth
+			return nil, nil //nolint:nilnil // Allow fallback to local auth
 		}
 		return nil, &AuthError{Message: result.ErrorMessage}
 	}

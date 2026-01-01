@@ -166,7 +166,7 @@ func (rc *RedisCache) Get(ctx context.Context, key string) (interface{}, error) 
 	if err != nil {
 		if err == redis.Nil {
 			rc.metrics.misses.Inc()
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		}
 		rc.metrics.errors.Inc()
 		return nil, err

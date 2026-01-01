@@ -242,6 +242,48 @@ Avoid `FormData` for checkbox matrices when the backend expects `application/x-w
 
 **Never run `go` commands directly on host** - they will fail with "command not found".
 
+## Go Performance Anti-Patterns (AVOID)
+
+### Slice Preallocation (REQUIRED when size is known)
+When building a slice in a loop where the final size is known or estimable, **always preallocate**:
+
+```go
+// ❌ WRONG - causes multiple reallocations and GC pressure
+var results []Item
+for _, src := range items {
+    results = append(results, transform(src))
+}
+
+// ✅ CORRECT - single allocation, no reallocations
+results := make([]Item, 0, len(items))
+for _, src := range items {
+    results = append(results, transform(src))
+}
+```
+
+**Why it matters**: Without preallocation, Go doubles the backing array each time capacity is exceeded. For 1000 items, this means ~10 allocations, 10 copy operations, and 10 arrays for GC to clean up. With preallocation: 1 allocation, 0 copies, 0 GC pressure.
+
+**Impact**: 2-10x speedup in hot paths, noticeably snappier UI for list rendering, search results, and bulk operations.
+
+**golangci-lint**: The `prealloc` linter catches these. Run `make toolbox-exec ARGS="golangci-lint run"` to find violations.
+
+### String Concatenation in Loops (AVOID)
+```go
+// ❌ WRONG - O(n²) allocations
+var result string
+for _, s := range parts {
+    result += s
+}
+
+// ✅ CORRECT - O(n) with single final allocation
+var b strings.Builder
+b.Grow(estimatedSize) // optional but helps
+for _, s := range parts {
+    b.WriteString(s)
+}
+result := b.String()
+```
+
 ## Makefile Targets (Common)
 - `make up` / `make up-d`: start services (foreground/background)
 - `make down`: stop services

@@ -29,7 +29,7 @@ func (h *I18nHandlers) GetSupportedLanguages(c *gin.Context) {
 	currentLang := middleware.GetLanguage(c)
 
 	// Build language list with display names
-	var languageList []LanguageInfo
+	languageList := make([]LanguageInfo, 0, len(languages))
 	for _, lang := range languages {
 		info := LanguageInfo{
 			Code:       lang,
@@ -183,10 +183,11 @@ func (h *I18nHandlers) GetTranslationCoverage(c *gin.Context) {
 	baseKeys := h.i18n.GetAllKeys("en")
 	totalKeys := len(baseKeys)
 
-	var languages []LanguageCoverage
+	supportedLangs := h.i18n.GetSupportedLanguages()
+	languages := make([]LanguageCoverage, 0, len(supportedLangs))
 	var totalCoverage float64
 
-	for _, lang := range h.i18n.GetSupportedLanguages() {
+	for _, lang := range supportedLangs {
 		langKeys := h.i18n.GetAllKeys(lang)
 		translatedKeys := len(langKeys)
 		missingCount := totalKeys - translatedKeys

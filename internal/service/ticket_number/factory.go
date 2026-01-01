@@ -20,23 +20,23 @@ func NewGeneratorFromConfig(db *sql.DB, config map[string]interface{}) (TicketNu
 
 	switch generatorType {
 	case "date":
-		return createDateGenerator(db, config)
+		return createDateGenerator(db, config), nil
 
 	case "auto_increment":
-		return createAutoIncrementGenerator(db, config)
+		return createAutoIncrementGenerator(db, config), nil
 
 	case "random":
-		return createRandomGenerator(config)
+		return createRandomGenerator(config), nil
 
 	case "date_checksum":
-		return createDateChecksumGenerator(db, config)
+		return createDateChecksumGenerator(db, config), nil
 
 	default:
 		return nil, fmt.Errorf("unknown generator type: %s", generatorType)
 	}
 }
 
-func createDateGenerator(db *sql.DB, config map[string]interface{}) (*DateGenerator, error) {
+func createDateGenerator(db *sql.DB, config map[string]interface{}) *DateGenerator {
 	dateConfig := DateConfig{
 		IncludeHour:   true,
 		CounterDigits: 6,
@@ -56,10 +56,10 @@ func createDateGenerator(db *sql.DB, config map[string]interface{}) (*DateGenera
 		}
 	}
 
-	return NewDateGenerator(db, dateConfig), nil
+	return NewDateGenerator(db, dateConfig)
 }
 
-func createAutoIncrementGenerator(db *sql.DB, config map[string]interface{}) (*AutoIncrementGenerator, error) {
+func createAutoIncrementGenerator(db *sql.DB, config map[string]interface{}) *AutoIncrementGenerator {
 	aiConfig := AutoIncrementConfig{
 		Prefix:    "T-",
 		MinDigits: 7,
@@ -83,10 +83,10 @@ func createAutoIncrementGenerator(db *sql.DB, config map[string]interface{}) (*A
 		}
 	}
 
-	return NewAutoIncrementGenerator(db, aiConfig), nil
+	return NewAutoIncrementGenerator(db, aiConfig)
 }
 
-func createRandomGenerator(config map[string]interface{}) (*RandomGenerator, error) {
+func createRandomGenerator(config map[string]interface{}) *RandomGenerator {
 	randomConfig := RandomConfig{
 		Length:  8,
 		Charset: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
@@ -106,10 +106,10 @@ func createRandomGenerator(config map[string]interface{}) (*RandomGenerator, err
 		}
 	}
 
-	return NewRandomGenerator(randomConfig), nil
+	return NewRandomGenerator(randomConfig)
 }
 
-func createDateChecksumGenerator(db *sql.DB, config map[string]interface{}) (*DateChecksumGenerator, error) {
+func createDateChecksumGenerator(db *sql.DB, config map[string]interface{}) *DateChecksumGenerator {
 	dcConfig := DateChecksumConfig{
 		Separator:      "-",
 		CounterDigits:  6,
@@ -133,5 +133,5 @@ func createDateChecksumGenerator(db *sql.DB, config map[string]interface{}) (*Da
 		}
 	}
 
-	return NewDateChecksumGenerator(db, dcConfig), nil
+	return NewDateChecksumGenerator(db, dcConfig)
 }

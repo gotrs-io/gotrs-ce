@@ -124,9 +124,9 @@ func LoadCustomerPortalConfigForCompany(db *sql.DB, customerID string) (Customer
 	return cfg, nil
 }
 
-func ensurePortalDefault(db *sql.DB, targetName string, def portalKeyDef, userID int) (int, error) {
+func ensurePortalDefault(db *sql.DB, targetName string, def portalKeyDef, userID int) error {
 	if db == nil {
-		return 0, fmt.Errorf("database connection unavailable")
+		return fmt.Errorf("database connection unavailable")
 	}
 	if userID == 0 {
 		userID = 1
@@ -137,10 +137,10 @@ func ensurePortalDefault(db *sql.DB, targetName string, def portalKeyDef, userID
 		SELECT id FROM sysconfig_default WHERE name = $1 LIMIT 1
 	`), targetName).Scan(&id)
 	if err == nil {
-		return id, nil
+		return nil
 	}
 	if err != sql.ErrNoRows {
-		return 0, err
+		return err
 	}
 
 	if database.IsMySQL() {
@@ -166,7 +166,7 @@ func ensurePortalDefault(db *sql.DB, targetName string, def portalKeyDef, userID
 				change_time = CURRENT_TIMESTAMP,
 				change_by = VALUES(change_by)
 		`), targetName, def.description, def.xml, def.xml, def.defaultVal, userID, userID)
-		return 0, insertErr
+		return insertErr
 	}
 
 	insertErr := db.QueryRow(database.ConvertPlaceholders(`
@@ -192,11 +192,7 @@ func ensurePortalDefault(db *sql.DB, targetName string, def portalKeyDef, userID
 			change_by = EXCLUDED.change_by
 		RETURNING id
 	`), targetName, def.description, def.xml, def.xml, def.defaultVal, userID).Scan(&id)
-	if insertErr != nil {
-		return 0, insertErr
-	}
-
-	return id, nil
+	return insertErr
 }
 
 // SaveCustomerPortalConfig persists portal settings as sysconfig overrides.
@@ -207,7 +203,7 @@ func SaveCustomerPortalConfig(db *sql.DB, cfg CustomerPortalConfig, userID int) 
 
 	for _, def := range portalKeyDefs() {
 		targetName := portalKeyName(def.name, "")
-		if _, err := ensurePortalDefault(db, targetName, def, userID); err != nil {
+		if err := ensurePortalDefault(db, targetName, def, userID); err != nil {
 			return fmt.Errorf("sysconfig unavailable: %w", err)
 		}
 	}
@@ -244,7 +240,7 @@ func SaveCustomerPortalConfigForCompany(db *sql.DB, customerID string, cfg Custo
 	names := portalKeyNames(customerID)
 	for _, def := range portalKeyDefs() {
 		targetName := portalKeyName(def.name, customerID)
-		if _, err := ensurePortalDefault(db, targetName, def, userID); err != nil {
+		if err := ensurePortalDefault(db, targetName, def, userID); err != nil {
 			return fmt.Errorf("sysconfig unavailable: %w", err)
 		}
 	}

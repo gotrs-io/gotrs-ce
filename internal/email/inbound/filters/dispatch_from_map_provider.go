@@ -21,12 +21,12 @@ type FileDispatchRuleProvider struct {
 func NewFileDispatchRuleProvider(path string) (*FileDispatchRuleProvider, error) {
 	path = strings.TrimSpace(path)
 	if path == "" {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 	data, err := os.ReadFile(path) //nolint:gosec // G304 false positive - config file
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		}
 		return nil, err
 	}

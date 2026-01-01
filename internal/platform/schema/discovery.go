@@ -389,7 +389,7 @@ func (d *Discovery) GenerateModule(tableName string) (*ModuleConfig, error) {
 
 // generateFields generates field configurations from table info.
 func (d *Discovery) generateFields(info *TableInfo) []Field {
-	var fields []Field
+	fields := make([]Field, 0, len(info.Columns))
 
 	for _, col := range info.Columns {
 		field := Field{
@@ -496,7 +496,7 @@ func (d *Discovery) generateComputedFields(info *TableInfo) []ComputedField {
 
 // generateFilters generates filter configurations.
 func (d *Discovery) generateFilters(info *TableInfo) []Filter {
-	var filters []Filter
+	filters := make([]Filter, 0, len(info.ForeignKeys)+1)
 
 	// Add valid_id filter if present
 	if info.HasValidID {

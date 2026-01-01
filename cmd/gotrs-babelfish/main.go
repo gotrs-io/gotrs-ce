@@ -126,9 +126,10 @@ func showCoverage(i18n *i18n.I18n, format string, verbose bool) {
 		Coverage       float64
 	}
 
-	var coverages []Coverage
+	supportedLangs := i18n.GetSupportedLanguages()
+	coverages := make([]Coverage, 0, len(supportedLangs))
 
-	for _, lang := range i18n.GetSupportedLanguages() {
+	for _, lang := range supportedLangs {
 		langKeys := i18n.GetAllKeys(lang)
 		translatedKeys := len(langKeys)
 		coverage := float64(translatedKeys) / float64(totalKeys) * 100.0

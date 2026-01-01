@@ -56,7 +56,7 @@ func (d *MySQLDriver) Ping(ctx context.Context) error {
 
 // CreateTable generates and returns a CREATE TABLE query for MySQL.
 func (d *MySQLDriver) CreateTable(schema database.TableSchema) (database.Query, error) {
-	var parts []string
+	parts := make([]string, 0, len(schema.Columns))
 
 	// Determine primary key field
 	pkField := schema.PK

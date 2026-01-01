@@ -35,7 +35,7 @@ func (s *WriteThroughStrategy) Get(ctx context.Context, key string) (interface{}
 		return val, nil
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 // Set writes to both caches.
@@ -166,7 +166,7 @@ func (s *WriteBehindStrategy) Get(ctx context.Context, key string) (interface{},
 		return val, nil
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 // Set writes to local immediately, queues for Redis.
@@ -338,7 +338,7 @@ func (s *ReadThroughStrategy) Get(ctx context.Context, key string) (interface{},
 		return val, nil
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 // Set stores in cache.
@@ -474,7 +474,7 @@ func (s *CacheAsideStrategy) Get(ctx context.Context, key string) (interface{}, 
 		return s.redis.Get(ctx, key)
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 // Set stores in cache.

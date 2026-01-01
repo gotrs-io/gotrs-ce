@@ -159,7 +159,7 @@ func (m *Manager) GetTicket(ctx context.Context, ticketID int64) (*CachedTicket,
 	}
 
 	if data == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	ticket := &CachedTicket{}
@@ -259,7 +259,7 @@ func (m *Manager) GetUser(ctx context.Context, userID int) (*CachedUser, error) 
 	}
 
 	if data == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	user := &CachedUser{}
@@ -297,7 +297,7 @@ func (m *Manager) GetSession(ctx context.Context, sessionID string) (*CachedSess
 	}
 
 	if data == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	session := &CachedSession{}
@@ -336,7 +336,7 @@ func (m *Manager) GetSearchResults(ctx context.Context, query string, filters ma
 	}
 
 	if data == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	results := &CachedSearchResults{}
@@ -418,7 +418,7 @@ func (m *Manager) WarmCache(ctx context.Context) error {
 	close(errors)
 
 	// Collect any errors
-	var errs []error
+	errs := make([]error, 0, len(m.config.WarmupFunctions))
 	for err := range errors {
 		errs = append(errs, err)
 	}

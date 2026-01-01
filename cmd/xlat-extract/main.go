@@ -217,7 +217,7 @@ func groupKeysByPrefix(keys map[string]*TranslationKey) map[string]map[string]*T
 
 // printExtractedKeys prints the extracted keys in a readable format.
 func printExtractedKeys(grouped map[string]map[string]*TranslationKey) {
-	var prefixes []string
+	prefixes := make([]string, 0, len(grouped))
 	for prefix := range grouped {
 		prefixes = append(prefixes, prefix)
 	}

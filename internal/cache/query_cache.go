@@ -60,13 +60,13 @@ func (qc *QueryCache) Get(ctx context.Context, query string, args ...interface{}
 	}
 
 	if result.Query == "" {
-		return nil, nil // Cache miss
+		return nil, nil //nolint:nilnil // Cache miss
 	}
 
 	// Check if still valid
 	if time.Now().After(result.ExpiresAt) {
 		qc.cache.Delete(ctx, key)
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	return &result, nil

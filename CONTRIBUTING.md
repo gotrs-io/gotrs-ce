@@ -51,3 +51,40 @@ While we prepare comprehensive contribution guidelines, here are the basics:
 - Routing: All routes defined in YAML under `routes/*.yaml` using the YAML router. Do not register routes directly in Go code.
 - Tests: add/update tests for any DB-affecting change; run `make test`.
 
+## Go Performance Standards
+
+### Preallocate Slices (Required)
+When building a slice in a loop where the size is known:
+
+```go
+// ❌ Wrong - causes multiple reallocations
+var results []Item
+for _, src := range items {
+    results = append(results, transform(src))
+}
+
+// ✅ Correct - single allocation
+results := make([]Item, 0, len(items))
+for _, src := range items {
+    results = append(results, transform(src))
+}
+```
+
+### Use strings.Builder for Concatenation
+```go
+// ❌ Wrong - O(n²) allocations
+var result string
+for _, s := range parts {
+    result += s
+}
+
+// ✅ Correct - O(n)
+var b strings.Builder
+for _, s := range parts {
+    b.WriteString(s)
+}
+result := b.String()
+```
+
+Run `make toolbox-exec ARGS="golangci-lint run"` to catch these with the `prealloc` linter.
+

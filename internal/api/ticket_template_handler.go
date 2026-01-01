@@ -197,7 +197,7 @@ func handleGetTicketTemplates(c *gin.Context) {
 	queueIDStr := c.Query("queue_id")
 	search := c.Query("search")
 
-	var result []interface{}
+	result := make([]interface{}, 0, len(templates))
 	for _, tmpl := range templates {
 		// Filter by queue if specified
 		if queueIDStr != "" {

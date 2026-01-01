@@ -70,7 +70,7 @@ func (c *SMTP4DevClient) FindMailboxByLogin(ctx context.Context, login string) (
 			return &boxes[i], nil
 		}
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (c *SMTP4DevClient) CreateMailbox(ctx context.Context, name, login, password string) (*Mailbox, error) {

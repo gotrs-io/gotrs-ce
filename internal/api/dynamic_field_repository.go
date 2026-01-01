@@ -366,7 +366,7 @@ func scanDynamicField(row *sql.Row) (*DynamicField, error) {
 		&f.CreateTime, &f.CreateBy, &f.ChangeTime, &f.ChangeBy,
 	)
 	if err == sql.ErrNoRows {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan dynamic field: %w", err)
@@ -442,7 +442,7 @@ func GetDynamicFieldValuesForDisplay(objectID int, objectType string, screenKey 
 		valueMap[allValues[i].FieldID] = &allValues[i]
 	}
 
-	var result []DynamicFieldDisplay
+	result := make([]DynamicFieldDisplay, 0, len(fields))
 	for _, fwc := range fields {
 		field := fwc.Field
 		display := DynamicFieldDisplay{

@@ -617,7 +617,7 @@ type stubArticleRepo struct {
 
 func (s *stubArticleRepo) GetLatestCustomerArticleForTicket(ticketID uint) (*models.Article, error) {
 	if s.articleID <= 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 	return &models.Article{ID: s.articleID, TicketID: int(ticketID)}, nil
 }
@@ -665,7 +665,7 @@ func (r *recordingStorage) GetURL(ctx context.Context, path string, expiry time.
 }
 
 func (r *recordingStorage) GetMetadata(ctx context.Context, path string) (*service.FileMetadata, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 type stubTicketFinder struct {
@@ -720,10 +720,10 @@ func (s *stubMessageResolver) FindTicketByMessageID(ctx context.Context, message
 		return nil, s.err
 	}
 	if s.responses == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 	if ticket, ok := s.responses[messageID]; ok {
 		return ticket, nil
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }

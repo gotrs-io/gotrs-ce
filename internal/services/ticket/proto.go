@@ -112,27 +112,27 @@ type TicketServiceServer interface {
 type UnimplementedTicketServiceServer struct{}
 
 func (UnimplementedTicketServiceServer) CreateTicket(context.Context, *CreateTicketRequest) (*CreateTicketResponse, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (UnimplementedTicketServiceServer) GetTicket(context.Context, *GetTicketRequest) (*GetTicketResponse, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (UnimplementedTicketServiceServer) UpdateTicket(context.Context, *UpdateTicketRequest) (*UpdateTicketResponse, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (UnimplementedTicketServiceServer) DeleteTicket(context.Context, *DeleteTicketRequest) (*DeleteTicketResponse, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (UnimplementedTicketServiceServer) ListTickets(context.Context, *ListTicketsRequest) (*ListTicketsResponse, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (UnimplementedTicketServiceServer) SearchTickets(context.Context, *SearchTicketsRequest) (*SearchTicketsResponse, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 // RegisterTicketServiceServer registers the service with gRPC server.

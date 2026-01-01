@@ -204,7 +204,7 @@ func GetStandardTemplate(id int) (*StandardTemplate, error) {
 		&t.ValidID, &t.CreateTime, &t.CreateBy, &t.ChangeTime, &t.ChangeBy,
 	)
 	if err == sql.ErrNoRows {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 	if err != nil {
 		return nil, err
@@ -1138,7 +1138,7 @@ func handleAdminStandardTemplateAttachments(c *gin.Context) {
 		assignedMap[aid] = true
 	}
 
-	var attachments []AttachmentOption
+	attachments := make([]AttachmentOption, 0, len(allAttachments))
 	for _, a := range allAttachments {
 		comments := ""
 		if a.Comments != nil {

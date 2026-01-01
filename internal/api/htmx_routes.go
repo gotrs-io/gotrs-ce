@@ -1747,7 +1747,7 @@ func handleQueues(c *gin.Context) {
 	}
 
 	// Transform for template
-	var viewQueues []gin.H
+	viewQueues := make([]gin.H, 0, len(queues))
 	for _, q := range queues {
 		if searchLower != "" && !strings.Contains(strings.ToLower(q.Name), searchLower) {
 			continue
@@ -6016,7 +6016,7 @@ func handleAdminGroups(c *gin.Context) {
 		return
 	}
 
-	var groupList []gin.H
+	groupList := make([]gin.H, 0, len(groups))
 	for _, group := range groups {
 		groupIDUint, _ := group.ID.(uint)
 		members, _ := groupRepo.GetGroupMembers(groupIDUint)

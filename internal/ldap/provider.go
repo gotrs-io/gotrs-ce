@@ -291,7 +291,7 @@ func (p *Provider) findUser(username string) (*User, error) {
 	}
 
 	if len(result.Entries) == 0 {
-		return nil, nil // User not found
+		return nil, nil //nolint:nilnil // User not found
 	}
 
 	entry := result.Entries[0]

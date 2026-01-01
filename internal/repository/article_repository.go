@@ -385,7 +385,7 @@ func (r *ArticleRepository) GetHTMLBodyAttachmentID(articleID uint) (*uint, erro
 	var attachmentID uint
 	err := r.db.QueryRow(query, articleID).Scan(&attachmentID)
 	if err == sql.ErrNoRows {
-		return nil, nil // No HTML body attachment found
+		return nil, nil //nolint:nilnil // No HTML body attachment found
 	}
 	if err != nil {
 		return nil, err
@@ -663,7 +663,7 @@ func (r *ArticleRepository) GetLatestArticleForTicket(ticketID uint) (*models.Ar
 	)
 
 	if err == sql.ErrNoRows {
-		return nil, nil // No articles yet
+		return nil, nil //nolint:nilnil // No articles yet
 	}
 	if err != nil {
 		return nil, err
@@ -749,7 +749,7 @@ func (r *ArticleRepository) GetLatestCustomerArticleForTicket(ticketID uint) (*m
 	)
 
 	if err == sql.ErrNoRows {
-		return nil, nil // No customer articles yet
+		return nil, nil //nolint:nilnil // No customer articles yet
 	}
 	if err != nil {
 		return nil, err
@@ -788,7 +788,7 @@ func (r *ArticleRepository) GetLatestCustomerArticleForTicket(ticketID uint) (*m
 func (r *ArticleRepository) FindTicketByMessageID(ctx context.Context, messageID string) (*models.Ticket, error) {
 	messageID = strings.TrimSpace(messageID)
 	if messageID == "" {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -808,7 +808,7 @@ func (r *ArticleRepository) FindTicketByMessageID(ctx context.Context, messageID
 	)
 	err := r.db.QueryRowContext(ctx, query, messageID).Scan(&id, &ticketNumber, &queueID)
 	if err == sql.ErrNoRows {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 	if err != nil {
 		return nil, err

@@ -459,7 +459,7 @@ func handleAdminDynamicFieldScreenConfig(c *gin.Context) {
 		Field DynamicField
 		Cells []ScreenCell
 	}
-	var rows []FieldRow
+	rows := make([]FieldRow, 0, len(matrix.Fields))
 	for _, f := range matrix.Fields {
 		row := FieldRow{Field: f, Cells: []ScreenCell{}}
 		fieldConfigs := matrix.ConfigMap[f.ID]

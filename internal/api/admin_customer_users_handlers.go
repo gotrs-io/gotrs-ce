@@ -961,7 +961,7 @@ func HandleAdminCustomerUsersBulkAction(c *gin.Context) {
 	}
 
 	// Convert string IDs to integers for validation
-	var intIDs []int
+	intIDs := make([]int, 0, len(req.IDs))
 	for _, idStr := range req.IDs {
 		id, err := strconv.Atoi(idStr)
 		if err != nil {

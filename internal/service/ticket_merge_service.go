@@ -50,7 +50,7 @@ func (s *TicketMergeService) MergeTickets(ctx context.Context, request *models.M
 		return nil, fmt.Errorf("merge validation failed: %v", validation.Errors)
 	}
 
-	var mergeIDs []uint
+	mergeIDs := make([]uint, 0, len(request.ChildTicketIDs))
 
 	// Create merge records for each child
 	for _, childID := range request.ChildTicketIDs {

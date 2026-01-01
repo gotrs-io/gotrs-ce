@@ -263,23 +263,23 @@ type UserServiceServer interface {
 type UnimplementedUserServiceServer struct{}
 
 func (UnimplementedUserServiceServer) CreateUser(context.Context, *CreateUserRequest) (*CreateUserResponse, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (UnimplementedUserServiceServer) GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (UnimplementedUserServiceServer) UpdateUser(context.Context, *UpdateUserRequest) (*UpdateUserResponse, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (UnimplementedUserServiceServer) AuthenticateUser(context.Context, *AuthenticateUserRequest) (*AuthenticateUserResponse, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (UnimplementedUserServiceServer) ListUsers(context.Context, *ListUsersRequest) (*ListUsersResponse, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 // RegisterUserServiceServer registers the service with gRPC server.

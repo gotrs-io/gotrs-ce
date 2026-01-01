@@ -26,7 +26,7 @@ func LoadFromEnvironment() (*Config, error) {
 	// Check if LDAP is enabled
 	enabled := strings.ToLower(os.Getenv("LDAP_ENABLED")) == "true"
 	if !enabled {
-		return nil, nil // LDAP is disabled
+		return nil, nil //nolint:nilnil // LDAP is disabled
 	}
 
 	host := os.Getenv("LDAP_HOST")
@@ -146,7 +146,7 @@ func (cm *ConfigManager) LoadFromFile() (*Config, error) {
 	data, err := os.ReadFile(cm.configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil // Config file doesn't exist
+			return nil, nil //nolint:nilnil // Config file doesn't exist
 		}
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}

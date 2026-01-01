@@ -194,7 +194,7 @@ func (l *SchemaLoader) GetAllSchemas() map[string]database.TableSchema {
 
 // GenerateSQL generates SQL for all schemas using the specified driver.
 func (l *SchemaLoader) GenerateSQL(driver database.DatabaseDriver) ([]string, error) {
-	var queries []string
+	queries := make([]string, 0, len(l.schemas))
 
 	// Sort tables by dependencies (simple approach - you might need topological sort for complex schemas)
 	for _, schema := range l.schemas {

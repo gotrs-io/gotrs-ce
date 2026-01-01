@@ -204,7 +204,7 @@ func (r *MemoryTicketTemplateRepository) GetCategories(ctx context.Context) ([]m
 	}
 
 	// Convert to slice of TemplateCategory
-	var categories []models.TemplateCategory
+	categories := make([]models.TemplateCategory, 0, len(categoryMap))
 	order := 1
 	for name, count := range categoryMap {
 		categories = append(categories, models.TemplateCategory{

@@ -39,7 +39,7 @@ func GetQueueSignature(queueID int) (*SignatureForAgent, error) {
 		&sig.ID, &sig.Name, &text, &contentType,
 	)
 	if err == sql.ErrNoRows {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 	if err != nil {
 		return nil, err

@@ -131,9 +131,7 @@ func (s *FileRouteStore) Start(ctx context.Context) error {
 	go s.handleFileEvents()
 
 	// Apply all loaded routes to the router
-	if err := s.reconcileRouter(); err != nil {
-		log.Printf("Warning: Failed to reconcile router: %v", err)
-	}
+	s.reconcileRouter()
 
 	log.Printf("File route store started, loaded %d route configurations", len(s.routes))
 	return nil
@@ -393,17 +391,13 @@ func (s *FileRouteStore) handleFileEvent(event fsnotify.Event) {
 			log.Printf("Error loading changed route file %s: %v", event.Name, err)
 		}
 		// Trigger router reconciliation
-		if err := s.reconcileRouter(); err != nil {
-			log.Printf("Error reconciling router after file change: %v", err)
-		}
+		s.reconcileRouter()
 
 	case event.Has(fsnotify.Remove):
 		log.Printf("Route file deleted: %s", event.Name)
 		s.handleFileDelete(event.Name)
 		// Trigger router reconciliation
-		if err := s.reconcileRouter(); err != nil {
-			log.Printf("Error reconciling router after file deletion: %v", err)
-		}
+		s.reconcileRouter()
 	}
 }
 
@@ -443,7 +437,7 @@ func (s *FileRouteStore) handleFileDelete(filePath string) {
 }
 
 // reconcileRouter applies all current route configurations to the gin router.
-func (s *FileRouteStore) reconcileRouter() error {
+func (s *FileRouteStore) reconcileRouter() {
 	s.mu.RLock()
 	configs := make([]*RouteConfig, 0, len(s.routes))
 	for _, config := range s.routes {
@@ -455,20 +449,14 @@ func (s *FileRouteStore) reconcileRouter() error {
 	// For now, we just register all current routes (Gin handles duplicates)
 
 	for _, config := range configs {
-		if err := s.applyRouteConfig(config); err != nil {
-			log.Printf("Error applying route config %s/%s: %v",
-				config.Metadata.Namespace, config.Metadata.Name, err)
-			continue
-		}
+		s.applyRouteConfig(config)
 	}
-
-	return nil
 }
 
 // applyRouteConfig registers the routes from a configuration with the gin router.
-func (s *FileRouteStore) applyRouteConfig(config *RouteConfig) error {
+func (s *FileRouteStore) applyRouteConfig(config *RouteConfig) {
 	if !config.Metadata.Enabled {
-		return nil // Skip disabled configurations
+		return // Skip disabled configurations
 	}
 
 	// Create route group with prefix
@@ -497,8 +485,6 @@ func (s *FileRouteStore) applyRouteConfig(config *RouteConfig) error {
 			continue
 		}
 	}
-
-	return nil
 }
 
 // isRouteRegistered checks if a route is already registered to avoid conflicts.

@@ -100,9 +100,7 @@ func importSQLDumpFixed(sqlFile, dbURL string, verbose, dryRun, force bool) erro
 	// Fix sequences
 	if !dryRun {
 		fmt.Printf("\n🔧 Fixing sequences...\n")
-		if err := fixSequences(db); err != nil {
-			log.Printf("Warning: Failed to fix sequences: %v", err)
-		}
+		fixSequences(db)
 	}
 
 	fmt.Printf("\n✅ Import completed successfully\n")
@@ -799,7 +797,7 @@ func parseTimestamp(s string) interface{} {
 	return t
 }
 
-func fixSequences(db *sql.DB) error {
+func fixSequences(db *sql.DB) {
 	sequences := []struct {
 		table string
 		seq   string
@@ -823,8 +821,6 @@ func fixSequences(db *sql.DB) error {
 			log.Printf("Note: Could not fix sequence %s: %v", s.seq, err)
 		}
 	}
-
-	return nil
 }
 
 // e.g., "(1,2,3),(4,5,6)" -> ["1,2,3", "4,5,6"].

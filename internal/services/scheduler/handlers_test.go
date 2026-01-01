@@ -22,7 +22,7 @@ type stubTicketRepository struct {
 }
 
 func (s *stubTicketRepository) AutoClosePendingTickets(ctx context.Context, now time.Time, transitions map[string]string, systemUserID int) (*repository.AutoCloseResult, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (s *stubTicketRepository) FindDuePendingReminders(ctx context.Context, now time.Time, limit int) ([]*models.PendingReminder, error) {

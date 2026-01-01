@@ -336,7 +336,7 @@ func handleBulkUpdateTickets(c *gin.Context) {
 	}
 
 	ticketIDStrs := strings.Split(req.TicketIDs, ",")
-	var ticketIDs []int
+	ticketIDs := make([]int, 0, len(ticketIDStrs))
 	for _, idStr := range ticketIDStrs {
 		id, err := strconv.Atoi(strings.TrimSpace(idStr))
 		if err != nil {
@@ -353,8 +353,8 @@ func handleBulkUpdateTickets(c *gin.Context) {
 	// Process updates (mock)
 	updatedCount := 0
 	failedCount := 0
-	var failures []gin.H
-	var results []gin.H
+	failures := make([]gin.H, 0, len(ticketIDs))
+	results := make([]gin.H, 0, len(ticketIDs))
 
 	for _, id := range ticketIDs {
 		// Simulate non-existent ticket

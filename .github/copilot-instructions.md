@@ -250,6 +250,8 @@ Building GOTRS - a modern ticketing system in Go and React.
 - Verbose error handling
 - '!' symbol in bash commands
 - creating temporary files anywhere except in tmp/ which is ignored by git
+- **Unpreallocated slices**: When loop size is known, use `make([]T, 0, len(source))` not `var results []T`
+- **String concatenation in loops**: Use `strings.Builder` instead of `result += s`
 
 ## Focus
 - Working code first try

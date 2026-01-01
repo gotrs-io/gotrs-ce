@@ -88,7 +88,7 @@ func (r *TicketRepository) GetTicketStateByID(stateID int) (*models.TicketState,
 		&state.ChangeBy,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		}
 		return nil, err
 	}

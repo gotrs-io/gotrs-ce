@@ -211,7 +211,7 @@ func (r *MemoryInternalNoteRepository) SearchNotes(ctx context.Context, filter *
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	var results []models.InternalNote
+	results := make([]models.InternalNote, 0, len(r.notes))
 	query := strings.ToLower(filter.SearchQuery)
 
 	for _, note := range r.notes {
@@ -512,7 +512,7 @@ func (r *MemoryInternalNoteRepository) GetCategories(ctx context.Context) ([]mod
 	}
 
 	// Convert to slice of NoteCategory
-	var categories []models.NoteCategory
+	categories := make([]models.NoteCategory, 0, len(categoryMap))
 	order := 1
 	for name, count := range categoryMap {
 		categories = append(categories, models.NoteCategory{
@@ -601,7 +601,7 @@ func (r *MemoryInternalNoteRepository) GetTemplates(ctx context.Context) ([]mode
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	var templates []models.NoteTemplate
+	templates := make([]models.NoteTemplate, 0, len(r.templates))
 	for _, tmpl := range r.templates {
 		templates = append(templates, *tmpl)
 	}

@@ -72,13 +72,11 @@ func handleAdminRoles(c *gin.Context) {
 	`
 
 	var args []interface{}
-	argIdx := 0
 
 	if searchQuery != "" {
 		query += " AND (LOWER(r.name) LIKE ? OR LOWER(r.comments) LIKE ?)"
 		searchPattern := "%" + searchQuery + "%"
 		args = append(args, searchPattern, searchPattern)
-		argIdx += 2
 	}
 
 	if validFilter != "all" {
@@ -89,7 +87,6 @@ func handleAdminRoles(c *gin.Context) {
 			query += " AND r.valid_id = ?"
 			args = append(args, 2)
 		}
-		argIdx++
 	}
 
 	query += " GROUP BY r.id, r.name, r.comments, r.valid_id, r.create_time, r.create_by, r.change_time, r.change_by"
@@ -127,6 +124,10 @@ func handleAdminRoles(c *gin.Context) {
 		r.IsSystem = r.ID <= 3 // First 3 roles are system roles
 
 		roles = append(roles, r)
+	}
+	if err := rows.Err(); err != nil {
+		c.String(http.StatusInternalServerError, "Error iterating roles: "+err.Error())
+		return
 	}
 
 	// Render the template
@@ -492,6 +493,13 @@ func handleAdminRoleUsers(c *gin.Context) {
 		u.Email = u.Login // Use login as email for display
 		users = append(users, u)
 	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Error iterating role users",
+		})
+		return
+	}
 
 	// Get all available users not in this role
 	availableRows, err := db.Query(database.ConvertPlaceholders(`
@@ -516,6 +524,7 @@ func handleAdminRoleUsers(c *gin.Context) {
 			u.Email = u.Login
 			availableUsers = append(availableUsers, u)
 		}
+		_ = availableRows.Err() // Check for iteration errors
 	}
 
 	// Check if it's an API request or page render
@@ -738,6 +747,10 @@ func handleAdminRolePermissions(c *gin.Context) {
 			}
 
 			groups = append(groups, g)
+		}
+		if err := rows.Err(); err != nil {
+			c.String(http.StatusInternalServerError, "Error iterating permissions")
+			return
 		}
 
 		// Render permissions template

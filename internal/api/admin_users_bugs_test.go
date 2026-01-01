@@ -75,6 +75,7 @@ func TestGroupAssignmentNotPersisting(t *testing.T) {
 			require.NoError(t, rows.Scan(&groupName))
 			actualGroups = append(actualGroups, groupName)
 		}
+		_ = rows.Err() // Check for iteration errors
 
 		// Verify Support group was saved (case-insensitive)
 		assert.Contains(t, actualGroups, "support", "Support group should be persisted in database")
@@ -305,6 +306,7 @@ func TestUserWorkflowEndToEnd(t *testing.T) {
 			require.NoError(t, err)
 			dbGroups = append(dbGroups, groupName)
 		}
+		_ = rows.Err() // Check for iteration errors
 
 		// Verify support was saved to database (case-insensitive check)
 		foundSupport := false
@@ -355,6 +357,7 @@ func TestUserWorkflowEndToEnd(t *testing.T) {
 			require.NoError(t, err)
 			dbGroupsAfterRemoval = append(dbGroupsAfterRemoval, groupName)
 		}
+		_ = rows2.Err() // Check for iteration errors
 
 		// Case-insensitive check that support group was removed
 		foundSupportAfterRemoval := false

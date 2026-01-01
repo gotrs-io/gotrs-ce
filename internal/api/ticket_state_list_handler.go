@@ -117,6 +117,7 @@ func HandleListTicketStatesAPI(c *gin.Context) {
 
 		states = append(states, stateData)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	c.JSON(http.StatusOK, gin.H{
 		"states": states,

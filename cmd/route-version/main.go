@@ -342,11 +342,11 @@ func validateRoutes(routesDir string) {
 		relPath, _ := filepath.Rel(routesDir, path)
 
 		// Read and parse file
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) //nolint:gosec // G304 CLI tool
 		if err != nil {
 			fmt.Printf("❌ %s: Failed to read file\n", relPath)
 			errorCount++
-			return nil
+			return nil //nolint:nilerr // continue walking on error
 		}
 
 		var config routing.RouteConfig
@@ -443,7 +443,7 @@ func loadRoutesFromDir(dir string) (map[string]*routing.RouteConfig, error) {
 			return nil
 		}
 
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) //nolint:gosec // G304 CLI tool
 		if err != nil {
 			return err
 		}

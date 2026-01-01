@@ -25,7 +25,7 @@ type manifest struct {
 func key(r route) string { return r.Method + "|" + r.Path }
 
 func load(path string) (map[string]route, error) {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // G304 CLI tool
 	if err != nil {
 		return nil, err
 	}

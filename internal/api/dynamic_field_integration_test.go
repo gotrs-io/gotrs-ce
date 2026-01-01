@@ -62,13 +62,6 @@ func TestDynamicFieldIntegration(t *testing.T) {
 }
 
 type testDynamicFieldSet struct {
-	textField        *DynamicField
-	textAreaField    *DynamicField
-	checkboxField    *DynamicField
-	dropdownField    *DynamicField
-	multiselectField *DynamicField
-	dateField        *DynamicField
-	dateTimeField    *DynamicField
 }
 
 func setupTestDynamicFields(t *testing.T, db *sql.DB) *testDynamicFieldSet {

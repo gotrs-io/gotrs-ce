@@ -20,14 +20,6 @@ func queueDB() *sql.DB {
 	return db
 }
 
-// queueSQL keeps raw PostgreSQL-style placeholders for sqlmock expectations while allowing real drivers to convert.
-func queueSQL(query string) string {
-	if database.IsTestDBOverride() {
-		return query
-	}
-	return database.ConvertPlaceholders(query)
-}
-
 // handleGetQueuesAPI returns all queues for API consumers.
 func handleGetQueuesAPI(c *gin.Context) {
 	type queueItem struct {
@@ -470,78 +462,4 @@ func handleDeleteQueue(c *gin.Context) {
 		c.Header("HX-Redirect", "/queues")
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Queue deleted successfully"})
-}
-
-// handleGetQueueDetails returns detailed queue info and stats (API).
-func handleGetQueueDetails(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid queue ID"})
-		return
-	}
-	db := queueDB()
-	if db == nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Queue not found"})
-		return
-	}
-
-	query := `
-		SELECT 
-			q.id, q.name, q.group_id, q.system_address_id, q.salutation_id,
-			q.signature_id, q.unlock_timeout, q.follow_up_id, q.follow_up_lock,
-			q.comments, q.valid_id, g.name as group_name
-		FROM queue q
-		LEFT JOIN groups g ON q.group_id = g.id
-		WHERE q.id = $1`
-	row := db.QueryRow(queueSQL(query), id)
-	var (
-		qID, groupID, unlockTimeout, followUpID, followUpLock, validID int
-		name                                                           string
-		systemAddressID, salutationID, signatureID                     sql.NullInt32
-		comments, groupName                                            sql.NullString
-	)
-	scanErr := row.Scan(&qID, &name, &groupID, &systemAddressID, &salutationID, &signatureID, &unlockTimeout, &followUpID, &followUpLock, &comments, &validID, &groupName)
-	if scanErr == sql.ErrNoRows {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Queue not found"})
-		return
-	}
-	if scanErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch queue details"})
-		return
-	}
-	var ticketCount, openTickets, agentCount int
-	_ = db.QueryRow(queueSQL(`SELECT COUNT(*) FROM ticket WHERE queue_id = $1`), id).Scan(&ticketCount)
-	_ = db.QueryRow(queueSQL(`SELECT COUNT(*) FROM ticket WHERE queue_id = $1 AND ticket_state_id IN (1,2,3)`), id).Scan(&openTickets)
-	_ = db.QueryRow(queueSQL(`SELECT COUNT(DISTINCT user_id) FROM user_groups WHERE group_id = $1`), groupID).Scan(&agentCount)
-
-	data := gin.H{
-		"id":             qID,
-		"name":           name,
-		"group_id":       groupID,
-		"unlock_timeout": unlockTimeout,
-		"follow_up_id":   followUpID,
-		"follow_up_lock": followUpLock,
-		"valid_id":       validID,
-		"ticket_count":   ticketCount,
-		"open_tickets":   openTickets,
-		"agent_count":    agentCount,
-	}
-	if comments.Valid {
-		data["comments"] = comments.String
-	}
-	if groupName.Valid {
-		data["group_name"] = groupName.String
-	}
-	if systemAddressID.Valid {
-		data["system_address_id"] = int(systemAddressID.Int32)
-	}
-	if salutationID.Valid {
-		data["salutation_id"] = int(salutationID.Int32)
-	}
-	if signatureID.Valid {
-		data["signature_id"] = int(signatureID.Int32)
-	}
-
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
 }

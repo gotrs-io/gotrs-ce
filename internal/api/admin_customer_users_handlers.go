@@ -17,7 +17,7 @@ import (
 
 // HandleAdminCustomerUsersList handles GET /admin/customer-users.
 func HandleAdminCustomerUsersList(c *gin.Context) {
-	db, err := database.GetDB()
+	qb, err := database.GetQueryBuilder()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -25,6 +25,7 @@ func HandleAdminCustomerUsersList(c *gin.Context) {
 		})
 		return
 	}
+	db := qb.DB().DB // Get underlying *sql.DB for compatibility
 
 	// Get search and filter parameters
 	search := c.Query("search")
@@ -34,69 +35,71 @@ func HandleAdminCustomerUsersList(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset := (page - 1) * limit
 
-	// Build query
-	whereClause := "WHERE 1=1"
-	args := []interface{}{}
-	argIndex := 1
+	// Build query using sqlx-based QueryBuilder (eliminates SQL injection risk)
+	sb := qb.NewSelect(
+		"cu.id", "cu.login", "cu.email", "cu.customer_id", "cu.first_name", "cu.last_name",
+		"cu.phone", "cu.city", "cu.country", "cu.valid_id",
+		"cc.name as company_name",
+		"cu.create_time",
+		"(SELECT COUNT(*) FROM ticket WHERE customer_user_id = cu.login) as ticket_count",
+	).
+		From("customer_user cu").
+		LeftJoin("customer_company cc ON cu.customer_id = cc.customer_id")
 
+	// Build count query for pagination
+	countBuilder := qb.NewSelect("COUNT(*)").
+		From("customer_user cu").
+		LeftJoin("customer_company cc ON cu.customer_id = cc.customer_id")
+
+	// Apply filters
 	if search != "" {
-		whereClause += fmt.Sprintf(" AND (cu.login ILIKE $%d OR cu.email ILIKE $%d OR cu.first_name ILIKE $%d OR cu.last_name ILIKE $%d OR cc.name ILIKE $%d)",
-			argIndex, argIndex+1, argIndex+2, argIndex+3, argIndex+4)
 		searchPattern := "%" + search + "%"
-		args = append(args, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
-		argIndex += 5
+		sb = sb.Where("(cu.login LIKE ? OR cu.email LIKE ? OR cu.first_name LIKE ? OR cu.last_name LIKE ? OR cc.name LIKE ?)",
+			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
+		countBuilder = countBuilder.Where("(cu.login LIKE ? OR cu.email LIKE ? OR cu.first_name LIKE ? OR cu.last_name LIKE ? OR cc.name LIKE ?)",
+			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
 	if validFilter != "" {
 		validID, _ := strconv.Atoi(validFilter)
-		whereClause += fmt.Sprintf(" AND cu.valid_id = $%d", argIndex)
-		args = append(args, validID)
-		argIndex++
+		sb = sb.Where("cu.valid_id = ?", validID)
+		countBuilder = countBuilder.Where("cu.valid_id = ?", validID)
 	}
 
 	if customerFilter != "" {
-		whereClause += fmt.Sprintf(" AND cu.customer_id = $%d", argIndex)
-		args = append(args, customerFilter)
-		argIndex++
+		sb = sb.Where("cu.customer_id = ?", customerFilter)
+		countBuilder = countBuilder.Where("cu.customer_id = ?", customerFilter)
 	}
 
-	// Main query
-	query := fmt.Sprintf(`
-		SELECT cu.id, cu.login, cu.email, cu.customer_id, cu.first_name, cu.last_name,
-		       cu.phone, cu.city, cu.country, cu.valid_id,
-		       cc.name as company_name,
-		       cu.create_time,
-		       (SELECT COUNT(*) FROM ticket WHERE customer_user_id = cu.login) as ticket_count
-		FROM customer_user cu
-		LEFT JOIN customer_company cc ON cu.customer_id = cc.customer_id
-		%s
-		ORDER BY cu.last_name, cu.first_name
-		LIMIT $%d OFFSET $%d`, whereClause, argIndex, argIndex+1)
-	query = database.ConvertPlaceholders(query)
+	// Apply ordering and pagination
+	sb = sb.OrderBy("cu.last_name", "cu.first_name").Limit(limit).Offset(offset)
 
-	args = append(args, limit, offset)
-
-	// Count query for pagination
-	countQuery := fmt.Sprintf(`
-		SELECT COUNT(*)
-		FROM customer_user cu
-		LEFT JOIN customer_company cc ON cu.customer_id = cc.customer_id
-		%s`, whereClause)
-	countQuery = database.ConvertPlaceholders(countQuery)
+	// Execute count query
+	countQuery, countArgs, err := countBuilder.ToSQL()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to build count query",
+		})
+		return
+	}
 
 	var totalCount int
-	if len(args) > 2 { // Has filters
-		countArgs := args[:len(args)-2] // Remove limit and offset
-		err = db.QueryRow(countQuery, countArgs...).Scan(&totalCount)
-	} else {
-		err = db.QueryRow(countQuery).Scan(&totalCount)
-	}
-
+	err = db.QueryRow(countQuery, countArgs...).Scan(&totalCount)
 	if err != nil {
 		totalCount = 0
 	}
 
 	// Execute main query
+	query, args, err := sb.ToSQL()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to build query",
+		})
+		return
+	}
+
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -154,6 +157,13 @@ func HandleAdminCustomerUsersList(c *gin.Context) {
 		customer["full_name"] = strings.TrimSpace(firstName.String + " " + lastName.String)
 
 		customers = append(customers, customer)
+	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Error iterating customer users: " + err.Error(),
+		})
+		return
 	}
 
 	// Get companies for filter dropdown
@@ -656,6 +666,13 @@ func HandleAdminCustomerUsersTickets(c *gin.Context) {
 
 		tickets = append(tickets, ticket)
 	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Error iterating tickets: " + err.Error(),
+		})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -887,6 +904,7 @@ func HandleAdminCustomerUsersExport(c *gin.Context) {
 
 		writer.Write(record)
 	}
+	_ = rows.Err() // Check for iteration errors
 }
 
 // HandleAdminCustomerUsersBulkAction handles POST /admin/customer-users/bulk-action.
@@ -912,7 +930,7 @@ func HandleAdminCustomerUsersBulkAction(c *gin.Context) {
 		return
 	}
 
-	db, err := database.GetDB()
+	qb, err := database.GetQueryBuilder()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -956,17 +974,17 @@ func HandleAdminCustomerUsersBulkAction(c *gin.Context) {
 		intIDs = append(intIDs, id)
 	}
 
-	placeholders := make([]string, len(intIDs))
-	args := make([]interface{}, len(intIDs))
-	for i, id := range intIDs {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = id
+	// Use sqlx.In for safe IN clause expansion (eliminates SQL injection risk)
+	query, args, err := qb.In("UPDATE customer_user SET "+setClause+" WHERE id IN (?)", intIDs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to build query",
+		})
+		return
 	}
 
-	query := fmt.Sprintf("UPDATE customer_user SET %s WHERE id IN (%s)", setClause, strings.Join(placeholders, ","))
-	query = database.ConvertPlaceholders(query)
-
-	result, err := db.Exec(query, args...)
+	result, err := qb.Exec(query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

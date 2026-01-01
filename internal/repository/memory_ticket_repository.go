@@ -164,13 +164,6 @@ func (r *MemoryTicketRepository) List(req *models.TicketListRequest) (*models.Ti
 	}, nil
 }
 
-// containsIgnoreCase checks if a string contains another string (case-insensitive).
-func containsIgnoreCase(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 &&
-		(s == substr || len(s) > len(substr) &&
-			(s[:len(substr)] == substr || containsIgnoreCase(s[1:], substr)))
-}
-
 // GetByTicketNumber retrieves a ticket by its ticket number.
 func (r *MemoryTicketRepository) GetByTicketNumber(ticketNumber string) (*models.Ticket, error) {
 	r.mu.RLock()

@@ -137,6 +137,9 @@ func getQueuesForAgent(db *sql.DB) ([]gin.H, error) {
 		}
 		queues = append(queues, gin.H{"ID": id, "Name": name})
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return queues, nil
 }
 
@@ -161,6 +164,9 @@ func getTypesForAgent(db *sql.DB) ([]gin.H, error) {
 			return nil, err
 		}
 		types = append(types, gin.H{"ID": id, "Label": name})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return types, nil
 }
@@ -188,6 +194,9 @@ func getPrioritiesForAgent(db *sql.DB) ([]gin.H, error) {
 		// Provide ID/Name directly for template
 		priorities = append(priorities, gin.H{"ID": id, "Name": name})
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return priorities, nil
 }
 
@@ -212,6 +221,9 @@ func getServicesForAgent(db *sql.DB) ([]gin.H, error) {
 			return nil, err
 		}
 		services = append(services, gin.H{"ID": id, "Name": name})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return services, nil
 }

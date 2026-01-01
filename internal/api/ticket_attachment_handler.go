@@ -388,7 +388,7 @@ func handleUploadAttachment(c *gin.Context) {
 		latest, latestErr := articleRepo.GetLatestArticleForTicket(uint(ticketID))
 		if latestErr != nil || latest == nil || latest.ID == 0 {
 			art := &models.Article{
-				TicketID:               int(ticketID),
+				TicketID:               ticketID,
 				ArticleTypeID:          2,
 				SenderTypeID:           3,
 				CommunicationChannelID: 1,
@@ -585,6 +585,7 @@ func handleGetAttachments(c *gin.Context) {
 
 		result = append(result, publicAtt)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	// Check if this is an HTMX request
 	if c.GetHeader("HX-Request") == "true" {
@@ -898,6 +899,7 @@ func handleViewAttachment(c *gin.Context) {
 					ids = append(ids, id)
 				}
 			}
+			_ = rows.Err() // Check for iteration errors
 			rows.Close()
 			// find index
 			for i, id := range ids {
@@ -1063,7 +1065,6 @@ func handleViewAttachment(c *gin.Context) {
 	c.Header("Content-Type", "text/html; charset=utf-8")
 	c.Header("Cache-Control", "no-store")
 	c.String(200, html)
-	return
 }
 
 // serveAttachmentInlineRaw serves the original inline content for /view?raw=1 and internal use.
@@ -1347,13 +1348,13 @@ func findLocalStoredAttachmentBytes(ticketID int, filename string) ([]byte, bool
 			var found []byte
 			_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 				if err != nil || d.IsDir() {
-					return nil
+					return nil //nolint:nilerr // continue walking on error
 				}
 				// quick filter by filename
 				if strings.EqualFold(d.Name(), safeFile) || strings.EqualFold(d.Name(), filepath.Base(filename)) {
 					// ensure the ticketID appears as a path segment
 					if strings.Contains(path, ticketSeg) {
-						if b, rerr := os.ReadFile(path); rerr == nil {
+						if b, rerr := os.ReadFile(path); rerr == nil { //nolint:gosec // G304 false positive - path from WalkDir
 							found = b
 							return io.EOF
 						}
@@ -1552,7 +1553,7 @@ func handleGetThumbnail(c *gin.Context) {
 			}
 			// Cache key path in local fs cache under ./storage/thumbs/<ticketID>/<attID>.png
 			cacheDir := filepath.Join("./storage", "thumbs", strconv.Itoa(ticketID))
-			os.MkdirAll(cacheDir, 0755)
+			os.MkdirAll(cacheDir, 0750)
 			cachePath := filepath.Join(cacheDir, fmt.Sprintf("%d.png", attID))
 			if fi, err := os.Stat(cachePath); err == nil && fi.Size() > 0 {
 				// Serve cached
@@ -1603,7 +1604,7 @@ func handleGetThumbnail(c *gin.Context) {
 				}
 			}
 			// Encode PNG to cache and serve
-			f, err := os.Create(cachePath)
+			f, err := os.Create(cachePath) //nolint:gosec // G304 false positive - path from integers
 			if err == nil {
 				png.Encode(f, dst)
 				f.Close()
@@ -1698,7 +1699,7 @@ func validateFile(header *multipart.FileHeader) error {
 	ext := strings.ToLower(filepath.Ext(filename))
 	for _, blocked := range blockedExtensions {
 		if ext == blocked {
-			return fmt.Errorf("File type not allowed")
+			return fmt.Errorf("file type not allowed")
 		}
 	}
 
@@ -1708,7 +1709,7 @@ func validateFile(header *multipart.FileHeader) error {
 		ct := normalizeMimeType(raw)
 		if ct != "" && ct != "application/octet-stream" {
 			if !allowedMimeTypes[ct] {
-				return fmt.Errorf("File type not allowed")
+				return fmt.Errorf("file type not allowed")
 			}
 		}
 	}

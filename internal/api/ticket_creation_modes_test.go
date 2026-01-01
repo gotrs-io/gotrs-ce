@@ -18,10 +18,8 @@ func performRequest(r http.Handler, method, path string, body *strings.Reader, h
 		body = empty
 	}
 	req := httptest.NewRequest(method, path, body)
-	if headers != nil {
-		for k, v := range headers {
-			req.Header.Set(k, v)
-		}
+	for k, v := range headers {
+		req.Header.Set(k, v)
 	}
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

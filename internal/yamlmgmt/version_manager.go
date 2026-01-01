@@ -245,7 +245,7 @@ func (vm *VersionManager) ensureDirectories() {
 	}
 
 	for _, dir := range dirs {
-		os.MkdirAll(dir, 0755)
+		os.MkdirAll(dir, 0750)
 	}
 }
 
@@ -363,7 +363,7 @@ func (vm *VersionManager) calculateChanges(oldDoc, newDoc *YAMLDocument) []Chang
 
 func (vm *VersionManager) saveVersion(version *Version) error {
 	kindDir := filepath.Join(vm.storageDir, ".versions", string(version.Kind))
-	os.MkdirAll(kindDir, 0755)
+	os.MkdirAll(kindDir, 0750)
 
 	filename := filepath.Join(kindDir, fmt.Sprintf("%s_%s_%s.json",
 		version.Name, version.Number, version.Hash[:8]))
@@ -405,7 +405,7 @@ func (vm *VersionManager) applyVersion(version *Version) error {
 	}
 
 	// Ensure directory exists
-	os.MkdirAll(filepath.Dir(targetPath), 0755)
+	os.MkdirAll(filepath.Dir(targetPath), 0750)
 
 	// Write file
 	return os.WriteFile(targetPath, data, 0644)
@@ -492,18 +492,18 @@ func (vm *VersionManager) loadAllVersions() {
 	// Walk through all version directories
 	filepath.Walk(versionsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || filepath.Ext(path) != ".json" {
-			return nil
+			return nil //nolint:nilerr // continue walking on error
 		}
 
 		// Load version file
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) //nolint:gosec // G304 false positive - path from WalkDir
 		if err != nil {
-			return nil
+			return nil //nolint:nilerr // continue walking on error
 		}
 
 		var version Version
 		if err := json.Unmarshal(data, &version); err != nil {
-			return nil
+			return nil //nolint:nilerr // continue walking on error
 		}
 
 		// Add to memory

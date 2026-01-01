@@ -85,11 +85,6 @@ func (s *LookupService) GetTicketFormDataWithLang(lang string) *models.TicketFor
 	return s.cache[lang]
 }
 
-// buildFormData creates the form data structure (backward compatibility).
-func (s *LookupService) buildFormData() *models.TicketFormData {
-	return s.buildFormDataWithLang("en")
-}
-
 // buildFormDataWithLang creates form data with translations.
 func (s *LookupService) buildFormDataWithLang(lang string) *models.TicketFormData {
 	// Initialize with defaults that will be overridden if database is available

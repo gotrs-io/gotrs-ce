@@ -73,7 +73,7 @@ func (l *SchemaLoader) LoadAll() error {
 // LoadFile loads a single YAML schema file.
 func (l *SchemaLoader) LoadFile(filename string) error {
 	path := filepath.Join(l.schemaDir, filename)
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304 false positive - schema file
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}

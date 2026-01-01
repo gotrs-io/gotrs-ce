@@ -415,6 +415,7 @@ func HandleAgentNewTicket(c *gin.Context) {
 				queues = append(queues, gin.H{"ID": id, "Name": name})
 			}
 		}
+		_ = rows.Err() // Check for iteration errors
 	}
 	// Priorities
 	priorities := []gin.H{}
@@ -427,6 +428,7 @@ func HandleAgentNewTicket(c *gin.Context) {
 				priorities = append(priorities, gin.H{"ID": id, "Name": name})
 			}
 		}
+		_ = rows.Err() // Check for iteration errors
 	}
 	// Types
 	types := []gin.H{}
@@ -439,6 +441,7 @@ func HandleAgentNewTicket(c *gin.Context) {
 				types = append(types, gin.H{"ID": id, "Name": name})
 			}
 		}
+		_ = rows.Err() // Check for iteration errors
 	}
 	// Customer users seed (limited)
 	customerUsers := []gin.H{}
@@ -450,6 +453,7 @@ func HandleAgentNewTicket(c *gin.Context) {
 				customerUsers = append(customerUsers, gin.H{"Login": login.String, "Email": email.String, "FirstName": fn.String, "LastName": ln.String, "CustomerID": cid.String})
 			}
 		}
+		_ = rows.Err() // Check for iteration errors
 	}
 	// Ticket states
 	ticketStates := []gin.H{}

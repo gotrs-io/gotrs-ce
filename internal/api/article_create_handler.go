@@ -459,7 +459,7 @@ func HandleCreateArticleAPI(c *gin.Context) {
 			if cfg := config.Get(); cfg != nil {
 				emailCfg = &cfg.Email
 			}
-			renderCtx := notifications.BuildRenderContext(context.Background(), db, customerUserID.String, int(userID))
+			renderCtx := notifications.BuildRenderContext(context.Background(), db, customerUserID.String, userID)
 			branding, brandErr := notifications.PrepareQueueEmail(
 				context.Background(),
 				db,

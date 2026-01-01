@@ -93,6 +93,7 @@ func HandleDashboardStatisticsAPI(c *gin.Context) {
 				})
 			}
 		}
+		_ = rows.Err()
 	}
 
 	// Tickets by priority
@@ -121,6 +122,7 @@ func HandleDashboardStatisticsAPI(c *gin.Context) {
 				})
 			}
 		}
+		_ = rows.Err()
 	}
 
 	// Recent activity
@@ -149,6 +151,7 @@ func HandleDashboardStatisticsAPI(c *gin.Context) {
 				})
 			}
 		}
+		_ = rows.Err()
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -226,6 +229,7 @@ func HandleTicketTrendsAPI(c *gin.Context) {
 					}{createTime, changeTime, typeID})
 				}
 			}
+			_ = rows.Err()
 		}
 
 		createdCounts := map[string]int{}
@@ -321,6 +325,7 @@ func HandleTicketTrendsAPI(c *gin.Context) {
 				}{createTime, changeTime, typeID})
 			}
 		}
+		_ = rows.Err()
 	}
 
 	createdCounts := map[string]int{}
@@ -400,7 +405,7 @@ func HandleAgentPerformanceAPI(c *gin.Context) {
 	}
 
 	// Determine interval
-	interval := 7 * 24 * time.Hour
+	var interval time.Duration
 	switch period {
 	case "24h":
 		interval = 24 * time.Hour
@@ -481,6 +486,7 @@ func HandleAgentPerformanceAPI(c *gin.Context) {
 				stats.closed++
 			}
 		}
+		_ = ticketRows.Err()
 	}
 
 	// Aggregate article counts per agent
@@ -505,6 +511,7 @@ func HandleAgentPerformanceAPI(c *gin.Context) {
 				stats.articles = count
 			}
 		}
+		_ = articleRows.Err()
 	}
 
 	agentList := make([]agentStats, 0, len(agentMap))
@@ -631,6 +638,7 @@ func HandleQueueMetricsAPI(c *gin.Context) {
 				}
 			}
 		}
+		_ = ticketRows.Err()
 	}
 
 	queueList := make([]queueStats, 0, len(queueMap))

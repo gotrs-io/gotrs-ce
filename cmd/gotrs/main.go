@@ -169,7 +169,7 @@ func installGitHooks() error {
 	}
 
 	hooksDir := filepath.Join(gitDir, "hooks")
-	if err := os.MkdirAll(hooksDir, 0755); err != nil {
+	if err := os.MkdirAll(hooksDir, 0750); err != nil {
 		return fmt.Errorf("failed to create hooks directory: %w", err)
 	}
 
@@ -209,7 +209,8 @@ echo "✅ No secrets detected"
 exit 0
 `
 
-	if err := os.WriteFile(preCommitPath, []byte(preCommitContent), 0755); err != nil {
+	//nolint:gosec // G306 git hook must be executable
+	if err := os.WriteFile(preCommitPath, []byte(preCommitContent), 0750); err != nil {
 		return fmt.Errorf("failed to write pre-commit hook: %w", err)
 	}
 

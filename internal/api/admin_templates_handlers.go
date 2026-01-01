@@ -125,7 +125,6 @@ func ListStandardTemplates(search string, validFilter string, typeFilter string,
 	if typeFilter != "" && typeFilter != "all" {
 		query += fmt.Sprintf(" AND t.template_type LIKE $%d", argCount)
 		args = append(args, "%"+typeFilter+"%")
-		argCount++
 	}
 
 	query += ` GROUP BY t.id, t.name, t.text, t.content_type, t.template_type,
@@ -175,6 +174,9 @@ func ListStandardTemplates(search string, validFilter string, typeFilter string,
 		t.Comments = comments.String
 
 		templates = append(templates, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating templates: %w", err)
 	}
 
 	return templates, nil
@@ -395,6 +397,9 @@ func GetTemplateQueues(templateID int) ([]int, error) {
 		}
 		queueIDs = append(queueIDs, queueID)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating template queues: %w", err)
+	}
 
 	return queueIDs, nil
 }
@@ -464,6 +469,9 @@ func ListStandardAttachments() ([]StandardAttachment, error) {
 		}
 		attachments = append(attachments, a)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating attachments: %w", err)
+	}
 
 	return attachments, nil
 }
@@ -490,6 +498,9 @@ func GetTemplateAttachments(templateID int) ([]int, error) {
 			continue
 		}
 		attachmentIDs = append(attachmentIDs, attachmentID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating template attachments: %w", err)
 	}
 
 	return attachmentIDs, nil
@@ -1016,6 +1027,10 @@ func handleAdminStandardTemplateQueues(c *gin.Context) {
 		}
 		q.Selected = assignedMap[q.ID]
 		queues = append(queues, q)
+	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating queues"})
+		return
 	}
 
 	renderer := shared.GetGlobalRenderer()

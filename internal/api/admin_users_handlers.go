@@ -51,6 +51,7 @@ func HandleAdminUsers(c *gin.Context) {
 					list = append(list, r)
 				}
 			}
+			_ = rows.Err() // Check for iteration errors
 			// Prefetch group memberships for all users
 			gm := map[int][]string{}
 			if gr, gerr := db.Query(database.ConvertPlaceholders(`
@@ -66,6 +67,7 @@ func HandleAdminUsers(c *gin.Context) {
 						gm[uid] = append(gm[uid], gname)
 					}
 				}
+				_ = gr.Err() // Check for iteration errors
 			}
 			for _, r := range list {
 				users = append(users, gin.H{
@@ -90,6 +92,7 @@ func HandleAdminUsers(c *gin.Context) {
 					groups = append(groups, gin.H{"ID": id, "Name": name})
 				}
 			}
+			_ = gr.Err() // Check for iteration errors
 		}
 	}
 
@@ -214,6 +217,7 @@ func HandleAdminUserGet(c *gin.Context) {
 				groupNames = append(groupNames, gname)
 			}
 		}
+		_ = rows.Err() // Check for iteration errors
 	}
 	user.Groups = groupNames
 
@@ -755,6 +759,13 @@ func HandleAdminUserGroups(c *gin.Context) {
 				"name": gname,
 			})
 		}
+	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Error iterating user groups",
+		})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{

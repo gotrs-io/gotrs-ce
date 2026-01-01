@@ -459,13 +459,13 @@ func (s *Synthesizer) writeEnvFile() error {
 }
 
 func (s *Synthesizer) copyFile(src, dst string) error {
-	sourceFile, err := os.ReadFile(src)
+	sourceFile, err := os.ReadFile(src) //nolint:gosec // G304 false positive - config copy
 	if err != nil {
 		return err
 	}
 
 	dir := filepath.Dir(dst)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return err
 	}
 

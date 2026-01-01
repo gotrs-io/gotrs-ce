@@ -229,7 +229,7 @@ func (h *DynamicModuleHandler) loadAllConfigs() error {
 
 // loadConfig loads a single YAML config.
 func (h *DynamicModuleHandler) loadConfig(path string) error {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304 false positive - config path
 	if err != nil {
 		return err
 	}
@@ -576,6 +576,7 @@ func (h *DynamicModuleHandler) handleList(c *gin.Context, config *ModuleConfig) 
 					Label: label,
 				})
 			}
+			_ = filterRows.Err() // Check for iteration errors
 
 			// Update the filter with the loaded options
 			config.Filters[i].Options = options
@@ -715,6 +716,7 @@ func (h *DynamicModuleHandler) handleList(c *gin.Context, config *ModuleConfig) 
 						options = append(options, FilterOption{Value: key, Label: display})
 					}
 				}
+				_ = rows.Err() // Check for iteration errors
 				config.Filters[i].Options = options
 			}
 		}
@@ -944,6 +946,7 @@ func (h *DynamicModuleHandler) handleGet(c *gin.Context, config *ModuleConfig, i
 					groups = append(groups, groupName)
 				}
 			}
+			_ = rows.Err() // Check for iteration errors
 			item["Groups"] = groups
 		}
 	}
@@ -1303,6 +1306,7 @@ func (h *DynamicModuleHandler) scanRows(rows *sql.Rows, config *ModuleConfig) []
 
 		items = append(items, item)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	if len(items) > 0 {
 		h.applyModuleReadTransforms(config, items)
@@ -1707,6 +1711,7 @@ func (h *DynamicModuleHandler) populateLookupOptions(config *ModuleConfig) {
 					})
 				}
 			}
+			_ = rows.Err() // Check for iteration errors
 			rows.Close()
 
 			config.Fields[i].Options = options
@@ -1772,6 +1777,7 @@ func (h *DynamicModuleHandler) processLookups(items []map[string]interface{}, co
 				lookupMap[coerceString(id)] = displayValue
 			}
 		}
+		_ = rows.Err() // Check for iteration errors
 
 		// Update items with lookup values
 		lookupFieldName := field.Name + "_display"

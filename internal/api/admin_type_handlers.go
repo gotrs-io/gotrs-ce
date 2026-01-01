@@ -78,7 +78,6 @@ func handleAdminTypes(c *gin.Context) {
 	if search != "" {
 		query += fmt.Sprintf(" WHERE LOWER(t.name) LIKE LOWER($%d)", argCount)
 		args = append(args, "%"+search+"%")
-		argCount++
 	}
 
 	query += " GROUP BY t.id, t.name, t.valid_id, t.create_by, t.change_by"
@@ -135,6 +134,7 @@ func handleAdminTypes(c *gin.Context) {
 		}
 		types = append(types, t)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	// Render template or fallback if renderer not initialized
 	if getPongo2Renderer() == nil {

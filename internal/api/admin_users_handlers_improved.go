@@ -94,6 +94,7 @@ func ImprovedHandleAdminUserGet(c *gin.Context) {
 					id, gname, gid, permKey, permValue)
 			}
 		}
+		_ = rows.Err() // Check for iteration errors
 
 		user.Groups = groupNames
 		fmt.Printf("INFO: User %d total groups: %d (%v)\n", id, len(groupNames), groupNames)
@@ -248,6 +249,7 @@ func ImprovedHandleAdminUserUpdate(c *gin.Context) {
 				currentGroups = append(currentGroups, groupName)
 			}
 		}
+		_ = rows.Err() // Check for iteration errors
 	}
 	fmt.Printf("INFO: User %d current groups: %v\n", id, currentGroups)
 
@@ -320,6 +322,7 @@ func ImprovedHandleAdminUserUpdate(c *gin.Context) {
 				finalGroups = append(finalGroups, groupName)
 			}
 		}
+		_ = rows.Err() // Check for iteration errors
 	}
 
 	fmt.Printf("FINAL VERIFICATION: User %d now has groups: %v\n", id, finalGroups)

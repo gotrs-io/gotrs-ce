@@ -423,6 +423,9 @@ func GetDynamicFieldsForScreen(objectType, screenKey string) ([]DynamicField, er
 		}
 		fields = append(fields, f)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating fields: %w", err)
+	}
 
 	return fields, nil
 }

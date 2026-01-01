@@ -241,14 +241,6 @@ func (s *SQLServerDatabase) IsHealthy() bool {
 	return s.db.PingContext(ctx) == nil
 }
 
-// buildDSN builds the SQL Server connection string (stub).
-func (s *SQLServerDatabase) buildDSN() string {
-	// TODO: Implement SQL Server DSN format
-	// Example: sqlserver://user:pass@host:port?database=dbname
-	return fmt.Sprintf("sqlserver://%s:%s@%s:%s?database=%s",
-		s.config.Username, s.config.Password, s.config.Host, s.config.Port, s.config.Database)
-}
-
 // SQLServerTransaction implements ITransaction for SQL Server.
 type SQLServerTransaction struct {
 	tx *sql.Tx

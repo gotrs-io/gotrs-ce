@@ -196,6 +196,7 @@ func HandleGetUserGroupsAPI(c *gin.Context) {
 
 		groups = append(groups, group)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

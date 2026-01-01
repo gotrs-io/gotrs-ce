@@ -59,7 +59,7 @@ func importSQLDumpFixed(sqlFile, dbURL string, verbose, dryRun, force bool) erro
 	idMap := NewIDMapping()
 
 	// Read SQL file
-	file, err := os.Open(sqlFile)
+	file, err := os.Open(sqlFile) //nolint:gosec // G304 CLI tool
 	if err != nil {
 		return fmt.Errorf("failed to open SQL file: %w", err)
 	}
@@ -817,7 +817,7 @@ func fixSequences(db *sql.DB) error {
 	}
 
 	for _, s := range sequences {
-		query := fmt.Sprintf("SELECT setval('%s', COALESCE((SELECT MAX(id) FROM %s), 0) + 1, false)", s.seq, s.table)
+		query := fmt.Sprintf("SELECT setval('%s', COALESCE((SELECT MAX(id) FROM %s), 0) + 1, false)", s.seq, s.table) //nolint:gosec // table/seq names from hardcoded list
 		if _, err := db.Exec(query); err != nil {
 			// Some sequences might not exist, that's okay
 			log.Printf("Note: Could not fix sequence %s: %v", s.seq, err)

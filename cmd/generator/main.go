@@ -409,11 +409,11 @@ func (h *Admin{{.Module.Singular}}Handler) Search(c *gin.Context) {
 
 	// Create output file
 	handlerPath := filepath.Join(outputDir, "internal", "api", fmt.Sprintf("admin_%s_handler.go", config.Module.Name))
-	if err := os.MkdirAll(filepath.Dir(handlerPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(handlerPath), 0750); err != nil {
 		return err
 	}
 
-	file, err := os.Create(handlerPath)
+	file, err := os.Create(handlerPath) //nolint:gosec // G304 CLI tool
 	if err != nil {
 		return err
 	}

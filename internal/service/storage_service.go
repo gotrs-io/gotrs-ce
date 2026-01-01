@@ -103,7 +103,7 @@ type LocalStorageService struct {
 // NewLocalStorageService creates a new local storage service.
 func NewLocalStorageService(basePath string) (*LocalStorageService, error) {
 	// Ensure base path exists
-	if err := os.MkdirAll(basePath, 0755); err != nil {
+	if err := os.MkdirAll(basePath, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create storage directory: %w", err)
 	}
 
@@ -126,12 +126,12 @@ func (s *LocalStorageService) Store(ctx context.Context, file multipart.File, he
 
 	// Ensure directory exists
 	dir := filepath.Dir(fullPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Create the file
-	dst, err := os.Create(fullPath)
+	dst, err := os.Create(fullPath) //nolint:gosec // G304 false positive - sanitized path
 	if err != nil {
 		return nil, fmt.Errorf("failed to create file: %w", err)
 	}
@@ -168,7 +168,7 @@ func (s *LocalStorageService) Retrieve(ctx context.Context, path string) (io.Rea
 	}
 
 	// Open file
-	file, err := os.Open(fullPath)
+	file, err := os.Open(fullPath) //nolint:gosec // G304 false positive - sanitized path
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}

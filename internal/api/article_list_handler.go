@@ -146,6 +146,7 @@ func HandleListArticlesAPI(c *gin.Context) {
 						})
 					}
 				}
+				_ = attachRows.Err() // Check for iteration errors
 				if len(attachments) > 0 {
 					articleData["attachments"] = attachments
 				}
@@ -154,6 +155,7 @@ func HandleListArticlesAPI(c *gin.Context) {
 
 		articles = append(articles, articleData)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	c.JSON(http.StatusOK, gin.H{
 		"articles": articles,

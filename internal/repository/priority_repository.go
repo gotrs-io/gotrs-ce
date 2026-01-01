@@ -75,6 +75,9 @@ func (r *PriorityRepository) List() ([]*models.TicketPriority, error) {
 		}
 		priorities = append(priorities, &priority)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return priorities, nil
 }

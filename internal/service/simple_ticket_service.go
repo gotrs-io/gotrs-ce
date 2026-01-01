@@ -1,14 +1,11 @@
 package service
 
 import (
-	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/lib/pq"
 
 	"github.com/gotrs-io/gotrs-ce/internal/database"
 	"github.com/gotrs-io/gotrs-ce/internal/models"
@@ -280,39 +277,29 @@ func (s *SimpleTicketService) GetMessages(ticketID uint) ([]*SimpleTicketMessage
 		dbMessages = append(dbMessages, msg)
 		articleIDs = append(articleIDs, articleID)
 	}
+	_ = rows.Err() // Check for iteration errors
 
-	// Now query attachments for all articles
+	// Now query attachments for all articles using sqlx.In for safe IN clause
 	if len(articleIDs) > 0 {
-		var attachRows *sql.Rows
-		if database.IsMySQL() {
-			placeholders := make([]string, len(articleIDs))
-			args := make([]interface{}, len(articleIDs))
-			for i, id := range articleIDs {
-				placeholders[i] = "?"
-				args[i] = id
-			}
-			query := fmt.Sprintf(`
-				SELECT att.id, att.article_id, att.filename,
-				       COALESCE(att.content_type, 'application/octet-stream'),
-				       COALESCE(att.content_size, '0'),
-				       att.content
-				FROM article_data_mime_attachment att
-				WHERE att.article_id IN (%s)
-				ORDER BY att.id
-			`, strings.Join(placeholders, ","))
-			attachRows, err = db.Query(query, args...)
-		} else {
-			attachRows, err = db.Query(database.ConvertPlaceholders(`
-				SELECT att.id, att.article_id, att.filename, 
-				       COALESCE(att.content_type, 'application/octet-stream'), 
-				       COALESCE(att.content_size, '0'),
-				       att.content
-				FROM article_data_mime_attachment att
-				WHERE att.article_id = ANY($1)
-				ORDER BY att.id
-			`), pq.Array(articleIDs))
+		qb, err := database.GetQueryBuilder()
+		if err != nil {
+			return dbMessages, nil
 		}
 
+		query, args, err := qb.In(`
+			SELECT att.id, att.article_id, att.filename,
+			       COALESCE(att.content_type, 'application/octet-stream'),
+			       COALESCE(att.content_size, '0'),
+			       att.content
+			FROM article_data_mime_attachment att
+			WHERE att.article_id IN (?)
+			ORDER BY att.id
+		`, articleIDs)
+		if err != nil {
+			return dbMessages, nil
+		}
+
+		attachRows, err := qb.Query(query, args...)
 		if err == nil {
 			defer attachRows.Close()
 
@@ -350,6 +337,7 @@ func (s *SimpleTicketService) GetMessages(ticketID uint) ([]*SimpleTicketMessage
 					msg.Attachments = append(msg.Attachments, attachment)
 				}
 			}
+			_ = attachRows.Err() // Check for iteration errors
 		}
 	}
 

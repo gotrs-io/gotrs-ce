@@ -69,6 +69,7 @@ func HandleListPrioritiesAPI(c *gin.Context) {
 		}
 		items = append(items, gin.H{"id": id, "name": name, "color": color, "valid_id": validID})
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Priority deleted successfully", "data": items})
 }

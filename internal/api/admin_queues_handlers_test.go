@@ -94,28 +94,6 @@ func cleanupTestQueueByName(t *testing.T, db *sql.DB, name string) {
 	_, _ = db.Exec(database.ConvertPlaceholders("DELETE FROM queue WHERE name = $1"), name)
 }
 
-// Helper function to verify queue was updated in database.
-func verifyQueueUpdated(t *testing.T, db *sql.DB, queueID int64, expectedName string) {
-	var name string
-	err := db.QueryRow(database.ConvertPlaceholders(`
-		SELECT name FROM queue WHERE id = $1
-	`), queueID).Scan(&name)
-	require.NoError(t, err, "Failed to query queue")
-
-	assert.Equal(t, expectedName, name, "Queue name should be updated in database")
-}
-
-// Helper function to verify queue status in database.
-func verifyQueueStatus(t *testing.T, db *sql.DB, queueID int64, expectedValidID int) {
-	var validID int
-	err := db.QueryRow(database.ConvertPlaceholders(`
-		SELECT valid_id FROM queue WHERE id = $1
-	`), queueID).Scan(&validID)
-	require.NoError(t, err, "Failed to query queue status")
-
-	assert.Equal(t, expectedValidID, validID, "Queue status should match expected value")
-}
-
 func TestAdminQueuesPage(t *testing.T) {
 	setupTemplateRenderer(t)
 	router := setupQueueTestRouter()

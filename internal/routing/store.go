@@ -162,7 +162,7 @@ func (s *FileRouteStore) Apply(ctx context.Context, config *RouteConfig) error {
 	}
 
 	namespaceDir := filepath.Join(s.routesDir, namespace)
-	if err := os.MkdirAll(namespaceDir, 0755); err != nil {
+	if err := os.MkdirAll(namespaceDir, 0750); err != nil {
 		return fmt.Errorf("failed to create namespace directory: %w", err)
 	}
 

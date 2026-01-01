@@ -396,7 +396,7 @@ div[id^="note-content-"] :where(p):not(:where([class~="not-prose"] *)) {
                                                     {{ note.body|safe }}
                                                 </div>
                                                 {% else %}
-                                                <div id="note-content-{{ note_counter }}" class="article-plain article-content" data-article-body data-testid="note-content">{{- note.body|escape -}}</div></div>
+                                                <div id="note-content-{{ note_counter }}" class="article-plain article-content" data-article-body data-testid="note-content">{{- note.body|escape -}}</div>
                                                 {% endif %}
                                             </div>
                                         </div>

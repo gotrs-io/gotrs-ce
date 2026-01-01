@@ -24,7 +24,7 @@ type FilesystemBackend struct {
 // NewFilesystemBackend creates a new filesystem storage backend.
 func NewFilesystemBackend(basePath string, db *sql.DB) (*FilesystemBackend, error) {
 	// Ensure base path exists
-	if err := os.MkdirAll(basePath, 0755); err != nil {
+	if err := os.MkdirAll(basePath, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create base path: %w", err)
 	}
 
@@ -44,19 +44,20 @@ func (f *FilesystemBackend) Store(ctx context.Context, articleID int64, content 
 	now := content.CreatedTime
 	dirPath := f.getArticlePath(articleID, now)
 
-	if err := os.MkdirAll(dirPath, 0755); err != nil {
+	if err := os.MkdirAll(dirPath, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Determine filename
-	filename := content.FileName
-	if filename == "" || filename == "body" {
-		filename = "plain.txt"
+	var filename string
+	if content.FileName == "" || content.FileName == "body" {
 		if content.ContentType == "text/html" {
 			filename = "file-2" // HTML part
 		} else {
 			filename = "file-1" // Plain text part
 		}
+	} else {
+		filename = content.FileName
 	}
 
 	// Write content to file
@@ -123,7 +124,7 @@ func (f *FilesystemBackend) Retrieve(ctx context.Context, ref *StorageReference)
 	metadataPath := ref.Location + ".meta"
 	var metadata map[string]interface{}
 
-	if metadataBytes, err := os.ReadFile(metadataPath); err == nil {
+	if metadataBytes, err := os.ReadFile(metadataPath); err == nil { //nolint:gosec // G304 false positive - sanitized path
 		if err := json.Unmarshal(metadataBytes, &metadata); err == nil {
 			// Metadata loaded successfully
 		}
@@ -239,7 +240,7 @@ func (f *FilesystemBackend) GetInfo() *BackendInfo {
 
 	filepath.Walk(f.basePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return nil
+			return nil //nolint:nilerr // continue walking on error
 		}
 		if !info.IsDir() && !strings.HasSuffix(path, ".meta") {
 			totalFiles++
@@ -402,6 +403,9 @@ func (f *FilesystemBackend) getReferences(ctx context.Context, articleID int64) 
 		}
 
 		refs = append(refs, &ref)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return refs, nil

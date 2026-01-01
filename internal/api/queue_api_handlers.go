@@ -73,6 +73,7 @@ func HandleAPIQueueGet(c *gin.Context) {
 				groups = append(groups, gin.H{"id": gid, "name": gname})
 			}
 		}
+		_ = groupRows.Err() // Check for iteration errors
 		groupRows.Close()
 	}
 

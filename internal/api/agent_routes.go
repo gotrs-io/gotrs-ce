@@ -60,182 +60,6 @@ func RegisterAgentRoutes(r *gin.RouterGroup, db *sql.DB) {
 	// See routes/agent/*.yaml for route definitions
 }
 
-// handleAgentDashboard shows the agent's main dashboard.
-func handleAgentDashboard(db *sql.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID := c.GetInt("userID")
-
-		// Get agent's statistics
-		stats := struct {
-			OpenTickets          int
-			PendingTickets       int
-			ClosedToday          int
-			NewToday             int
-			MyTickets            int
-			UnassignedInMyQueues int
-		}{}
-
-		// Count open tickets assigned to this agent
-		db.QueryRow(database.ConvertPlaceholders(`
-			SELECT COUNT(*) FROM ticket 
-			WHERE responsible_user_id = $1 
-			AND ticket_state_id IN (SELECT id FROM ticket_state WHERE type_id = 1)
-		`), userID).Scan(&stats.OpenTickets)
-
-		// Count pending tickets assigned to this agent
-		db.QueryRow(database.ConvertPlaceholders(`
-			SELECT COUNT(*) FROM ticket 
-			WHERE responsible_user_id = $1 
-			AND ticket_state_id IN (SELECT id FROM ticket_state WHERE type_id = 2)
-		`), userID).Scan(&stats.PendingTickets)
-
-		// Count tickets closed today by this agent
-		db.QueryRow(database.ConvertPlaceholders(`
-			SELECT COUNT(*) FROM ticket 
-			WHERE change_by = $1 
-			AND ticket_state_id IN (SELECT id FROM ticket_state WHERE type_id = 3)
-			AND DATE(change_time) = CURRENT_DATE
-		`), userID).Scan(&stats.ClosedToday)
-
-		// Count new tickets today in agent's queues
-		db.QueryRow(database.ConvertPlaceholders(`
-			SELECT COUNT(*) FROM ticket t
-			JOIN queue q ON t.queue_id = q.id
-			JOIN group_user gu ON q.group_id = gu.group_id
-			WHERE gu.user_id = $1
-			AND DATE(t.create_time) = CURRENT_DATE
-		`), userID).Scan(&stats.NewToday)
-
-		// Count all tickets assigned to this agent
-		stats.MyTickets = stats.OpenTickets + stats.PendingTickets
-
-		// Count unassigned tickets in agent's queues
-		db.QueryRow(database.ConvertPlaceholders(`
-			SELECT COUNT(*) FROM ticket t
-			JOIN queue q ON t.queue_id = q.id
-			JOIN group_user gu ON q.group_id = gu.group_id
-			WHERE gu.user_id = $1
-			AND t.responsible_user_id IS NULL
-			AND t.ticket_state_id IN (SELECT id FROM ticket_state WHERE type_id IN (1, 2))
-		`), userID).Scan(&stats.UnassignedInMyQueues)
-
-		// Get recent tickets
-		rows, _ := db.Query(database.ConvertPlaceholders(`
-			SELECT t.id, t.tn, t.title, 
-				   c.login as customer,
-				   q.name as queue,
-				   ts.name as state,
-				   tp.name as priority,
-				   t.create_time
-			FROM ticket t
-			LEFT JOIN customer_user c ON t.customer_user_id = c.login
-			LEFT JOIN queue q ON t.queue_id = q.id
-			LEFT JOIN ticket_state ts ON t.ticket_state_id = ts.id
-			LEFT JOIN ticket_priority tp ON t.ticket_priority_id = tp.id
-			WHERE t.responsible_user_id = $1
-			OR (t.responsible_user_id IS NULL AND q.id IN (
-				SELECT q2.id FROM queue q2
-				JOIN group_user gu ON q2.group_id = gu.group_id
-				WHERE gu.user_id = $1
-			))
-			ORDER BY t.create_time DESC
-			LIMIT 10
-		`), userID)
-		defer func() { _ = rows.Close() }()
-
-		recentTickets := []map[string]interface{}{}
-		for rows.Next() {
-			var ticket struct {
-				ID         int
-				TN         string
-				Title      string
-				Customer   sql.NullString
-				Queue      string
-				State      string
-				Priority   string
-				CreateTime time.Time
-			}
-			rows.Scan(&ticket.ID, &ticket.TN, &ticket.Title, &ticket.Customer,
-				&ticket.Queue, &ticket.State, &ticket.Priority, &ticket.CreateTime)
-
-			recentTickets = append(recentTickets, map[string]interface{}{
-				"id":             ticket.ID,
-				"tn":             ticket.TN,
-				"title":          ticket.Title,
-				"customer":       ticket.Customer.String,
-				"queue":          ticket.Queue,
-				"state":          ticket.State,
-				"priority":       ticket.Priority,
-				"age":            formatAge(ticket.CreateTime),
-				"created_at_iso": ticket.CreateTime.UTC().Format(time.RFC3339),
-			})
-		}
-
-		// Get agent's queues
-		queueRows, _ := db.Query(database.ConvertPlaceholders(`
-			SELECT q.id, q.name, 
-				   COUNT(t.id) as ticket_count,
-				   COUNT(CASE WHEN t.responsible_user_id IS NULL THEN 1 END) as unassigned_count
-			FROM queue q
-			JOIN group_user gu ON q.group_id = gu.group_id
-			LEFT JOIN ticket t ON q.id = t.queue_id 
-				AND t.ticket_state_id IN (SELECT id FROM ticket_state WHERE type_id IN (1, 2))
-			WHERE gu.user_id = $1
-			GROUP BY q.id, q.name
-			ORDER BY q.name
-		`), userID)
-		defer queueRows.Close()
-
-		queues := []map[string]interface{}{}
-		for queueRows.Next() {
-			var queue struct {
-				ID              int
-				Name            string
-				TicketCount     int
-				UnassignedCount int
-			}
-			queueRows.Scan(&queue.ID, &queue.Name, &queue.TicketCount, &queue.UnassignedCount)
-
-			queues = append(queues, map[string]interface{}{
-				"id":               queue.ID,
-				"name":             queue.Name,
-				"ticket_count":     queue.TicketCount,
-				"unassigned_count": queue.UnassignedCount,
-			})
-		}
-
-		// Get user from context for navigation display
-		user := getUserFromContext(c)
-
-		// Check if user is in admin group for Dev tab
-		var isInAdminGroup bool
-		adminErr := db.QueryRow(database.ConvertPlaceholders(`
-			SELECT EXISTS(
-				SELECT 1 FROM group_user gu
-				JOIN groups g ON gu.group_id = g.id
-				WHERE gu.user_id = $1 AND g.name = 'admin'
-			)
-		`), userID).Scan(&isInAdminGroup)
-		if adminErr == nil && isInAdminGroup && user != nil {
-			// Set a flag in context or add to user struct if it has the field
-			c.Set("isInAdminGroup", true)
-		}
-
-		// Pass the isInAdminGroup flag to template
-		adminGroupFlag, _ := c.Get("isInAdminGroup")
-
-		getPongo2Renderer().HTML(c, http.StatusOK, "pages/agent/dashboard.pongo2", pongo2.Context{
-			"Title":          "Agent Dashboard",
-			"ActivePage":     "agent",
-			"User":           user,
-			"IsInAdminGroup": adminGroupFlag,
-			"Stats":          stats,
-			"RecentTickets":  recentTickets,
-			"Queues":         queues,
-		})
-	}
-}
-
 // handleAgentTickets shows the agent's ticket list.
 func handleAgentTickets(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -507,6 +331,7 @@ func handleAgentTickets(db *sql.DB) gin.HandlerFunc {
 				"article_count":  ticket.ArticleCount,
 			})
 		}
+		_ = rows.Err() // Check for iteration errors
 
 		// Get available queues for filter
 		queueRows, _ := db.Query(database.ConvertPlaceholders(`
@@ -1578,50 +1403,6 @@ func handleAgentTicketMerge(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-// handleArticleAttachmentDownload serves attachment files for a specific article.
-func handleArticleAttachmentDownload(db *sql.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ticketID := c.Param("id")
-		articleID := c.Param("article_id")
-		attachmentID := c.Param("attachment_id")
-
-		// Verify the attachment belongs to this article and ticket
-		var filename string
-		var contentType string
-		var content []byte
-
-		err := db.QueryRow(database.ConvertPlaceholders(`
-			SELECT adma.filename, adma.content_type, adma.content
-			FROM article_data_mime_attachment adma
-			JOIN article a ON adma.article_id = a.id
-			WHERE adma.id = $1 AND a.id = $2 AND a.ticket_id = $3
-		`), attachmentID, articleID, ticketID).Scan(&filename, &contentType, &content)
-
-		if err != nil {
-			if err == sql.ErrNoRows {
-				c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
-			} else {
-				log.Printf("Error fetching attachment: %v", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch attachment"})
-			}
-			return
-		}
-
-		// Set appropriate headers
-		c.Header("Content-Type", contentType)
-		c.Header("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", filename))
-		c.Header("Content-Length", fmt.Sprintf("%d", len(content)))
-
-		// For images, allow inline viewing
-		if strings.HasPrefix(contentType, "image/") {
-			c.Header("Cache-Control", "public, max-age=3600")
-		}
-
-		// Send the file content
-		c.Data(http.StatusOK, contentType, content)
-	}
-}
-
 // handleTicketCustomerUsers returns customer users available for a ticket.
 func handleTicketCustomerUsers(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -1701,6 +1482,7 @@ func handleTicketCustomerUsers(db *sql.DB) gin.HandlerFunc {
 
 			customerUsers = append(customerUsers, cu)
 		}
+		_ = rows.Err() // Check for iteration errors
 
 		// If no customer users found, at least return the current one
 		if len(customerUsers) == 0 && currentCustomerUserID != "" {
@@ -1795,6 +1577,7 @@ func handleAgentQueues(db *sql.DB) gin.HandlerFunc {
 				"OpenTicketCount": queue.OpenTicketCount,
 			})
 		}
+		_ = rows.Err() // Check for iteration errors
 
 		// Get user from context for navigation display
 		user := getUserFromContext(c)

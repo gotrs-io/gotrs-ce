@@ -156,6 +156,7 @@ func HandleAdminTickets(c *gin.Context) {
 			"assigned_to": ticket.AssignedTo,
 		})
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	// Get available states for filter
 	stateRows, _ := db.Query(database.ConvertPlaceholders("SELECT DISTINCT name FROM ticket_state WHERE valid_id = 1 ORDER BY name"))

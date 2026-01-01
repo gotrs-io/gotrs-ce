@@ -292,6 +292,9 @@ func GetDistinctDynamicFieldValues(fieldID int, limit int) ([]string, error) {
 		}
 		values = append(values, val)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating distinct values: %w", err)
+	}
 
 	return values, nil
 }

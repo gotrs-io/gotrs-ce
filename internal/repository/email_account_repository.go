@@ -121,6 +121,9 @@ func (r *EmailAccountRepository) GetActiveAccounts() ([]*models.EmailAccount, er
 		}
 		accounts = append(accounts, account)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating email accounts: %w", err)
+	}
 
 	return accounts, nil
 }

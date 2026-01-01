@@ -94,6 +94,13 @@ func (router *APIRouter) handleGetTicketsByStatusChart(c *gin.Context) {
 		labels = append(labels, name)
 		data = append(data, count)
 	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Error:   "Error iterating ticket states",
+		})
+		return
+	}
 
 	chartData := gin.H{
 		"labels": labels,
@@ -145,6 +152,13 @@ func (router *APIRouter) handleGetTicketsByPriorityChart(c *gin.Context) {
 		labels = append(labels, name)
 		data = append(data, count)
 	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Error:   "Error iterating ticket priorities",
+		})
+		return
+	}
 
 	chartData := gin.H{
 		"labels": labels,
@@ -195,6 +209,13 @@ func (router *APIRouter) handleGetTicketsOverTimeChart(c *gin.Context) {
 		}
 		dateCreated[date] = count
 	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Error:   "Error iterating tickets over time",
+		})
+		return
+	}
 
 	// Get closed tickets for last 7 days (state type 3 = closed)
 	closedRows, err := db.Query(database.ConvertPlaceholders(`
@@ -220,6 +241,13 @@ func (router *APIRouter) handleGetTicketsOverTimeChart(c *gin.Context) {
 				continue
 			}
 			dateClosed[date] = count
+		}
+		if err := closedRows.Err(); err != nil {
+			c.JSON(http.StatusInternalServerError, APIResponse{
+				Success: false,
+				Error:   "Error iterating closed tickets",
+			})
+			return
 		}
 	}
 
@@ -310,6 +338,13 @@ func (router *APIRouter) handleGetRecentActivity(c *gin.Context) {
 
 		activities = append(activities, activity)
 	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Error:   "Error iterating recent activity",
+		})
+		return
+	}
 
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
@@ -370,6 +405,13 @@ func (router *APIRouter) handleGetMyTickets(c *gin.Context) {
 			"status":   status,
 			"priority": priority,
 		})
+	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, APIResponse{
+			Success: false,
+			Error:   "Error iterating user tickets",
+		})
+		return
 	}
 
 	c.JSON(http.StatusOK, APIResponse{

@@ -211,7 +211,7 @@ func lintFile(path string) []LintIssue {
 	issues := []LintIssue{}
 
 	// Read file
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304 CLI tool
 	if err != nil {
 		issues = append(issues, LintIssue{
 			Rule:     "file-read",

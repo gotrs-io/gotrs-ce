@@ -193,6 +193,9 @@ func getFieldsForScreenWithConfigWithDB(db *sql.DB, screenKey, objectType string
 		}
 		results = append(results, FieldWithScreenConfig{Field: f, ConfigValue: configValue})
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating fields: %w", err)
+	}
 
 	return results, nil
 }

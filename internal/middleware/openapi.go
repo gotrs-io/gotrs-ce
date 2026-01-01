@@ -61,7 +61,7 @@ type OpenAPIValidator struct {
 // NewOpenAPIValidator creates a new OpenAPI validator from the spec file.
 func NewOpenAPIValidator(specPath string) (*OpenAPIValidator, error) {
 	// Read the OpenAPI spec file
-	specData, err := os.ReadFile(specPath)
+	specData, err := os.ReadFile(specPath) //nolint:gosec // G304 false positive - config file
 	if err != nil {
 		return nil, fmt.Errorf("failed to read OpenAPI spec: %w", err)
 	}

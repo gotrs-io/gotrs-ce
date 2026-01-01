@@ -75,7 +75,7 @@ func (hrm *HotReloadManager) WatchDirectory(dir string, kind YAMLKind) error {
 
 	// Ensure directory exists
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0750); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
 	}
@@ -272,7 +272,7 @@ func (hrm *HotReloadManager) reloadFile(filename string) {
 }
 
 func (hrm *HotReloadManager) loadYAMLFile(filename string) (*YAMLDocument, error) {
-	data, err := os.ReadFile(filename)
+	data, err := os.ReadFile(filename) //nolint:gosec // G304 false positive - fsnotify event path
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +368,7 @@ func (hrm *HotReloadManager) loadExistingFiles(dir string, kind YAMLKind) {
 	// Walk directory and load existing YAML files
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
-			return nil
+			return nil //nolint:nilerr // continue walking on error
 		}
 
 		if strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml") {

@@ -488,6 +488,9 @@ func (r *ArticleRepository) GetByTicketID(ticketID uint, includeInternal bool) (
 
 		articles = append(articles, article)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return articles, nil
 }
@@ -620,6 +623,7 @@ func (r *ArticleRepository) GetLatestArticleForTicket(ticketID uint) (*models.Ar
 	if validPredicate != "" {
 		whereParts = append(whereParts, validPredicate)
 	}
+	//nolint:gosec // articleTypeExpr, commChannelExpr, selectValid are from schema detection, not user input
 	query := fmt.Sprintf(`
 		SELECT 
 			a.id, a.ticket_id, %s AS article_type_id, a.article_sender_type_id,
@@ -699,6 +703,7 @@ func (r *ArticleRepository) GetLatestCustomerArticleForTicket(ticketID uint) (*m
 	if validPredicate != "" {
 		whereParts = append(whereParts, validPredicate)
 	}
+	//nolint:gosec // articleTypeExpr, commChannelExpr, selectValid are from schema detection, not user input
 	query := fmt.Sprintf(`
 		SELECT 
 			a.id, a.ticket_id, %s AS article_type_id, a.article_sender_type_id,
@@ -903,6 +908,9 @@ func (r *ArticleRepository) GetAttachmentsByArticleID(articleID uint) ([]models.
 			return nil, err
 		}
 		attachments = append(attachments, attachment)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return attachments, nil

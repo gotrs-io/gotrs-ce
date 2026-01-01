@@ -113,7 +113,7 @@ func HandleUserMeAPI(c *gin.Context) {
 				})
 			}
 		}
-
+		_ = rows.Err() // Check for iteration errors
 		// Return user information with groups
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,

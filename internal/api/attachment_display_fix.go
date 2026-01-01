@@ -68,6 +68,9 @@ func GetArticleAttachments(articleID int) ([]map[string]interface{}, error) {
 
 		attachments = append(attachments, attachment)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating attachments: %w", err)
+	}
 
 	return attachments, nil
 }
@@ -124,6 +127,9 @@ func GetTicketAttachments(ticketID int) (map[int][]map[string]interface{}, error
 			attachmentsByArticle[articleID] = []map[string]interface{}{}
 		}
 		attachmentsByArticle[articleID] = append(attachmentsByArticle[articleID], attachment)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating ticket attachments: %w", err)
 	}
 
 	return attachmentsByArticle, nil

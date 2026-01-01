@@ -61,7 +61,7 @@ func (c *Config) Validate() error {
 		}
 
 		// Ensure path exists or can be created
-		if err := os.MkdirAll(c.FSBasePath, 0755); err != nil {
+		if err := os.MkdirAll(c.FSBasePath, 0750); err != nil {
 			return fmt.Errorf("cannot create filesystem base path: %w", err)
 		}
 

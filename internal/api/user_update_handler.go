@@ -2,7 +2,6 @@ package api
 
 import (
 	"database/sql"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -100,10 +99,9 @@ func HandleUpdateUserAPI(c *gin.Context) {
 		return
 	}
 
-	// Build update query dynamically
+	// Build update query dynamically using ? placeholders (sqlx will rebind)
 	updates := []string{}
 	args := []interface{}{}
-	argCount := 0
 
 	if req.Email != nil {
 		// Check if email is already taken by another user
@@ -120,14 +118,12 @@ func HandleUpdateUserAPI(c *gin.Context) {
 			return
 		}
 
-		argCount++
-		updates = append(updates, fmt.Sprintf("email = $%d", argCount))
+		updates = append(updates, "email = ?")
 		args = append(args, *req.Email)
 	}
 
 	if req.FirstName != nil {
-		argCount++
-		updates = append(updates, fmt.Sprintf("first_name = $%d", argCount))
+		updates = append(updates, "first_name = ?")
 		if *req.FirstName == "" {
 			args = append(args, sql.NullString{Valid: false})
 		} else {
@@ -136,8 +132,7 @@ func HandleUpdateUserAPI(c *gin.Context) {
 	}
 
 	if req.LastName != nil {
-		argCount++
-		updates = append(updates, fmt.Sprintf("last_name = $%d", argCount))
+		updates = append(updates, "last_name = ?")
 		if *req.LastName == "" {
 			args = append(args, sql.NullString{Valid: false})
 		} else {
@@ -165,8 +160,7 @@ func HandleUpdateUserAPI(c *gin.Context) {
 			return
 		}
 
-		argCount++
-		updates = append(updates, fmt.Sprintf("pw = $%d", argCount))
+		updates = append(updates, "pw = ?")
 		args = append(args, string(hashedPassword))
 	}
 
@@ -180,8 +174,7 @@ func HandleUpdateUserAPI(c *gin.Context) {
 			return
 		}
 
-		argCount++
-		updates = append(updates, fmt.Sprintf("valid_id = $%d", argCount))
+		updates = append(updates, "valid_id = ?")
 		args = append(args, *req.ValidID)
 	}
 
@@ -195,24 +188,27 @@ func HandleUpdateUserAPI(c *gin.Context) {
 	}
 
 	// Add change tracking
-	argCount++
-	updates = append(updates, fmt.Sprintf("change_time = $%d", argCount))
+	updates = append(updates, "change_time = ?")
 	args = append(args, time.Now())
 
-	argCount++
-	updates = append(updates, fmt.Sprintf("change_by = $%d", argCount))
+	updates = append(updates, "change_by = ?")
 	args = append(args, currentUserID)
 
-	// Add WHERE clause
-	argCount++
-	whereClause := fmt.Sprintf(" WHERE id = $%d", argCount)
+	// Add WHERE clause parameter
 	args = append(args, userID)
 
-	// Build and execute update query
-	updateQuery := "UPDATE users SET " + strings.Join(updates, ", ") + whereClause
-	updateQuery = database.ConvertPlaceholders(updateQuery)
+	// Build and execute update query using QueryBuilder for rebinding
+	qb, err := database.GetQueryBuilder()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Database connection failed",
+		})
+		return
+	}
 
-	result, err := db.Exec(updateQuery, args...)
+	updateQuery := qb.Rebind("UPDATE users SET " + strings.Join(updates, ", ") + " WHERE id = ?")
+	result, err := qb.Exec(updateQuery, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

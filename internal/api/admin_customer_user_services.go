@@ -74,6 +74,7 @@ func handleAdminCustomerUserServices(db *sql.DB) gin.HandlerFunc {
 					})
 				}
 			}
+			_ = rows.Err() // Check for errors during iteration
 		}
 
 		// Get services with customer count
@@ -101,6 +102,7 @@ func handleAdminCustomerUserServices(db *sql.DB) gin.HandlerFunc {
 					})
 				}
 			}
+			_ = sRows.Err() // Check for errors during iteration
 		}
 
 		if getPongo2Renderer() == nil {
@@ -184,6 +186,10 @@ func handleAdminCustomerUserServicesAllocate(db *sql.DB) gin.HandlerFunc {
 					"assigned": assigned == 1,
 				})
 			}
+		}
+		if err := rows.Err(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating services"})
+			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{
@@ -327,6 +333,10 @@ func handleAdminServiceCustomerUsersAllocate(db *sql.DB) gin.HandlerFunc {
 				})
 			}
 		}
+		if err := rows.Err(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating customer users"})
+			return
+		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"service": map[string]interface{}{
@@ -454,6 +464,10 @@ func handleAdminDefaultServices(db *sql.DB) gin.HandlerFunc {
 					"assigned": assigned == 1,
 				})
 			}
+		}
+		if err := rows.Err(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating services"})
+			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{

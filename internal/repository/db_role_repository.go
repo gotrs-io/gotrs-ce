@@ -54,6 +54,10 @@ func (r *DBRoleRepository) List() ([]*models.DBRole, error) {
 		roles = append(roles, role)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read roles: %w", err)
+	}
+
 	return roles, nil
 }
 
@@ -245,6 +249,10 @@ func (r *DBRoleRepository) ListRoleUsers(roleID int) ([]int, error) {
 		userIDs = append(userIDs, userID)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read role users: %w", err)
+	}
+
 	return userIDs, nil
 }
 
@@ -283,6 +291,10 @@ func (r *DBRoleRepository) ListUserRoles(userID int) ([]*models.DBRole, error) {
 		}
 		role.Comments = comments.String
 		roles = append(roles, role)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read user roles: %w", err)
 	}
 
 	return roles, nil

@@ -222,6 +222,7 @@ func HandleListUsersAPI(c *gin.Context) {
 					})
 				}
 			}
+			_ = groupRows.Err() // Check for iteration errors
 			groupRows.Close()
 			userMap["groups"] = groups
 		} else if shouldFallbackToMock(err) {
@@ -230,6 +231,7 @@ func HandleListUsersAPI(c *gin.Context) {
 
 		users = append(users, userMap)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	// Calculate pagination info
 	totalPages := (total + perPage - 1) / perPage

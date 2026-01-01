@@ -113,7 +113,7 @@ func findTemplateFiles(dir string) ([]string, error) {
 
 // extractKeysFromFile extracts translation keys from a single template file.
 func extractKeysFromFile(filename string, moduleMode bool) ([]*TranslationKey, error) {
-	file, err := os.Open(filename)
+	file, err := os.Open(filename) //nolint:gosec // G304 CLI tool
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +249,7 @@ func generateTranslationFile(outputDir, lang string, grouped map[string]map[stri
 
 	// Load existing translations if file exists
 	existing := make(TranslationMap)
-	if data, err := os.ReadFile(filename); err == nil {
+	if data, err := os.ReadFile(filename); err == nil { //nolint:gosec // G304 CLI tool
 		if err := json.Unmarshal(data, &existing); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: could not parse existing %s: %v\n", filename, err)
 		}
@@ -259,7 +259,7 @@ func generateTranslationFile(outputDir, lang string, grouped map[string]map[stri
 	translations := buildTranslationMap(grouped, existing, lang)
 
 	// Create output directory if it doesn't exist
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0750); err != nil {
 		return err
 	}
 

@@ -1626,15 +1626,15 @@ func TestEmailQueueCleanupLeavesPendingAndRecent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("select remaining: %v", err)
 	}
+	defer rows.Close()
 	for rows.Next() {
 		var id int64
 		if err := rows.Scan(&id); err != nil {
-			rows.Close()
 			t.Fatalf("scan id: %v", err)
 		}
 		ids = append(ids, id)
 	}
-	_ = rows.Close()
+	_ = rows.Err() // Check for iteration errors
 
 	if len(ids) != 2 {
 		t.Fatalf("expected 2 rows after cleanup, got %d (ids=%v)", len(ids), ids)
@@ -1694,14 +1694,11 @@ func TestEmailQueueRetriesOnTransientSmtp4xx(t *testing.T) {
 				defer c.Close()
 				_, _ = c.Write([]byte("220 temp\r\n"))
 				buf := make([]byte, 1024)
-				for {
-					_, err := c.Read(buf)
-					if err != nil {
-						return
-					}
-					_, _ = c.Write([]byte("421 transient error\r\n"))
+				_, err := c.Read(buf)
+				if err != nil {
 					return
 				}
+				_, _ = c.Write([]byte("421 transient error\r\n"))
 			}(conn)
 		}
 	}()
@@ -1775,14 +1772,11 @@ func TestEmailQueueRetriesOnPermanentSmtp5xx(t *testing.T) {
 				defer c.Close()
 				_, _ = c.Write([]byte("220 temp\r\n"))
 				buf := make([]byte, 1024)
-				for {
-					_, err := c.Read(buf)
-					if err != nil {
-						return
-					}
-					_, _ = c.Write([]byte("550 permanent failure\r\n"))
+				_, err := c.Read(buf)
+				if err != nil {
 					return
 				}
+				_, _ = c.Write([]byte("550 permanent failure\r\n"))
 			}(conn)
 		}
 	}()
@@ -2023,7 +2017,6 @@ func TestPOP3FetcherRecoversFromMailboxLock(t *testing.T) {
 						_, _ = c.Write([]byte("+OK\r\n.\r\n"))
 					case strings.HasPrefix(s, "USER"):
 						if first && !lockedSent {
-							lockedSent = true
 							first = false
 							_, _ = c.Write([]byte("-ERR [IN-USE] mailbox locked\r\n"))
 							return
@@ -3444,6 +3437,7 @@ func attachmentMetas(ctx context.Context, db *sql.DB, ticketID int) []attachment
 		}
 		metas = append(metas, m)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	return metas
 }

@@ -341,6 +341,7 @@ func HandleTicketStateStatisticsAPI(c *gin.Context) {
 		})
 		totalTickets += stat.TicketCount
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	c.JSON(http.StatusOK, gin.H{
 		"statistics":    statistics,

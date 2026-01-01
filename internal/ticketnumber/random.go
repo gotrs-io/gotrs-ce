@@ -23,6 +23,7 @@ func NewRandom(cfg Config, seed int64) *Random {
 		_, _ = rand.Read(b[:])
 		seeded = int64(binary.LittleEndian.Uint64(b[:]))
 	}
+	//nolint:gosec // G404 math/rand is fine for ticket numbers, seeded from crypto/rand
 	return &Random{cfg: cfg, src: mrand.New(mrand.NewSource(seeded))}
 }
 func (g *Random) Name() string      { return "Random" }

@@ -99,7 +99,7 @@ func (g *DocumentationGenerator) Generate() error {
 	}
 
 	// Create output directory
-	if err := os.MkdirAll(g.outputDir, 0755); err != nil {
+	if err := os.MkdirAll(g.outputDir, 0750); err != nil {
 		return fmt.Errorf("creating output dir: %w", err)
 	}
 
@@ -129,7 +129,7 @@ func (g *DocumentationGenerator) loadRoutes() error {
 			return nil
 		}
 
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) //nolint:gosec // G304 CLI tool
 		if err != nil {
 			return fmt.Errorf("reading %s: %w", path, err)
 		}

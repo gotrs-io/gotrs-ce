@@ -93,7 +93,6 @@ func handleAdminServices(c *gin.Context) {
 			query += fmt.Sprintf(" AND s.valid_id = $%d", argCount)
 			args = append(args, 3)
 		}
-		argCount++
 	}
 
 	query += " GROUP BY s.id, s.name, s.comments, s.valid_id, s.create_time, s.create_by, s.change_time, s.change_by"
@@ -142,6 +141,7 @@ func handleAdminServices(c *gin.Context) {
 
 		services = append(services, s)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	// Render the template or fallback if renderer not initialized
 	if getPongo2Renderer() == nil {

@@ -142,7 +142,7 @@ func (g *TestDataGenerator) hashPassword(password string) (string, error) {
 func (g *TestDataGenerator) generateSQL() error {
 	// Ensure migrations directory exists
 	dir := filepath.Dir(g.sqlPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return fmt.Errorf("failed to create migrations directory: %w", err)
 	}
 

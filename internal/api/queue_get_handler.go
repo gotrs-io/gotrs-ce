@@ -114,6 +114,9 @@ func getAgentsForQueue(db *sql.DB, queueID int) ([]gin.H, error) {
 			"login": login,
 		})
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	log.Printf("DEBUG: getAgentsForQueue returning %d agents: %+v", len(agents), agents)
 	return agents, nil
 }

@@ -65,7 +65,7 @@ func NewRouteVersionManager(storageDir string) *RouteVersionManager {
 
 	// Ensure storage directory exists
 	versionsDir := filepath.Join(storageDir, ".versions")
-	os.MkdirAll(versionsDir, 0755)
+	os.MkdirAll(versionsDir, 0750)
 
 	// Load existing versions
 	vm.loadVersions()
@@ -386,7 +386,7 @@ func (vm *RouteVersionManager) loadVersions() {
 			continue
 		}
 
-		data, err := os.ReadFile(filepath.Join(versionsDir, file.Name()))
+		data, err := os.ReadFile(filepath.Join(versionsDir, file.Name())) //nolint:gosec // G304 false positive - ReadDir path
 		if err != nil {
 			continue
 		}
@@ -417,7 +417,7 @@ func (vm *RouteVersionManager) applyVersion(v *RouteVersion) error {
 		}
 
 		dir := filepath.Join(vm.storageDir, namespace)
-		os.MkdirAll(dir, 0755)
+		os.MkdirAll(dir, 0750)
 
 		filename := filepath.Join(dir, name+".yaml")
 

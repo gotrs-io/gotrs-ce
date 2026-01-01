@@ -396,6 +396,9 @@ func (d *DatabaseBackend) List(ctx context.Context, articleID int64) ([]*Storage
 		ref.Location = fmt.Sprintf("attachment:%d", ref.ID)
 		refs = append(refs, &ref)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate attachments: %w", err)
+	}
 
 	return refs, nil
 }

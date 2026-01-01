@@ -51,6 +51,9 @@ func LoadTicketStatesForForm(db *sql.DB) ([]gin.H, map[string]gin.H, error) {
 			}
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
 
 	return states, lookup, nil
 }

@@ -287,6 +287,9 @@ func getDynamicFieldValuesWithDB(db *sql.DB, objectID int64) ([]DynamicFieldValu
 		}
 		values = append(values, v)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating dynamic field values: %w", err)
+	}
 
 	return values, nil
 }

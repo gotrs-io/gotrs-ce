@@ -221,7 +221,7 @@ func handleValidate(schemaRegistry *yamlmgmt.SchemaRegistry, linter *yamlmgmt.Un
 	filename := os.Args[2]
 
 	// Load file
-	data, err := os.ReadFile(filename)
+	data, err := os.ReadFile(filename) //nolint:gosec // G304 CLI tool
 	if err != nil {
 		fmt.Printf("Error reading file: %v\n", err)
 		os.Exit(1)
@@ -301,7 +301,7 @@ func handleLint(linter *yamlmgmt.UniversalLinter) {
 		// Walk directory
 		filepath.Walk(path, func(p string, i os.FileInfo, err error) error {
 			if err != nil {
-				return nil
+				return nil //nolint:nilerr // continue walking on error
 			}
 			if !i.IsDir() && (strings.HasSuffix(p, ".yaml") || strings.HasSuffix(p, ".yml")) {
 				files = append(files, p)
@@ -322,7 +322,7 @@ func handleLint(linter *yamlmgmt.UniversalLinter) {
 
 	for _, file := range files {
 		// Load and parse file
-		data, err := os.ReadFile(file)
+		data, err := os.ReadFile(file) //nolint:gosec // G304 CLI tool
 		if err != nil {
 			fmt.Printf("❌ %s: Failed to read file\n", file)
 			continue
@@ -591,7 +591,7 @@ func handleApply(versionMgr *yamlmgmt.VersionManager, schemaRegistry *yamlmgmt.S
 	filename := os.Args[2]
 
 	// Load file
-	data, err := os.ReadFile(filename)
+	data, err := os.ReadFile(filename) //nolint:gosec // G304 CLI tool
 	if err != nil {
 		fmt.Printf("Error reading file: %v\n", err)
 		os.Exit(1)
@@ -714,7 +714,7 @@ func handleExport(versionMgr *yamlmgmt.VersionManager) {
 	}
 
 	// Create output directory
-	os.MkdirAll(outputDir, 0755)
+	os.MkdirAll(outputDir, 0750)
 
 	// Get all documents
 	documents, err := versionMgr.ListAll(kind)
@@ -761,7 +761,7 @@ func handleImport(versionMgr *yamlmgmt.VersionManager) {
 
 	filepath.Walk(importDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
-			return nil
+			return nil //nolint:nilerr // continue walking on error
 		}
 
 		if !strings.HasSuffix(path, ".yaml") && !strings.HasSuffix(path, ".yml") {
@@ -769,7 +769,7 @@ func handleImport(versionMgr *yamlmgmt.VersionManager) {
 		}
 
 		// Load file
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) //nolint:gosec // G304 CLI tool
 		if err != nil {
 			fmt.Printf("❌ Failed to read %s: %v\n", path, err)
 			failed++

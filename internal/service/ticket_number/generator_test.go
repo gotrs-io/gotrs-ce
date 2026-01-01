@@ -28,7 +28,7 @@ func getTestDB(t *testing.T) *sql.DB {
 		driver = "postgres"
 	}
 
-	openDriver := driver
+	var openDriver string
 	var dsn string
 
 	switch driver {

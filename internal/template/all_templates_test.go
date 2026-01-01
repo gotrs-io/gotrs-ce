@@ -496,7 +496,7 @@ func TestFormTemplateCoverage(t *testing.T) {
 		// Read file content
 		content, err := os.ReadFile(path)
 		if err != nil {
-			return nil
+			return nil //nolint:nilerr // continue walking on error
 		}
 
 		// Check if template has form-related content

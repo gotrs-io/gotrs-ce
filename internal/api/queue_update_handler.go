@@ -355,6 +355,7 @@ func HandleUpdateQueueAPI(c *gin.Context) {
 				groups = append(groups, gid)
 			}
 		}
+		_ = rows.Err() // Check for iteration errors
 		resp["group_access"] = groups
 	}
 

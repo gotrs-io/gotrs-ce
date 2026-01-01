@@ -100,7 +100,7 @@ type TableInfo struct {
 func analyzeSQLDump(sqlFile string, verbose bool) error {
 	fmt.Printf("🔍 Analyzing OTRS SQL dump: %s\n", sqlFile)
 
-	file, err := os.Open(sqlFile)
+	file, err := os.Open(sqlFile) //nolint:gosec // G304 CLI tool
 	if err != nil {
 		return fmt.Errorf("failed to open SQL file: %w", err)
 	}
@@ -305,7 +305,7 @@ func importSQLDump(sqlFile, dbURL string, verbose, dryRun bool) error {
 	}
 
 	// Read and process SQL file
-	file, err := os.Open(sqlFile)
+	file, err := os.Open(sqlFile) //nolint:gosec // G304 CLI tool
 	if err != nil {
 		return fmt.Errorf("failed to open SQL file: %w", err)
 	}
@@ -676,7 +676,7 @@ func validateImportedData(dbURL string, verbose bool) error {
 
 	for _, table := range coreTables {
 		var count int
-		query := fmt.Sprintf("SELECT COUNT(*) FROM %s", table)
+		query := fmt.Sprintf("SELECT COUNT(*) FROM %s", table) //nolint:gosec // table names from hardcoded list
 
 		err := db.QueryRowContext(ctx, query).Scan(&count)
 		if err != nil {

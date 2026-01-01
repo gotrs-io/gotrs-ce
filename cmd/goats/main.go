@@ -16,7 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/gotrs-io/gotrs-ce/internal/api"
-	_ "github.com/gotrs-io/gotrs-ce/internal/api" // Import for handler_registry.go init()
+
 	"github.com/gotrs-io/gotrs-ce/internal/cache"
 	"github.com/gotrs-io/gotrs-ce/internal/config"
 	"github.com/gotrs-io/gotrs-ce/internal/database"

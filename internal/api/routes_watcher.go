@@ -47,7 +47,7 @@ func startRoutesWatcher() {
 			changed := false
 			filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 				if err != nil || info == nil {
-					return nil
+					return nil //nolint:nilerr // continue walking on error
 				}
 				if info.IsDir() {
 					return nil

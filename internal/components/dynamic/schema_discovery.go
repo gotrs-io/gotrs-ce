@@ -72,6 +72,9 @@ func (sd *SchemaDiscovery) GetTables() ([]TableInfo, error) {
 		}
 		tables = append(tables, table)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating tables: %w", err)
+	}
 
 	return tables, nil
 }
@@ -133,6 +136,9 @@ func (sd *SchemaDiscovery) GetTableColumns(tableName string) ([]ColumnInfo, erro
 
 		columns = append(columns, col)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating columns: %w", err)
+	}
 
 	// Get constraints to properly identify primary keys, unique, foreign keys
 	constraints, err := sd.GetTableConstraints(tableName)
@@ -185,6 +191,9 @@ func (sd *SchemaDiscovery) GetTableConstraints(tableName string) ([]ConstraintIn
 			return nil, fmt.Errorf("failed to scan constraint row: %w", err)
 		}
 		constraints = append(constraints, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating constraints: %w", err)
 	}
 
 	return constraints, nil

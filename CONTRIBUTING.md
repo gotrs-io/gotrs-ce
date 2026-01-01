@@ -44,6 +44,7 @@ While we prepare comprehensive contribution guidelines, here are the basics:
 ## Temporary Critical Standards
 
 - Database access: use `database.ConvertPlaceholders` for every SQL string (no exceptions).
+- **Dynamic SQL**: use `database.QueryBuilder` for any dynamic WHERE/column construction (mandatory for gosec compliance).
 - No ORM: use `database/sql` with small repositories.
 - Keep SQL in repositories, not handlers.
 - Templating: Pongo2 only. Do not use Go's `html/template`. Render user-facing views via Pongo2 with `layouts/base.pongo2` and proper context (`User`, `ActivePage`).

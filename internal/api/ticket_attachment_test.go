@@ -69,30 +69,6 @@ func createTestTicketWithAttachment(t *testing.T, db *sql.DB) (ticketID int, art
 	return ticketID, articleID, attachmentID, nil
 }
 
-// createTestTicketWithoutAttachment creates a test ticket without attachments.
-func createTestTicketWithoutAttachment(t *testing.T, db *sql.DB) (ticketID int, err error) {
-	t.Helper()
-
-	// Create a test ticket if it doesn't exist
-	var existingID int
-	err = db.QueryRow(database.ConvertPlaceholders(`SELECT id FROM ticket WHERE tn = 'ATT-TEST-NOFILES' LIMIT 1`)).Scan(&existingID)
-	if err != nil {
-		result, execErr := db.Exec(database.ConvertPlaceholders(`
-			INSERT INTO ticket (tn, title, queue_id, ticket_lock_id, type_id, user_id, responsible_user_id, ticket_priority_id, ticket_state_id, timeout, until_time, escalation_time, escalation_update_time, escalation_response_time, escalation_solution_time, archive_flag, create_time, create_by, change_time, change_by)
-			VALUES ('ATT-TEST-NOFILES', 'Ticket Without Files', 1, 1, 1, 1, 1, 3, 1, 0, 0, 0, 0, 0, 0, 0, NOW(), 1, NOW(), 1)
-		`))
-		if execErr != nil {
-			return 0, execErr
-		}
-		id, _ := result.LastInsertId()
-		ticketID = int(id)
-	} else {
-		ticketID = existingID
-	}
-
-	return ticketID, nil
-}
-
 // setupAttachmentTestDB initializes the test database and returns a cleanup function.
 func setupAttachmentTestDB(t *testing.T) (ticketID int, articleID int, attachmentID int, cleanup func()) {
 	t.Helper()
@@ -166,54 +142,6 @@ func setupAttachmentTestDB(t *testing.T) (ticketID int, articleID int, attachmen
 	}
 
 	return ticketID, articleID, attachmentID, cleanup
-}
-
-// setupTicketWithoutAttachments creates a ticket with an article but no attachments.
-func setupTicketWithoutAttachments(t *testing.T) (ticketID int, cleanup func()) {
-	t.Helper()
-
-	// Enable DB access for attachment handlers
-	t.Setenv("ATTACHMENTS_USE_DB", "1")
-
-	// Get a fresh database connection from the adapter
-	db, err := database.GetDB()
-	if err != nil || db == nil {
-		err = database.InitTestDB()
-		require.NoError(t, err, "Failed to initialize test database")
-		db, err = database.GetDB()
-		require.NoError(t, err, "Failed to get database connection")
-	}
-
-	// Verify connection is alive
-	err = db.Ping()
-	if err != nil {
-		err = database.InitTestDB()
-		require.NoError(t, err, "Failed to reinitialize test database")
-		db, err = database.GetDB()
-		require.NoError(t, err, "Failed to get new database connection")
-	}
-
-	// Create a test ticket
-	var existingID int
-	err = db.QueryRow(database.ConvertPlaceholders(`SELECT id FROM ticket WHERE tn = 'ATT-TEST-NOFILES' LIMIT 1`)).Scan(&existingID)
-	if err != nil {
-		result, err := db.Exec(database.ConvertPlaceholders(`
-			INSERT INTO ticket (tn, title, queue_id, ticket_lock_id, type_id, user_id, responsible_user_id, ticket_priority_id, ticket_state_id, timeout, until_time, escalation_time, escalation_update_time, escalation_response_time, escalation_solution_time, archive_flag, create_time, create_by, change_time, change_by)
-			VALUES ('ATT-TEST-NOFILES', 'Ticket Without Files', 1, 1, 1, 1, 1, 3, 1, 0, 0, 0, 0, 0, 0, 0, NOW(), 1, NOW(), 1)
-		`))
-		require.NoError(t, err, "Failed to create test ticket")
-		id, _ := result.LastInsertId()
-		ticketID = int(id)
-	} else {
-		ticketID = existingID
-	}
-
-	cleanup = func() {
-		// No attachments to clean up
-		// Don't call ResetDB() as it closes the shared connection and breaks other tests
-	}
-
-	return ticketID, cleanup
 }
 
 func TestUploadAttachment(t *testing.T) {

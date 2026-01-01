@@ -33,7 +33,7 @@ func LoadCountries(configDir string) error {
 		return errors.New("config directory is required")
 	}
 	path := filepath.Join(configDir, "lookups", "countries.yaml")
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304 false positive - config file
 	if err != nil {
 		return fmt.Errorf("read countries lookup: %w", err)
 	}

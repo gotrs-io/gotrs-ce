@@ -87,7 +87,6 @@ func handleAdminSLA(c *gin.Context) {
 			query += fmt.Sprintf(" AND s.valid_id = $%d", argCount)
 			args = append(args, 2)
 		}
-		argCount++
 	}
 
 	query += ` GROUP BY s.id, s.name, s.calendar_name,
@@ -171,6 +170,7 @@ func handleAdminSLA(c *gin.Context) {
 
 		slas = append(slas, s)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	// Get calendars for dropdown (if calendar table exists)
 	var calendars []string
@@ -183,6 +183,7 @@ func handleAdminSLA(c *gin.Context) {
 				calendars = append(calendars, name)
 			}
 		}
+		_ = calRows.Err() // Check for iteration errors
 	}
 
 	// Render the template
@@ -367,7 +368,64 @@ func handleAdminSLAUpdate(c *gin.Context) {
 		return
 	}
 
-	db, err := database.GetDB()
+	// Build update query dynamically using ? placeholders
+	updates := []string{"change_time = CURRENT_TIMESTAMP", "change_by = 1"}
+	args := []interface{}{}
+
+	if input.Name != nil && *input.Name != "" {
+		updates = append(updates, "name = ?")
+		args = append(args, *input.Name)
+	}
+
+	if input.CalendarName != nil {
+		updates = append(updates, "calendar_name = ?")
+		args = append(args, *input.CalendarName)
+	}
+
+	if input.FirstResponseTime != nil {
+		updates = append(updates, "first_response_time = ?")
+		args = append(args, *input.FirstResponseTime)
+	}
+
+	if input.FirstResponseNotify != nil {
+		updates = append(updates, "first_response_notify = ?")
+		args = append(args, *input.FirstResponseNotify)
+	}
+
+	if input.UpdateTime != nil {
+		updates = append(updates, "update_time = ?")
+		args = append(args, *input.UpdateTime)
+	}
+
+	if input.UpdateNotify != nil {
+		updates = append(updates, "update_notify = ?")
+		args = append(args, *input.UpdateNotify)
+	}
+
+	if input.SolutionTime != nil {
+		updates = append(updates, "solution_time = ?")
+		args = append(args, *input.SolutionTime)
+	}
+
+	if input.SolutionNotify != nil {
+		updates = append(updates, "solution_notify = ?")
+		args = append(args, *input.SolutionNotify)
+	}
+
+	if input.Comments != nil {
+		updates = append(updates, "comments = ?")
+		args = append(args, *input.Comments)
+	}
+
+	if input.ValidID != nil {
+		updates = append(updates, "valid_id = ?")
+		args = append(args, *input.ValidID)
+	}
+
+	args = append(args, id)
+
+	// Use QueryBuilder for proper placeholder rebinding
+	qb, err := database.GetQueryBuilder()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -376,76 +434,8 @@ func handleAdminSLAUpdate(c *gin.Context) {
 		return
 	}
 
-	// Build update query dynamically
-	updates := []string{"change_time = CURRENT_TIMESTAMP", "change_by = 1"}
-	args := []interface{}{}
-	argCount := 1
-
-	if input.Name != nil && *input.Name != "" {
-		updates = append(updates, fmt.Sprintf("name = $%d", argCount))
-		args = append(args, *input.Name)
-		argCount++
-	}
-
-	if input.CalendarName != nil {
-		updates = append(updates, fmt.Sprintf("calendar_name = $%d", argCount))
-		args = append(args, *input.CalendarName)
-		argCount++
-	}
-
-	if input.FirstResponseTime != nil {
-		updates = append(updates, fmt.Sprintf("first_response_time = $%d", argCount))
-		args = append(args, *input.FirstResponseTime)
-		argCount++
-	}
-
-	if input.FirstResponseNotify != nil {
-		updates = append(updates, fmt.Sprintf("first_response_notify = $%d", argCount))
-		args = append(args, *input.FirstResponseNotify)
-		argCount++
-	}
-
-	if input.UpdateTime != nil {
-		updates = append(updates, fmt.Sprintf("update_time = $%d", argCount))
-		args = append(args, *input.UpdateTime)
-		argCount++
-	}
-
-	if input.UpdateNotify != nil {
-		updates = append(updates, fmt.Sprintf("update_notify = $%d", argCount))
-		args = append(args, *input.UpdateNotify)
-		argCount++
-	}
-
-	if input.SolutionTime != nil {
-		updates = append(updates, fmt.Sprintf("solution_time = $%d", argCount))
-		args = append(args, *input.SolutionTime)
-		argCount++
-	}
-
-	if input.SolutionNotify != nil {
-		updates = append(updates, fmt.Sprintf("solution_notify = $%d", argCount))
-		args = append(args, *input.SolutionNotify)
-		argCount++
-	}
-
-	if input.Comments != nil {
-		updates = append(updates, fmt.Sprintf("comments = $%d", argCount))
-		args = append(args, *input.Comments)
-		argCount++
-	}
-
-	if input.ValidID != nil {
-		updates = append(updates, fmt.Sprintf("valid_id = $%d", argCount))
-		args = append(args, *input.ValidID)
-		argCount++
-	}
-
-	args = append(args, id)
-	query := fmt.Sprintf("UPDATE sla SET %s WHERE id = $%d", strings.Join(updates, ", "), argCount)
-	query = database.ConvertPlaceholders(query)
-
-	result, err := db.Exec(query, args...)
+	query := qb.Rebind("UPDATE sla SET " + strings.Join(updates, ", ") + " WHERE id = ?")
+	result, err := qb.Exec(query, args...)
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
 			c.JSON(http.StatusBadRequest, gin.H{

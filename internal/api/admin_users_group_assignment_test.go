@@ -232,6 +232,7 @@ func verifyTestGroups(t *testing.T, db *sql.DB) []TestGroup {
 		require.NoError(t, err)
 		groups = append(groups, group)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	return groups
 }
@@ -254,6 +255,7 @@ func getUserGroupsFromDB(t *testing.T, db *sql.DB, userID int) []string {
 		require.NoError(t, err)
 		groups = append(groups, groupName)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	return groups
 }

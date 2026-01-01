@@ -40,5 +40,6 @@ func HandleListTypesAPI(c *gin.Context) {
 			items = append(items, gin.H{"id": id, "name": name, "valid_id": validID})
 		}
 	}
+	_ = rows.Err() // Check for iteration errors
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": items})
 }

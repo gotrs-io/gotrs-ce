@@ -104,6 +104,7 @@ func (s *TicketTemplateService) ApplyTemplate(ctx context.Context, application *
 	// For now, just create a basic ticket structure that can be used
 	// when the ticket creation is properly integrated with OTRS schema
 	typeID := template.TypeID
+	_ = body // Body will be used when article creation is implemented
 	ticket := &models.Ticket{
 		Title:            subject,
 		QueueID:          template.QueueID,

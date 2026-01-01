@@ -228,6 +228,7 @@ func HandleListWebhooksAPI(c *gin.Context) {
 			"create_time":     webhook.CreateTime,
 		})
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	c.JSON(http.StatusOK, gin.H{
 		"webhooks": webhookList,
@@ -690,6 +691,7 @@ func HandleWebhookDeliveriesAPI(c *gin.Context) {
 
 		deliveries = append(deliveries, deliveryData)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	c.JSON(http.StatusOK, gin.H{
 		"deliveries": deliveries,

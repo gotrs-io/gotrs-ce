@@ -109,7 +109,7 @@ func (c *SchemaConverter) ExportToXML(outputPath string) error {
 // ImportFromXML creates database tables from XML schema definition.
 func (c *SchemaConverter) ImportFromXML(xmlPath string) error {
 	// Read XML file
-	xmlData, err := os.ReadFile(xmlPath)
+	xmlData, err := os.ReadFile(xmlPath) //nolint:gosec // G304 false positive - schema file
 	if err != nil {
 		return fmt.Errorf("failed to read XML file: %w", err)
 	}

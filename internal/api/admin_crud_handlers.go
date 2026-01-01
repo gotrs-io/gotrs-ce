@@ -221,6 +221,10 @@ func HandleAdminUsersList(c *gin.Context) {
 			"valid_id":   user.ValidID,
 		})
 	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating users"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "users": users})
 }
@@ -357,6 +361,10 @@ func HandleAdminGroupsUsers(c *gin.Context) {
 			"last_name":  user.LastName,
 			"email":      user.Email,
 		})
+	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating users"})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "users": users})

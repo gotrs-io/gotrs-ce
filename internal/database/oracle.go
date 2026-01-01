@@ -231,14 +231,6 @@ func (o *OracleDatabase) IsHealthy() bool {
 	return o.db.PingContext(ctx) == nil
 }
 
-// buildDSN builds the Oracle connection string (stub).
-func (o *OracleDatabase) buildDSN() string {
-	// TODO: Implement Oracle DSN format
-	// Example: oracle://user:pass@host:port/service_name
-	return fmt.Sprintf("oracle://%s:%s@%s:%s/%s",
-		o.config.Username, o.config.Password, o.config.Host, o.config.Port, o.config.Database)
-}
-
 // OracleTransaction implements ITransaction for Oracle.
 type OracleTransaction struct {
 	tx *sql.Tx

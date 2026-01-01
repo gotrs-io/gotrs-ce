@@ -280,7 +280,7 @@ function showToast(message, type = 'info') {
 
 	// Write to file
 	templatePath := filepath.Join(outputDir, "templates", "pages", "admin", fmt.Sprintf("%s.pongo2", config.Module.Name))
-	os.MkdirAll(filepath.Dir(templatePath), 0755)
+	os.MkdirAll(filepath.Dir(templatePath), 0750)
 
 	return os.WriteFile(templatePath, []byte(template.String()), 0644)
 }

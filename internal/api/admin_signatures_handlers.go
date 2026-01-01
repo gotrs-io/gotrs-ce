@@ -75,11 +75,9 @@ func ListSignatures(search string, validFilter string, sortBy string, sortOrder 
 	if validFilter == "valid" {
 		query += fmt.Sprintf(" AND s.valid_id = $%d", argCount)
 		args = append(args, 1)
-		argCount++
 	} else if validFilter == "invalid" {
 		query += fmt.Sprintf(" AND s.valid_id != $%d", argCount)
 		args = append(args, 1)
-		argCount++
 	}
 
 	query += " GROUP BY s.id, s.name, s.text, s.content_type, s.comments, s.valid_id, s.create_time, s.create_by, s.change_time, s.change_by"
@@ -127,6 +125,9 @@ func ListSignatures(search string, validFilter string, sortBy string, sortOrder 
 		s.ContentType = contentType.String
 		s.Comments = comments.String
 		signatures = append(signatures, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating signatures: %w", err)
 	}
 
 	if signatures == nil {
@@ -314,6 +315,9 @@ func GetSignatureQueues(signatureID int) ([]QueueBasic, error) {
 		}
 		queues = append(queues, q)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating queues: %w", err)
+	}
 
 	if queues == nil {
 		queues = []QueueBasic{}
@@ -360,6 +364,9 @@ func GetAllSignatures() ([]Signature, error) {
 		s.ContentType = contentType.String
 		s.Comments = comments.String
 		signatures = append(signatures, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating all signatures: %w", err)
 	}
 
 	if signatures == nil {

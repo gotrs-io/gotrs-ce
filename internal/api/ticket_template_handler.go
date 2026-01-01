@@ -194,12 +194,6 @@ func handleCreateTicketTemplate(c *gin.Context) {
 
 // handleGetTicketTemplates returns list of templates.
 func handleGetTicketTemplates(c *gin.Context) {
-	// Check permissions
-	userRole, _ := c.Get("user_role")
-	if userRole == "" {
-		userRole = "agent" // Default for testing
-	}
-
 	queueIDStr := c.Query("queue_id")
 	search := c.Query("search")
 

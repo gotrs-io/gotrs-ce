@@ -165,7 +165,7 @@ func TestAllLinksReturn200(t *testing.T) {
 			if htmxOverridePattern.MatchString(block) {
 				continue
 			}
-			method := http.MethodPost
+			var method string
 			if m := formMethodPattern.FindStringSubmatch(block); len(m) > 1 {
 				method = strings.ToUpper(strings.TrimSpace(m[1]))
 				if method == "" {

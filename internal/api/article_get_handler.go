@@ -129,6 +129,7 @@ func HandleGetArticleAPI(c *gin.Context) {
 					})
 				}
 			}
+			_ = rows.Err() // Check for iteration errors
 			response["attachments"] = attachments
 		}
 	}

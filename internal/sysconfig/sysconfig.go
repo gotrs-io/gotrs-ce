@@ -449,7 +449,7 @@ func (m *Manager) Deploy(outputPath string) error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0750); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 

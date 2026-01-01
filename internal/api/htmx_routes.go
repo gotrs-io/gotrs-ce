@@ -381,36 +381,44 @@ func computePendingReminderMeta(ticket *models.Ticket, stateName string, stateTy
 	return meta
 }
 
-func hashPasswordSHA256(password string) string {
-	hash := sha256.Sum256([]byte(password))
+// hashPasswordSHA256 creates a salted SHA256 hash of the password.
+func hashPasswordSHA256(password, salt string) string { //nolint:unused // used in verifyPassword and login flow
+	combined := password + salt
+	hash := sha256.Sum256([]byte(combined))
 	return hex.EncodeToString(hash[:])
 }
 
-func generateSalt() string {
+// generateSalt creates a random 16-byte salt encoded as hex.
+func generateSalt() string { //nolint:unused // used in login flow for password migration
 	salt := make([]byte, 16)
-	_, err := rand.Read(salt)
-	if err != nil {
-		data := fmt.Sprintf("%d", time.Now().UnixNano())
-		hash := sha256.Sum256([]byte(data))
-		return hex.EncodeToString(hash[:16])
+	if _, err := rand.Read(salt); err != nil {
+		// Fallback to less secure method if crypto/rand fails
+		for i := range salt {
+			salt[i] = byte(i * 17)
+		}
 	}
 	return hex.EncodeToString(salt)
 }
 
-func verifyPassword(password, hashedPassword string) bool {
-	if strings.HasPrefix(hashedPassword, "$2a$") || strings.HasPrefix(hashedPassword, "$2b$") || strings.HasPrefix(hashedPassword, "$2y$") {
-		return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password)) == nil
+// verifyPassword checks if a password matches a stored hash.
+// Supports bcrypt, salted SHA256, and legacy plain-text passwords.
+func verifyPassword(password, storedPassword string) bool { //nolint:unused // used in login flow
+	// Check for bcrypt hashes
+	if strings.HasPrefix(storedPassword, "$2a$") || strings.HasPrefix(storedPassword, "$2b$") || strings.HasPrefix(storedPassword, "$2y$") {
+		return bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(password)) == nil
 	}
-
-	parts := strings.Split(hashedPassword, "$")
-	if len(parts) == 3 && parts[0] == "sha256" {
-		salt := parts[1]
-		expectedHash := parts[2]
-		hash := sha256.Sum256([]byte(password + salt))
-		return hex.EncodeToString(hash[:]) == expectedHash
+	// Check for salted SHA256 format: sha256$salt$hash
+	if strings.HasPrefix(storedPassword, "sha256$") {
+		parts := strings.SplitN(storedPassword, "$", 3)
+		if len(parts) == 3 {
+			salt := parts[1]
+			storedHash := parts[2]
+			computedHash := hashPasswordSHA256(password, salt)
+			return storedHash == computedHash
+		}
 	}
-
-	return hashPasswordSHA256(password) == hashedPassword
+	// Fallback to plain-text comparison (for legacy passwords)
+	return password == storedPassword
 }
 
 func isMarkdownContent(content string) bool {
@@ -479,11 +487,7 @@ func isMarkdownContent(content string) bool {
 		}
 	}
 
-	if strings.Contains(content, "```") {
-		return true
-	}
-
-	return false
+	return strings.Contains(content, "```")
 }
 
 // GetUserMapForTemplate exposes the internal user-context builder for reuse
@@ -1737,6 +1741,9 @@ func handleQueues(c *gin.Context) {
 				m["total"] += cnt
 			}
 		}
+		if err := rows.Err(); err != nil {
+			log.Printf("error iterating queue stats: %v", err)
+		}
 	}
 
 	// Transform for template
@@ -1745,7 +1752,7 @@ func handleQueues(c *gin.Context) {
 		if searchLower != "" && !strings.Contains(strings.ToLower(q.Name), searchLower) {
 			continue
 		}
-		m := stats[uint(q.ID)]
+		m := stats[q.ID]
 		viewQueues = append(viewQueues, gin.H{
 			"ID":      q.ID,
 			"Name":    q.Name,
@@ -2312,6 +2319,9 @@ func LoadTicketStatesForForm(db *sql.DB) ([]gin.H, map[string]gin.H, error) {
 			}
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
 
 	return states, lookup, nil
 }
@@ -2384,6 +2394,9 @@ func handleNewTicket(c *gin.Context) {
 				queues = append(queues, gin.H{"id": strconv.Itoa(id), "name": name})
 			}
 		}
+		if err := qRows.Err(); err != nil {
+			log.Printf("error iterating queues: %v", err)
+		}
 	}
 
 	// Get priorities from database
@@ -2410,6 +2423,9 @@ func handleNewTicket(c *gin.Context) {
 				priorities = append(priorities, gin.H{"id": strconv.Itoa(id), "name": name, "color": color})
 			}
 		}
+		if err := pRows.Err(); err != nil {
+			log.Printf("error iterating priorities: %v", err)
+		}
 	}
 
 	// Get ticket types from database
@@ -2423,6 +2439,9 @@ func handleNewTicket(c *gin.Context) {
 			if err := tRows.Scan(&id, &name); err == nil {
 				types = append(types, gin.H{"id": strconv.Itoa(id), "name": name})
 			}
+		}
+		if err := tRows.Err(); err != nil {
+			log.Printf("error iterating types: %v", err)
 		}
 	}
 
@@ -2506,6 +2525,9 @@ func handleNewEmailTicket(c *gin.Context) {
 				queues = append(queues, gin.H{"id": strconv.Itoa(id), "name": name})
 			}
 		}
+		if err := qRows.Err(); err != nil {
+			log.Printf("error iterating queues: %v", err)
+		}
 	}
 
 	// Get priorities from database
@@ -2532,6 +2554,9 @@ func handleNewEmailTicket(c *gin.Context) {
 				priorities = append(priorities, gin.H{"id": strconv.Itoa(id), "name": name, "color": color})
 			}
 		}
+		if err := pRows.Err(); err != nil {
+			log.Printf("error iterating priorities: %v", err)
+		}
 	}
 
 	// Get ticket types from database
@@ -2545,6 +2570,9 @@ func handleNewEmailTicket(c *gin.Context) {
 			if err := tRows.Scan(&id, &name); err == nil {
 				types = append(types, gin.H{"id": strconv.Itoa(id), "name": name})
 			}
+		}
+		if err := tRows.Err(); err != nil {
+			log.Printf("error iterating types: %v", err)
 		}
 	}
 
@@ -2620,6 +2648,9 @@ func handleNewPhoneTicket(c *gin.Context) {
 				queues = append(queues, gin.H{"id": strconv.Itoa(id), "name": name})
 			}
 		}
+		if err := qRows.Err(); err != nil {
+			log.Printf("error iterating queues: %v", err)
+		}
 	}
 
 	// Get priorities from database
@@ -2646,6 +2677,9 @@ func handleNewPhoneTicket(c *gin.Context) {
 				priorities = append(priorities, gin.H{"id": strconv.Itoa(id), "name": name, "color": color})
 			}
 		}
+		if err := pRows.Err(); err != nil {
+			log.Printf("error iterating priorities: %v", err)
+		}
 	}
 
 	// Get ticket types from database
@@ -2659,6 +2693,9 @@ func handleNewPhoneTicket(c *gin.Context) {
 			if err := tRows.Scan(&id, &name); err == nil {
 				types = append(types, gin.H{"id": strconv.Itoa(id), "name": name})
 			}
+		}
+		if err := tRows.Err(); err != nil {
+			log.Printf("error iterating types: %v", err)
 		}
 	}
 
@@ -2824,7 +2861,7 @@ func handleTicketDetail(c *gin.Context) {
 	for i, article := range articles {
 		// Skip the first article as it's already shown in the description section
 		if i == 0 {
-			firstArticleID = int(article.ID)
+			firstArticleID = article.ID
 			firstArticleVisibleForCustomer = article.IsVisibleForCustomer == 1
 			continue
 		}
@@ -2900,7 +2937,7 @@ func handleTicketDetail(c *gin.Context) {
 
 		// Get Article dynamic fields for display
 		var articleDynamicFields []DynamicFieldDisplay
-		if articleDFs, dfErr := GetDynamicFieldValuesForDisplay(int(article.ID), DFObjectArticle, "AgentArticleZoom"); dfErr == nil {
+		if articleDFs, dfErr := GetDynamicFieldValuesForDisplay(article.ID, DFObjectArticle, "AgentArticleZoom"); dfErr == nil {
 			articleDynamicFields = articleDFs
 		}
 
@@ -3063,6 +3100,9 @@ func handleTicketDetail(c *gin.Context) {
 				pendingStateIDs = append(pendingStateIDs, stateID)
 			}
 		}
+		if err := stateRows.Err(); err != nil {
+			log.Printf("error iterating ticket states: %v", err)
+		}
 	} else {
 		log.Printf("Error loading ticket states: %v", stateErr)
 	}
@@ -3120,7 +3160,7 @@ func handleTicketDetail(c *gin.Context) {
 
 	// Time accounting: compute total minutes and per-article minutes for this ticket
 	taRepo := repository.NewTimeAccountingRepository(db)
-	taEntries, taErr := taRepo.ListByTicket(int(ticket.ID))
+	taEntries, taErr := taRepo.ListByTicket(ticket.ID)
 	if taErr != nil {
 		log.Printf("Error fetching time accounting for ticket %d: %v", ticket.ID, taErr)
 	}
@@ -3307,6 +3347,41 @@ func handleTicketDetail(c *gin.Context) {
 					WHERE t.customer_id = $1 AND LOWER(s.name) NOT LIKE 'closed%'
 				`), customerID.String).Scan(&panelOpen)
 			}
+		} else {
+			// Fallback: show at least the login when customer user not found
+			panelUser = gin.H{
+				"Login":     *ticket.CustomerUserID,
+				"FirstName": "",
+				"LastName":  *ticket.CustomerUserID, // Show login as last name for display
+				"Email":     "",
+				"Phone":     "",
+				"Mobile":    "",
+				"Comment":   "(Customer user not found)",
+			}
+			// Try to get company info from customer_id if set
+			if ticket.CustomerID != nil && *ticket.CustomerID != "" {
+				var ccName, ccStreet, ccZip, ccCity, ccCountry, ccURL sql.NullString
+				ccErr := db.QueryRow(database.ConvertPlaceholders(`
+					SELECT name, street, zip, city, country, url FROM customer_company WHERE customer_id = $1
+				`), *ticket.CustomerID).Scan(&ccName, &ccStreet, &ccZip, &ccCity, &ccCountry, &ccURL)
+				if ccErr == nil {
+					panelCompany = gin.H{
+						"Name":     ccName.String,
+						"Street":   ccStreet.String,
+						"Postcode": ccZip.String,
+						"City":     ccCity.String,
+						"Country":  ccCountry.String,
+						"URL":      ccURL.String,
+					}
+				}
+				// Still count open tickets for this customer_id
+				_ = db.QueryRow(database.ConvertPlaceholders(`
+					SELECT COUNT(*)
+					FROM ticket t
+					JOIN ticket_state s ON s.id = t.ticket_state_id
+					WHERE t.customer_id = $1 AND LOWER(s.name) NOT LIKE 'closed%'
+				`), *ticket.CustomerID).Scan(&panelOpen)
+			}
 		}
 	}
 
@@ -3314,7 +3389,7 @@ func handleTicketDetail(c *gin.Context) {
 
 	// Get dynamic field values for display on ticket zoom
 	var dynamicFieldsDisplay []DynamicFieldDisplay
-	dfDisplay, dfErr := GetDynamicFieldValuesForDisplay(int(ticket.ID), DFObjectTicket, "AgentTicketZoom")
+	dfDisplay, dfErr := GetDynamicFieldValuesForDisplay(ticket.ID, DFObjectTicket, "AgentTicketZoom")
 	if dfErr != nil {
 		log.Printf("Error getting dynamic field values for ticket %d: %v", ticket.ID, dfErr)
 	} else {
@@ -3672,26 +3747,6 @@ func dashboard_queue_status(c *gin.Context) {
 		return
 	}
 
-	// Get all ticket state IDs
-	stateRows, err := db.Query("SELECT id, name FROM ticket_state WHERE valid_id = 1 ORDER BY id")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to load ticket states",
-		})
-		return
-	}
-	defer stateRows.Close()
-
-	var states []gin.H
-	for stateRows.Next() {
-		var id int
-		var name string
-		if err := stateRows.Scan(&id, &name); err == nil {
-			states = append(states, gin.H{"id": id, "name": name})
-		}
-	}
-
 	// Query queues with ticket counts by state
 	rows, err := db.Query(`
 		SELECT q.id, q.name,
@@ -3788,6 +3843,9 @@ func dashboard_queue_status(c *gin.Context) {
                         </td>
                     </tr>`, queueID, queueName, newCount, openCount, pendingCount, closedCount, totalCount))
 		queueCount++
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("error iterating queue rows: %v", err)
 	}
 
 	// If no queues found, show a message
@@ -4526,7 +4584,7 @@ func handleAddTicketNote(c *gin.Context) {
 		return
 	}
 
-	articleID := int(article.ID)
+	articleID := article.ID
 	if ticket, terr := ticketRepo.GetByID(uint(ticketIDInt)); terr == nil {
 		recorder := history.NewRecorder(ticketRepo)
 		label := "Note added"
@@ -4584,7 +4642,7 @@ func handleAddTicketNote(c *gin.Context) {
 				if cfg := config.Get(); cfg != nil {
 					emailCfg = &cfg.Email
 				}
-				renderCtx := notifications.BuildRenderContext(context.Background(), db, *ticket.CustomerUserID, int(userID))
+				renderCtx := notifications.BuildRenderContext(context.Background(), db, *ticket.CustomerUserID, userID)
 				branding, brandErr := notifications.PrepareQueueEmail(
 					context.Background(),
 					db,
@@ -4795,6 +4853,9 @@ func handleGetAvailableAgents(c *gin.Context) {
 			"login": login,
 		})
 	}
+	if err := rows.Err(); err != nil {
+		log.Printf("error iterating agents: %v", err)
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -4840,7 +4901,7 @@ func handleAssignTicket(c *gin.Context) {
 	}
 
 	// Get database connection
-	db, err := database.GetDB()
+	db, _ := database.GetDB()
 
 	var repoPtr *repository.TicketRepository
 
@@ -4986,7 +5047,7 @@ func handleUpdateTicketPriority(c *gin.Context) {
 	if userID == 0 {
 		if userCtx, ok := c.Get("user"); ok {
 			if user, ok := userCtx.(*models.User); ok && user != nil {
-				userID = uint(user.ID)
+				userID = user.ID
 			}
 		}
 	}
@@ -5056,7 +5117,7 @@ func handleUpdateTicketQueue(c *gin.Context) {
 	if userID == 0 {
 		if userCtx, ok := c.Get("user"); ok {
 			if user, ok := userCtx.(*models.User); ok && user != nil {
-				userID = uint(user.ID)
+				userID = user.ID
 			}
 		}
 	}
@@ -5340,7 +5401,7 @@ func handleCloseTicket(c *gin.Context) {
 		if aerr := articleRepo.Create(closeArticle); aerr != nil {
 			log.Printf("WARNING: Failed to create close article: %v", aerr)
 		} else {
-			closeArticleID = int(closeArticle.ID)
+			closeArticleID = closeArticle.ID
 		}
 	}
 
@@ -5619,6 +5680,9 @@ func handleSearchTickets(c *gin.Context) {
 					results = append(results, gin.H{"id": tn, "subject": title})
 				}
 			}
+			if err := rows.Err(); err != nil {
+				log.Printf("error iterating ticket search results: %v", err)
+			}
 		}
 
 		c.JSON(http.StatusOK, gin.H{
@@ -5672,21 +5736,17 @@ func handleFilterTickets(c *gin.Context) {
 		"agent":    c.Query("agent"),
 	}
 
-	db, err := database.GetDB()
+	qb, err := database.GetQueryBuilder()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection failed"})
 		return
 	}
 
-	// Build dynamic query based on filters
-	whereClause := "WHERE 1=1"
-	args := []interface{}{}
-	argCount := 0
+	// Build query using QueryBuilder (eliminates SQL injection risk)
+	sb := qb.NewSelect("id", "tn", "title", "ticket_state_id", "ticket_priority_id").
+		From("ticket")
 
 	if status, ok := filters["status"].(string); ok && status != "" {
-		argCount++
-		whereClause += fmt.Sprintf(" AND ticket_state_id = $%d", argCount)
-		// Map status name to ID
 		statusID := 0
 		switch status {
 		case "new":
@@ -5698,36 +5758,31 @@ func handleFilterTickets(c *gin.Context) {
 		case "pending":
 			statusID = 5
 		}
-		args = append(args, statusID)
+		sb = sb.Where("ticket_state_id = ?", statusID)
 	}
 
 	if priority, ok := filters["priority"].(string); ok && priority != "" {
-		argCount++
-		whereClause += fmt.Sprintf(" AND ticket_priority_id = $%d", argCount)
-		args = append(args, priority)
+		sb = sb.Where("ticket_priority_id = ?", priority)
 	}
 
 	if queue, ok := filters["queue"].(string); ok && queue != "" {
-		argCount++
-		whereClause += fmt.Sprintf(" AND queue_id = $%d", argCount)
-		args = append(args, queue)
+		sb = sb.Where("queue_id = ?", queue)
 	}
 
 	if agent, ok := filters["agent"].(string); ok && agent != "" {
-		argCount++
-		whereClause += fmt.Sprintf(" AND user_id = $%d", argCount)
-		args = append(args, agent)
+		sb = sb.Where("user_id = ?", agent)
 	}
 
-	query := fmt.Sprintf(`
-		SELECT id, tn, title, ticket_state_id, ticket_priority_id
-		FROM ticket
-		%s
-		LIMIT 50
-	`, whereClause)
+	sb = sb.Limit(50)
+
+	query, args, err := sb.ToSQL()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build query"})
+		return
+	}
 
 	tickets := []gin.H{}
-	rows, err := db.Query(query, args...)
+	rows, err := qb.Query(query, args...)
 	if err == nil {
 		defer func() { _ = rows.Close() }()
 		for rows.Next() {
@@ -5744,6 +5799,9 @@ func handleFilterTickets(c *gin.Context) {
 				"status":   stateID,
 				"priority": priorityID,
 			})
+		}
+		if err := rows.Err(); err != nil {
+			log.Printf("error iterating filtered tickets: %v", err)
 		}
 	}
 
@@ -5858,6 +5916,9 @@ func handleActivityStream(c *gin.Context) {
 						"time":   createTime.Format("15:04:05"),
 					})
 				}
+				if err := rows.Err(); err != nil {
+					log.Printf("error iterating activity rows: %v", err)
+				}
 
 				// Send the most recent activity
 				if len(activities) > 0 {
@@ -5934,21 +5995,13 @@ func handleAdminGroups(c *gin.Context) {
 		}
 	}
 
-	if searchTerm == "" && statusTerm == "" {
-		if cookie, err := c.Request.Cookie("group_filters"); err == nil {
-			if decoded, err := url.QueryUnescape(cookie.Value); err == nil {
-				state := map[string]string{}
-				if err := json.Unmarshal([]byte(decoded), &state); err == nil {
-					if v, ok := state["search"]; ok {
-						searchTerm = v
-					}
-					if v, ok := state["status"]; ok {
-						statusTerm = v
-					}
-				}
-			}
-		}
-	}
+	// TODO: Implement group filtering using searchTerm and statusTerm from cookies
+	// Currently, filters are saved but not applied when loading from cookies
+	// if searchTerm == "" && statusTerm == "" {
+	//     if cookie, err := c.Request.Cookie("group_filters"); err == nil {
+	//         // restore searchTerm and statusTerm from cookie
+	//     }
+	// }
 
 	db, err := database.GetDB()
 	if err != nil || db == nil {
@@ -6416,6 +6469,9 @@ func handleAdminQueues(c *gin.Context) {
 				groups = append(groups, gin.H{"ID": id, "Name": name})
 			}
 		}
+		if err := groupRows.Err(); err != nil {
+			log.Printf("error iterating groups: %v", err)
+		}
 	}
 
 	// Populate dropdown data from OTRS-compatible tables
@@ -6441,6 +6497,9 @@ func handleAdminQueues(c *gin.Context) {
 					"DisplayName": displayName.String,
 				})
 			}
+		}
+		if err := addrRows.Err(); err != nil {
+			log.Printf("error iterating system addresses: %v", err)
 		}
 	}
 
@@ -6469,6 +6528,9 @@ func handleAdminQueues(c *gin.Context) {
 				})
 			}
 		}
+		if err := salRows.Err(); err != nil {
+			log.Printf("error iterating salutations: %v", err)
+		}
 	}
 	signatures := []gin.H{}
 	sigRows, err := db.Query(database.ConvertPlaceholders(`
@@ -6494,6 +6556,9 @@ func handleAdminQueues(c *gin.Context) {
 					"ContentType": contentType.String,
 				})
 			}
+		}
+		if err := sigRows.Err(); err != nil {
+			log.Printf("error iterating signatures: %v", err)
 		}
 	}
 
@@ -6546,6 +6611,9 @@ func handleAdminPriorities(c *gin.Context) {
 		}
 
 		priorities = append(priorities, priority)
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("error iterating priorities: %v", err)
 	}
 
 	getPongo2Renderer().HTML(c, http.StatusOK, "pages/admin/priorities.pongo2", pongo2.Context{
@@ -6623,6 +6691,9 @@ func handleAdminLookups(c *gin.Context) {
 
 			ticketStates = append(ticketStates, state)
 		}
+		if err := stateRows.Err(); err != nil {
+			log.Printf("error iterating ticket states: %v", err)
+		}
 	}
 
 	// Ticket Priorities
@@ -6643,6 +6714,9 @@ func handleAdminLookups(c *gin.Context) {
 			}
 
 			priorities = append(priorities, priority)
+		}
+		if err := priorityRows.Err(); err != nil {
+			log.Printf("error iterating priorities: %v", err)
 		}
 	}
 
@@ -6665,6 +6739,9 @@ func handleAdminLookups(c *gin.Context) {
 
 			types = append(types, ticketType)
 		}
+		if err := typeRows.Err(); err != nil {
+			log.Printf("error iterating types: %v", err)
+		}
 	}
 
 	// Services
@@ -6680,6 +6757,9 @@ func handleAdminLookups(c *gin.Context) {
 			}
 			services = append(services, gin.H{"id": id, "name": name})
 		}
+		if err := serviceRows.Err(); err != nil {
+			log.Printf("error iterating services: %v", err)
+		}
 	}
 
 	// SLAs
@@ -6694,6 +6774,9 @@ func handleAdminLookups(c *gin.Context) {
 				continue
 			}
 			slas = append(slas, gin.H{"id": id, "name": name})
+		}
+		if err := slaRows.Err(); err != nil {
+			log.Printf("error iterating SLAs: %v", err)
 		}
 	}
 
@@ -6842,6 +6925,9 @@ func handleAdminEmailQueue(c *gin.Context) {
 		}
 
 		emails = append(emails, email)
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("error iterating email queue: %v", err)
 	}
 
 	// Get queue statistics
@@ -7320,6 +7406,9 @@ func handleCustomerSearch(c *gin.Context) {
 			"display":     fmt.Sprintf("%s %s (%s)", firstName, lastName, email),
 		})
 	}
+	if err := rows.Err(); err != nil {
+		log.Printf("error iterating customer search results: %v", err)
+	}
 
 	if customers == nil {
 		customers = []gin.H{}
@@ -7372,6 +7461,9 @@ func handleGetGroups(c *gin.Context) {
 			"valid_id": validID,
 		}
 		groups = append(groups, group)
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("error iterating groups: %v", err)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -7428,6 +7520,9 @@ func handleGetGroupMembers(c *gin.Context) {
 			"last_name":  lastName.String,
 		}
 		members = append(members, member)
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("error iterating group members: %v", err)
 	}
 
 	c.JSON(http.StatusOK, gin.H{

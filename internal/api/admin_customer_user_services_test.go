@@ -570,6 +570,7 @@ func TestDefaultServicesFallbackLogic(t *testing.T) {
 			rows.Scan(&id, &name)
 			services = append(services, id)
 		}
+		_ = rows.Err() // Check for iteration errors
 
 		assert.Equal(t, 1, len(services), "Customer with explicit assignment should have exactly 1 service")
 		assert.Equal(t, explicitServiceID, services[0], "Should be the explicit service")
@@ -618,7 +619,8 @@ func TestDefaultServicesFallbackLogic(t *testing.T) {
 			rows.Scan(&id)
 			explicitServices = append(explicitServices, id)
 		}
-		rows.Close()
+		_ = rows.Err() // Check for iteration errors
+		defer rows.Close()
 		assert.Equal(t, 0, len(explicitServices), "Customer should have no explicit services")
 
 		// Query default services - should have our default
@@ -635,7 +637,8 @@ func TestDefaultServicesFallbackLogic(t *testing.T) {
 			defaultRows.Scan(&id)
 			defaultServices = append(defaultServices, id)
 		}
-		defaultRows.Close()
+		_ = defaultRows.Err() // Check for iteration errors
+		defer defaultRows.Close()
 
 		assert.Contains(t, defaultServices, defaultServiceID, "Default services should include our test service")
 	})

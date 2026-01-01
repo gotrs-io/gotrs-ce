@@ -432,7 +432,7 @@ func HandleAgentCreateTicket(db *sql.DB) gin.HandlerFunc {
 
 		// Persist initial time accounting if provided
 		if timeUnits > 0 {
-			articleID := int(articleModel.ID)
+			articleID := articleModel.ID
 			if err := saveTimeEntry(db, ticketID, &articleID, timeUnits, int(userID)); err != nil {
 				log.Printf("WARNING: Failed to save initial time entry for ticket %d: %v", ticketID, err)
 			} else {

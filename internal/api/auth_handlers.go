@@ -73,7 +73,10 @@ var HandleAuthLogin = func(c *gin.Context) {
 			return
 		}
 		if c.GetHeader("HX-Request") == "true" {
-			c.Data(http.StatusUnauthorized, "text/html; charset=utf-8", []byte(`<div class="rounded-md bg-yellow-50 dark:bg-yellow-900/20 p-4 mt-4"><div class="text-sm text-yellow-800 dark:text-yellow-100">Authentication temporarily unavailable</div></div>`))
+			html := `<div class="rounded-md bg-yellow-50 dark:bg-yellow-900/20 p-4 mt-4">` +
+				`<div class="text-sm text-yellow-800 dark:text-yellow-100">` +
+				`Authentication temporarily unavailable</div></div>`
+			c.Data(http.StatusUnauthorized, "text/html; charset=utf-8", []byte(html))
 			return
 		}
 		c.Redirect(http.StatusSeeOther, "/login?error=Authentication+temporarily+unavailable")
@@ -115,7 +118,10 @@ var HandleAuthLogin = func(c *gin.Context) {
 			return
 		}
 		if c.GetHeader("HX-Request") == "true" {
-			c.Data(http.StatusUnauthorized, "text/html; charset=utf-8", []byte(`<div class="rounded-md bg-red-50 dark:bg-red-900/20 p-4 mt-4"><div class="text-sm text-red-800 dark:text-red-200">Invalid username or password</div></div>`))
+			html := `<div class="rounded-md bg-red-50 dark:bg-red-900/20 p-4 mt-4">` +
+				`<div class="text-sm text-red-800 dark:text-red-200">` +
+				`Invalid username or password</div></div>`
+			c.Data(http.StatusUnauthorized, "text/html; charset=utf-8", []byte(html))
 		} else {
 			c.Redirect(http.StatusSeeOther, "/login?error=Invalid+username+or+password")
 		}

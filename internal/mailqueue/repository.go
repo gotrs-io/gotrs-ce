@@ -11,9 +11,6 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/renderer/html"
 )
 
 // MailQueueItem represents an email in the queue.
@@ -261,41 +258,6 @@ func containsHTML(content string) bool {
 		}
 	}
 	return false
-}
-
-// isMarkdownContent checks if the content appears to be markdown.
-func isMarkdownContent(content string) bool {
-	markdownPatterns := []string{"**", "*", "_", "`", "# ", "## ", "### ", "- ", "* ", "+ ", "1. ", "[", "](", "![", "](", "\n"}
-	markdownCount := 0
-	for _, pattern := range markdownPatterns {
-		if strings.Contains(content, pattern) {
-			markdownCount++
-		}
-	}
-	// If we have multiple markdown patterns, it's likely rich text
-	return markdownCount >= 2
-}
-
-// markdownToHTML converts markdown content to HTML.
-func markdownToHTML(markdown string) string {
-	md := goldmark.New(
-		goldmark.WithExtensions(
-			extension.GFM,
-			extension.Table,
-			extension.Strikethrough,
-		),
-		goldmark.WithRendererOptions(
-			html.WithUnsafe(), // Allow raw HTML in markdown
-		),
-	)
-
-	var buf strings.Builder
-	if err := md.Convert([]byte(markdown), &buf); err != nil {
-		// If conversion fails, return original content
-		return markdown
-	}
-
-	return buf.String()
 }
 
 // GenerateMessageID creates a unique Message-ID header for email threading.

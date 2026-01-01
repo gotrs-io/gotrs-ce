@@ -103,6 +103,9 @@ func (r *TicketPriorityRepository) List() ([]*models.TicketPriority, error) {
 		}
 		priorities = append(priorities, &priority)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return priorities, nil
 }
@@ -215,6 +218,9 @@ func (r *TicketPriorityRepository) GetHighPriorities() ([]*models.TicketPriority
 			return nil, err
 		}
 		priorities = append(priorities, &priority)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return priorities, nil

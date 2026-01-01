@@ -163,7 +163,7 @@ func GetScreenDefinitions() []ScreenDefinition {
 
 // ParseConfig deserializes YAML config blob into DynamicFieldConfig.
 func (df *DynamicField) ParseConfig() error {
-	if df.ConfigRaw == nil || len(df.ConfigRaw) == 0 {
+	if len(df.ConfigRaw) == 0 {
 		df.Config = &DynamicFieldConfig{}
 		return nil
 	}
@@ -228,7 +228,7 @@ func (df *DynamicField) Validate() error {
 func (df *DynamicField) validateConfigForType() error {
 	switch df.FieldType {
 	case DFTypeDropdown, DFTypeMultiselect:
-		if df.Config.PossibleValues == nil || len(df.Config.PossibleValues) == 0 {
+		if len(df.Config.PossibleValues) == 0 {
 			return fmt.Errorf("%s field requires at least one possible value", df.FieldType)
 		}
 	}

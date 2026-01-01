@@ -120,7 +120,7 @@ func (l *RouteLoader) LoadRoutes() error {
 
 // loadRouteFile loads a single route configuration file.
 func (l *RouteLoader) loadRouteFile(path string) error {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304 false positive - path from WalkDir
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
@@ -404,10 +404,7 @@ func normalizeRoutePath(prefix, routePath string) string {
 		if path == cleanedPrefix {
 			return ""
 		}
-		prefixWithSlash := cleanedPrefix + "/"
-		if strings.HasPrefix(path, prefixWithSlash) {
-			path = strings.TrimPrefix(path, prefixWithSlash)
-		}
+		path = strings.TrimPrefix(path, cleanedPrefix+"/")
 	}
 
 	return path

@@ -2,7 +2,7 @@ package cache
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -200,7 +200,7 @@ func (qc *QueryCache) buildQueryKey(query string, args ...interface{}) string {
 	normalized = strings.ReplaceAll(normalized, "  ", " ")
 
 	// Create hash of query + args
-	hasher := md5.New()
+	hasher := sha256.New()
 	hasher.Write([]byte(normalized))
 
 	// Add args to hash

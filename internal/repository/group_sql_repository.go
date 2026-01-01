@@ -33,11 +33,10 @@ func (r *GroupSQLRepository) List() ([]*models.Group, error) {
 	}
 	defer rows.Close()
 
-	var groups []*models.Group
-	for rows.Next() {
+	groups, err := database.CollectRows(rows, func(r *sql.Rows) (*models.Group, error) {
 		var group models.Group
 		var comments sql.NullString
-		err := rows.Scan(
+		if err := r.Scan(
 			&group.ID,
 			&group.Name,
 			&comments,
@@ -46,17 +45,15 @@ func (r *GroupSQLRepository) List() ([]*models.Group, error) {
 			&group.CreateBy,
 			&group.ChangeTime,
 			&group.ChangeBy,
-		)
-		if err != nil {
+		); err != nil {
 			return nil, err
 		}
 		if comments.Valid {
 			group.Comments = comments.String
 		}
-		groups = append(groups, &group)
-	}
-
-	return groups, nil
+		return &group, nil
+	})
+	return groups, err
 }
 
 // GetUserGroups retrieves group names for a user.
@@ -68,22 +65,13 @@ func (r *GroupSQLRepository) GetUserGroups(userID uint) ([]string, error) {
 		WHERE ug.user_id = $1 AND g.valid_id = 1
 		ORDER BY g.name`)
 
-	rows, err := r.db.Query(query, userID)
+	rows, err := r.db.Query(query, userID) //nolint:rowserrcheck // rows.Err checked inside CollectStrings
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var groups []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			return nil, err
-		}
-		groups = append(groups, name)
-	}
-
-	return groups, nil
+	return database.CollectStrings(rows)
 }
 
 // GetByID retrieves a group by ID.
@@ -311,21 +299,17 @@ func (r *GroupSQLRepository) GetGroupMembers(groupID uint) ([]*models.User, erro
 	}
 	defer rows.Close()
 
-	var users []*models.User
-	for rows.Next() {
+	return database.CollectRows(rows, func(r *sql.Rows) (*models.User, error) {
 		var user models.User
-		err := rows.Scan(
+		if err := r.Scan(
 			&user.ID,
 			&user.Login,
 			&user.FirstName,
 			&user.LastName,
 			&user.ValidID,
-		)
-		if err != nil {
+		); err != nil {
 			return nil, err
 		}
-		users = append(users, &user)
-	}
-
-	return users, nil
+		return &user, nil
+	})
 }

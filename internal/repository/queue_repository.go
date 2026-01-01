@@ -192,6 +192,9 @@ func (r *QueueRepository) List() ([]*models.Queue, error) {
 
 		queues = append(queues, &queue)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return queues, nil
 }

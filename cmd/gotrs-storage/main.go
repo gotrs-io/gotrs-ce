@@ -211,6 +211,9 @@ func switchBackend(ctx context.Context, db *sql.DB, targetBackend string, opts *
 			batch = batch[:0]
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("error iterating articles: %w", err)
+	}
 
 	// Process remaining articles
 	if len(batch) > 0 {
@@ -436,6 +439,9 @@ func verifyStorage(ctx context.Context, db *sql.DB, fsPath string, verbose bool)
 				fmt.Printf("Article %d: WARNING - No storage found!\n", articleID)
 			}
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("error iterating articles: %w", err)
 	}
 
 	fmt.Printf("\nTotal Articles: %d\n", totalArticles)

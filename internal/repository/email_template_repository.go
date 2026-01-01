@@ -142,6 +142,9 @@ func (r *EmailTemplateRepository) GetByType(templateType string) ([]*models.Emai
 		}
 		templates = append(templates, template)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating templates by type: %w", err)
+	}
 
 	return templates, nil
 }
@@ -178,6 +181,9 @@ func (r *EmailTemplateRepository) GetAll() ([]*models.EmailTemplate, error) {
 			return nil, fmt.Errorf("failed to scan email template: %w", err)
 		}
 		templates = append(templates, template)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating all templates: %w", err)
 	}
 
 	return templates, nil

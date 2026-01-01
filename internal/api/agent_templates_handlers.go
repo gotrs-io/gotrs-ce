@@ -66,6 +66,9 @@ func GetTemplatesForQueue(queueID int, templateType string) ([]TemplateForAgent,
 		t.TemplateType = templateType.String
 		templates = append(templates, t)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating templates: %w", err)
+	}
 
 	return templates, nil
 }

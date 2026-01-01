@@ -126,8 +126,8 @@ WHERE id = $1`)
 		WithArgs(7).
 		WillReturnRows(stateRows)
 
-	ticketSnapshotQuery := fmt.Sprintf(`SELECT
-		t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, %s AS type_id,
+	ticketSnapshotQuery := `SELECT
+		t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, t.type_id,
 		t.service_id, t.sla_id, t.user_id, t.responsible_user_id,
 		t.customer_id, t.customer_user_id, t.ticket_state_id,
 		t.ticket_priority_id, t.until_time, t.escalation_time,
@@ -135,7 +135,7 @@ WHERE id = $1`)
 		t.escalation_solution_time, t.archive_flag,
 		t.create_time, t.create_by, t.change_time, t.change_by
 	FROM ticket t
-	WHERE t.id = $1`, database.QualifiedTicketTypeColumn("t"))
+	WHERE t.id = $1`
 
 	snapshotQuery := database.ConvertPlaceholders(ticketSnapshotQuery)
 	mock.ExpectQuery(regexp.QuoteMeta(snapshotQuery)).

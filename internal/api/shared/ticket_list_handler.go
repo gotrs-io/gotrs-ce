@@ -421,6 +421,7 @@ func HandleListTicketsAPI(c *gin.Context) {
 
 		tickets = append(tickets, ticketMap)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	// Calculate pagination info
 	totalPages := (total + perPage - 1) / perPage

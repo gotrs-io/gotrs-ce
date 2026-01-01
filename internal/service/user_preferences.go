@@ -150,6 +150,9 @@ func (s *UserPreferencesService) GetAllPreferences(userID int) (map[string]strin
 
 		prefs[key] = string(value)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate preferences: %w", err)
+	}
 
 	return prefs, nil
 }

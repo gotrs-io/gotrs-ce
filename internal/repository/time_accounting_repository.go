@@ -58,5 +58,8 @@ func (r *TimeAccountingRepository) ListByTicket(ticketID int) ([]models.TimeAcco
 		it.TimeUnit = int(math.Round(tuFloat))
 		items = append(items, it)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return items, nil
 }

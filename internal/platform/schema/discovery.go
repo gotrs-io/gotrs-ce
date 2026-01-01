@@ -149,6 +149,9 @@ func (d *Discovery) GetTables() ([]string, error) {
 		}
 		tables = append(tables, table)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating tables: %v", err)
+	}
 
 	return tables, nil
 }
@@ -268,6 +271,9 @@ func (d *Discovery) getColumns(tableName string) ([]ColumnInfo, error) {
 		col.IsNullable = (isNullable == "YES")
 		columns = append(columns, col)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating columns: %w", err)
+	}
 
 	return columns, nil
 }
@@ -302,6 +308,9 @@ func (d *Discovery) getForeignKeys(tableName string) ([]ForeignKeyInfo, error) {
 		}
 		foreignKeys = append(foreignKeys, fk)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating foreign keys: %w", err)
+	}
 
 	return foreignKeys, nil
 }
@@ -334,6 +343,9 @@ func (d *Discovery) getIndexes(tableName string) ([]IndexInfo, error) {
 		// Parse column names from index definition
 		// This is simplified - real implementation would parse more carefully
 		indexes = append(indexes, idx)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating indexes: %w", err)
 	}
 
 	return indexes, nil

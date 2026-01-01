@@ -2,7 +2,7 @@ package service
 
 import (
 	"bytes"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"image"
@@ -146,7 +146,7 @@ func (s *ThumbnailService) InvalidateThumbnail(ctx context.Context, attachmentID
 func (s *ThumbnailService) generateCacheKey(attachmentID int, opts ThumbnailOptions) string {
 	// Create a hash of the options for uniqueness
 	optStr := fmt.Sprintf("%dx%d-q%d-%s", opts.Width, opts.Height, opts.Quality, opts.Format)
-	hash := fmt.Sprintf("%x", md5.Sum([]byte(optStr)))
+	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(optStr)))
 	return fmt.Sprintf("thumbnail:%d:%s", attachmentID, hash[:8])
 }
 

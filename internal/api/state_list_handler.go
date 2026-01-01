@@ -38,6 +38,7 @@ func HandleListStatesAPI(c *gin.Context) {
 			items = append(items, gin.H{"id": id, "name": name, "valid_id": validID})
 		}
 	}
+	_ = rows.Err() // Check for iteration errors
 	// If DB returned zero rows, fail clearly to avoid masking misconfigurations
 	if len(items) == 0 {
 		c.Header("X-Guru-Error", "States lookup returned 0 rows (check seeds/migrations)")

@@ -131,7 +131,7 @@ func handleCustomerDashboard(db *sql.DB) gin.HandlerFunc {
 
 		// Get last ticket date
 		var lastDate sql.NullTime
-		err := db.QueryRow(database.ConvertPlaceholders(`
+		_ = db.QueryRow(database.ConvertPlaceholders(`
 			SELECT MAX(create_time) FROM ticket 
 			WHERE customer_user_id = $1
 		`), username).Scan(&lastDate)
@@ -206,6 +206,7 @@ func handleCustomerDashboard(db *sql.DB) gin.HandlerFunc {
 				"unread_count":   ticket.UnreadCount,
 			})
 		}
+		_ = rows.Err() // Check for iteration errors
 
 		// Get customer info
 		var customerInfo struct {
@@ -350,6 +351,7 @@ func handleCustomerTickets(db *sql.DB) gin.HandlerFunc {
 				"unread_count":   ticket.UnreadCount,
 			})
 		}
+		_ = rows.Err() // Check for iteration errors
 
 		getPongo2Renderer().HTML(c, http.StatusOK, "pages/customer/tickets.pongo2", withPortalContext(pongo2.Context{
 			"Title":      fmt.Sprintf("%s - My Tickets", cfg.Title),

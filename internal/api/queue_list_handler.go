@@ -205,6 +205,7 @@ func HandleListQueuesAPI(c *gin.Context) {
 					})
 				}
 			}
+			_ = groupRows.Err() // Check for iteration errors
 			groupRows.Close()
 			queueMap["groups"] = groups
 		} else {
@@ -213,6 +214,7 @@ func HandleListQueuesAPI(c *gin.Context) {
 
 		queues = append(queues, queueMap)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

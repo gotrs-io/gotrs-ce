@@ -136,7 +136,7 @@ func loadYAMLRouteGroups(dir string) ([]topRouteDoc, error) {
 	entries := []string{}
 	filepath.WalkDir(resolved, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil
+			return nil //nolint:nilerr // continue walking on error
 		}
 		if d.IsDir() {
 			return nil
@@ -149,7 +149,7 @@ func loadYAMLRouteGroups(dir string) ([]topRouteDoc, error) {
 	})
 	sort.Strings(entries)
 	for _, p := range entries {
-		b, err := os.ReadFile(p)
+		b, err := os.ReadFile(p) //nolint:gosec // G304 false positive - path from WalkDir
 		if err != nil {
 			log.Printf("route loader read error %s: %v", p, err)
 			continue
@@ -301,7 +301,7 @@ func registerYAMLRoutes(r *gin.Engine, authMW interface{}) {
 	// Write manifest
 	if len(manifest) > 0 {
 		log.Printf("writing routes manifest with %d entries", len(manifest))
-		if err := os.MkdirAll("generated", 0o755); err != nil {
+		if err := os.MkdirAll("generated", 0o750); err != nil {
 			log.Printf("failed to create generated dir: %v", err)
 		}
 		mf := struct {
@@ -371,7 +371,7 @@ func GenerateRoutesManifest() error {
 	r := gin.New()
 	// minimal middleware similar to gin.Default without logger/recovery spam for tooling
 	r.Use(gin.Recovery())
-	if err := os.MkdirAll("generated", 0o755); err != nil {
+	if err := os.MkdirAll("generated", 0o750); err != nil {
 		log.Printf("failed to pre-create generated dir: %v", err)
 	} else {
 		if fi, err := os.Stat("generated"); err == nil && fi.IsDir() {
@@ -383,23 +383,6 @@ func GenerateRoutesManifest() error {
 		return err
 	}
 	return nil
-}
-
-func registerOne(g *gin.RouterGroup, method, path string, h gin.HandlerFunc) {
-	switch method {
-	case "GET":
-		g.GET(path, h)
-	case "POST":
-		g.POST(path, h)
-	case "PUT":
-		g.PUT(path, h)
-	case "DELETE":
-		g.DELETE(path, h)
-	case "PATCH":
-		g.PATCH(path, h)
-	default:
-		log.Printf("unsupported method %s for %s", method, path)
-	}
 }
 
 // helper with possible extra middleware chain.

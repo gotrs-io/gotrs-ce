@@ -126,7 +126,6 @@ func handleAdminStates(c *gin.Context) {
 	if typeFilter != "" {
 		query += fmt.Sprintf(" AND s.type_id = $%d", argCount)
 		args = append(args, typeFilter)
-		argCount++
 	}
 
 	query += " GROUP BY s.id, s.name, s.type_id, st.name, s.comments, s.valid_id"
@@ -172,6 +171,7 @@ func handleAdminStates(c *gin.Context) {
 
 		states = append(states, s)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	// Get state types for dropdown
 	typeRows, err := db.Query(database.ConvertPlaceholders("SELECT id, name, comments FROM ticket_state_type ORDER BY id"))
@@ -197,7 +197,7 @@ func handleAdminStates(c *gin.Context) {
 
 		stateTypes = append(stateTypes, st)
 	}
-
+	_ = typeRows.Err() // Check for iteration errors
 	// Convert typeFilter to int for template comparison
 	var typeFilterInt int
 	if typeFilter != "" {
@@ -546,6 +546,7 @@ func handleGetStateTypes(c *gin.Context) {
 
 		types = append(types, st)
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

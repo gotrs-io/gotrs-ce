@@ -25,7 +25,7 @@ func NewConfigAdapter(versionMgr *VersionManager) *ConfigAdapter {
 // ImportConfigYAML imports the existing Config.yaml into the version management system.
 func (ca *ConfigAdapter) ImportConfigYAML(filename string) error {
 	// Read the file
-	data, err := os.ReadFile(filename)
+	data, err := os.ReadFile(filename) //nolint:gosec // G304 false positive - config file
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %w", err)
 	}

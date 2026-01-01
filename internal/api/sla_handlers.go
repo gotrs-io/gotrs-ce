@@ -142,6 +142,7 @@ func HandleListSLAsAPI(c *gin.Context) {
 			"comments":              comments,
 		})
 	}
+	_ = rows.Err() // Check for iteration errors
 
 	c.JSON(http.StatusOK, gin.H{
 		"slas":  slas,

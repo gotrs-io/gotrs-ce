@@ -321,7 +321,7 @@ func renderSimpleMessageHTML(msg *service.SimpleTicketMessage) string {
 	}
 
 	// Process message body based on content type
-	processedBody := msg.Body
+	var processedBody string
 	if strings.Contains(msg.ContentType, "text/html") || (strings.Contains(msg.Body, "<") && strings.Contains(msg.Body, ">")) {
 		// For HTML content, use it directly (assuming it's from a trusted editor)
 		processedBody = msg.Body

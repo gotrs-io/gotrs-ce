@@ -57,6 +57,74 @@ rows, err := db.Query(
 
 Do not write raw queries with `$n` placeholders without the conversion wrapper. Centralize queries in repositories; avoid SQL in handlers.
 
+### Dynamic SQL with QueryBuilder (REQUIRED)
+For **dynamic WHERE clauses**, **variable column selection**, or **IN lists**, use the sqlx-based QueryBuilder (`internal/database/querybuilder.go`). This pattern is **mandatory** for security compliance (gosec G201/G202):
+
+```go
+// ❌ WRONG - triggers gosec G201 SQL injection warning
+query := fmt.Sprintf("SELECT id, name FROM users WHERE %s = $%d", column, argCount)
+
+// ✅ CORRECT - use QueryBuilder for dynamic SQL
+qb, _ := database.GetQueryBuilder()
+sb := qb.NewSelect("id", "name").From("users").Where("status = ?", status)
+if orgID != 0 {
+    sb.Where("org_id = ?", orgID)
+}
+query, args, _ := sb.ToSQL()
+rows, err := db.Query(database.Rebind(query), args...)
+```
+
+**For IN clauses**, use `database.In()` to expand slices:
+```go
+query, args, _ := database.In("SELECT * FROM tickets WHERE id IN (?)", ids)
+rows, err := db.Query(database.Rebind(query), args...)
+```
+
+**Key methods:**
+- `NewSelect(columns...).From(table)` - start a SELECT query
+- `.Where(condition, args...)` - add WHERE clause (can chain multiple)
+- `.Join(joinClause)` - add JOIN
+- `.OrderBy(clause)`, `.Limit(n)`, `.Offset(n)` - pagination
+- `.ToSQL()` - returns query string and args slice
+- `database.Rebind(query)` - converts `?` to `$1, $2...` for PostgreSQL
+- `database.In(query, args...)` - expands slices for IN clauses
+
+### Row Iteration with rows.Err() (REQUIRED)
+After iterating over `sql.Rows` with `for rows.Next()`, you **must** check `rows.Err()`. Errors during iteration (network issues, encoding problems) are stored and only accessible via `rows.Err()`:
+
+```go
+// ❌ WRONG - iteration errors silently lost
+for rows.Next() {
+    rows.Scan(&item)
+    results = append(results, item)
+}
+return results, nil
+
+// ✅ CORRECT - check rows.Err() after loop
+for rows.Next() {
+    rows.Scan(&item)
+    results = append(results, item)
+}
+if err := rows.Err(); err != nil {
+    return nil, err
+}
+return results, nil
+```
+
+**Preferred: Use helper functions** from `internal/database/rows.go`:
+```go
+// CollectRows handles iteration and rows.Err() automatically
+users, err := database.CollectRows(rows, func(r *sql.Rows) (*User, error) {
+    var u User
+    err := r.Scan(&u.ID, &u.Name)
+    return &u, err
+})
+
+// CollectStrings/CollectInts for simple single-column queries
+names, err := database.CollectStrings(rows)
+ids, err := database.CollectInts(rows)
+```
+
 ## MariaDB CRUD Patterns (CRITICAL)
 **Unit tests mock the database - they will NOT catch these errors. Always follow these patterns.**
 

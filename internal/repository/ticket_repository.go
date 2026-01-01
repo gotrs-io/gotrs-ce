@@ -220,9 +220,9 @@ func isUniqueTNError(err error) bool {
 
 // GetByID retrieves a ticket by its ID.
 func (r *TicketRepository) GetByID(id uint) (*models.Ticket, error) {
-	query := fmt.Sprintf(`
+	query := `
 		SELECT 
-			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, %s AS type_id,
+			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, t.type_id,
 			t.service_id, t.sla_id, t.user_id, t.responsible_user_id,
 			t.customer_id, t.customer_user_id, t.ticket_state_id,
 			t.ticket_priority_id, t.until_time, t.escalation_time,
@@ -230,7 +230,7 @@ func (r *TicketRepository) GetByID(id uint) (*models.Ticket, error) {
 			t.escalation_solution_time, t.archive_flag,
 			t.create_time, t.create_by, t.change_time, t.change_by
 		FROM ticket t
-		WHERE t.id = $1`, database.QualifiedTicketTypeColumn("t"))
+		WHERE t.id = $1`
 
 	// Convert placeholders for MySQL compatibility
 	query = database.ConvertPlaceholders(query)
@@ -272,9 +272,9 @@ func (r *TicketRepository) GetByID(id uint) (*models.Ticket, error) {
 
 // GetByTN retrieves a ticket by its ticket number.
 func (r *TicketRepository) GetByTN(tn string) (*models.Ticket, error) {
-	query := fmt.Sprintf(`
+	query := `
 		SELECT 
-			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, %s AS type_id,
+			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, t.type_id,
 			t.service_id, t.sla_id, t.user_id, t.responsible_user_id,
 			t.customer_id, t.customer_user_id, t.ticket_state_id,
 			t.ticket_priority_id, t.until_time, t.escalation_time,
@@ -282,7 +282,7 @@ func (r *TicketRepository) GetByTN(tn string) (*models.Ticket, error) {
 			t.escalation_solution_time, t.archive_flag,
 			t.create_time, t.create_by, t.change_time, t.change_by
 		FROM ticket t
-		WHERE t.tn = $1`, database.QualifiedTicketTypeColumn("t"))
+		WHERE t.tn = $1`
 
 	// Convert placeholders for MySQL compatibility
 	query = database.ConvertPlaceholders(query)
@@ -326,12 +326,12 @@ func (r *TicketRepository) GetByTN(tn string) (*models.Ticket, error) {
 func (r *TicketRepository) Update(ticket *models.Ticket) error {
 	ticket.ChangeTime = time.Now()
 
-	query := fmt.Sprintf(`
+	query := `
 		UPDATE ticket SET
 			title = $2,
 			queue_id = $3,
 			ticket_lock_id = $4,
-			%s = $5,
+			type_id = $5,
 			service_id = $6,
 			sla_id = $7,
 			user_id = $8,
@@ -348,7 +348,7 @@ func (r *TicketRepository) Update(ticket *models.Ticket) error {
 			archive_flag = $19,
 			change_time = $20,
 			change_by = $21
-		WHERE id = $1`, database.TicketTypeColumn())
+		WHERE id = $1`
 
 	// Convert placeholders for MySQL compatibility
 	query = database.ConvertPlaceholders(query)
@@ -435,18 +435,16 @@ func (r *TicketRepository) List(req *models.TicketListRequest) (*models.TicketLi
 	LEFT JOIN ticket_state_type tst ON ts.type_id = tst.id
 	WHERE 1=1`
 	countQuery := `SELECT COUNT(*) ` + baseQuery
-	typeSelect := fmt.Sprintf("%s AS type_id", database.QualifiedTicketTypeColumn("t"))
-	selectQuery := fmt.Sprintf(`
+	selectQuery := `
 		SELECT 
-			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, %s,
+			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, t.type_id,
 			t.service_id, t.sla_id, t.user_id, t.responsible_user_id,
 			t.customer_id, t.customer_user_id, t.ticket_state_id,
 			t.ticket_priority_id, t.until_time, t.escalation_time,
 			t.escalation_update_time, t.escalation_response_time,
 			t.escalation_solution_time, t.archive_flag,
 			t.create_time, t.create_by, t.change_time, t.change_by
-		%%s`, typeSelect)
-	selectQuery = fmt.Sprintf(selectQuery, baseQuery)
+		` + baseQuery
 
 	// Build filters
 	var filters []string
@@ -508,7 +506,6 @@ func (r *TicketRepository) List(req *models.TicketListRequest) (*models.TicketLi
 	if req.EndDate != nil {
 		filters = append(filters, fmt.Sprintf(" AND t.create_time <= $%d", argCount))
 		args = append(args, *req.EndDate)
-		argCount++
 	}
 
 	filterString := strings.Join(filters, "")
@@ -572,6 +569,10 @@ func (r *TicketRepository) List(req *models.TicketListRequest) (*models.TicketLi
 		tickets = append(tickets, *ticket)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	// Calculate total pages
 	totalPages := total / req.PerPage
 	if total%req.PerPage > 0 {
@@ -589,10 +590,9 @@ func (r *TicketRepository) List(req *models.TicketListRequest) (*models.TicketLi
 
 // GetTicketsByCustomer retrieves all tickets for a specific customer.
 func (r *TicketRepository) GetTicketsByCustomer(customerID uint, includeArchived bool) ([]models.Ticket, error) {
-	typeSelect := fmt.Sprintf("%s AS type_id", database.QualifiedTicketTypeColumn("t"))
-	query := fmt.Sprintf(`
+	query := `
 		SELECT 
-			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, %s,
+			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, t.type_id,
 			t.service_id, t.sla_id, t.user_id, t.responsible_user_id,
 			t.customer_id, t.customer_user_id, t.ticket_state_id,
 			t.ticket_priority_id, t.until_time, t.escalation_time,
@@ -600,7 +600,7 @@ func (r *TicketRepository) GetTicketsByCustomer(customerID uint, includeArchived
 			t.escalation_solution_time, t.archive_flag,
 			t.create_time, t.create_by, t.change_time, t.change_by
 		FROM ticket t
-		WHERE t.customer_id = $1`, typeSelect)
+		WHERE t.customer_id = $1`
 
 	if !includeArchived {
 		query += " AND t.archive_flag = 0"
@@ -626,15 +626,18 @@ func (r *TicketRepository) GetTicketsByCustomer(customerID uint, includeArchived
 		tickets = append(tickets, *ticket)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return tickets, nil
 }
 
 // GetTicketsByOwner retrieves all tickets assigned to a specific user.
 func (r *TicketRepository) GetTicketsByOwner(ownerID uint, includeArchived bool) ([]models.Ticket, error) {
-	typeSelect := fmt.Sprintf("%s AS type_id", database.QualifiedTicketTypeColumn("t"))
-	query := fmt.Sprintf(`
+	query := `
 		SELECT 
-			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, %s,
+			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, t.type_id,
 			t.service_id, t.sla_id, t.user_id, t.responsible_user_id,
 			t.customer_id, t.customer_user_id, t.ticket_state_id,
 			t.ticket_priority_id, t.until_time, t.escalation_time,
@@ -642,7 +645,7 @@ func (r *TicketRepository) GetTicketsByOwner(ownerID uint, includeArchived bool)
 			t.escalation_solution_time, t.archive_flag,
 			t.create_time, t.create_by, t.change_time, t.change_by
 		FROM ticket t
-		WHERE (t.user_id = $1 OR t.responsible_user_id = $1)`, typeSelect)
+		WHERE (t.user_id = $1 OR t.responsible_user_id = $1)`
 
 	if !includeArchived {
 		query += " AND t.archive_flag = 0"
@@ -668,15 +671,18 @@ func (r *TicketRepository) GetTicketsByOwner(ownerID uint, includeArchived bool)
 		tickets = append(tickets, *ticket)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return tickets, nil
 }
 
 // GetTicketWithRelations retrieves a ticket with all related data.
 func (r *TicketRepository) GetTicketWithRelations(id uint) (*models.Ticket, error) {
-	typeSelect := fmt.Sprintf("%s AS type_id", database.QualifiedTicketTypeColumn("t"))
-	query := fmt.Sprintf(`
+	query := `
 		SELECT 
-			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, %s,
+			t.id, t.tn, t.title, t.queue_id, t.ticket_lock_id, t.type_id,
 			t.service_id, t.sla_id, t.user_id, t.responsible_user_id,
 			t.customer_id, t.customer_user_id, t.ticket_state_id,
 			t.ticket_priority_id, t.until_time, t.escalation_time,
@@ -690,7 +696,7 @@ func (r *TicketRepository) GetTicketWithRelations(id uint) (*models.Ticket, erro
 		LEFT JOIN queue q ON t.queue_id = q.id
 		LEFT JOIN ticket_state ts ON t.ticket_state_id = ts.id
 		LEFT JOIN ticket_priority tp ON t.ticket_priority_id = tp.id
-		WHERE t.id = $1`, typeSelect)
+		WHERE t.id = $1`
 
 	// Convert placeholders for MySQL compatibility
 	query = database.ConvertPlaceholders(query)
@@ -920,6 +926,10 @@ func (r *TicketRepository) GetQueues() ([]models.Queue, error) {
 		queues = append(queues, q)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return queues, nil
 }
 
@@ -960,6 +970,10 @@ func (r *TicketRepository) GetTicketStates() ([]models.TicketState, error) {
 		states = append(states, s)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return states, nil
 }
 
@@ -997,6 +1011,10 @@ func (r *TicketRepository) GetTicketPriorities() ([]models.TicketPriority, error
 			return nil, err
 		}
 		priorities = append(priorities, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return priorities, nil

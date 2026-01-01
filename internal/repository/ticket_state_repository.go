@@ -110,6 +110,10 @@ func (r *TicketStateRepository) GetByTypeID(typeID uint) ([]*models.TicketState,
 		states = append(states, &state)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return states, nil
 }
 
@@ -146,6 +150,10 @@ func (r *TicketStateRepository) List() ([]*models.TicketState, error) {
 			return nil, err
 		}
 		states = append(states, &state)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return states, nil
@@ -253,6 +261,10 @@ func (r *TicketStateRepository) GetOpenStates() ([]*models.TicketState, error) {
 		states = append(states, &state)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return states, nil
 }
 
@@ -292,6 +304,10 @@ func (r *TicketStateRepository) GetClosedStates() ([]*models.TicketState, error)
 			return nil, err
 		}
 		states = append(states, &state)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return states, nil

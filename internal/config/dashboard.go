@@ -101,7 +101,7 @@ func (dm *DashboardManager) LoadDashboard(name string) (*DashboardConfig, error)
 
 	// Load from file
 	filename := filepath.Join(dm.configPath, fmt.Sprintf("%s.yaml", name))
-	data, err := os.ReadFile(filename)
+	data, err := os.ReadFile(filename) //nolint:gosec // G304 false positive - config path
 	if err != nil {
 		return nil, fmt.Errorf("failed to read dashboard config %s: %w", filename, err)
 	}

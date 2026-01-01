@@ -325,6 +325,9 @@ func (r *UserRepository) GetUserGroups(userID uint) ([]string, error) {
 		}
 		groups = append(groups, groupName)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return groups, nil
 }
@@ -379,6 +382,9 @@ func (r *UserRepository) List() ([]*models.User, error) {
 		user.Email = user.Login // In OTRS, login can be email
 
 		users = append(users, &user)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return users, nil

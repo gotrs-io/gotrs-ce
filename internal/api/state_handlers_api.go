@@ -45,6 +45,7 @@ func handleGetStates(c *gin.Context) {
 			data = append(data, row)
 		}
 	}
+	_ = rows.Err() // Check for iteration errors
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
 }
 

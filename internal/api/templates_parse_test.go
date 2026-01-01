@@ -45,7 +45,7 @@ func TestPongo2TemplatesParse(t *testing.T) {
 		rel, rerr := filepath.Rel(templatesDir, path)
 		if rerr != nil {
 			failures = append(failures, path+": relpath error: "+rerr.Error())
-			return nil
+			return nil //nolint:nilerr // continue walking on error
 		}
 		if _, perr := set.FromFile(rel); perr != nil {
 			failures = append(failures, rel+": "+perr.Error())

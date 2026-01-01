@@ -174,6 +174,9 @@ func (pb *PostgresBackend) searchTickets(ctx context.Context, query SearchQuery)
 
 		hits = append(hits, hit)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return hits, nil
 }
@@ -237,6 +240,9 @@ func (pb *PostgresBackend) searchArticles(ctx context.Context, query SearchQuery
 
 		hits = append(hits, hit)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return hits, nil
 }
@@ -294,6 +300,9 @@ func (pb *PostgresBackend) searchCustomers(ctx context.Context, query SearchQuer
 		hit.Metadata = metadata
 
 		hits = append(hits, hit)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return hits, nil

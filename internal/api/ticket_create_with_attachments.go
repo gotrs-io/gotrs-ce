@@ -352,7 +352,7 @@ func handleCreateTicketWithAttachments(c *gin.Context) {
 				// Use unified storage service; ensure we have an article
 				if article != nil && article.ID > 0 {
 					storageSvc := GetStorageService()
-					storagePath := service.GenerateOTRSStoragePath(int(ticket.ID), article.ID, fileHeader.Filename)
+					storagePath := service.GenerateOTRSStoragePath(ticket.ID, article.ID, fileHeader.Filename)
 					ctx := c.Request.Context()
 					ctx = context.WithValue(ctx, service.CtxKeyArticleID, article.ID)
 					ctx = service.WithUserID(ctx, uploaderID)

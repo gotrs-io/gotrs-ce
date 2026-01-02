@@ -1,0 +1,13 @@
+# Hadolint configuration
+# https://github.com/hadolint/hadolint
+
+ignored:
+  # DL3018: Pin versions in apk add
+  # We pin the base Alpine image version instead. APK packages are tied to the
+  # Alpine release, and pinning individual packages creates maintenance burden
+  # without meaningful security benefit.
+  - DL3018
+
+  # SC2015: A && B || C is not if-then-else
+  # We're aware of this pattern and use it intentionally for simple cases
+  - SC2015

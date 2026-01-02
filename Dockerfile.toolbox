@@ -1,5 +1,5 @@
-# GOTRS Toolbox - All-in-one container for development tasks
 # syntax=docker/dockerfile:1
+# GOTRS Toolbox - All-in-one container for development tasks
 
 # Reuse compiled binaries from dedicated artifacts image
 FROM gotrs-artifacts:latest AS artifacts

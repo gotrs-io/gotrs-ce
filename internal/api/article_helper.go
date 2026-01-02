@@ -18,12 +18,14 @@ type ArticleInsertParams struct {
 // insertArticle creates an article record and returns the article ID.
 // This handles both MySQL and PostgreSQL with appropriate ID retrieval.
 func insertArticle(tx *sql.Tx, params ArticleInsertParams) (int64, error) {
-	query := database.ConvertPlaceholders(`
+	// Do NOT call ConvertPlaceholders here - let InsertWithReturningTx handle it
+	// so that repeated placeholders ($4 used twice) are properly expanded for MySQL
+	query := `
 		INSERT INTO article (ticket_id, article_sender_type_id, communication_channel_id,
 			is_visible_for_customer, create_time, create_by, change_time, change_by)
 		VALUES ($1, 1, $2, $3, CURRENT_TIMESTAMP, $4, CURRENT_TIMESTAMP, $4)
 		RETURNING id
-	`)
+	`
 	args := []interface{}{params.TicketID, params.CommunicationChannel, params.IsVisibleForCustomer, params.CreateBy}
 	return database.GetAdapter().InsertWithReturningTx(tx, query, args...)
 }

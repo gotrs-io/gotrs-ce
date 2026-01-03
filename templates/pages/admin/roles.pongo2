@@ -3,6 +3,17 @@
 {% block title %}Role Management - GOTRS Admin{% endblock %}
 
 {% block content %}
+<style>
+/* Style disabled permission checkboxes and their labels */
+input[name="permissions"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+input[name="permissions"]:disabled + span {
+    color: #9ca3af; /* gray-400 */
+    cursor: not-allowed;
+}
+</style>
 <div class="container mx-auto px-4 py-8">
     <!-- Page header -->
     <div class="mb-8">
@@ -59,15 +70,21 @@
                                 {{ role.Name }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                {{ role.Description }}
+                                {% if role.Description %}{{ role.Description }}{% else %}<span class="text-gray-400 dark:text-gray-500">-</span>{% endif %}
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                                 <div class="flex flex-wrap gap-1">
+                                    {% if role.Permissions and "*" in role.Permissions %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">
+                                        All Permissions (*)
+                                    </span>
+                                    {% else %}
                                     {% for permission in role.Permissions %}
                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100">
                                         {{ permission }}
                                     </span>
                                     {% endfor %}
+                                    {% endif %}
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -215,7 +232,10 @@
                                     <input type="checkbox" name="permissions" value="manage_settings" class="rounded border-gray-300 text-gotrs-600 focus:ring-gotrs-500">
                                     <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Manage Settings</span>
                                 </label>
-                            </div>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="permissions" value="manage_priorities" class="rounded border-gray-300 text-gotrs-600 focus:ring-gotrs-500">
+                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Manage Priorities</span>
+                                </label>
                         </div>
                         
                         <div>
@@ -307,6 +327,23 @@
 <script>
 let currentRoleId = null;
 
+// Handle "All Permissions" checkbox toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const allPermissionsCheckbox = document.querySelector('input[name="permissions"][value="*"]');
+    if (allPermissionsCheckbox) {
+        allPermissionsCheckbox.addEventListener('change', function() {
+            const permissionCheckboxes = document.querySelectorAll('input[name="permissions"]:not([value="*"])');
+            permissionCheckboxes.forEach(cb => {
+                cb.disabled = this.checked;
+                if (this.checked) {
+                    cb.checked = true; // Check all individual permissions when "All" is selected
+                }
+                // When "All" is unchecked, keep individual permissions checked but enable them
+            });
+        });
+    }
+});
+
 // Helper function to handle fetch responses - checks for auth redirects and non-JSON responses
 async function handleFetchResponse(response) {
     // Check content type before parsing
@@ -357,15 +394,38 @@ function editRole(roleId) {
                 document.getElementById('roleDescription').value = role.Description || '';
                 document.getElementById('roleActive').checked = role.IsActive;
                 
-                // Clear all permission checkboxes first
-                document.querySelectorAll('input[name="permissions"]').forEach(cb => cb.checked = false);
+                // Get all permission checkboxes
+                const permissionCheckboxes = document.querySelectorAll('input[name="permissions"]');
                 
-                // Check permissions that this role has
-                if (role.Permissions) {
-                    role.Permissions.forEach(permission => {
-                        const checkbox = document.querySelector(`input[name="permissions"][value="${permission}"]`);
-                        if (checkbox) checkbox.checked = true;
+                // Clear all permission checkboxes first and enable them
+                permissionCheckboxes.forEach(cb => {
+                    cb.checked = false;
+                    cb.disabled = false;
+                });
+                
+                // Check if role has all permissions
+                const hasAllPermissions = role.Permissions && role.Permissions.includes('*');
+                
+                if (hasAllPermissions) {
+                    // Check the "All Permissions" checkbox and disable individual permissions
+                    const allPermCheckbox = document.querySelector('input[name="permissions"][value="*"]');
+                    if (allPermCheckbox) {
+                        allPermCheckbox.checked = true;
+                    }
+                    // Disable individual permission checkboxes
+                    permissionCheckboxes.forEach(cb => {
+                        if (cb.value !== '*') {
+                            cb.disabled = true;
+                        }
                     });
+                } else {
+                    // Check permissions that this role has
+                    if (role.Permissions) {
+                        role.Permissions.forEach(permission => {
+                            const checkbox = document.querySelector(`input[name="permissions"][value="${permission}"]`);
+                            if (checkbox) checkbox.checked = true;
+                        });
+                    }
                 }
                 
                 document.getElementById('roleModal').classList.remove('hidden');

@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project (currently) does not yet use semantic versioning; versions will be tagged once the ticket vertical slice lands.
 
-## [Unreleased]
+## [0.5.0] - 2026-01-03
 
 ### Added
 - **CI/CD Pipeline Overhaul**: Complete rewrite of GitHub Actions workflows for containerized testing approach.

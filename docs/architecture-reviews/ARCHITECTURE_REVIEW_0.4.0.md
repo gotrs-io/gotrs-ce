@@ -1,5 +1,11 @@
 # GOTRS Architecture Review - August 24, 2025
 
+> **Note**: This document has been moved to the GOTRS website. Please see the [archived version](/blog/architecture-reviews/2025-08-24-initial-review) for the latest content.
+
+## Archived Content
+
+This historical document is preserved here for reference. The current version is available at: https://gotrs.io/blog/architecture-reviews/2025-08-24-initial-review
+
 ## Architecture Review Summary
 
 ### 🏗️ **Overall Architecture Assessment: EXCELLENT**

@@ -18,6 +18,7 @@ type Role struct {
 	ID          int       `json:"id"`
 	Name        string    `json:"name"`
 	Comments    *string   `json:"comments"`
+	Description string    `json:"description"` // Computed from Comments for template
 	ValidID     int       `json:"valid_id"`
 	CreateTime  time.Time `json:"create_time"`
 	CreateBy    int       `json:"create_by"`
@@ -115,9 +116,11 @@ func handleAdminRoles(c *gin.Context) {
 
 		if comments.Valid {
 			r.Comments = &comments.String
+			r.Description = comments.String
 		}
 
-		r.Permissions = []string{}
+		// Fetch permissions from group_role table
+		r.Permissions, _ = fetchRolePermissions(db, r.ID)
 
 		// Set computed fields
 		r.IsActive = r.ValidID == 1
@@ -144,9 +147,11 @@ func handleAdminRoles(c *gin.Context) {
 // handleAdminRoleCreate creates a new role.
 func handleAdminRoleCreate(c *gin.Context) {
 	var input struct {
-		Name     string `json:"name" binding:"required"`
-		Comments string `json:"comments"`
-		ValidID  int    `json:"valid_id"`
+		Name        string   `json:"name" binding:"required"`
+		Comments    string   `json:"comments"`
+		Description string   `json:"description"`
+		ValidID     int      `json:"valid_id"`
+		Permissions []string `json:"permissions"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -189,10 +194,18 @@ func handleAdminRoleCreate(c *gin.Context) {
 		return
 	}
 
+	// Use Comments or Description (Description from frontend)
+	var comments string
+	if input.Comments != "" {
+		comments = input.Comments
+	} else if input.Description != "" {
+		comments = input.Description
+	}
+
 	// Insert the new role using database adapter for MySQL/PostgreSQL compatibility
 	var commentsPtr *string
-	if input.Comments != "" {
-		commentsPtr = &input.Comments
+	if comments != "" {
+		commentsPtr = &comments
 	}
 
 	insertQuery := database.ConvertPlaceholders(`
@@ -211,11 +224,24 @@ func handleAdminRoleCreate(c *gin.Context) {
 		return
 	}
 
+	roleID := int(id64)
+
+	// Save permissions to group_role table
+	if len(input.Permissions) > 0 {
+		if err := saveRolePermissions(db, roleID, input.Permissions); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Failed to save permissions: " + err.Error(),
+			})
+			return
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Role created successfully",
 		"data": gin.H{
-			"id":   int(id64),
+			"id":   roleID,
 			"name": input.Name,
 		},
 	})
@@ -271,8 +297,11 @@ func handleAdminRoleGet(c *gin.Context) {
 		role.Comments = &comments.String
 	}
 
-	// Permissions are stored in group_role table, not in roles table
-	role.Permissions = []string{}
+	// Fetch permissions from group_role table
+	role.Permissions, err = fetchRolePermissions(db, id)
+	if err != nil {
+		role.Permissions = []string{}
+	}
 
 	// Return role data in format expected by JavaScript
 	c.JSON(http.StatusOK, gin.H{
@@ -302,6 +331,7 @@ func handleAdminRoleUpdate(c *gin.Context) {
 	var input struct {
 		Name        string   `json:"name"`
 		Comments    string   `json:"comments"`
+		Description string   `json:"description"`
 		ValidID     int      `json:"valid_id"`
 		Permissions []string `json:"permissions"`
 	}
@@ -323,9 +353,16 @@ func handleAdminRoleUpdate(c *gin.Context) {
 		return
 	}
 
-	// Prepare values for update - convert empty strings to nil for proper NULL handling
-	var commentsVal interface{} = input.Comments
-	if input.Comments == "" {
+	// Use Comments or Description (Description from frontend)
+	var comments string
+	if input.Comments != "" {
+		comments = input.Comments
+	} else if input.Description != "" {
+		comments = input.Description
+	}
+
+	var commentsVal interface{} = comments
+	if comments == "" {
 		commentsVal = nil
 	}
 
@@ -334,8 +371,7 @@ func handleAdminRoleUpdate(c *gin.Context) {
 		validIDVal = 1 // Default to valid if not specified
 	}
 
-	// Update the role (permissions are managed via group_role table, not here)
-	// Note: For MySQL compatibility, each placeholder can only be used once
+	// Update the role
 	result, err := db.Exec(database.ConvertPlaceholders(`
 		UPDATE roles 
 		SET name = COALESCE(NULLIF($1, ''), name),
@@ -366,10 +402,210 @@ func handleAdminRoleUpdate(c *gin.Context) {
 		return
 	}
 
+	// Update permissions if provided
+	if len(input.Permissions) > 0 {
+		if err := saveRolePermissions(db, id, input.Permissions); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Failed to update permissions: " + err.Error(),
+			})
+			return
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Role updated successfully",
 	})
+}
+
+// saveRolePermissions saves role permissions to the group_role table.
+// Maps simple permission strings to group_role permission keys.
+func saveRolePermissions(db *sql.DB, roleID int, permissions []string) error {
+	if len(permissions) == 0 {
+		return nil
+	}
+
+	// Check if "*" (all permissions) is in the list
+	hasAll := false
+	for _, p := range permissions {
+		if p == "*" {
+			hasAll = true
+			break
+		}
+	}
+
+	// Get all groups to assign permissions to
+	rows, err := db.Query(database.ConvertPlaceholders(`
+		SELECT id FROM groups WHERE valid_id = 1 ORDER BY id
+	`))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var groupIDs []int
+	for rows.Next() {
+		var groupID int
+		if err := rows.Scan(&groupID); err != nil {
+			continue
+		}
+		groupIDs = append(groupIDs, groupID)
+	}
+
+	if len(groupIDs) == 0 {
+		return nil
+	}
+
+	// Define mapping from simple permissions to group_role permission keys
+	permMapping := map[string]string{
+		"view_tickets":     "ro",
+		"create_tickets":   "create",
+		"edit_tickets":     "note",
+		"delete_tickets":   "owner",
+		"assign_tickets":   "move_into",
+		"manage_users":     "rw",
+		"manage_settings":  "rw",
+		"manage_priorities": "priority",
+	}
+
+	var permKeys []string
+	if hasAll {
+		// All permissions means full rw access on all groups
+		permKeys = []string{"ro", "move_into", "create", "owner", "priority", "rw", "note"}
+	} else {
+		// Map each frontend permission to its database equivalent
+		seen := make(map[string]bool)
+		for _, p := range permissions {
+			if key, ok := permMapping[p]; ok && !seen[key] {
+				permKeys = append(permKeys, key)
+				seen[key] = true
+			}
+		}
+	}
+
+	if len(permKeys) == 0 {
+		return nil
+	}
+
+	// Clear existing permissions for this role first
+	if _, err := db.Exec(database.ConvertPlaceholders(`
+		DELETE FROM group_role WHERE role_id = $1
+	`), roleID); err != nil {
+		return err
+	}
+
+	// Insert new permissions for each group
+	for _, groupID := range groupIDs {
+		for _, permKey := range permKeys {
+			if _, err := db.Exec(database.ConvertPlaceholders(`
+				INSERT INTO group_role (role_id, group_id, permission_key, permission_value, create_time, create_by, change_time, change_by)
+				VALUES ($1, $2, $3, 1, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 1)
+			`), roleID, groupID, permKey); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// frontendPermMapping maps raw database permission keys to frontend-friendly names.
+// Some database permissions map to multiple frontend permissions.
+var frontendPermMapping = map[string]string{
+	"ro":         "view_tickets",
+	"move_into":  "assign_tickets",
+	"create":     "create_tickets",
+	"note":       "edit_tickets",
+}
+
+func mapDatabaseToFrontendPermissions(rawPermissions []string) []string {
+	var permissions []string
+	
+	// Handle special cases where one DB permission maps to multiple frontend permissions
+	permissionMap := make(map[string]bool)
+	
+	for _, perm := range rawPermissions {
+		switch perm {
+		case "rw":
+			// "rw" permission enables both manage_users and manage_settings
+			permissionMap["manage_users"] = true
+			permissionMap["manage_settings"] = true
+		case "owner":
+			// "owner" enables delete_tickets
+			permissionMap["delete_tickets"] = true
+		case "priority":
+			// "priority" enables manage_priorities
+			permissionMap["manage_priorities"] = true
+		default:
+			// Use the standard mapping for other permissions
+			if name, ok := frontendPermMapping[perm]; ok {
+				permissionMap[name] = true
+			}
+		}
+	}
+	
+	// Convert map to slice
+	for perm := range permissionMap {
+		permissions = append(permissions, perm)
+	}
+	
+	return permissions
+}
+
+// allRawPermissions contains all possible raw permission keys for full access.
+var allRawPermissions = []string{"ro", "move_into", "create", "owner", "priority", "rw", "note"}
+
+// fetchRolePermissions fetches unique permission keys from group_role table for a role.
+func fetchRolePermissions(db *sql.DB, roleID int) ([]string, error) {
+	rows, err := db.Query(database.ConvertPlaceholders(`
+		SELECT DISTINCT permission_key
+		FROM group_role
+		WHERE role_id = $1
+		ORDER BY permission_key
+	`), roleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var rawPermissions []string
+	for rows.Next() {
+		var perm string
+		if err := rows.Scan(&perm); err != nil {
+			continue
+		}
+		rawPermissions = append(rawPermissions, perm)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Check if role has all permissions (full access)
+	hasAll := true
+	for _, required := range allRawPermissions {
+		found := false
+		for _, p := range rawPermissions {
+			if p == required {
+				found = true
+				break
+			}
+		}
+		if !found {
+			hasAll = false
+			break
+		}
+	}
+
+	// If all permissions, return wildcard
+	if hasAll && len(rawPermissions) > 0 {
+		return []string{"*"}, nil
+	}
+
+	// Map to frontend-friendly names using the new mapping function
+	permissions := mapDatabaseToFrontendPermissions(rawPermissions)
+
+	return permissions, nil
 }
 
 // handleAdminRoleDelete soft deletes a role (sets valid_id = 2).

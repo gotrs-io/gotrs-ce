@@ -163,6 +163,8 @@ function dismissGuruMeditation() {
     if (guru) {
         guru.style.display = 'none';
     }
+    // Force a page reload to try to recover from the error
+    window.location.reload();
 }
 
 function copyGuruMeditation() {
@@ -205,11 +207,28 @@ document.addEventListener('htmx:trigger', function(evt) {
     }
 });
 
-// Auto-show on HTMX errors
+// Auto-recovery state
+let autoRecoveryActive = false;
+let recoveryCheckInterval = null;
+
+// Auto-show on HTMX errors with auto-recovery for server restarts
 document.addEventListener('htmx:responseError', function(evt) {
     const status = evt.detail.xhr.status;
     const response = evt.detail.xhr.responseText;
     
+    // Check if this looks like a server restart/unavailable situation
+    const isServerDown = status === 503 || status === 502 || status === 504 || 
+                        (status === 500 && (response.includes('connection') || response.includes('timeout'))) ||
+                        response.includes('Database') || response.includes('database') ||
+                        response.includes('connection refused') || response.includes('connect:');
+    
+    if (isServerDown && !autoRecoveryActive) {
+        // Start auto-recovery instead of showing Guru Meditation
+        startAutoRecovery();
+        return;
+    }
+    
+    // For non-retryable errors or when auto-recovery is already active, show Guru Meditation
     // Generate Amiga-style error codes
     let errorCode = '00000000.00000000';
     if (status === 500) errorCode = '00000005.0000DEAD'; // Database error
@@ -250,6 +269,71 @@ document.addEventListener('htmx:responseError', function(evt) {
     
     showGuruMeditation(errorCode, message, details);
 });
+
+function startAutoRecovery() {
+    if (autoRecoveryActive) return;
+    autoRecoveryActive = true;
+    
+    // Show subtle recovery indicator
+    showRecoveryIndicator();
+    
+    // Check server status every 5 seconds
+    recoveryCheckInterval = setInterval(async () => {
+        try {
+            const response = await fetch(window.location.href, {
+                method: 'HEAD',
+                cache: 'no-cache'
+            });
+            if (response.ok) {
+                // Server is back online, refresh the page
+                stopAutoRecovery();
+                window.location.reload();
+            }
+        } catch (e) {
+            // Server still down, continue checking
+        }
+    }, 5000);
+}
+
+function stopAutoRecovery() {
+    autoRecoveryActive = false;
+    if (recoveryCheckInterval) {
+        clearInterval(recoveryCheckInterval);
+        recoveryCheckInterval = null;
+    }
+    hideRecoveryIndicator();
+}
+
+function showRecoveryIndicator() {
+    let indicator = document.getElementById('auto-recovery-indicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'auto-recovery-indicator';
+        indicator.style.cssText = `
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #ff6b35;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        `;
+        indicator.innerHTML = '🔄 Reconnecting...';
+        document.body.appendChild(indicator);
+    }
+    indicator.style.display = 'block';
+}
+
+function hideRecoveryIndicator() {
+    const indicator = document.getElementById('auto-recovery-indicator');
+    if (indicator) {
+        indicator.style.display = 'none';
+    }
+}
 
 // Also catch unhandled errors
 window.addEventListener('error', function(e) {

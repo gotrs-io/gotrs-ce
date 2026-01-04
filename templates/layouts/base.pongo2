@@ -30,6 +30,15 @@
     <!-- HTMX for dynamic updates (vendored) -->
     <script src="/static/js/htmx.min.js"></script>
     
+    <!-- HTMX configuration for authentication -->
+    <script>
+        // Configure HTMX to include credentials for authentication
+        if (typeof htmx !== 'undefined') {
+            htmx.config.withCredentials = true;
+            console.log('HTMX configured with withCredentials:', htmx.config.withCredentials);
+        }
+    </script>
+    
     <!-- HTMX extensions (vendored) -->
     <script src="/static/js/htmx-json-enc.js"></script>
     

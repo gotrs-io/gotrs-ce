@@ -1,255 +1,108 @@
-# GOTRS Development Roadmap
+# GOTRS Roadmap
 
-*Last updated: December 30, 2025*
+Current status, past releases, and future plans for GOTRS.
 
 ## 🚀 Current Status
 
-**Version**: Pre-release (targeting 0.5.0 MVP on January 18, 2026)
+**Version**: 0.5.0 (January 2026) - MVP Release
 
-GOTRS is a modern, open-source ticketing system built with Go and HTMX, designed as an OTRS-compatible replacement. The core ticketing functionality is complete, and we're in the final stabilization phase before MVP release.
+GOTRS is a modern, open-source ticketing system built with Go and HTMX, designed as an OTRS-compatible replacement.
 
-### What Works Today
-- ✅ **Agent Interface**: Full ticket management (create, view, update, assign, transfer)
-- ✅ **Customer Portal**: Login, ticket submission, viewing, replies, and closure
-- ✅ **Email Integration**: Inbound (POP3/IMAP) and outbound with RFC-compliant threading
-- ✅ **Database**: Full MySQL/MariaDB and PostgreSQL compatibility
-- ✅ **Search**: Ticket search by number or title with pagination
-- ✅ **Queue Management**: Real-time statistics and ticket filtering
-- ✅ **CI/CD**: All GitHub Actions workflows passing (Security, Tests, Build)
-
-### What's Missing for MVP
-- ⏳ 48-hour stability burn-in test
-- ⏳ Staging environment deployment
+### What Works
+- Agent Interface: Full ticket management
+- Customer Portal: Login, submission, replies, closure
+- Email Integration: POP3/IMAP + RFC-compliant threading
+- Database: MySQL/MariaDB and PostgreSQL
+- 14+ Admin Modules
 
 ---
 
-## 📊 Metrics (December 30, 2025)
+## 📜 Past Releases
 
-| Metric | Status | Target |
-|--------|--------|--------|
-| Core Ticket Functionality | **90%** | 100% |
-| Customer Portal | **85%** | Basic |
-| Email Integration | **80%** | Basic |
-| Admin Modules | ~60% | 80% |
-| Test Coverage | ~65% | 50% |
-| CI/CD Pipelines | **100%** | All passing |
-| Production Readiness | **65%** | 70% |
-| Days to MVP | **19** | - |
+### [0.5.0] - January 3, 2026
 
----
+**MVP Release** - Core ticketing system complete
 
-## ✅ Delivered (August - December 2025)
+- Templates, Roles, Dynamic Fields, Services modules
+- Customer portal with full i18n (EN, DE, ES, FR, AR)
+- Email threading (Message-ID, In-Reply-To, References)
+- 1000+ unit tests, Codecov integration
 
-### Foundation (August 2025)
-- OTRS-compatible database schema (116 tables)
-- Docker/Podman containerization with rootless support
-- Go/Gin backend with HTMX + Alpine.js frontend
-- JWT-based authentication system
-- Baseline schema with `make synthesize` credential generation
+### [0.4.0] - October 20, 2025
 
-### Database Compatibility (August - September 2025)
-- Full MySQL/MariaDB compatibility via `ConvertPlaceholders` pattern
-- PostgreSQL support with RETURNING clauses
-- OTRS MySQL database import capability
-- 500+ SQL placeholder conversion fixes
+- Preferred queue auto-selection
+- Playwright acceptance harness
+- Ticket filters (not_closed option)
+- GoatKit typeahead/autocomplete modules
 
-### Core Ticketing (September - October 2025)
-- Ticket creation with proper number generation (DateChecksum format)
-- Ticket zoom with live articles, history, and customer context
-- Article system (public and internal replies)
-- Status transitions, agent assignment, queue transfer
-- Basic search with pagination
+### [0.3.0] - September 23, 2025
 
-### Agent Features (September - November 2025)
-- Queue detail pages with real-time statistics
-- Ticket history rendering across PostgreSQL/MariaDB
-- Reminder toasts with snooze actions
-- Per-queue ticket counts and filtering
+- Queue detail view with statistics
+- Tiptap rich text editor
+- Dark mode + Tailwind palette
+- Unicode support
 
-### Email Integration (November - December 2025)
-- RFC-compliant Message-ID, In-Reply-To, References headers
-- Outbound threaded notifications on ticket create/reply
-- Inbound POP3 connector with postmaster processor
-- IMAP connector with folder metadata propagation
-- SMTP4Dev integration test suite
+### [0.2.0] - September 3, 2025
 
-### Customer Portal (December 2025)
-- Customer login with stateless JWT
-- Ticket submission with Tiptap rich text editor
-- View own tickets with filtering
-- Add replies to own tickets
-- Close ticket functionality
-- Full i18n support (English, German, Spanish, French, Arabic, Klingon): Complete translations for dashboard, tickets list, new ticket creation, ticket view, authentication, navigation, company info pages, and all 8 placeholder pages—100+ keys per language verified
+- DB-less fallbacks for testing
+- Toolbox targets
+- YAML API routing
+- Auth provider registry
 
-### Quality & Testing
-- Template validation at startup
-- Comprehensive API/HTMX test suites
-- DB-less fallbacks for CI
-- Playwright E2E harness
+### [0.1.0] - August 17, 2025
 
-### CI/CD Infrastructure (December 2025)
-- GitHub Actions workflows fully operational (Security, Tests, Build)
-- Containerized test execution via `make test`
-- Codecov integration for coverage reporting
-- golangci-lint static analysis (non-blocking, reports issues)
-- Multi-arch Docker image builds (AMD64/ARM64)
-- SLSA Level 2 supply chain security
-
----
-
-## 🎯 MVP Release (0.5.0) - Target: January 18, 2026
-
-### Success Criteria
-- ✅ Agents can create and manage tickets
-- ✅ Customers can submit tickets via web form
-- ✅ Customers can view and reply to their tickets
-- ✅ Customers can close their own tickets
-- ✅ Basic ticket workflow (new → open → closed)
-- ✅ Comments/articles on tickets work
-- ✅ Email notifications sent on ticket events
-- ✅ Search tickets by number or title
-- ✅ 5+ test tickets successfully processed
-- ⏹️ System stable for 48 hours without crashes
-- ✅ Basic documentation for setup and usage
-
-### Remaining Work (Week 4: January 5-18, 2026)
-- ⏹️ Fix critical bugs discovered in testing
-- ⏹️ Performance verification (48-hour burn-in)
-- ⏹️ Deploy to staging environment
+- OTRS-compatible schema (116 tables)
+- Docker/Podman containerization
+- JWT authentication, RBAC
+- LDAP integration, i18n
 
 ---
 
 ## 🔮 Future Roadmap
 
-### Post-MVP Stabilization (Q1 2026)
-- Complete admin module audit and fixes
-- Comprehensive test coverage (80%+)
-- Performance optimization for 1000+ concurrent users
-- Complete API documentation
-- OTRS migration tools tested with real data
+### 0.6.0 - March 2026
 
-### Enhancement Phase (Q2 2026)
-- Advanced reporting and analytics
-- Workflow automation engine
-- Knowledge base integration
-- Multi-language support (i18n) for customer portal
-- REST API v2 with GraphQL option
-- Kubernetes deployment manifests
-
-### Innovation Phase (2026+)
-- Mobile applications (iOS/Android)
-- AI-powered ticket classification and routing
-- Predictive analytics for SLA management
-- Plugin marketplace for extensions
-- Enterprise integrations (Salesforce, ServiceNow, Slack)
-- Multi-tenant white-label theming
-
----
-
-## 🏗️ Technical Debt & Known Issues
-
-### Admin Modules Status
-| Module | Status | Notes |
-|--------|--------|-------|
-| Users | ✅ Working | Full CRUD, 20 unit tests, Playwright E2E |
-| Groups | ✅ Working | Full CRUD, 15+ unit tests, 9 Playwright E2E |
-| Customer Users | ✅ Working | Full CRUD, 7 unit tests, 10 Playwright E2E, import/export, bulk actions |
-| Customer Companies | ✅ Working | Full CRUD, 66 unit tests, portal settings, services, default services |
-| Queues | ✅ Working | Full CRUD, 32 unit tests, detail pages with stats |
-| Lookups | ✅ Working | Full CRUD, 50 unit tests covering States/Types/Priorities/Statuses |
-| States | ✅ Working | Full CRUD, 14 unit tests |
-| Types | ✅ Working | Full CRUD, 14 unit tests |
-| Priorities | ✅ Working | Full CRUD, 14 unit tests, API endpoints |
-| SLA | ✅ Working | Full CRUD, 50 unit tests, unit dropdown UX (min/hr/day), self-registering handlers |
-| Services | ✅ Working | Full CRUD, 31 unit tests, hierarchy naming support |
-| Roles | ✅ Working | Full CRUD, 36 Go + 19 JS tests, user assignments, permissions, API contracts |
-| Dynamic Fields | ✅ Working | 7 field types, 8 screens, screen config admin, 52+ tests, OTRS-compatible YAML |
-| Templates | ✅ Working | Full CRUD, queue/attachment assignment, 18 unit tests, Playwright E2E, agent integration, import/export |
-| Signatures | ✅ Working | Admin CRUD, queue integration, 17 unit tests, TipTap editor, variable substitution, import/export |
-
-### Deferred Items
-- Multi-tenant theming (requires schema changes)
-- Inbound email auto-ticket creation rules UI
+**Stabilization & Completions**
+- Complete admin modules
 - SLA engine
+- Email auto-ticket creation rules
 - Bulk ticket actions
-- Attachment handling in customer portal
+- Kubernetes manifests
+
+### 0.7.0 - June 2026
+
+**Enhancements**
+- Reporting and analytics
+- Workflow automation
+- Knowledge base
+- REST API v2
+
+### 1.0.0 - Q4 2026
+
+**Production Release**
+- All core OTRS features
+- 1000+ concurrent users
+- Production documentation
+- Enterprise integrations
+- 80% test coverage
 
 ---
 
-## 📈 Success Criteria for 1.0 (Future)
+## 📊 Version Summary
 
-**Production Release (TBD after MVP proven):**
-- ⏹️ All core OTRS features implemented
-- ⏹️ <200ms response time (p95)
-- ⏹️ Support for 1000+ concurrent users
-- ⏹️ 80%+ test coverage
-- ⏹️ Zero critical security issues
-- ⏹️ Complete documentation
-- ⏹️ Migration tools tested with real OTRS data
-- ⏹️ 5+ production deployments validated
-
----
-
-## 🤝 How to Contribute
-
-We welcome contributions! Priority areas:
-1. Testing and bug reports
-2. Documentation improvements
-3. Translation (i18n)
-4. Frontend UI/UX enhancements
-5. Performance optimization
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+| Version | Date | Status |
+|---------|------|--------|
+| 1.0.0 | Q4 2026 | 🔮 Future |
+| 0.7.0 | Jun 2026 | 🔮 Future |
+| 0.6.0 | Mar 2026 | 🔮 Future |
+| 0.5.0 | Jan 2026 | ✅ Released (MVP) |
+| 0.4.0 | Oct 2025 | ✅ Released |
+| 0.3.0 | Sep 2025 | ✅ Released |
+| 0.2.0 | Sep 2025 | ✅ Released |
+| 0.1.0 | Aug 2025 | ✅ Released |
 
 ---
 
-## 🎖️ Version History
+## Get Involved
 
-| Version | Date | Milestone |
-|---------|------|-----------|
-| 0.1.0 | Aug 17, 2025 | Database schema, initial structure |
-| 0.2.0 | Aug 24, 2025 | Admin UI scaffolding |
-| 0.3.0 | Aug 27, 2025 | Schema migrations, MySQL compatibility |
-| 0.4.0 | Oct 20, 2025 | Ticket vertical slice, queue automation |
-| 0.5.0 | Jan 18, 2026 | **MVP Target** - Full ticketing system |
-
----
-
-## 📜 Historical Development Log
-
-<details>
-<summary>Click to expand detailed development history</summary>
-
-### December 2025
-- Admin Lookups: comprehensive test suite (50+ tests) covering States, Types, Priorities, combined page
-- Admin Queues: comprehensive test suite (32 tests) with DB integration
-- Test infrastructure: hard-fail on DB unavailable, proper test stack setup
-- Customer portal: login, ticket CRUD, replies, close functionality
-- Inbound email: POP3/IMAP connectors, postmaster processor
-- SMTP4Dev integration test suite
-- Admin mail account poll status API
-- **Dynamic Fields complete (Dec 26)**: All 7 field types, admin CRUD, screen config, 8-page integration, 52+ tests, JS validation, i18n - completed in 1 day vs 16-day estimate
-
-### November 2025
-- Email threading support (RFC-compliant headers)
-- Outbound notifications on ticket create/reply
-
-### October 2025
-- Ticket creation vertical slice complete
-- Real ticket zoom with live articles
-- Ticket number generator (DateChecksum format)
-- Status transitions and assignment workflow
-- Queue statistics and filtering
-
-### September 2025
-- MySQL compatibility layer (ConvertPlaceholders)
-- Template system robustness
-- Code quality improvements
-- Queue detail enhancements
-
-### August 2025
-- Foundation: schema, Docker, authentication
-- OTRS import capability
-- Dynamic credential generation
-
-</details>
+Want to influence the roadmap? {{< discord "Join our Discord" >}} or open a [GitHub Discussion](https://github.com/gotrs-io/gotrs-ce/discussions).

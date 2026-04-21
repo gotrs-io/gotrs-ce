@@ -8,6 +8,15 @@
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://go.dev/)
 [![SLSA 2](https://slsa.dev/images/gh-badge-level2.svg)](https://slsa.dev)
 
+> [!IMPORTANT]
+> **This repository is archived and no longer maintained**
+>
+> Gotrs-ce has been superseded by [**Goatflow**](https://github.com/goatkit/goatflow), which is the active successor project.
+> 
+> No further bug fixes, features, or security updates will land here. Existing git history, releases, and tags remain readable; the repo is read-only.
+>
+> **Migrating?** Start at the Goatflow README. For questions, open an issue on the Goatflow repo, not this one.
+
 GOTRS (Go Open Ticket Request System) is a modern, secure, cloud-native ticketing and service management platform built as a next-generation replacement for OTRS. Written in Go with a modular monolith architecture, GOTRS provides enterprise-grade support ticketing, ITSM capabilities, and extensive customization options.
 
 ## Key Features
